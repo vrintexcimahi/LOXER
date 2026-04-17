@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #0EA5E9;
+  --color-primary-dark: #0284C7;
+  --color-primary-deeper: #0369A1;
+  --color-cyan: #06B6D4;
+  --color-cyan-light: #22D3EE;
+  --color-cyan-xlight: #CFFAFE;
+  --color-navy: #0F172A;
+  --color-navy-mid: #1E3A5F;
+  --gradient-hero: linear-gradient(135deg, #0F172A 0%, #0369A1 50%, #06B6D4 100%);
+  --gradient-cta: linear-gradient(90deg, #0EA5E9, #06B6D4);
+  --gradient-card: linear-gradient(145deg, #0EA5E9 0%, #0284C7 100%);
+  --gradient-sidebar: linear-gradient(180deg, #0F172A 0%, #0C2A4A 60%, #0369A1 100%);
+  --gradient-badge: linear-gradient(90deg, #22D3EE, #0EA5E9);
+  --gradient-subtle: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
+  --app-bg: #f0f9ff;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f8fafc;
+  --app-border: #dbeafe;
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+  --app-scrollbar-track: #F0F9FF;
+  --app-scrollbar-thumb: #7DD3FC;
+  --app-scrollbar-thumb-hover: #38BDF8;
+}
+
+.dark {
+  --gradient-hero: linear-gradient(135deg, #020617 0%, #0f172a 45%, #155e75 100%);
+  --gradient-subtle: linear-gradient(135deg, #0F172A 0%, #111827 100%);
+  --app-bg: #020617;
+  --app-surface: #0f172a;
+  --app-surface-soft: #111827;
+  --app-border: rgba(148, 163, 184, 0.22);
+  --app-text: #e2e8f0;
+  --app-text-muted: #94a3b8;
+  --app-scrollbar-track: #0f172a;
+  --app-scrollbar-thumb: #155e75;
+  --app-scrollbar-thumb-hover: #0891b2;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--app-bg);
+  color: var(--app-text);
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--app-scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--app-scrollbar-thumb); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--app-scrollbar-thumb-hover); }
+
+@layer utilities {
+  .gradient-hero { background: var(--gradient-hero); }
+  .gradient-cta { background: var(--gradient-cta); }
+  .gradient-card { background: var(--gradient-card); }
+  .gradient-sidebar { background: var(--gradient-sidebar); }
+  .gradient-badge { background: var(--gradient-badge); }
+  .gradient-subtle { background: var(--gradient-subtle); }
+
+  .text-gradient {
+    background: var(--gradient-cta);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 8px 32px rgba(6,182,212,0.15);
+  }
+
+  .card-hover { transition: all 200ms ease; }
+  .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(14,165,233,0.15); }
+}
+
+@layer components {
+  .input-field {
+    @apply w-full bg-white border-2 border-sky-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-300 outline-none transition-all duration-200 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10;
+  }
+  .label { @apply block text-sm font-medium text-slate-700 mb-1; }
+  .badge { @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border; }
+}
+
+html.dark body {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+html.dark .bg-sky-50,
+html.dark .bg-white {
+  background-color: var(--app-surface) !important;
+}
+
+html.dark .bg-slate-50 {
+  background-color: var(--app-surface-soft) !important;
+}
+
+html.dark .text-slate-800,
+html.dark .text-slate-700,
+html.dark .text-slate-900 {
+  color: var(--app-text) !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-slate-400 {
+  color: var(--app-text-muted) !important;
+}
+
+html.dark .border-sky-50,
+html.dark .border-sky-100,
+html.dark .border-sky-200,
+html.dark .border-white\/10 {
+  border-color: var(--app-border) !important;
+}
+
+html.dark .hover\:bg-sky-50:hover,
+html.dark .hover\:bg-white\/5:hover {
+  background-color: rgba(30, 41, 59, 0.72) !important;
+}
+
+html.dark .hover\:text-sky-700:hover,
+html.dark .hover\:text-sky-600:hover,
+html.dark .hover\:text-sky-500:hover {
+  color: #67e8f9 !important;
+}
+
+html.dark .glass {
+  background: rgba(15, 23, 42, 0.62);
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: 0 8px 32px rgba(2, 132, 199, 0.18);
+}
+
+html.dark .input-field {
+  background: #0f172a;
+  border-color: rgba(56, 189, 248, 0.22);
+  color: #e2e8f0;
+}
+
+html.dark .input-field::placeholder {
+  color: #64748b;
+}
+
+html.dark .label {
+  color: #cbd5e1;
+}
+
+html.dark .badge {
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+@keyframes blob { 0%,100%{transform:scale(1) rotate(0deg)} 50%{transform:scale(1.1) rotate(180deg)} }
+@keyframes fade-slide-up { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-15deg)} 75%{transform:rotate(15deg)} }
+@keyframes bounce-y { 0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)} }
+@keyframes count-up { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes shine { 0%{left:-100%} 100%{left:150%} }
+@keyframes status-pill {
+  0%,100% { transform: translateY(0) scale(1); box-shadow: 0 8px 24px rgba(2, 132, 199, 0.10); }
+  50% { transform: translateY(-3px) scale(1.01); box-shadow: 0 12px 28px rgba(34, 211, 238, 0.18); }
+}
+
+.animate-float { animation: float 4s ease-in-out infinite; }
+.animate-blob { animation: blob 12s linear infinite; }
+.animate-fade-up { animation: fade-slide-up 400ms ease-out forwards; }
+.animate-wiggle { animation: wiggle 0.5s ease-in-out; }
+.animate-bounce-y { animation: bounce-y 1.5s ease-in-out infinite; }
+.animate-count-up { animation: count-up 600ms ease-out forwards; }
+.animate-status-pill { animation: status-pill 3.2s ease-in-out infinite; }
+
+.page-enter { animation: fade-slide-up 400ms ease-out forwards; }
+
+.sidebar-item {
+  border-left: 3px solid transparent;
+  color: #94A3B8;
+  transition: all 200ms ease;
+}
+.sidebar-item:hover { background: rgba(255,255,255,0.06); color: white; }
+.sidebar-item-active {
+  background: rgba(255,255,255,0.12);
+  border-left: 3px solid #06B6D4;
+  color: white;
+}
