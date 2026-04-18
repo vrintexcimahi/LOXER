@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType }
 import {
   AlertTriangle,
   BadgeCheck,
+  BarChart3,
   Briefcase,
   Building,
   Building2,
@@ -10,14 +11,16 @@ import {
   ChevronRight,
   FileText,
   Filter,
+  Flag,
   Home,
-  LayoutTemplate,
   Link2,
   ListChecks,
   LogOut,
+  Megaphone,
   Menu,
   RefreshCw,
   Search,
+  Shield,
   ShieldCheck,
   ShieldX,
   UserCheck,
@@ -67,7 +70,7 @@ interface ToastState {
 }
 
 interface AdminMenuItem {
-  key: AdminTab | 'editor';
+  key: string;
   label: string;
   description: string;
   href: string;
@@ -218,7 +221,11 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
       { key: 'companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', href: '/admin/companies', icon: Building2 },
       { key: 'logs', label: 'Audit Log', description: 'Lihat semua jejak aksi admin', href: '/admin/logs', icon: FileText },
       { key: 'integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', href: '/admin/integrations', icon: Link2 },
-      { key: 'editor', label: 'Visual Editor', description: 'Ubah tampilan halaman publik', href: '/admin/editor', icon: LayoutTemplate },
+      { key: 'analytics', label: 'Advanced Analytics', description: 'Funnel, growth, dan health score', href: '/admin/analytics', icon: BarChart3 },
+      { key: 'flags', label: 'Feature Flags', description: 'Toggle fitur tanpa redeploy', href: '/admin/flags', icon: Flag },
+      { key: 'moderation', label: 'Moderation Queue', description: 'Review konten dan AI scoring', href: '/admin/moderation', icon: AlertTriangle },
+      { key: 'broadcast', label: 'Broadcast System', description: 'Kirim notifikasi ke segmen user', href: '/admin/broadcast', icon: Megaphone },
+      { key: 'security', label: 'Security Center', description: 'IP block, session, dan alerts', href: '/admin/security', icon: Shield },
     ],
     []
   );
@@ -294,7 +301,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
           <div className="p-3">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.key === activeTab;
+              const isActive = item.href === window.location.pathname || item.key === activeTab;
               return (
                 <a
                   key={item.key}
@@ -2323,12 +2330,6 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
             <p className="text-sm font-semibold text-white">Daftar Integrasi API</p>
             <p className="text-xs text-slate-500">Pantau status konfigurasi, endpoint proxy, dan dokumentasi provider.</p>
           </div>
-          <a
-            href="/admin/editor"
-            className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5"
-          >
-            Buka Visual Editor
-          </a>
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

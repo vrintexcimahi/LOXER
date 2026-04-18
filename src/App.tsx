@@ -16,8 +16,12 @@ const JobListings = lazy(() => import('./pages/employer/JobListings'));
 const PostJob = lazy(() => import('./pages/employer/PostJob'));
 const Applicants = lazy(() => import('./pages/employer/Applicants'));
 const CompanyProfile = lazy(() => import('./pages/employer/CompanyProfile'));
-const AdminEditor = lazy(() => import('./pages/admin/AdminEditor'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdvancedAnalytics = lazy(() => import('./pages/admin/AdvancedAnalytics'));
+const FeatureFlags = lazy(() => import('./pages/admin/FeatureFlags'));
+const ModerationQueue = lazy(() => import('./pages/admin/ModerationQueue'));
+const BroadcastSystem = lazy(() => import('./pages/admin/BroadcastSystem'));
+const SecurityCenter = lazy(() => import('./pages/admin/SecurityCenter'));
 
 type AuthMode = 'login' | 'register' | null;
 
@@ -96,7 +100,11 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/companies': <AdminDashboard tab="companies" />,
         '/admin/logs': <AdminDashboard tab="logs" />,
         '/admin/integrations': <AdminDashboard tab="integrations" />,
-        '/admin/editor': <AdminEditor />,
+        '/admin/analytics': <AdvancedAnalytics />,
+        '/admin/flags': <FeatureFlags />,
+        '/admin/moderation': <ModerationQueue />,
+        '/admin/broadcast': <BroadcastSystem />,
+        '/admin/security': <SecurityCenter />,
       };
 
       const page = adminPages[path];
