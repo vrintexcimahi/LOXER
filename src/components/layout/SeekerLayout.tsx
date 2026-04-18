@@ -1,10 +1,12 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { Home, Search, FileText, User, LogOut, Briefcase, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import BrandText from '../ui/BrandText';
 import ThemeToggle from '../ui/ThemeToggle';
 import usePersistentSidebar from './usePersistentSidebar';
 import NotificationBell from '../ui/NotificationBell';
+import DashboardGuideAssistant from '../ui/DashboardGuideAssistant';
+import { seekerGuideContent } from '../../lib/dashboardGuideContent';
 
 const navItems = [
   { label: 'Dashboard', description: 'Ringkasan progres pencarian kerja', icon: Home, href: '/seeker/dashboard' },
@@ -21,6 +23,24 @@ interface SeekerLayoutProps {
 export default function SeekerLayout({ children, currentPath }: SeekerLayoutProps) {
   const { userMeta, signOut } = useAuth();
   const { isCollapsed, isMobileOpen, toggleCollapsed, toggleMobile, closeMobile } = usePersistentSidebar('loxer-seeker-sidebar');
+  const assistantGuides = useMemo(
+    () =>
+      navItems.flatMap((item) => {
+        const guide = seekerGuideContent[item.href];
+        if (!guide) return [];
+
+        return [
+          {
+            id: item.href,
+            label: item.label,
+            description: item.description,
+            href: item.href,
+            ...guide,
+          },
+        ];
+      }),
+    []
+  );
   const currentDetail =
     navItems.find((item) => item.href === currentPath) ?? {
       label: 'Seeker Workspace',
@@ -230,6 +250,14 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
             );
           })}
         </div>
+
+        <DashboardGuideAssistant
+          workspaceLabel="Panduan Seeker LOXER"
+          workspaceDescription="Pilih menu yang ingin Anda pahami. Bot assistant ini menyimpan panduan terakhir agar lebih mudah dilanjutkan saat kembali."
+          storageKey="loxer-guide-seeker"
+          currentGuideId={currentPath}
+          guides={assistantGuides}
+        />
       </main>
     </div>
   );

@@ -51,8 +51,10 @@ import ApplicationStatusBadge from '../../components/ui/ApplicationStatusBadge';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import NotificationBell from '../../components/ui/NotificationBell';
 import usePersistentSidebar from '../../components/layout/usePersistentSidebar';
+import DashboardGuideAssistant from '../../components/ui/DashboardGuideAssistant';
 import { useAuth } from '../../contexts/useAuth';
 import { formatDayLabel, formatRelativeTime, logAdminAction, toISODateOnly } from '../../lib/adminUtils';
+import { adminGuideContent } from '../../lib/dashboardGuideContent';
 import { isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
 import { supabase } from '../../lib/supabase';
 import { AdminStats, AdminUserRow, ApplicationStatus, AuditLog, ChartDataPoint, Company, JobListing, UserRole } from '../../lib/types';
@@ -231,6 +233,28 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
     ],
     []
   );
+  const assistantGuides = useMemo(
+    () =>
+      menuItems.flatMap((item) => {
+        const guide = adminGuideContent[item.href];
+        if (!guide) return [];
+
+        return [
+          {
+            id: item.href,
+            label: item.label,
+            description: item.description,
+            href: item.href,
+            ...guide,
+          },
+        ];
+      }),
+    [menuItems]
+  );
+  const currentGuideId = useMemo(() => {
+    const pathname = window.location.pathname;
+    return menuItems.find((item) => item.href === pathname)?.href || menuItems.find((item) => item.key === activeTab)?.href || menuItems[0]?.href;
+  }, [activeTab, menuItems]);
 
   const showToast = (type: ToastType, message: string) => setToast({ type, message });
   const handleSignOut = async () => {
@@ -406,6 +430,14 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
             {activeTab === 'integrations' && <AdminIntegrations onToast={showToast} />}
             {activeTab === 'logs' && <AdminAuditLogs />}
           </main>
+
+          <DashboardGuideAssistant
+            workspaceLabel="Panduan Admin LOXER"
+            workspaceDescription="Pilih modul admin untuk melihat ringkasan fungsi, detail operasional, dan langkah penggunaan yang paling relevan."
+            storageKey="loxer-guide-admin"
+            currentGuideId={currentGuideId}
+            guides={assistantGuides}
+          />
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import {
   LayoutDashboard,
   Briefcase,
@@ -16,6 +16,8 @@ import BrandText from '../ui/BrandText';
 import ThemeToggle from '../ui/ThemeToggle';
 import usePersistentSidebar from './usePersistentSidebar';
 import NotificationBell from '../ui/NotificationBell';
+import DashboardGuideAssistant from '../ui/DashboardGuideAssistant';
+import { employerGuideContent } from '../../lib/dashboardGuideContent';
 
 const navItems = [
   { label: 'Dashboard', description: 'Ringkasan performa rekrutmen', icon: LayoutDashboard, href: '/employer/dashboard' },
@@ -32,6 +34,33 @@ interface EmployerLayoutProps {
 export default function EmployerLayout({ children, currentPath }: EmployerLayoutProps) {
   const { userMeta, signOut } = useAuth();
   const { isCollapsed, isMobileOpen, toggleCollapsed, toggleMobile, closeMobile } = usePersistentSidebar('loxer-employer-sidebar');
+  const assistantGuides = useMemo(
+    () =>
+      [
+        ...navItems,
+        {
+          label: 'Pasang Lowongan',
+          description: 'Buat dan publikasikan lowongan baru',
+          icon: PlusCircle,
+          href: '/employer/jobs/new',
+        },
+      ].flatMap((item) => {
+        const guide = employerGuideContent[item.href];
+        if (!guide) return [];
+
+        return [
+          {
+            id: item.href,
+            label: item.label,
+            description: item.description,
+            href: item.href,
+            ...guide,
+          },
+        ];
+      }),
+    []
+  );
+  const currentGuideId = currentPath.startsWith('/employer/jobs/new') ? '/employer/jobs/new' : currentPath;
   const currentDetail =
     navItems.find((item) => item.href === currentPath) ?? {
       label: 'Employer Workspace',
@@ -259,6 +288,14 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
             );
           })}
         </div>
+
+        <DashboardGuideAssistant
+          workspaceLabel="Panduan Employer LOXER"
+          workspaceDescription="Pilih menu employer untuk melihat fungsi detail, langkah penggunaan, dan pintasan ke halaman terkait."
+          storageKey="loxer-guide-employer"
+          currentGuideId={currentGuideId}
+          guides={assistantGuides}
+        />
       </main>
     </div>
   );

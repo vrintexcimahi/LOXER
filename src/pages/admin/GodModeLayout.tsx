@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -18,7 +18,9 @@ import BrandText from '../../components/ui/BrandText';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import NotificationBell from '../../components/ui/NotificationBell';
 import usePersistentSidebar from '../../components/layout/usePersistentSidebar';
+import DashboardGuideAssistant from '../../components/ui/DashboardGuideAssistant';
 import { useAuth } from '../../contexts/useAuth';
+import { adminGuideContent } from '../../lib/dashboardGuideContent';
 import { isDefaultAdminEmail } from '../../lib/constants';
 
 interface GodModeLayoutProps {
@@ -107,6 +109,24 @@ export default function GodModeLayout({ title, description, children }: GodModeL
   const { isCollapsed, isMobileOpen, toggleCollapsed, toggleMobile, closeMobile } = usePersistentSidebar('loxer-god-mode-sidebar');
   const isDefaultAdminAccount = isDefaultAdminEmail(user?.email);
   const isAdmin = Boolean(user && (userMeta?.role === 'admin' || isDefaultAdminAccount));
+  const assistantGuides = useMemo(
+    () =>
+      [...CORE_ITEMS, ...GOD_MODE_ITEMS].flatMap((item) => {
+        const guide = adminGuideContent[item.href];
+        if (!guide) return [];
+
+        return [
+          {
+            id: item.href,
+            label: item.label,
+            description: item.description,
+            href: item.href,
+            ...guide,
+          },
+        ];
+      }),
+    []
+  );
 
   if (!isAdmin) {
     return (
@@ -224,6 +244,14 @@ export default function GodModeLayout({ title, description, children }: GodModeL
           </header>
 
           <main className="flex-1 px-4 py-6 lg:px-6">{children}</main>
+
+          <DashboardGuideAssistant
+            workspaceLabel="Panduan Admin God Mode"
+            workspaceDescription="Assistant ini menyimpan panduan modul admin terakhir yang dipilih, lalu menampilkan fungsi detail dari setiap menu God Mode."
+            storageKey="loxer-guide-god-mode"
+            currentGuideId={pathname}
+            guides={assistantGuides}
+          />
         </div>
       </div>
     </div>
