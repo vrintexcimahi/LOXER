@@ -64,6 +64,29 @@ body {
   .gradient-sidebar { background: var(--gradient-sidebar); }
   .gradient-badge { background: var(--gradient-badge); }
   .gradient-subtle { background: var(--gradient-subtle); }
+  .dashboard-sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(103, 232, 249, 0.65) rgba(15, 23, 42, 0.5);
+  }
+
+  .dashboard-sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .dashboard-sidebar-scroll::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 999px;
+  }
+
+  .dashboard-sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(103, 232, 249, 0.65);
+    border-radius: 999px;
+    border: 1px solid rgba(12, 42, 74, 0.85);
+  }
+
+  .dashboard-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(34, 211, 238, 0.9);
+  }
 
   .text-gradient {
     background: var(--gradient-cta);
@@ -139,6 +162,19 @@ html.dark .glass {
   background: rgba(15, 23, 42, 0.62);
   border-color: rgba(148, 163, 184, 0.18);
   box-shadow: 0 8px 32px rgba(2, 132, 199, 0.18);
+}
+
+html.dark .dashboard-sidebar-scroll {
+  scrollbar-color: rgba(34, 211, 238, 0.8) rgba(2, 6, 23, 0.55);
+}
+
+html.dark .dashboard-sidebar-scroll::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.55);
+}
+
+html.dark .dashboard-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.8);
+  border-color: rgba(2, 6, 23, 0.8);
 }
 
 html.dark .input-field {

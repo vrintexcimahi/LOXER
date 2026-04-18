@@ -284,7 +284,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
 
         <aside
           className={classNames(
-            'fixed inset-y-0 left-0 z-40 w-64 border-r border-white/10 bg-slate-900 transition-all duration-300',
+            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-64 flex-col overflow-hidden border-r border-white/10 bg-slate-900 transition-all duration-300',
             isMobileOpen ? 'translate-x-0' : '-translate-x-full',
             isCollapsed ? 'lg:w-20' : 'lg:w-64',
             'lg:translate-x-0'
@@ -300,7 +300,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
             </button>
           </div>
 
-          <div className="p-3">
+          <div className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto p-3">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.href === window.location.pathname || item.key === activeTab;

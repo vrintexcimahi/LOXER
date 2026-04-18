@@ -37,7 +37,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
     <div className="flex min-h-screen bg-sky-50">
       {/* Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col fixed left-0 top-0 h-full gradient-sidebar z-40 transition-all duration-300 ${
+        className={`hidden lg:flex flex-col fixed left-0 top-0 h-full min-h-0 overflow-hidden gradient-sidebar z-40 transition-all duration-300 ${
           isCollapsed ? 'w-20' : 'w-64'
         }`}
       >
@@ -50,7 +50,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-6 space-y-1">
+        <nav className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-6 space-y-1">
           {navItems.map(({ label, description, icon: Icon, href }) => {
             const active = currentPath === href;
             return (
@@ -103,7 +103,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
             onClick={closeMobile}
             aria-label="Close sidebar overlay"
           />
-          <aside className="absolute left-0 top-0 flex h-full w-72 flex-col gradient-sidebar shadow-2xl">
+          <aside className="absolute left-0 top-0 flex h-full min-h-0 w-72 flex-col overflow-hidden gradient-sidebar shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 gradient-cta rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/30">
@@ -116,7 +116,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
               </button>
             </div>
 
-            <nav className="flex-1 px-3 py-6 space-y-1">
+            <nav className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-6 space-y-1">
               {navItems.map(({ label, description, icon: Icon, href }) => {
                 const active = currentPath === href;
                 return (

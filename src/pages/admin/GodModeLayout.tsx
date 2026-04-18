@@ -128,7 +128,7 @@ export default function GodModeLayout({ title, description, children }: GodModeL
       <div className="flex min-h-screen">
         <aside
           className={classNames(
-            'fixed inset-y-0 left-0 z-40 flex w-[300px] flex-col border-r border-white/10 bg-slate-950/95 backdrop-blur transition-transform lg:static',
+            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-[300px] flex-col overflow-hidden border-r border-white/10 bg-slate-950/95 backdrop-blur transition-transform lg:static',
             isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
             isCollapsed ? 'lg:w-[112px]' : 'lg:w-[300px]'
           )}
@@ -152,7 +152,7 @@ export default function GodModeLayout({ title, description, children }: GodModeL
             </button>
           </div>
 
-          <div className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
+          <div className="dashboard-sidebar-scroll min-h-0 flex-1 space-y-6 overflow-y-auto px-3 py-4">
             {!isCollapsed && <SidebarSection title="Core Admin" items={CORE_ITEMS} pathname={pathname} closeMobile={closeMobile} />}
             {!isCollapsed && <SidebarSection title="God Mode" items={GOD_MODE_ITEMS} pathname={pathname} closeMobile={closeMobile} />}
 

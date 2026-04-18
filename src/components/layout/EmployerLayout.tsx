@@ -47,7 +47,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
   return (
     <div className="flex min-h-screen bg-sky-50">
       <aside
-        className={`hidden lg:flex fixed left-0 top-0 z-40 h-full flex-col gradient-sidebar transition-all duration-300 ${
+        className={`hidden lg:flex fixed left-0 top-0 z-40 h-full min-h-0 flex-col overflow-hidden gradient-sidebar transition-all duration-300 ${
           isCollapsed ? 'w-20' : 'w-64'
         }`}
       >
@@ -63,7 +63,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
           ) : null}
         </div>
 
-        <nav className="flex-1 px-3 py-6 space-y-1">
+        <nav className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-6 space-y-1">
           {navItems.map(({ label, description, icon: Icon, href }) => {
             const active = currentPath === href;
             return (
@@ -123,7 +123,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
       {isMobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={closeMobile} aria-label="Close sidebar overlay" />
-          <aside className="absolute left-0 top-0 flex h-full w-72 flex-col gradient-sidebar shadow-2xl">
+          <aside className="absolute left-0 top-0 flex h-full min-h-0 w-72 flex-col overflow-hidden gradient-sidebar shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 gradient-cta rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/30">
@@ -137,7 +137,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
               </button>
             </div>
 
-            <nav className="flex-1 px-3 py-6 space-y-1">
+            <nav className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-6 space-y-1">
               {navItems.map(({ label, description, icon: Icon, href }) => {
                 const active = currentPath === href;
                 return (
