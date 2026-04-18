@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Briefcase, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck } from 'lucide-react';
+import { X, Briefcase, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { UserRole } from '../../lib/types';
 import BrandText from '../../components/ui/BrandText';
-import { DEFAULT_ADMIN_EMAIL } from '../../lib/constants';
+import { DEFAULT_ADMIN_EMAIL, isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
 import { supabase } from '../../lib/supabase';
 
 interface AuthModalProps {
@@ -13,16 +13,156 @@ interface AuthModalProps {
   onSwitchMode: (mode: 'login' | 'register') => void;
 }
 
+type OtpChannel = 'email' | 'sms';
+
 export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProps) {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle, requestOtp, verifyOtpCode } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('seeker');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpChannel, setOtpChannel] = useState<OtpChannel>('email');
+
+  async function resolveNextPath(fallbackEmail?: string) {
+    let nextPath = '/seeker/dashboard';
+    if (!supabase) return nextPath;
+
+    const { data: authData } = await supabase.auth.getUser();
+    const signedInUser = authData.user;
+
+    if (!signedInUser) return nextPath;
+
+    const normalizedFallbackEmail = normalizeComparableEmail(fallbackEmail);
+    const isDefaultAdmin = isDefaultAdminEmail(signedInUser.email || normalizedFallbackEmail);
+    let { data: meta } = await supabase
+      .from('users_meta')
+      .select('id, email, role')
+      .eq('id', signedInUser.id)
+      .maybeSingle();
+
+    if (isDefaultAdmin && meta?.role !== 'admin') {
+      const { data: updatedMeta } = await supabase
+        .from('users_meta')
+        .upsert(
+          {
+            id: signedInUser.id,
+            email: signedInUser.email || DEFAULT_ADMIN_EMAIL,
+            role: 'admin',
+          },
+          { onConflict: 'id' }
+        )
+        .select('id, email, role')
+        .maybeSingle();
+
+      if (updatedMeta) meta = updatedMeta;
+    }
+
+    if (meta?.role === 'employer') return '/employer/dashboard';
+    if (meta?.role === 'admin' || isDefaultAdmin) return '/admin/dashboard';
+    return '/seeker/dashboard';
+  }
+
+  async function handleRequestOtp(channel: OtpChannel) {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    const { error } = await requestOtp({
+      channel,
+      email,
+      phone,
+    });
+
+    if (error) {
+      if (channel === 'sms') {
+        setError('OTP SMS gagal dikirim. Pastikan provider SMS sudah aktif di Supabase.');
+      } else {
+        setError('OTP Gmail gagal dikirim. Pastikan email Auth Supabase aktif.');
+      }
+      setLoading(false);
+      return;
+    }
+
+    setOtpChannel(channel);
+    setSuccess(channel === 'sms' ? 'OTP SMS berhasil dikirim.' : 'OTP Gmail berhasil dikirim ke email Anda.');
+    setLoading(false);
+  }
+
+  async function handleVerifyOtp() {
+    if (!otpCode.trim()) {
+      setError('Kode OTP wajib diisi.');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    const { error } = await verifyOtpCode({
+      channel: otpChannel,
+      email,
+      phone,
+      token: otpCode,
+    });
+
+    if (error) {
+      setError('Kode OTP tidak valid atau sudah kedaluwarsa.');
+      setLoading(false);
+      return;
+    }
+
+    const nextPath = await resolveNextPath(email);
+    setSuccess('Verifikasi berhasil. Mengalihkan...');
+    setLoading(false);
+    setTimeout(() => {
+      onClose();
+      window.location.href = nextPath;
+    }, 800);
+  }
+
+  function resetOtpState() {
+    setOtpStep(false);
+    setOtpCode('');
+    setOtpChannel('email');
+  }
+
+  async function handleGoogleAuth() {
+    setError('');
+    setLoading(true);
+
+    if (mode === 'register') {
+      if (!fullName.trim()) {
+        setError('Nama lengkap wajib diisi.');
+        setLoading(false);
+        return;
+      }
+
+      if (!phone.trim()) {
+        setError('Nomor telepon wajib diisi.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    const { error } = await signInWithGoogle({
+      role,
+      fullName,
+      phone,
+      mode,
+    });
+
+    if (error) {
+      setError('Gagal memulai login Gmail. Pastikan Google Auth sudah aktif di Supabase.');
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,83 +176,23 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
       if (error) {
         setError('Email atau password salah. Silakan coba lagi.');
       } else {
-        let nextPath = '/seeker/dashboard';
-
-        if (supabase) {
-          const { data: authData } = await supabase.auth.getUser();
-          const signedInUser = authData.user;
-
-          if (signedInUser) {
-            const isDefaultAdmin = (signedInUser.email || normalizedEmail).trim().toLowerCase() === DEFAULT_ADMIN_EMAIL;
-            let { data: meta } = await supabase
-              .from('users_meta')
-              .select('id, email, role')
-              .eq('id', signedInUser.id)
-              .maybeSingle();
-
-            if (isDefaultAdmin && meta?.role !== 'admin') {
-              // First, try direct client update for own row.
-              const { data: updatedMeta } = await supabase
-                .from('users_meta')
-                .upsert(
-                  {
-                    id: signedInUser.id,
-                    email: signedInUser.email || DEFAULT_ADMIN_EMAIL,
-                    role: 'admin',
-                  },
-                  { onConflict: 'id' }
-                )
-                .select('id, email, role')
-                .maybeSingle();
-
-              if (updatedMeta) meta = updatedMeta;
-
-              // Second, try server proxy (service role) if role still not synced.
-              if (!meta || meta.role !== 'admin') {
-                try {
-                  const { data: sessionData } = await supabase.auth.getSession();
-                  const token = sessionData.session?.access_token;
-                  if (token) {
-                    const res = await fetch('/api/admin/ensure-default-admin', {
-                      method: 'POST',
-                      headers: {
-                        Authorization: `Bearer ${token}`,
-                      },
-                    });
-                    if (res.ok) {
-                      const payload = (await res.json()) as { meta?: { id: string; email: string; role: UserRole } };
-                      if (payload.meta) meta = payload.meta;
-                    }
-                  }
-                } catch (proxyErr) {
-                  console.warn('[AuthModal] ensure default admin via proxy gagal:', proxyErr);
-                }
-              }
-            }
-
-            if (meta?.role === 'employer') {
-              nextPath = '/employer/dashboard';
-            } else if (meta?.role === 'admin' || isDefaultAdmin) {
-              nextPath = '/admin/dashboard';
-            }
-          }
-        }
+        const nextPath = await resolveNextPath(normalizedEmail);
 
         onClose();
         window.location.href = nextPath;
       }
     } else {
+      resetOtpState();
       if (!fullName.trim()) { setError('Nama lengkap wajib diisi.'); setLoading(false); return; }
+      if (!phone.trim()) { setError('Nomor telepon wajib diisi.'); setLoading(false); return; }
       if (password.length < 6) { setError('Password minimal 6 karakter.'); setLoading(false); return; }
-      const { error } = await signUp(email, password, role, fullName);
+      const { error } = await signUp(email, password, role, fullName, phone);
       if (error) {
         setError('Gagal mendaftar. Email mungkin sudah terdaftar.');
       } else {
-        setSuccess('Akun berhasil dibuat! Mengalihkan...');
-        setTimeout(() => {
-          onClose();
-          window.location.href = role === 'employer' ? '/employer/dashboard' : '/seeker/dashboard';
-        }, 1000);
+        setOtpStep(true);
+        setOtpChannel('email');
+        setSuccess('Akun berhasil dibuat. Pilih pengiriman OTP untuk verifikasi akun.');
       }
     }
     setLoading(false);
@@ -197,6 +277,78 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {otpStep ? (
+              <>
+                <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-4">
+                  <p className="text-sm font-semibold text-slate-800">Verifikasi OTP</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    Kirim kode OTP ke Gmail atau SMS, lalu masukkan kodenya untuk menyelesaikan pendaftaran.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleRequestOtp('email')}
+                    disabled={loading}
+                    className="rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-sky-50 disabled:opacity-50"
+                  >
+                    Kirim OTP Gmail
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRequestOtp('sms')}
+                    disabled={loading}
+                    className="rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-sky-50 disabled:opacity-50"
+                  >
+                    Kirim OTP SMS
+                  </button>
+                </div>
+
+                <div>
+                  <label className="label">Kode OTP</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder={otpChannel === 'sms' ? 'Masukkan OTP dari SMS' : 'Masukkan OTP dari Gmail'}
+                    className="input-field"
+                  />
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">
+                    {error}
+                  </div>
+                )}
+                {success && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-emerald-600 text-sm">
+                    {success}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleVerifyOtp}
+                  disabled={loading}
+                  className="w-full gradient-cta text-white rounded-xl py-3 font-semibold text-sm shadow-lg shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Memproses...</>
+                  ) : 'Verifikasi OTP'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={resetOtpState}
+                  className="w-full rounded-xl border border-sky-200 py-3 text-sm font-semibold text-slate-600 hover:bg-sky-50"
+                >
+                  Kembali ke Form Daftar
+                </button>
+              </>
+            ) : (
+              <>
             {/* Full Name (Register only) */}
             {mode === 'register' && (
               <div>
@@ -208,6 +360,23 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Nama lengkapmu"
+                    className="input-field pl-10"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {mode === 'register' && (
+              <div>
+                <label className="label">Nomor Telepon</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-400" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+62 812 xxxx xxxx"
                     className="input-field pl-10"
                     required
                   />
@@ -275,6 +444,31 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
                 <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Memproses...</>
               ) : mode === 'login' ? 'Masuk' : 'Buat Akun'}
             </button>
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-sky-100" />
+              <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">atau</span>
+              <div className="h-px flex-1 bg-sky-100" />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleAuth}
+              disabled={loading}
+              className="w-full rounded-xl border border-sky-200 bg-white py-3 font-semibold text-sm text-slate-700 shadow-sm hover:bg-sky-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-colors"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                  <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.6 2.5 12 2.5A9.5 9.5 0 1 0 12 21.5c5.5 0 9.1-3.8 9.1-9.2 0-.6-.1-1.1-.1-1.6H12Z" />
+                  <path fill="#34A853" d="M3.4 7.7l3.2 2.3C7.4 8 9.5 6.2 12 6.2c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.6 2.5 12 2.5c-3.6 0-6.7 2.1-8.2 5.2Z" />
+                  <path fill="#FBBC05" d="M12 21.5c2.5 0 4.5-.8 6.1-2.2l-2.8-2.3c-.8.6-1.8.9-3.3.9-3.8 0-5.2-2.4-5.5-3.7l-3.2 2.4c1.5 3.1 4.6 4.9 8.7 4.9Z" />
+                  <path fill="#4285F4" d="M21.1 12.3c0-.6-.1-1.1-.1-1.6H12v3.9h5.5c-.3 1.3-1.1 2.4-2.2 3.1l2.8 2.3c1.7-1.5 3-4 3-7.7Z" />
+                </svg>
+              </span>
+              {mode === 'login' ? 'Masuk dengan Gmail' : 'Daftar dengan Gmail'}
+            </button>
+              </>
+            )}
           </form>
 
           {/* Switch mode */}

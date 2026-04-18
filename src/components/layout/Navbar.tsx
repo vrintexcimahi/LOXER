@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Menu, X, ChevronDown, User, LogOut, Settings, PenSquare, ShieldCheck } from 'lucide-react';
+import { Briefcase, Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import BrandText from '../ui/BrandText';
 import ThemeToggle from '../ui/ThemeToggle';
@@ -226,11 +226,6 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
                           Admin (Administrator)
                         </a>
                       ) : null}
-                      {userMeta.role === 'employer' ? (
-                        <a href="/admin/editor" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 transition-colors">
-                          <PenSquare className="w-4 h-4 text-sky-500" /> Visual Editor
-                        </a>
-                      ) : null}
                       <hr className="border-sky-100" />
                       <button
                         onClick={handleSignOut}
@@ -301,9 +296,6 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           {user ? (
             <>
               <a href={getDashboardPath()} className="text-white font-medium text-sm">Dashboard</a>
-              {userMeta?.role === 'employer' ? (
-                <a href="/admin/editor" className="text-white font-medium text-sm">Visual Editor</a>
-              ) : null}
               {userMeta?.role === 'admin' ? (
                 <a href="/admin/dashboard" className="text-cyan-300 font-medium text-sm inline-flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4" /> Admin (Administrator)

@@ -5,6 +5,13 @@ function getBearerToken(req) {
   return authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
 }
 
+function normalizeComparableEmail(value) {
+  return String(value || '')
+    .replace(/\\r|\\n|\r|\n/g, '')
+    .trim()
+    .toLowerCase();
+}
+
 export default async function handler(req, res) {
   if (req.method && req.method !== 'POST') {
     res.status(405).json({ message: 'Method tidak didukung' });
@@ -13,11 +20,11 @@ export default async function handler(req, res) {
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  const defaultAdminEmail = (
+  const defaultAdminEmail = normalizeComparableEmail(
     process.env.DEFAULT_ADMIN_EMAIL ||
     process.env.VITE_DEFAULT_ADMIN_EMAIL ||
-    'admin@loxer.app'
-  ).toLowerCase();
+    'loxer-admin-1776448925326@example.com'
+  );
 
   if (!supabaseUrl || !serviceRoleKey) {
     res.status(500).json({ message: 'Server ensure default admin belum dikonfigurasi.' });
@@ -41,7 +48,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const email = (signedInUser.email || '').trim().toLowerCase();
+  const email = normalizeComparableEmail(signedInUser.email);
   if (email !== defaultAdminEmail) {
     res.status(403).json({ message: 'Forbidden' });
     return;

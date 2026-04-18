@@ -2,8 +2,57 @@ import { useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { UserMeta, UserRole } from '../lib/types';
-import { DEFAULT_ADMIN_EMAIL } from '../lib/constants';
+import { DEFAULT_ADMIN_EMAIL, isDefaultAdminEmail } from '../lib/constants';
 import { AuthContext } from './auth-context';
+
+const OAUTH_SIGNUP_STORAGE_KEY = 'loxer-oauth-signup-intent';
+
+interface OAuthSignupIntent {
+  role: UserRole;
+  fullName: string;
+  phone: string;
+  mode: 'login' | 'register';
+  createdAt: number;
+}
+
+function readOAuthSignupIntent() {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(OAUTH_SIGNUP_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<OAuthSignupIntent>;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.createdAt !== 'number') return null;
+
+    const maxAgeMs = 30 * 60 * 1000;
+    if (Date.now() - parsed.createdAt > maxAgeMs) {
+      window.localStorage.removeItem(OAUTH_SIGNUP_STORAGE_KEY);
+      return null;
+    }
+
+    return {
+      role: parsed.role === 'employer' ? 'employer' : 'seeker',
+      fullName: String(parsed.fullName || ''),
+      phone: String(parsed.phone || ''),
+      mode: parsed.mode === 'register' ? 'register' : 'login',
+      createdAt: parsed.createdAt,
+    } satisfies OAuthSignupIntent;
+  } catch {
+    return null;
+  }
+}
+
+function writeOAuthSignupIntent(intent: OAuthSignupIntent) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(OAUTH_SIGNUP_STORAGE_KEY, JSON.stringify(intent));
+}
+
+function clearOAuthSignupIntent() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(OAUTH_SIGNUP_STORAGE_KEY);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -11,7 +60,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userMeta, setUserMeta] = useState<UserMeta | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchUserMeta(authUser: Pick<User, 'id' | 'email'>) {
+  async function ensureOAuthProvisioning(authUser: User, currentMeta: UserMeta | null) {
+    if (!supabase) return currentMeta;
+
+    const pendingIntent = readOAuthSignupIntent();
+    if (!pendingIntent && currentMeta) return currentMeta;
+
+    let nextMeta = currentMeta;
+    const desiredRole = pendingIntent?.role || currentMeta?.role || 'seeker';
+    const derivedFullName =
+      pendingIntent?.fullName.trim() ||
+      String(authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Pengguna LOXER');
+    const derivedPhone = pendingIntent?.phone.trim() || String(authUser.user_metadata?.phone || '');
+
+    if (!nextMeta) {
+      const { data: createdMeta, error: metaError } = await supabase
+        .from('users_meta')
+        .insert({
+          id: authUser.id,
+          email: authUser.email || '',
+          role: desiredRole,
+        })
+        .select('*')
+        .maybeSingle();
+
+      if (metaError) {
+        console.warn('[AuthContext] Gagal membuat users_meta untuk OAuth:', metaError.message);
+      } else if (createdMeta) {
+        nextMeta = createdMeta as UserMeta;
+      }
+    }
+
+    if (desiredRole === 'seeker') {
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('seeker_profiles')
+        .select('id, full_name, phone')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.warn('[AuthContext] Gagal memeriksa seeker_profiles OAuth:', profileError.message);
+      } else if (!existingProfile) {
+        const { error: insertProfileError } = await supabase.from('seeker_profiles').insert({
+          user_id: authUser.id,
+          full_name: derivedFullName,
+          phone: derivedPhone,
+        });
+
+        if (insertProfileError) {
+          console.warn('[AuthContext] Gagal membuat seeker_profiles untuk OAuth:', insertProfileError.message);
+        }
+      }
+    }
+
+    if (nextMeta) clearOAuthSignupIntent();
+    return nextMeta;
+  }
+
+  async function fetchUserMeta(authUser: User) {
     if (!supabase) return;
     const { data, error } = await supabase
       .from('users_meta')
@@ -25,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const isDefaultAdmin = authUser.email?.trim().toLowerCase() === DEFAULT_ADMIN_EMAIL;
+    const isDefaultAdmin = isDefaultAdminEmail(authUser.email);
     let nextMeta = data as UserMeta | null;
 
     if (isDefaultAdmin && (!nextMeta || nextMeta.role !== 'admin')) {
@@ -78,6 +184,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (repairedMeta) {
         nextMeta = repairedMeta as UserMeta;
       }
+    }
+
+    if (!isDefaultAdmin) {
+      nextMeta = await ensureOAuthProvisioning(authUser, nextMeta);
     }
 
     setUserMeta(nextMeta);
@@ -150,14 +260,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
-  async function signUp(email: string, password: string, role: UserRole, fullName: string) {
+  async function signUp(email: string, password: string, role: UserRole, fullName: string, phone: string) {
     if (!supabase) return { error: new Error('Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.') };
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedFullName = fullName.trim();
+    const normalizedPhone = phone.trim();
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        data: {
+          full_name: normalizedFullName,
+          phone: normalizedPhone,
+          role,
+        },
+      },
+    });
     if (error) return { error };
     if (data.user) {
       const { error: metaError } = await supabase.from('users_meta').insert({
         id: data.user.id,
-        email,
+        email: normalizedEmail,
         role,
       });
       if (metaError) return { error: metaError };
@@ -165,7 +288,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (role === 'seeker') {
         await supabase.from('seeker_profiles').insert({
           user_id: data.user.id,
-          full_name: fullName,
+          full_name: normalizedFullName,
+          phone: normalizedPhone,
         });
       }
     }
@@ -175,6 +299,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signIn(email: string, password: string) {
     if (!supabase) return { error: new Error('Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.') };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error as Error | null };
+  }
+
+  async function signInWithGoogle(options?: { role?: UserRole; fullName?: string; phone?: string; mode?: 'login' | 'register' }) {
+    if (!supabase) return { error: new Error('Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.') };
+
+    const intent: OAuthSignupIntent = {
+      role: options?.role === 'employer' ? 'employer' : 'seeker',
+      fullName: (options?.fullName || '').trim(),
+      phone: (options?.phone || '').trim(),
+      mode: options?.mode === 'register' ? 'register' : 'login',
+      createdAt: Date.now(),
+    };
+    writeOAuthSignupIntent(intent);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      clearOAuthSignupIntent();
+      return { error: error as Error | null };
+    }
+
+    return { error: null };
+  }
+
+  async function requestOtp(params: { channel: 'email' | 'sms'; email?: string; phone?: string }) {
+    if (!supabase) return { error: new Error('Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.') };
+
+    if (params.channel === 'sms') {
+      const phone = (params.phone || '').trim();
+      const { error } = await supabase.auth.signInWithOtp({
+        phone,
+        options: {
+          shouldCreateUser: false,
+          channel: 'sms',
+        },
+      });
+      return { error: error as Error | null };
+    }
+
+    const email = (params.email || '').trim().toLowerCase();
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+      },
+    });
+    return { error: error as Error | null };
+  }
+
+  async function verifyOtpCode(params: { channel: 'email' | 'sms'; email?: string; phone?: string; token: string }) {
+    if (!supabase) return { error: new Error('Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.') };
+
+    const token = params.token.trim();
+    if (params.channel === 'sms') {
+      const phone = (params.phone || '').trim();
+      const { error } = await supabase.auth.verifyOtp({
+        phone,
+        token,
+        type: 'sms',
+      });
+      return { error: error as Error | null };
+    }
+
+    const email = (params.email || '').trim().toLowerCase();
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'email',
+    });
     return { error: error as Error | null };
   }
 
@@ -188,7 +387,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, userMeta, loading, configured: isSupabaseConfigured, signUp, signIn, signOut, refreshMeta }}
+      value={{
+        user,
+        session,
+        userMeta,
+        loading,
+        configured: isSupabaseConfigured,
+        signUp,
+        signIn,
+        signInWithGoogle,
+        requestOtp,
+        verifyOtpCode,
+        signOut,
+        refreshMeta,
+      }}
     >
       {children}
     </AuthContext.Provider>

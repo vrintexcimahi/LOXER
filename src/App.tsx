@@ -3,7 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/useAuth';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
-import { DEFAULT_ADMIN_EMAIL } from './lib/constants';
+import { isDefaultAdminEmail } from './lib/constants';
 import Homepage from './pages/Homepage';
 
 const AuthModal = lazy(() => import('./pages/auth/AuthModal'));
@@ -40,7 +40,7 @@ function Router() {
   const { user, userMeta, loading, configured } = useAuth();
   const [authMode, setAuthMode] = useState<AuthMode>(null);
   const path = window.location.pathname;
-  const isDefaultAdminAccount = (user?.email || '').trim().toLowerCase() === DEFAULT_ADMIN_EMAIL;
+  const isDefaultAdminAccount = isDefaultAdminEmail(user?.email);
   const effectiveRole = isDefaultAdminAccount ? 'admin' : userMeta?.role;
 
   const getHomePathByRole = () => {

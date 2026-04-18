@@ -21,4 +21,10 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.vercel
+.env.vercel*
 .npm-cache/
+.vercel
+.vercel-deploy-tmp/
+.last_temp_deploy_path
+.tmp-*

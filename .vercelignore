@@ -1,0 +1,8 @@
+.git
+.tmp-edge-debug
+.npm-cache
+node_modules
+dist
+dist-ssr
+*.log
+.env

@@ -1,4 +1,4 @@
-import { searchJobs } from '../services/careerjetService.js';
+import { CareerjetProxyError, searchJobs } from '../services/careerjetService.js';
 
 let publicIpPromise = null;
 
@@ -51,10 +51,14 @@ async function getPublicIp() {
   return publicIpPromise;
 }
 
-async function resolveClientIp(req) {
-  const ip = getForwardedIp(req);
-  if (!isLocalIp(ip)) return ip;
-  return getPublicIp();
+async function resolveCareerjetIp(req) {
+  const serverPublicIp = await getPublicIp();
+  if (serverPublicIp) return serverPublicIp;
+
+  const forwardedIp = getForwardedIp(req);
+  if (!isLocalIp(forwardedIp)) return forwardedIp;
+
+  return '';
 }
 
 export default async function handler(req, res) {
@@ -68,7 +72,7 @@ export default async function handler(req, res) {
       req.query?.user_agent ||
       req.headers['user-agent'] ||
       '';
-    const userIp = await resolveClientIp(req);
+    const userIp = await resolveCareerjetIp(req);
 
     const data = await searchJobs({
       keywords: req.query?.keywords || '',
@@ -83,17 +87,15 @@ export default async function handler(req, res) {
 
     res.status(200).json(data);
   } catch (error) {
+    if (error instanceof CareerjetProxyError) {
+      res.status(error.status || 502).json({
+        message: error.message,
+        details: error.details || null,
+      });
+      return;
+    }
+
     const message = error instanceof Error ? error.message : 'Terjadi kesalahan pada proxy Careerjet';
-
-    if (message === 'Locale tidak didukung') {
-      res.status(400).json({ message });
-      return;
-    }
-
-    if (message === 'user_ip atau user_agent wajib diisi') {
-      res.status(403).json({ message });
-      return;
-    }
 
     res.status(500).json({ message });
   }

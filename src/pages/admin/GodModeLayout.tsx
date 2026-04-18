@@ -19,7 +19,7 @@ import ThemeToggle from '../../components/ui/ThemeToggle';
 import NotificationBell from '../../components/ui/NotificationBell';
 import usePersistentSidebar from '../../components/layout/usePersistentSidebar';
 import { useAuth } from '../../contexts/useAuth';
-import { DEFAULT_ADMIN_EMAIL } from '../../lib/constants';
+import { isDefaultAdminEmail } from '../../lib/constants';
 
 interface GodModeLayoutProps {
   title: string;
@@ -105,7 +105,7 @@ export default function GodModeLayout({ title, description, children }: GodModeL
   const { user, userMeta, signOut } = useAuth();
   const pathname = window.location.pathname;
   const { isCollapsed, isMobileOpen, toggleCollapsed, toggleMobile, closeMobile } = usePersistentSidebar('loxer-god-mode-sidebar');
-  const isDefaultAdminAccount = (user?.email || '').trim().toLowerCase() === DEFAULT_ADMIN_EMAIL;
+  const isDefaultAdminAccount = isDefaultAdminEmail(user?.email);
   const isAdmin = Boolean(user && (userMeta?.role === 'admin' || isDefaultAdminAccount));
 
   if (!isAdmin) {

@@ -53,7 +53,7 @@ import NotificationBell from '../../components/ui/NotificationBell';
 import usePersistentSidebar from '../../components/layout/usePersistentSidebar';
 import { useAuth } from '../../contexts/useAuth';
 import { formatDayLabel, formatRelativeTime, logAdminAction, toISODateOnly } from '../../lib/adminUtils';
-import { DEFAULT_ADMIN_EMAIL } from '../../lib/constants';
+import { isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
 import { supabase } from '../../lib/supabase';
 import { AdminStats, AdminUserRow, ApplicationStatus, AuditLog, ChartDataPoint, Company, JobListing, UserRole } from '../../lib/types';
 
@@ -116,7 +116,7 @@ function roleLabel(role: UserRole) {
 }
 
 function normalizeRoleByEmail(email: string | undefined, role: UserRole): UserRole {
-  if ((email || '').trim().toLowerCase() === DEFAULT_ADMIN_EMAIL) return 'admin';
+  if (isDefaultAdminEmail(email)) return 'admin';
   return role;
 }
 
@@ -203,6 +203,8 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
   const [activeTab, setActiveTab] = useState<AdminTab>(tab);
   const [toast, setToast] = useState<ToastState | null>(null);
   const { isCollapsed, isMobileOpen, toggleCollapsed, toggleMobile, closeMobile } = usePersistentSidebar('loxer-admin-sidebar');
+  const effectiveRole = user ? normalizeRoleByEmail(user.email || userMeta?.email, userMeta?.role || 'seeker') : null;
+  const adminEmail = normalizeComparableEmail(userMeta?.email || user?.email) || userMeta?.email || user?.email || '';
 
   useEffect(() => setActiveTab(tab), [tab]);
 
@@ -237,7 +239,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
     window.location.assign('/');
   };
 
-  if (!user || userMeta?.role !== 'admin') {
+  if (!user || effectiveRole !== 'admin') {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
         <div className="max-w-md rounded-2xl border border-red-400/30 bg-red-500/10 p-6 text-center">
@@ -363,14 +365,14 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
               <div className="flex items-center gap-3">
                 <ThemeToggle compact />
                 <span className="rounded-full border border-cyan-400/30 bg-cyan-500/20 px-3 py-1 text-xs font-semibold text-cyan-200">
-                  {roleLabel(userMeta.role)}
+                  {roleLabel(effectiveRole || 'admin')}
                 </span>
                 <NotificationBell variant="dark" compact />
                 <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-slate-950/35 px-3 py-1.5 sm:flex">
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-500/20 text-xs font-bold text-cyan-300">
-                    {(userMeta.email || 'A')[0].toUpperCase()}
+                    {(adminEmail || 'A')[0].toUpperCase()}
                   </div>
-                  <p className="max-w-[180px] truncate text-xs text-slate-200">{userMeta.email}</p>
+                  <p className="max-w-[180px] truncate text-xs text-slate-200">{adminEmail}</p>
                 </div>
                 <button
                   onClick={handleSignOut}
@@ -387,19 +389,19 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
 
           <main className="flex-1 px-4 py-5 md:px-6">
             {activeTab === 'overview' && (
-              <AdminOverview adminId={user.id} adminEmail={userMeta.email} onToast={showToast} />
+              <AdminOverview adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
             )}
             {activeTab === 'users' && (
-              <AdminUsers adminId={user.id} adminEmail={userMeta.email} onToast={showToast} />
+              <AdminUsers adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
             )}
             {activeTab === 'jobs' && (
-              <AdminJobs adminId={user.id} adminEmail={userMeta.email} onToast={showToast} />
+              <AdminJobs adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
             )}
             {activeTab === 'applications' && (
-              <AdminApplications adminId={user.id} adminEmail={userMeta.email} onToast={showToast} />
+              <AdminApplications adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
             )}
             {activeTab === 'companies' && (
-              <AdminCompanies adminId={user.id} adminEmail={userMeta.email} onToast={showToast} />
+              <AdminCompanies adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
             )}
             {activeTab === 'integrations' && <AdminIntegrations onToast={showToast} />}
             {activeTab === 'logs' && <AdminAuditLogs />}

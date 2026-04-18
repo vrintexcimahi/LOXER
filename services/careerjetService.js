@@ -1,5 +1,14 @@
 const CAREERJET_ENDPOINT = 'https://search.api.careerjet.net/v4/query';
 
+class CareerjetProxyError extends Error {
+  constructor(message, status, details) {
+    super(message);
+    this.name = 'CareerjetProxyError';
+    this.status = status;
+    this.details = details;
+  }
+}
+
 function getCareerjetApiKey() {
   const apiKey = process.env.CAREERJET_API_KEY;
 
@@ -60,6 +69,14 @@ async function parsePayload(response) {
   }
 }
 
+function getPayloadMessage(payload) {
+  if (!payload) return '';
+  if (typeof payload.message === 'string' && payload.message.trim()) return payload.message.trim();
+  if (typeof payload.error === 'string' && payload.error.trim()) return payload.error.trim();
+  if (typeof payload.description === 'string' && payload.description.trim()) return payload.description.trim();
+  return '';
+}
+
 async function searchJobs(params = {}) {
   const response = await fetch(`${CAREERJET_ENDPOINT}?${buildQueryString(params)}`, {
     method: 'GET',
@@ -70,17 +87,30 @@ async function searchJobs(params = {}) {
   });
 
   const payload = await parsePayload(response);
+  const payloadMessage = getPayloadMessage(payload);
 
   if (response.status === 400) {
-    throw new Error('Locale tidak didukung');
+    throw new CareerjetProxyError(
+      payloadMessage || 'Locale tidak didukung',
+      400,
+      payload
+    );
   }
 
   if (response.status === 403) {
-    throw new Error('user_ip atau user_agent wajib diisi');
+    throw new CareerjetProxyError(
+      payloadMessage || 'Careerjet menolak request. Periksa whitelist IP server publik, API key, serta parameter user_ip dan user_agent.',
+      403,
+      payload
+    );
   }
 
   if (!response.ok) {
-    throw new Error(payload.message || 'Gagal memuat data lowongan');
+    throw new CareerjetProxyError(
+      payloadMessage || 'Gagal memuat data lowongan',
+      response.status,
+      payload
+    );
   }
 
   if (payload.type === 'JOBS') {
@@ -105,4 +135,4 @@ async function searchJobs(params = {}) {
   throw new Error(payload.message || 'Respons Careerjet tidak dikenali');
 }
 
-export { searchJobs };
+export { CareerjetProxyError, searchJobs };
