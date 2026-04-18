@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Briefcase, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
@@ -15,6 +15,28 @@ interface AuthModalProps {
 
 type OtpChannel = 'email' | 'sms';
 
+interface AuthCapabilities {
+  configured: boolean;
+  googleEnabled: boolean;
+  emailAuthEnabled: boolean;
+  phoneAuthEnabled: boolean;
+  emailOtpEnabled: boolean;
+  smsOtpEnabled: boolean;
+  mailerAutoconfirm: boolean;
+  smsProvider: string;
+}
+
+const DEFAULT_AUTH_CAPABILITIES: AuthCapabilities = {
+  configured: false,
+  googleEnabled: false,
+  emailAuthEnabled: true,
+  phoneAuthEnabled: false,
+  emailOtpEnabled: false,
+  smsOtpEnabled: false,
+  mailerAutoconfirm: true,
+  smsProvider: '',
+};
+
 export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProps) {
   const { signIn, signUp, signInWithGoogle, requestOtp, verifyOtpCode } = useAuth();
   const [email, setEmail] = useState('');
@@ -29,6 +51,38 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
   const [otpCode, setOtpCode] = useState('');
   const [otpStep, setOtpStep] = useState(false);
   const [otpChannel, setOtpChannel] = useState<OtpChannel>('email');
+  const [authCapabilities, setAuthCapabilities] = useState<AuthCapabilities>(DEFAULT_AUTH_CAPABILITIES);
+  const [capabilitiesLoading, setCapabilitiesLoading] = useState(true);
+
+  async function loadAuthCapabilities() {
+    try {
+      setCapabilitiesLoading(true);
+      const response = await fetch('/api/auth-capabilities');
+      const payload = (await response.json()) as Partial<AuthCapabilities>;
+
+      if (!response.ok) {
+        throw new Error('Auth capabilities belum tersedia');
+      }
+
+      setAuthCapabilities({
+        configured: Boolean(payload.configured),
+        googleEnabled: Boolean(payload.googleEnabled),
+        emailAuthEnabled: payload.emailAuthEnabled ?? true,
+        phoneAuthEnabled: Boolean(payload.phoneAuthEnabled),
+        emailOtpEnabled: Boolean(payload.emailOtpEnabled),
+        smsOtpEnabled: Boolean(payload.smsOtpEnabled),
+        mailerAutoconfirm: payload.mailerAutoconfirm ?? true,
+        smsProvider: String(payload.smsProvider || ''),
+      });
+    } catch {
+      setAuthCapabilities(DEFAULT_AUTH_CAPABILITIES);
+    } finally {
+      setCapabilitiesLoading(false);
+    }
+  }
+
+  const canUseGoogleAuth = authCapabilities.googleEnabled;
+  const canUseAnyOtp = authCapabilities.emailOtpEnabled || authCapabilities.smsOtpEnabled;
 
   async function resolveNextPath(fallbackEmail?: string) {
     let nextPath = '/seeker/dashboard';
@@ -73,6 +127,18 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
     setError('');
     setSuccess('');
     setLoading(true);
+
+    if (channel === 'email' && !authCapabilities.emailOtpEnabled) {
+      setError('OTP email belum aktif di project ini.');
+      setLoading(false);
+      return;
+    }
+
+    if (channel === 'sms' && !authCapabilities.smsOtpEnabled) {
+      setError('OTP SMS belum aktif di project ini.');
+      setLoading(false);
+      return;
+    }
 
     const { error } = await requestOtp({
       channel,
@@ -137,6 +203,12 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
     setError('');
     setLoading(true);
 
+    if (!canUseGoogleAuth) {
+      setError('Login Gmail belum aktif di project ini.');
+      setLoading(false);
+      return;
+    }
+
     if (mode === 'register') {
       if (!fullName.trim()) {
         setError('Nama lengkap wajib diisi.');
@@ -190,13 +262,26 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
       if (error) {
         setError('Gagal mendaftar. Email mungkin sudah terdaftar.');
       } else {
-        setOtpStep(true);
-        setOtpChannel('email');
-        setSuccess('Akun berhasil dibuat. Pilih pengiriman OTP untuk verifikasi akun.');
+        if (canUseAnyOtp) {
+          setOtpStep(true);
+          setOtpChannel(authCapabilities.emailOtpEnabled ? 'email' : 'sms');
+          setSuccess('Akun berhasil dibuat. Pilih pengiriman OTP untuk verifikasi akun.');
+        } else {
+          const nextPath = await resolveNextPath(email);
+          setSuccess('Akun berhasil dibuat. Mengalihkan...');
+          setTimeout(() => {
+            onClose();
+            window.location.href = nextPath;
+          }, 800);
+        }
       }
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    void loadAuthCapabilities();
+  }, []);
 
   const modalContent = (
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4">
@@ -290,7 +375,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
                   <button
                     type="button"
                     onClick={() => handleRequestOtp('email')}
-                    disabled={loading}
+                    disabled={loading || !authCapabilities.emailOtpEnabled}
                     className="rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-sky-50 disabled:opacity-50"
                   >
                     Kirim OTP Gmail
@@ -298,7 +383,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
                   <button
                     type="button"
                     onClick={() => handleRequestOtp('sms')}
-                    disabled={loading}
+                    disabled={loading || !authCapabilities.smsOtpEnabled}
                     className="rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-sky-50 disabled:opacity-50"
                   >
                     Kirim OTP SMS
@@ -454,7 +539,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
             <button
               type="button"
               onClick={handleGoogleAuth}
-              disabled={loading}
+              disabled={loading || capabilitiesLoading || !canUseGoogleAuth}
               className="w-full rounded-xl border border-sky-200 bg-white py-3 font-semibold text-sm text-slate-700 shadow-sm hover:bg-sky-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-colors"
             >
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
@@ -467,6 +552,16 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
               </span>
               {mode === 'login' ? 'Masuk dengan Gmail' : 'Daftar dengan Gmail'}
             </button>
+            {!capabilitiesLoading && !canUseGoogleAuth && (
+              <p className="text-center text-xs text-slate-400">
+                Login Gmail belum aktif di project ini.
+              </p>
+            )}
+            {mode === 'register' && !capabilitiesLoading && !canUseAnyOtp && (
+              <p className="text-center text-xs text-slate-400">
+                OTP email/SMS belum aktif, jadi pendaftaran akan langsung masuk tanpa langkah OTP.
+              </p>
+            )}
               </>
             )}
           </form>
