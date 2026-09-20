@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import { homepageConfig } from '../../components/puck/homepageConfig';
 import { defaultHomepageData, isHomepageData } from '../../components/puck/homepageData';
+import { isDefaultAdminEmail } from '../../lib/constants';
 
 const HOMEPAGE_SLUG = 'homepage';
 
@@ -15,7 +16,8 @@ export default function AdminEditor() {
   const [editorData, setEditorData] = useState<Data>(defaultHomepageData);
   const [publishMessage, setPublishMessage] = useState('');
 
-  const canEdit = Boolean(user && userMeta?.role === 'admin');
+  const isDefaultAdminAccount = isDefaultAdminEmail(user?.email);
+  const canEdit = Boolean(user && (userMeta?.role === 'admin' || isDefaultAdminAccount));
 
   useEffect(() => {
     let active = true;

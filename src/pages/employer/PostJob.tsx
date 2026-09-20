@@ -22,6 +22,13 @@ export default function PostJob() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  const editId = (() => {
+    if (typeof window === 'undefined') return null;
+    const match = window.location.pathname.match(/\/employer\/jobs\/([^/]+)\/edit/);
+    if (match) return match[1];
+    return new URLSearchParams(window.location.search).get('edit') || null;
+  })();
+
   const [form, setForm] = useState({
     title: '',
     category: '',
@@ -37,12 +44,39 @@ export default function PostJob() {
 
   useEffect(() => {
     if (supabase && user) {
-      supabase.from('companies').select('*').eq('user_id', user.id).maybeSingle().then(({ data }) => {
-        setCompany(data);
-        setLoading(false);
-      });
+      supabase
+        .from('companies')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(async ({ data: compData }) => {
+          setCompany(compData);
+          if (compData && editId) {
+            const { data: jobData } = await supabase
+              .from('job_listings')
+              .select('*')
+              .eq('id', editId)
+              .maybeSingle();
+
+            if (jobData) {
+              setForm({
+                title: jobData.title || '',
+                category: jobData.category || '',
+                location_city: jobData.location_city || '',
+                job_type: jobData.job_type || 'full-time',
+                salary_min: jobData.salary_min ? String(Math.round(jobData.salary_min / 1000000)) : '',
+                salary_max: jobData.salary_max ? String(Math.round(jobData.salary_max / 1000000)) : '',
+                description: jobData.description || '',
+                requirements: jobData.requirements || '',
+                quota: String(jobData.quota || 1),
+                status: jobData.status || 'active',
+              });
+            }
+          }
+          setLoading(false);
+        });
     }
-  }, [user]);
+  }, [user, editId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +85,7 @@ export default function PostJob() {
     setError('');
     setSaving(true);
 
-    const { error: err } = await supabase.from('job_listings').insert({
+    const jobPayload = {
       company_id: company.id,
       title: form.title,
       category: form.category,
@@ -63,7 +97,24 @@ export default function PostJob() {
       requirements: form.requirements,
       quota: parseInt(form.quota) || 1,
       status: form.status,
-    });
+    };
+
+    let err: unknown = null;
+    if (editId) {
+      const { error: updateErr } = await supabase
+        .from('job_listings')
+        .update({
+          ...jobPayload,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editId);
+      err = updateErr;
+    } else {
+      const { error: insertErr } = await supabase
+        .from('job_listings')
+        .insert(jobPayload);
+      err = insertErr;
+    }
 
     if (err) {
       setError('Gagal menyimpan lowongan. Silakan coba lagi.');
@@ -100,8 +151,12 @@ export default function PostJob() {
     <EmployerLayout currentPath="/employer/jobs">
       <div className="max-w-3xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-black text-slate-800">Pasang Lowongan Baru</h1>
-          <p className="text-slate-500 text-sm mt-1">Isi detail posisi yang ingin kamu rekrut</p>
+          <h1 className="text-2xl font-black text-slate-800">
+            {editId ? 'Edit Lowongan Pekerjaan' : 'Pasang Lowongan Baru'}
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {editId ? 'Perbarui detail posisi dan kualifikasi lowongan' : 'Isi detail posisi yang ingin kamu rekrut'}
+          </p>
         </div>
 
         {success && (
@@ -109,7 +164,7 @@ export default function PostJob() {
             <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white text-[10px]">✓</span>
             </div>
-            Lowongan berhasil dipasang! Mengalihkan ke halaman lowongan...
+            {editId ? 'Lowongan berhasil diperbarui! Mengalihkan ke daftar lowongan...' : 'Lowongan berhasil dipasang! Mengalihkan ke daftar lowongan...'}
           </div>
         )}
 
@@ -244,7 +299,7 @@ export default function PostJob() {
               {saving ? (
                 <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Menyimpan...</>
               ) : (
-                <><Save className="w-4 h-4" /> Pasang Lowongan</>
+                <><Save className="w-4 h-4" /> {editId ? 'Simpan Perubahan' : 'Pasang Lowongan'}</>
               )}
             </button>
           </div>

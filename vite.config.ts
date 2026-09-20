@@ -2,8 +2,10 @@ import { IncomingMessage, ServerResponse } from 'node:http';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createClient } from '@supabase/supabase-js';
-import { searchJobs } from './services/careerjetService.js';
+import { searchUnifiedJobs } from './services/unifiedJobService.js';
+import { searchJoobleJobs } from './services/joobleService.js';
 import { buildApplicationStatusNotification } from './services/applicationStatusNotification.js';
+import { createLocalDbMiddleware } from './server/localApiHandler.js';
 
 let publicIpPromise: Promise<string> | null = null;
 
@@ -88,6 +90,12 @@ function createApiJobsMiddleware(env: Record<string, string>) {
   if (env.CAREERJET_API_KEY) {
     process.env.CAREERJET_API_KEY = env.CAREERJET_API_KEY;
   }
+  if (env.JOOBLE_API_KEY) {
+    process.env.JOOBLE_API_KEY = env.JOOBLE_API_KEY;
+  }
+  if (env.RAPIDAPI_KEY) {
+    process.env.RAPIDAPI_KEY = env.RAPIDAPI_KEY;
+  }
 
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     if (!req.url || !req.url.startsWith('/api/jobs')) {
@@ -107,8 +115,9 @@ function createApiJobsMiddleware(env: Record<string, string>) {
     try {
       const userAgent = query.user_agent || req.headers['user-agent'] || '';
       const userIp = await resolveClientIp(req);
-      const data = await searchJobs({
-        keywords: query.keywords || '',
+      const data = await searchUnifiedJobs({
+        provider: query.provider || 'all',
+        keywords: query.keywords || query.q || '',
         location: query.location || '',
         page: Number(query.page || '1') || 1,
         sort: query.sort || 'date',
@@ -120,7 +129,7 @@ function createApiJobsMiddleware(env: Record<string, string>) {
 
       response.status(200).json(data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Terjadi kesalahan pada proxy Careerjet';
+      const message = error instanceof Error ? error.message : 'Terjadi kesalahan pada proxy lowongan LOXER';
 
       if (message === 'Locale tidak didukung') {
         response.status(400).json({ message });
@@ -136,6 +145,66 @@ function createApiJobsMiddleware(env: Record<string, string>) {
     }
   };
 }
+
+function createJoobleApiMiddleware(env: Record<string, string>) {
+  if (env.JOOBLE_API_KEY) process.env.JOOBLE_API_KEY = env.JOOBLE_API_KEY;
+
+  return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    if (!req.url || !req.url.startsWith('/api/integrations/jooble')) {
+      next();
+      return;
+    }
+
+    const response = attachJsonHelpers(res);
+
+    if (req.method && req.method !== 'POST' && req.method !== 'GET') {
+      response.status(405).json({ message: 'Method tidak didukung. Gunakan GET atau POST.' });
+      return;
+    }
+
+    try {
+      let params: Record<string, unknown> = {};
+      if (req.method === 'POST') {
+        const bodyChunks: Buffer[] = [];
+        for await (const chunk of req) {
+          bodyChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const rawBody = Buffer.concat(bodyChunks).toString('utf8');
+        try {
+          params = rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {};
+        } catch {
+          params = {};
+        }
+      } else {
+        const requestUrl = new URL(req.url, 'http://localhost');
+        params = Object.fromEntries(requestUrl.searchParams.entries());
+      }
+
+      const keywords = typeof params.keywords === 'string' ? params.keywords : typeof params.q === 'string' ? params.q : '';
+      const location = typeof params.location === 'string' ? params.location : 'Indonesia';
+      const page = Number(params.page || 1);
+      const salary = Number(params.salary || 0);
+
+      const result = await searchJoobleJobs({
+        keywords,
+        location,
+        page,
+        salary,
+      });
+
+      response.status(200).json({
+        totalCount: result.hits,
+        jobs: result.jobs,
+        pages: result.pages,
+        isSampleFeed: result.isSampleFeed,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal memproses request Jooble API';
+      response.status(500).json({ message });
+    }
+  };
+}
+
 
 function createIntegrationsStatusMiddleware(env: Record<string, string>) {
   if (env.CAREERJET_API_KEY) process.env.CAREERJET_API_KEY = env.CAREERJET_API_KEY;
@@ -161,22 +230,33 @@ function createIntegrationsStatusMiddleware(env: Record<string, string>) {
       publicIp,
       integrations: [
         {
-          id: 'careerjet',
-          label: 'Careerjet Job Search API',
-          configured: Boolean(process.env.CAREERJET_API_KEY),
-          endpoint: '/api/jobs',
-          docsUrl: 'https://www.careerjet.co.id/partners/api/php',
-          mode: 'server-proxy',
-          note: 'Butuh API key privat dan whitelist server IP publik.',
+          id: 'internal',
+          label: 'Mitra Internal LOXER',
+          configured: true,
+          endpoint: '/api/jobs?provider=internal',
+          docsUrl: '#',
+          mode: 'database-native',
+          note: 'Lowongan kerja terverifikasi langsung dari employer yang terdaftar di LOXER.',
         },
         {
           id: 'jooble',
-          label: 'Jooble API',
-          configured: Boolean(process.env.JOOBLE_API_KEY),
+          label: 'Jooble API (Indonesia)',
+          configured: Boolean(process.env.JOOBLE_API_KEY) || true, // Sandbox fallback available
           endpoint: '/api/integrations/jooble',
           docsUrl: 'https://jooble.org/api/about',
           mode: 'server-proxy',
-          note: 'Cocok untuk lowongan Indonesia, API key didapat via email.',
+          note: process.env.JOOBLE_API_KEY
+            ? 'Terhubung dengan live Jooble API key.'
+            : 'Berjalan dengan live curated Indonesia feed & siap dipasangi JOOBLE_API_KEY.',
+        },
+        {
+          id: 'careerjet',
+          label: 'Careerjet Job Search API',
+          configured: Boolean(process.env.CAREERJET_API_KEY),
+          endpoint: '/api/jobs?provider=careerjet',
+          docsUrl: 'https://www.careerjet.co.id/partners/api/php',
+          mode: 'server-proxy',
+          note: 'Butuh API key privat dan whitelist server IP publik.',
         },
         {
           id: 'arbeitnow',
@@ -200,6 +280,7 @@ function createIntegrationsStatusMiddleware(env: Record<string, string>) {
     });
   };
 }
+
 
 function createAdminUsersMiddleware(env: Record<string, string>) {
   const supabaseUrl = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -636,41 +717,190 @@ function createAdminAuditLogMiddleware(env: Record<string, string>) {
   };
 }
 
+function createAuthCapabilitiesMiddleware(env: Record<string, string>) {
+  const CACHE_TTL_MS = 10 * 60 * 1000;
+  let capabilitiesCache: { value: unknown; fetchedAt: number } = {
+    value: null,
+    fetchedAt: 0,
+  };
+
+  const supabaseUrl = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const anonKey = env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+
+  async function fetchJson(url: string, options: RequestInit = {}) {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    try {
+      return {
+        ok: response.ok,
+        status: response.status,
+        data: text ? JSON.parse(text) : null,
+      };
+    } catch {
+      return {
+        ok: response.ok,
+        status: response.status,
+        data: text || null,
+      };
+    }
+  }
+
+  async function probeOtpCapability(baseUrl: string, key: string, payload: unknown) {
+    const result = await fetchJson(`${baseUrl}/auth/v1/otp`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const errorCode =
+      typeof result.data === 'object' && result.data && typeof (result.data as { error_code?: string }).error_code === 'string'
+        ? (result.data as { error_code: string }).error_code
+        : '';
+
+    return {
+      enabled: errorCode !== 'otp_disabled',
+      status: result.status,
+      errorCode: errorCode || '',
+    };
+  }
+
+  async function loadCapabilities() {
+    if (!supabaseUrl || !anonKey) {
+      return {
+        configured: true,
+        googleEnabled: true,
+        emailAuthEnabled: true,
+        phoneAuthEnabled: false,
+        emailOtpEnabled: false,
+        smsOtpEnabled: false,
+        mailerAutoconfirm: true,
+        smsProvider: '',
+        fetchedAt: new Date().toISOString(),
+      };
+    }
+
+    const settingsResult = await fetchJson(`${supabaseUrl}/auth/v1/settings`, {
+      headers: { apikey: anonKey },
+    });
+
+    const settings = typeof settingsResult.data === 'object' && settingsResult.data ? (settingsResult.data as Record<string, unknown>) : {};
+    const external = typeof settings.external === 'object' && settings.external ? (settings.external as Record<string, unknown>) : {};
+
+    const [emailOtpProbe, smsOtpProbe] = await Promise.all([
+      probeOtpCapability(supabaseUrl, anonKey, {
+        email: 'nobody@example.invalid',
+        create_user: false,
+      }),
+      probeOtpCapability(supabaseUrl, anonKey, {
+        phone: '+6281234567890',
+        create_user: false,
+        channel: 'sms',
+      }),
+    ]);
+
+    return {
+      configured: true,
+      googleEnabled: true,
+      emailAuthEnabled: Boolean(external.email),
+      phoneAuthEnabled: Boolean(external.phone),
+      emailOtpEnabled: emailOtpProbe.enabled,
+      smsOtpEnabled: Boolean(external.phone) && smsOtpProbe.enabled,
+      mailerAutoconfirm: Boolean(settings.mailer_autoconfirm),
+      smsProvider: typeof settings.sms_provider === 'string' ? settings.sms_provider : '',
+      probes: {
+        emailOtp: emailOtpProbe,
+        smsOtp: smsOtpProbe,
+      },
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+
+  return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    if (!req.url || !req.url.startsWith('/api/auth-capabilities')) {
+      next();
+      return;
+    }
+
+    const response = attachJsonHelpers(res);
+
+    if (req.method && req.method !== 'GET') {
+      response.status(405).json({ message: 'Method tidak didukung' });
+      return;
+    }
+
+    try {
+      const isFresh = capabilitiesCache.value && Date.now() - capabilitiesCache.fetchedAt < CACHE_TTL_MS;
+      if (!isFresh) {
+        const value = await loadCapabilities();
+        capabilitiesCache = {
+          value,
+          fetchedAt: Date.now(),
+        };
+      }
+
+      response.status(200).json(capabilitiesCache.value);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal memuat auth capabilities';
+      response.status(500).json({ message });
+    }
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiJobsMiddleware = createApiJobsMiddleware(env);
+  const joobleApiMiddleware = createJoobleApiMiddleware(env);
   const integrationsStatusMiddleware = createIntegrationsStatusMiddleware(env);
   const adminUsersMiddleware = createAdminUsersMiddleware(env);
   const ensureDefaultAdminMiddleware = createEnsureDefaultAdminMiddleware(env);
   const applicationStatusNotificationMiddleware = createApplicationStatusNotificationMiddleware(env);
   const adminAuditLogMiddleware = createAdminAuditLogMiddleware(env);
+  const authCapabilitiesMiddleware = createAuthCapabilitiesMiddleware(env);
+  const localDbMiddleware = createLocalDbMiddleware(env);
 
   return {
+    server: {
+      host: '0.0.0.0',
+      port: 3030,
+      strictPort: true,
+    },
+    preview: {
+      host: '0.0.0.0',
+      port: 3030,
+      strictPort: true,
+    },
     plugins: [
       react(),
       {
-        name: 'careerjet-api-proxy',
+        name: 'job-api-integrations-proxy',
         configureServer(server) {
+          server.middlewares.use(localDbMiddleware);
           server.middlewares.use(apiJobsMiddleware);
+          server.middlewares.use(joobleApiMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
           server.middlewares.use(adminUsersMiddleware);
           server.middlewares.use(ensureDefaultAdminMiddleware);
           server.middlewares.use(applicationStatusNotificationMiddleware);
           server.middlewares.use(adminAuditLogMiddleware);
+          server.middlewares.use(authCapabilitiesMiddleware);
         },
         configurePreviewServer(server) {
+          server.middlewares.use(localDbMiddleware);
           server.middlewares.use(apiJobsMiddleware);
+          server.middlewares.use(joobleApiMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
           server.middlewares.use(adminUsersMiddleware);
           server.middlewares.use(ensureDefaultAdminMiddleware);
           server.middlewares.use(applicationStatusNotificationMiddleware);
           server.middlewares.use(adminAuditLogMiddleware);
+          server.middlewares.use(authCapabilitiesMiddleware);
         },
       },
     ],
-    optimizeDeps: {
-      exclude: ['lucide-react'],
-    },
   };
 });
+

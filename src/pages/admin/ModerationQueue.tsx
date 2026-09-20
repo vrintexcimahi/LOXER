@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert, Sparkles, XCircle } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
 import { useAuth } from '../../contexts/useAuth';
@@ -58,7 +58,7 @@ export default function ModerationQueue() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  async function loadQueue() {
+  const loadQueue = useCallback(async () => {
     if (!supabase) {
       setErrorMessage('Supabase belum dikonfigurasi.');
       setLoading(false);
@@ -82,11 +82,11 @@ export default function ModerationQueue() {
 
     setItems((data || []) as ModerationItem[]);
     setLoading(false);
-  }
+  }, [filter]);
 
   useEffect(() => {
     void loadQueue();
-  }, [filter]);
+  }, [loadQueue]);
 
   async function updateStatus(item: ModerationItem, nextStatus: Exclude<ModerationStatus, 'pending'>, notes?: string) {
     if (!supabase || !user) return;

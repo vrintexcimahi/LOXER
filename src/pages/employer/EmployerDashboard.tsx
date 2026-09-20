@@ -15,6 +15,7 @@ export default function EmployerDashboard() {
   const { user } = useAuth();
   const [company, setCompany] = useState<Company | null>(null);
   const [jobs, setJobs] = useState<JobListing[]>([]);
+  const [allAppStats, setAllAppStats] = useState<Pick<Application, 'id' | 'status'>[]>([]);
   const [recentApps, setRecentApps] = useState<EmployerRecentApplication[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,19 +36,26 @@ export default function EmployerDashboard() {
       const { data: companyJobs } = await supabase.from('job_listings').select('id').eq('company_id', comp.id);
       const jobIds = companyJobs?.map((job) => job.id) || [];
 
-      const [jobsRes, appsRes] = await Promise.all([
+      const [jobsRes, allAppsRes, recentAppsRes] = await Promise.all([
         supabase.from('job_listings').select('*').eq('company_id', comp.id).order('created_at', { ascending: false }),
-        supabase
-          .from('applications')
-          .select('*, job_listings(title), seeker_profiles(full_name, domicile_city)')
-          .in('job_id', jobIds)
-          .order('applied_at', { ascending: false })
-          .limit(8),
+        jobIds.length > 0
+          ? supabase.from('applications').select('id, status').in('job_id', jobIds)
+          : Promise.resolve({ data: [] }),
+        jobIds.length > 0
+          ? supabase
+              .from('applications')
+              .select('*, job_listings(title), seeker_profiles(full_name, domicile_city)')
+              .in('job_id', jobIds)
+              .order('applied_at', { ascending: false })
+              .limit(8)
+          : Promise.resolve({ data: [] }),
       ]);
       setJobs(jobsRes.data || []);
-      setRecentApps((appsRes.data || []) as EmployerRecentApplication[]);
+      setAllAppStats((allAppsRes.data || []) as Pick<Application, 'id' | 'status'>[]);
+      setRecentApps((recentAppsRes.data || []) as EmployerRecentApplication[]);
     } else {
       setJobs([]);
+      setAllAppStats([]);
       setRecentApps([]);
     }
     setLoading(false);
@@ -58,9 +66,9 @@ export default function EmployerDashboard() {
   }, [loadData]);
 
   const activeJobs = jobs.filter((j) => j.status === 'active').length;
-  const totalApps = recentApps.length;
-  const interviews = recentApps.filter((a) => a.status === 'interview_scheduled').length;
-  const hired = recentApps.filter((a) => a.status === 'hired').length;
+  const totalApps = allAppStats.length;
+  const interviews = allAppStats.filter((a) => a.status === 'interview_scheduled').length;
+  const hired = allAppStats.filter((a) => a.status === 'hired').length;
 
   if (loading) {
     return (

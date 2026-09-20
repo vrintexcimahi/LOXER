@@ -4,6 +4,7 @@ import SeekerLayout from '../../components/layout/SeekerLayout';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { SeekerProfile as SeekerProfileType, SeekerEducation, SeekerExperience, SeekerSkill } from '../../lib/types';
+import MyDevicesSection from '../../components/ui/MyDevicesSection';
 
 export default function SeekerProfile() {
   const { user } = useAuth();
@@ -371,6 +372,11 @@ export default function SeekerProfile() {
           <Save className="w-4 h-4" />
           {saving ? 'Menyimpan...' : saved ? 'Profil Tersimpan!' : 'Simpan Profil'}
         </button>
+
+        {/* User Self-Service Device Management */}
+        <div className="pt-4">
+          <MyDevicesSection />
+        </div>
       </div>
     </SeekerLayout>
   );

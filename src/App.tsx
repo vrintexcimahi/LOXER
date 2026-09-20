@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
+import { DeviceProvider } from './contexts/DeviceContext';
 import { useAuth } from './contexts/useAuth';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import { isDefaultAdminEmail } from './lib/constants';
 import Homepage from './pages/Homepage';
+import PWAInstallBanner from './components/ui/PWAInstallBanner';
 
 const AuthModal = lazy(() => import('./pages/auth/AuthModal'));
 const SeekerDashboard = lazy(() => import('./pages/seeker/SeekerDashboard'));
@@ -22,6 +24,10 @@ const FeatureFlags = lazy(() => import('./pages/admin/FeatureFlags'));
 const ModerationQueue = lazy(() => import('./pages/admin/ModerationQueue'));
 const BroadcastSystem = lazy(() => import('./pages/admin/BroadcastSystem'));
 const SecurityCenter = lazy(() => import('./pages/admin/SecurityCenter'));
+const AdminEditor = lazy(() => import('./pages/admin/AdminEditor'));
+const LogMonitoring = lazy(() => import('./pages/admin/LogMonitoring'));
+const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
+const DeveloperWorkbench = lazy(() => import('./pages/admin/DeveloperWorkbench'));
 
 type AuthMode = 'login' | 'register' | null;
 
@@ -82,18 +88,20 @@ VITE_SUPABASE_ANON_KEY=...`}
 
   const renderPage = () => {
     if (path === '/seeker/dashboard') return user && effectiveRole === 'seeker' ? <SeekerDashboard /> : null;
-    if (path === '/seeker/browse') return <Browse />;
+    if (path === '/browse' || path === '/seeker/browse') return <Browse />;
     if (path === '/seeker/applications') return user && effectiveRole === 'seeker' ? <Applications /> : null;
     if (path === '/seeker/profile') return user && effectiveRole === 'seeker' ? <SeekerProfile /> : null;
     if (path === '/employer/dashboard') return user && effectiveRole === 'employer' ? <EmployerDashboard /> : null;
     if (path === '/employer/jobs') return user && effectiveRole === 'employer' ? <JobListings /> : null;
-    if (path === '/employer/jobs/new') return user && effectiveRole === 'employer' ? <PostJob /> : null;
+    if (path === '/employer/jobs/new' || (path.startsWith('/employer/jobs/') && path.endsWith('/edit'))) return user && effectiveRole === 'employer' ? <PostJob /> : null;
     if (path === '/employer/applicants') return user && effectiveRole === 'employer' ? <Applicants /> : null;
     if (path === '/employer/company') return user && effectiveRole === 'employer' ? <CompanyProfile /> : null;
 
     if (path.startsWith('/admin/')) {
       const adminPages: Record<string, JSX.Element> = {
         '/admin/dashboard': <AdminDashboard tab="overview" />,
+        '/admin/user-data': <AdminDashboard tab="user-data" />,
+        '/admin/devices': <AdminDashboard tab="devices" />,
         '/admin/users': <AdminDashboard tab="users" />,
         '/admin/jobs': <AdminDashboard tab="jobs" />,
         '/admin/applications': <AdminDashboard tab="applications" />,
@@ -105,6 +113,10 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/moderation': <ModerationQueue />,
         '/admin/broadcast': <BroadcastSystem />,
         '/admin/security': <SecurityCenter />,
+        '/admin/editor': <AdminEditor />,
+        '/admin/monitoring': <LogMonitoring />,
+        '/admin/backup': <DatabaseBackup />,
+        '/admin/dev-workbench': <DeveloperWorkbench />,
       };
 
       const page = adminPages[path];
@@ -161,7 +173,10 @@ VITE_SUPABASE_ANON_KEY=...`}
 export default function App() {
   return (
     <AuthProvider>
-      <Router />
+      <DeviceProvider>
+        <Router />
+        <PWAInstallBanner />
+      </DeviceProvider>
     </AuthProvider>
   );
 }

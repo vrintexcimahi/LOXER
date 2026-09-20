@@ -1,6 +1,6 @@
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, useState, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { isLocalMode, isSupabaseConfigured, supabase } from '../lib/supabase';
 import { UserMeta, UserRole } from '../lib/types';
 import { DEFAULT_ADMIN_EMAIL, isDefaultAdminEmail } from '../lib/constants';
 import { AuthContext } from './auth-context';
@@ -11,6 +11,8 @@ interface OAuthSignupIntent {
   role: UserRole;
   fullName: string;
   phone: string;
+  email?: string;
+  avatarUrl?: string;
   mode: 'login' | 'register';
   createdAt: number;
 }
@@ -36,6 +38,8 @@ function readOAuthSignupIntent() {
       role: parsed.role === 'employer' ? 'employer' : 'seeker',
       fullName: String(parsed.fullName || ''),
       phone: String(parsed.phone || ''),
+      email: typeof parsed.email === 'string' ? parsed.email : '',
+      avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : '',
       mode: parsed.mode === 'register' ? 'register' : 'login',
       createdAt: parsed.createdAt,
     } satisfies OAuthSignupIntent;
@@ -117,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return nextMeta;
   }
 
-  async function fetchUserMeta(authUser: User) {
+  const fetchUserMeta = useCallback(async (authUser: User) => {
     if (!supabase) return;
     const { data, error } = await supabase
       .from('users_meta')
@@ -191,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUserMeta(nextMeta);
-  }
+  }, []);
 
   async function refreshMeta() {
     if (user) await fetchUserMeta(user);
@@ -231,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchUserMeta]);
 
   useEffect(() => {
     if (!supabase || !user?.id) return;
@@ -258,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       channel.unsubscribe();
     };
-  }, [user]);
+  }, [user, fetchUserMeta]);
 
   async function signUp(email: string, password: string, role: UserRole, fullName: string, phone: string) {
     if (!supabase) return { error: new Error('Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.') };
@@ -302,13 +306,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   }
 
-  async function signInWithGoogle(options?: { role?: UserRole; fullName?: string; phone?: string; mode?: 'login' | 'register' }) {
+  async function signInWithGoogle(options?: { role?: UserRole; fullName?: string; phone?: string; email?: string; mode?: 'login' | 'register'; avatarUrl?: string }) {
     if (!supabase) return { error: new Error('Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.') };
 
     const intent: OAuthSignupIntent = {
       role: options?.role === 'employer' ? 'employer' : 'seeker',
       fullName: (options?.fullName || '').trim(),
       phone: (options?.phone || '').trim(),
+      email: (options?.email || '').trim(),
+      avatarUrl: (options?.avatarUrl || '').trim(),
       mode: options?.mode === 'register' ? 'register' : 'login',
       createdAt: Date.now(),
     };
@@ -324,6 +330,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       clearOAuthSignupIntent();
       return { error: error as Error | null };
+    }
+
+    if (isLocalMode) {
+      const sessionRes = await supabase.auth.getSession();
+      if (sessionRes.data.session) {
+        setSession(sessionRes.data.session);
+        setUser(sessionRes.data.session.user);
+        if (sessionRes.data.session.user) {
+          const meta = await ensureOAuthProvisioning(sessionRes.data.session.user, null);
+          setUserMeta(meta);
+        }
+      }
     }
 
     return { error: null };

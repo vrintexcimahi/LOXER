@@ -30,6 +30,9 @@ function ReviewCard({ item }: { item: ReviewItem }) {
           src={item.avatarPath}
           alt={item.name}
           loading="lazy"
+          decoding="async"
+          width="48"
+          height="48"
           className="h-12 w-12 flex-shrink-0 rounded-full ring-2 ring-white/65 shadow-lg shadow-slate-900/20 object-cover object-center"
         />
         <div className="min-w-0">
@@ -101,7 +104,7 @@ export default function TestimonialsSlider() {
         <div className="mb-12 text-center">
           <h2 className="text-3xl font-black text-white md:text-5xl">Dipercaya Jutaan Orang</h2>
           <p className="mt-2 text-base text-slate-300 md:text-lg">
-            150 ulasan pengguna LOXER dari berbagai latar belakang kerja
+            Cerita nyata pencari kerja di area Bandung, Cimahi, dan sekitarnya yang telah sukses diterima kerja
           </p>
         </div>
 

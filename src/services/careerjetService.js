@@ -22,14 +22,15 @@ async function parseProxyPayload(response) {
   }
 }
 
-export async function fetchCareerjetJobs(params = {}) {
+/**
+ * Unified job search supporting Jooble, Careerjet, Arbeitnow, and Internal LOXER DB
+ */
+export async function fetchUnifiedJobs(params = {}) {
   const query = buildProxyQuery({
     ...params,
+    provider: params.provider || 'all',
     sort: params.sort || 'date',
-    user_agent:
-      typeof navigator === 'undefined'
-        ? ''
-        : navigator.userAgent,
+    user_agent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
   });
 
   const response = await fetch(`/api/jobs?${query}`, {
@@ -47,3 +48,6 @@ export async function fetchCareerjetJobs(params = {}) {
 
   return payload;
 }
+
+// Backwards compatibility alias
+export const fetchCareerjetJobs = fetchUnifiedJobs;

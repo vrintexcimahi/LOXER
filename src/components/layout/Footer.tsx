@@ -4,8 +4,8 @@ import BrandText from '../ui/BrandText';
 export default function Footer() {
   return (
     <footer className="bg-[#0F172A] text-slate-400">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+      <div className="w-full max-w-[min(100%,1920px)] mx-auto px-[clamp(16px,3vw,48px)] py-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 gradient-cta rounded-lg flex items-center justify-center">

@@ -5,7 +5,8 @@ import { useAuth } from '../../contexts/useAuth';
 import { UserRole } from '../../lib/types';
 import BrandText from '../../components/ui/BrandText';
 import { DEFAULT_ADMIN_EMAIL, isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
-import { supabase } from '../../lib/supabase';
+import { isLocalMode, supabase } from '../../lib/supabase';
+import { hasGoogleClientId, triggerNativeGoogleOAuth } from '../../lib/googleAuth';
 
 interface AuthModalProps {
   mode: 'login' | 'register';
@@ -53,6 +54,8 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
   const [otpChannel, setOtpChannel] = useState<OtpChannel>('email');
   const [authCapabilities, setAuthCapabilities] = useState<AuthCapabilities>(DEFAULT_AUTH_CAPABILITIES);
   const [capabilitiesLoading, setCapabilitiesLoading] = useState(true);
+  const [showGooglePrompt, setShowGooglePrompt] = useState(false);
+  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
 
   async function loadAuthCapabilities() {
     try {
@@ -81,17 +84,16 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
     }
   }
 
-  const canUseGoogleAuth = authCapabilities.googleEnabled;
   const canUseAnyOtp = authCapabilities.emailOtpEnabled || authCapabilities.smsOtpEnabled;
 
   async function resolveNextPath(fallbackEmail?: string) {
-    let nextPath = '/seeker/dashboard';
-    if (!supabase) return nextPath;
+    const defaultPath = '/seeker/dashboard';
+    if (!supabase) return defaultPath;
 
     const { data: authData } = await supabase.auth.getUser();
     const signedInUser = authData.user;
 
-    if (!signedInUser) return nextPath;
+    if (!signedInUser) return defaultPath;
 
     const normalizedFallbackEmail = normalizeComparableEmail(fallbackEmail);
     const isDefaultAdmin = isDefaultAdminEmail(signedInUser.email || normalizedFallbackEmail);
@@ -199,41 +201,85 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
     setOtpChannel('email');
   }
 
-  async function handleGoogleAuth() {
+  async function executeGoogleLogin(selectedEmail: string, selectedName?: string, selectedPhone?: string, avatarUrl?: string) {
     setError('');
+    setSuccess('');
     setLoading(true);
 
-    if (!canUseGoogleAuth) {
-      setError('Login Gmail belum aktif di project ini.');
-      setLoading(false);
-      return;
-    }
-
-    if (mode === 'register') {
-      if (!fullName.trim()) {
-        setError('Nama lengkap wajib diisi.');
-        setLoading(false);
-        return;
-      }
-
-      if (!phone.trim()) {
-        setError('Nomor telepon wajib diisi.');
-        setLoading(false);
-        return;
-      }
-    }
+    const derivedFullName = selectedName?.trim() || fullName.trim() || selectedEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const derivedPhone = selectedPhone?.trim() || phone.trim() || '';
 
     const { error } = await signInWithGoogle({
       role,
-      fullName,
-      phone,
+      fullName: derivedFullName,
+      phone: derivedPhone,
+      email: selectedEmail.trim().toLowerCase(),
+      avatarUrl,
       mode,
     });
 
     if (error) {
-      setError('Gagal memulai login Gmail. Pastikan Google Auth sudah aktif di Supabase.');
+      setError(error.message || 'Gagal login dengan Google. Silakan coba lagi.');
       setLoading(false);
+      setShowGooglePrompt(false);
+      return;
     }
+
+    setShowGooglePrompt(false);
+    setSuccess(`Berhasil ${mode === 'login' ? 'masuk' : 'mendaftar'} dengan Google. Mengalihkan...`);
+
+    const nextPath = await resolveNextPath(selectedEmail);
+    setTimeout(() => {
+      onClose();
+      window.location.href = nextPath;
+    }, 600);
+  }
+
+  async function handleGoogleAuth() {
+    setError('');
+    setSuccess('');
+
+    // 1. In Supabase mode, redirect to official Google OAuth screen immediately
+    if (!isLocalMode) {
+      setLoading(true);
+      const { error } = await signInWithGoogle({
+        role,
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        mode,
+      });
+      if (error) {
+        setError(error.message || 'Gagal mengarahkan ke autentikasi Google.');
+        setLoading(false);
+      }
+      return;
+    }
+
+    // 2. In Local mode: If Google Client ID is configured, trigger native GIS Google popup!
+    if (hasGoogleClientId()) {
+      setLoading(true);
+      const launched = triggerNativeGoogleOAuth(
+        async (profile) => {
+          await executeGoogleLogin(profile.email, profile.name, undefined, profile.picture);
+        },
+        (err) => {
+          setLoading(false);
+          setError(err.message || 'Autentikasi Google gagal atau dibatalkan.');
+        }
+      );
+      if (launched) return;
+    }
+
+    // 3. If email field is already populated, authenticate directly
+    if (email.trim() && email.includes('@')) {
+      await executeGoogleLogin(email.trim(), fullName.trim(), phone.trim());
+      return;
+    }
+
+    // 4. Otherwise, open clean Google Email entry prompt (no fake demo users)
+    setCustomGoogleEmail('');
+    setShowGooglePrompt(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -284,20 +330,26 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
   }, []);
 
   const modalContent = (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-4">
       {/* Overlay */}
-      <div className="absolute inset-0 bg-[#0F172A]/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-[#0F172A]/70 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Panel */}
-      <div className="relative my-3 w-full max-w-md overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-sky-900/20 animate-fade-up">
+      {/* Panel / Bottom Sheet */}
+      <div className="relative w-full max-w-md overflow-hidden rounded-t-3xl sm:rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-sky-900/20 animate-fade-up pb-[max(1rem,env(safe-area-inset-bottom))]">
+        {/* Android Native Visual Drag Handle */}
+        <div className="sm:hidden pt-3 pb-1 flex justify-center">
+          <div className="bottom-sheet-handle" />
+        </div>
+
         {/* Header gradient accent */}
         <div className="h-1.5 gradient-cta" />
 
-        <div className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:max-h-[calc(100dvh-2rem)] sm:p-8">
+        <div className="max-h-[calc(88dvh-2rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto p-5 sm:p-8">
           {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 text-slate-400 hover:text-sky-600 transition-colors p-1"
+            className="absolute top-5 right-5 text-slate-400 hover:text-sky-600 transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full active-press"
+            aria-label="Tutup Dialog"
           >
             <X className="w-5 h-5" />
           </button>
@@ -539,8 +591,8 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
             <button
               type="button"
               onClick={handleGoogleAuth}
-              disabled={loading || capabilitiesLoading || !canUseGoogleAuth}
-              className="w-full rounded-xl border border-sky-200 bg-white py-3 font-semibold text-sm text-slate-700 shadow-sm hover:bg-sky-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-colors"
+              disabled={loading}
+              className="w-full rounded-xl border border-sky-200 bg-white py-3 font-semibold text-sm text-slate-700 shadow-sm hover:bg-sky-50 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-colors"
             >
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -552,14 +604,9 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
               </span>
               {mode === 'login' ? 'Masuk dengan Gmail' : 'Daftar dengan Gmail'}
             </button>
-            {!capabilitiesLoading && !canUseGoogleAuth && (
-              <p className="text-center text-xs text-slate-400">
-                Login Gmail belum aktif di project ini.
-              </p>
-            )}
             {mode === 'register' && !capabilitiesLoading && !canUseAnyOtp && (
               <p className="text-center text-xs text-slate-400">
-                OTP email/SMS belum aktif, jadi pendaftaran akan langsung masuk tanpa langkah OTP.
+                Pendaftaran instan tanpa hambatan OTP.
               </p>
             )}
               </>
@@ -578,6 +625,77 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
           </p>
         </div>
       </div>
+
+      {showGooglePrompt && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setShowGooglePrompt(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              aria-label="Tutup"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center mb-5">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-3 shadow-sm">
+                <svg viewBox="0 0 24 24" className="h-6 w-6">
+                  <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.6 2.5 12 2.5A9.5 9.5 0 1 0 12 21.5c5.5 0 9.1-3.8 9.1-9.2 0-.6-.1-1.1-.1-1.6H12Z" />
+                  <path fill="#34A853" d="M3.4 7.7l3.2 2.3C7.4 8 9.5 6.2 12 6.2c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.6 2.5 12 2.5c-3.6 0-6.7 2.1-8.2 5.2Z" />
+                  <path fill="#FBBC05" d="M12 21.5c2.5 0 4.5-.8 6.1-2.2l-2.8-2.3c-.8.6-1.8.9-3.3.9-3.8 0-5.2-2.4-5.5-3.7l-3.2 2.4c1.5 3.1 4.6 4.9 8.7 4.9Z" />
+                  <path fill="#4285F4" d="M21.1 12.3c0-.6-.1-1.1-.1-1.6H12v3.9h5.5c-.3 1.3-1.1 2.4-2.2 3.1l2.8 2.3c1.7-1.5 3-4 3-7.7Z" />
+                </svg>
+              </div>
+              <h3 className="text-base font-bold text-slate-800">
+                {mode === 'login' ? 'Masuk dengan Akun Google' : 'Daftar dengan Akun Google'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Autentikasi akun Google Anda sebagai {role === 'employer' ? 'Perusahaan' : 'Pencari Kerja'}
+              </p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (customGoogleEmail.trim()) {
+                  executeGoogleLogin(customGoogleEmail.trim());
+                }
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Alamat Email Google / Gmail Anda:
+                </label>
+                <input
+                  type="email"
+                  value={customGoogleEmail}
+                  onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                  placeholder="contoh: nama.anda@gmail.com"
+                  className="input-field text-sm py-2.5 px-3 w-full"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full gradient-cta text-white text-sm font-semibold py-3 px-4 rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-md shadow-cyan-500/20 flex items-center justify-center gap-2"
+              >
+                {loading ? 'Memproses...' : 'Lanjutkan dengan Google'}
+              </button>
+            </form>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Tip: Untuk popup 1-klik native dari <strong>accounts.google.com</strong>, pasang <code>VITE_GOOGLE_CLIENT_ID</code> di file <code>.env</code>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

@@ -219,9 +219,9 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
         </div>
       )}
 
-      <main className={`flex-1 min-h-screen transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-        <div className="sticky top-0 z-30 border-b border-white/10 gradient-sidebar backdrop-blur">
-          <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+      <main className={`flex-1 min-w-0 min-h-screen transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+        <div className="sticky top-0 z-30 border-b border-white/10 gradient-sidebar backdrop-blur pt-safe">
+          <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 lg:px-8 max-w-[min(100%,1920px)] mx-auto w-full">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
@@ -231,7 +231,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
                   }
                   toggleMobile();
                 }}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-950/35 text-slate-100 shadow-sm transition hover:bg-white/10 hover:text-cyan-200"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-slate-950/35 text-slate-100 shadow-sm transition hover:bg-white/10 hover:text-cyan-200 active-press"
                 aria-label={isCollapsed ? 'Open sidebar' : 'Close sidebar'}
                 title={isCollapsed ? 'Open sidebar' : 'Close sidebar'}
               >
@@ -267,27 +267,72 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8 page-enter pb-24 lg:pb-8">
+        <div className="w-full min-w-0 max-w-[min(100%,1920px)] mx-auto px-[clamp(12px,2vw,32px)] py-4 sm:py-6 lg:py-8 page-enter pb-24 lg:pb-8">
           {children}
         </div>
 
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex bg-white border-t border-sky-100">
-          {navItems.map(({ label, icon: Icon, href }) => {
-            const active = currentPath === href;
-            return (
-              <a
-                key={href}
-                href={href}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-medium transition-colors ${
-                  active ? 'text-sky-600' : 'text-slate-400'
+        {/* Mobile Bottom Navigation - Material 3 Android Native Style */}
+        <nav
+          aria-label="Employer Mobile Navigation"
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800/80 px-1 pt-1.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-2xl"
+        >
+          <div className="flex items-center justify-around">
+            {navItems.map(({ label, icon: Icon, href }) => {
+              const active = currentPath === href;
+              return (
+                <a
+                  key={href}
+                  href={href}
+                  className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active-press transition-transform"
+                >
+                  <div
+                    className={`flex items-center justify-center px-3.5 py-1 rounded-full transition-all duration-200 ${
+                      active
+                        ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" strokeWidth={active ? 2.2 : 1.8} />
+                  </div>
+                  <span
+                    className={`text-[10px] tracking-tight mt-0.5 truncate max-w-[64px] ${
+                      active
+                        ? 'text-cyan-700 dark:text-cyan-300 font-bold'
+                        : 'text-slate-500 dark:text-slate-400 font-medium'
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </a>
+              );
+            })}
+            <button
+              type="button"
+              onClick={toggleMobile}
+              className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active-press transition-transform cursor-pointer"
+              aria-label="Buka Menu Lainnya"
+            >
+              <div
+                className={`flex items-center justify-center px-3.5 py-1 rounded-full transition-all duration-200 ${
+                  isMobileOpen
+                    ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
-                <Icon className={`w-5 h-5 ${active ? 'text-sky-600' : 'text-slate-400'}`} />
-                {label}
-              </a>
-            );
-          })}
-        </div>
+                <Menu className="w-5 h-5" strokeWidth={isMobileOpen ? 2.2 : 1.8} />
+              </div>
+              <span
+                className={`text-[10px] tracking-tight mt-0.5 ${
+                  isMobileOpen
+                    ? 'text-cyan-700 dark:text-cyan-300 font-bold'
+                    : 'text-slate-500 dark:text-slate-400 font-medium'
+                }`}
+              >
+                Menu
+              </span>
+            </button>
+          </div>
+        </nav>
 
         <DashboardGuideAssistant
           workspaceLabel="Panduan Employer LOXER"

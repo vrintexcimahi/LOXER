@@ -19,7 +19,7 @@ const stats = [
   { value: '340K+', label: 'Berhasil Rekrut' },
 ];
 
-const heroSocialProofReviews = [7, 52, 74, 105]
+const heroSocialProofReviews = [1, 3, 6, 9]
   .map((avatarNumber) => allReviews[avatarNumber - 1])
   .filter(Boolean);
 
@@ -107,7 +107,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-sky-400 rounded-full opacity-[0.08] blur-3xl animate-blob" style={{ animationDelay: '-4s' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600 rounded-full opacity-[0.05] blur-3xl" />
 
-        <div className="relative z-10 max-w-5xl mx-auto text-center">
+        <div className="relative z-10 max-w-[min(100%,1280px)] mx-auto text-center px-4">
           {/* Eyebrow */}
           <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 text-cyan-300 text-xs font-semibold mb-6 animate-fade-up">
             <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
@@ -210,7 +210,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
 
       {/* ─── STATS STRIP ──────────────────────────────────── */}
       <section className="bg-white py-12 border-b border-sky-100">
-        <div className="max-w-5xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="max-w-[min(100%,1440px)] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           {stats.map((s, i) => (
             <div key={i} className={`text-center ${i < 3 ? 'md:border-r md:border-sky-100' : ''}`}>
               <CountUp target={s.value} />
@@ -222,7 +222,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
 
       {/* ─── FOR SEEKERS ──────────────────────────────────── */}
       <section id="features" className="bg-sky-50 py-20 px-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-[min(100%,1600px)] mx-auto px-2 sm:px-4 lg:px-8">
           <div className="text-center mb-14">
             <span className="inline-block gradient-badge text-white text-xs font-semibold rounded-full px-4 py-1.5 mb-4">Untuk Pencari Kerja</span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-800 mb-4">Lamar Lebih Cepat, <span className="text-gradient">Raih Lebih Banyak</span></h2>
@@ -252,7 +252,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
 
       {/* ─── FOR EMPLOYERS ────────────────────────────────── */}
       <section className="py-20 px-4 gradient-subtle">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-[min(100%,1600px)] mx-auto px-2 sm:px-4 lg:px-8">
           <div className="text-center mb-14">
             <span className="inline-block gradient-badge text-white text-xs font-semibold rounded-full px-4 py-1.5 mb-4">Untuk Perekrut</span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-800 mb-4">Rekrut Lebih Cerdas, <span className="text-gradient">Lebih Efisien</span></h2>
@@ -282,7 +282,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
 
       {/* ─── HOW IT WORKS ─────────────────────────────────── */}
       <section id="how-it-works" className="bg-white py-20 px-4">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-[min(100%,1440px)] mx-auto px-2 sm:px-4 lg:px-8">
           <div className="text-center mb-14">
             <span className="inline-block gradient-badge text-white text-xs font-semibold rounded-full px-4 py-1.5 mb-4">Cara Kerja</span>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-800 mb-4">Mulai dalam <span className="text-gradient">4 Langkah Mudah</span></h2>
@@ -312,7 +312,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
 
       {/* ─── TRUSTED COMPANIES ────────────────────────────── */}
       <section className="bg-white py-16 px-4">
-        <div className="max-w-5xl mx-auto text-center">
+        <div className="max-w-[min(100%,1440px)] mx-auto text-center px-4">
           <p className="text-slate-400 text-sm font-medium uppercase tracking-widest mb-8">Dipercaya Perusahaan Terkemuka</p>
           <div className="flex flex-wrap items-center justify-center gap-8 opacity-50">
             {['Tokopedia', 'Gojek', 'Traveloka', 'Bukalapak', 'OVO', 'Shopee', 'Grab', 'Dana'].map((c) => (
@@ -327,7 +327,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
 
       {/* ─── CTA SECTION ──────────────────────────────────── */}
       <section className="gradient-hero py-20 px-4">
-        <div className="max-w-3xl mx-auto text-center">
+        <div className="max-w-[min(100%,1024px)] mx-auto text-center px-4">
           <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 text-cyan-300 text-xs font-semibold mb-6">
             <Briefcase className="w-3.5 h-3.5" /> Mulai Gratis Sekarang
           </div>

@@ -13,6 +13,7 @@ export default function SeekerDashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<SeekerProfile | null>(null);
   const [applications, setApplications] = useState<ApplicationWithJob[]>([]);
+  const [allApplicationStats, setAllApplicationStats] = useState<Pick<Application, 'id' | 'status'>[]>([]);
   const [recentJobs, setRecentJobs] = useState<JobWithCompany[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,13 +33,20 @@ export default function SeekerDashboard() {
     setRecentJobs((jobRes.data || []) as JobWithCompany[]);
 
     if (profileRes.data) {
-      const { data: apps } = await supabase
-        .from('applications')
-        .select('*, job_listings(*, companies(*))')
-        .eq('seeker_id', profileRes.data.id)
-        .order('applied_at', { ascending: false })
-        .limit(5);
-      setApplications((apps || []) as ApplicationWithJob[]);
+      const [allAppsRes, recentAppsRes] = await Promise.all([
+        supabase.from('applications').select('id, status').eq('seeker_id', profileRes.data.id),
+        supabase
+          .from('applications')
+          .select('*, job_listings(*, companies(*))')
+          .eq('seeker_id', profileRes.data.id)
+          .order('applied_at', { ascending: false })
+          .limit(5),
+      ]);
+      setAllApplicationStats((allAppsRes.data || []) as Pick<Application, 'id' | 'status'>[]);
+      setApplications((recentAppsRes.data || []) as ApplicationWithJob[]);
+    } else {
+      setAllApplicationStats([]);
+      setApplications([]);
     }
     setLoading(false);
   }, [user]);
@@ -48,10 +56,10 @@ export default function SeekerDashboard() {
   }, [loadData, user]);
 
   const stats = [
-    { label: 'Total Lamaran', value: applications.length, icon: Briefcase, color: 'from-sky-500 to-cyan-400' },
-    { label: 'Dalam Proses', value: applications.filter(a => ['reviewed', 'shortlisted'].includes(a.status)).length, icon: Clock, color: 'from-sky-600 to-sky-400' },
-    { label: 'Interview', value: applications.filter(a => a.status === 'interview_scheduled').length, icon: TrendingUp, color: 'from-cyan-500 to-teal-400' },
-    { label: 'Diterima', value: applications.filter(a => a.status === 'hired').length, icon: CheckCircle, color: 'from-emerald-500 to-emerald-400' },
+    { label: 'Total Lamaran', value: allApplicationStats.length, icon: Briefcase, color: 'from-sky-500 to-cyan-400' },
+    { label: 'Dalam Proses', value: allApplicationStats.filter(a => ['reviewed', 'shortlisted'].includes(a.status)).length, icon: Clock, color: 'from-sky-600 to-sky-400' },
+    { label: 'Interview', value: allApplicationStats.filter(a => a.status === 'interview_scheduled').length, icon: TrendingUp, color: 'from-cyan-500 to-teal-400' },
+    { label: 'Diterima', value: allApplicationStats.filter(a => a.status === 'hired').length, icon: CheckCircle, color: 'from-emerald-500 to-emerald-400' },
   ];
 
   if (loading) {

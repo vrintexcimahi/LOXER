@@ -23,9 +23,14 @@ import {
   Shield,
   ShieldCheck,
   ShieldX,
+  Sparkles,
   UserCheck,
   Users,
   X,
+  Terminal,
+  Database,
+  Smartphone,
+  Layers,
 } from 'lucide-react';
 import {
   Area,
@@ -58,8 +63,10 @@ import { adminGuideContent } from '../../lib/dashboardGuideContent';
 import { isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
 import { supabase } from '../../lib/supabase';
 import { AdminStats, AdminUserRow, ApplicationStatus, AuditLog, ChartDataPoint, Company, JobListing, UserRole } from '../../lib/types';
+import AdminUserDataCenter from './AdminUserDataCenter';
+import AdminDeviceManagement from './AdminDeviceManagement';
 
-type AdminTab = 'overview' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations';
+type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations';
 type ToastType = 'success' | 'error' | 'info';
 
 interface AdminDashboardProps {
@@ -76,7 +83,7 @@ interface AdminMenuItem {
   label: string;
   description: string;
   href: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string; strokeWidth?: string | number }>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -219,6 +226,8 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
   const menuItems: AdminMenuItem[] = useMemo(
     () => [
       { key: 'overview', label: 'Dashboard Admin', description: 'Pantau statistik dan kesehatan platform', href: '/admin/dashboard', icon: Home },
+      { key: 'user-data', label: 'Data Pengguna', description: 'Device intelligence & kapabilitas pengguna', href: '/admin/user-data', icon: Layers },
+      { key: 'devices', label: 'Perangkat', description: 'Registry device & revoke akses', href: '/admin/devices', icon: Smartphone },
       { key: 'users', label: 'Manajemen Users', description: 'Kelola role, suspend, dan detail akun', href: '/admin/users', icon: Users },
       { key: 'jobs', label: 'Manajemen Jobs', description: 'Atur seluruh lowongan yang tayang', href: '/admin/jobs', icon: Briefcase },
       { key: 'applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', href: '/admin/applications', icon: ListChecks },
@@ -230,6 +239,10 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
       { key: 'moderation', label: 'Moderation Queue', description: 'Review konten dan AI scoring', href: '/admin/moderation', icon: AlertTriangle },
       { key: 'broadcast', label: 'Broadcast System', description: 'Kirim notifikasi ke segmen user', href: '/admin/broadcast', icon: Megaphone },
       { key: 'security', label: 'Security Center', description: 'IP block, session, dan alerts', href: '/admin/security', icon: Shield },
+      { key: 'editor', label: 'CMS Homepage', description: 'Visual editor halaman utama LOXER', href: '/admin/editor', icon: Sparkles },
+      { key: 'monitoring', label: 'Log & Monitoring', description: 'Real-time live tail & error tracker', href: '/admin/monitoring', icon: Terminal },
+      { key: 'backup', label: 'Backup Database', description: 'Ekspor, restore & Telegram bot harian', href: '/admin/backup', icon: Database },
+      { key: 'dev-workbench', label: 'Developer Mode', description: 'Dual-view workbench (mobile & desktop)', href: '/admin/dev-workbench', icon: Smartphone },
     ],
     []
   );
@@ -281,17 +294,21 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
   const tabTitle =
     activeTab === 'overview'
       ? 'Dashboard Admin'
-      : activeTab === 'users'
-        ? 'Manajemen Users'
-        : activeTab === 'jobs'
-          ? 'Manajemen Jobs'
-          : activeTab === 'applications'
-            ? 'Manajemen Lamaran'
-            : activeTab === 'companies'
-              ? 'Manajemen Perusahaan'
-              : activeTab === 'integrations'
-                ? 'Integrasi API'
-                : 'Audit Log';
+      : activeTab === 'user-data'
+        ? 'Data Pengguna'
+        : activeTab === 'devices'
+          ? 'Perangkat'
+          : activeTab === 'users'
+            ? 'Manajemen Users'
+            : activeTab === 'jobs'
+              ? 'Manajemen Jobs'
+              : activeTab === 'applications'
+                ? 'Manajemen Lamaran'
+                : activeTab === 'companies'
+                  ? 'Manajemen Perusahaan'
+                  : activeTab === 'integrations'
+                    ? 'Integrasi API'
+                    : 'Audit Log';
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -335,19 +352,25 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                   onClick={closeMobile}
                   title={isCollapsed ? `${item.label} - ${item.description}` : undefined}
                   className={classNames(
-                    'mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all',
+                    'group mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
                     isActive
-                      ? 'bg-cyan-500/20 text-cyan-400 border-l-2 border-cyan-400'
-                      : 'text-slate-300 hover:bg-white/5 hover:text-white',
+                      ? 'border border-cyan-400/30 bg-cyan-500/10 text-white shadow-lg shadow-cyan-500/10'
+                      : 'border border-transparent text-slate-300 hover:border-white/10 hover:bg-slate-900/80 hover:text-white',
                     isCollapsed ? 'lg:justify-center lg:px-2' : ''
                   )}
                 >
-                  <Icon className="h-4 w-4" />
-                  <div className={classNames('min-w-0', isCollapsed ? 'lg:hidden' : '')}>
-                    <p className={classNames('truncate font-semibold', isActive ? 'text-white' : 'text-slate-200')}>
+                  <Icon
+                    className={classNames(
+                      'h-5 w-5 shrink-0 transition-colors',
+                      isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'
+                    )}
+                    strokeWidth={1.8}
+                  />
+                  <div className={classNames('min-w-0 flex-1', isCollapsed ? 'lg:hidden' : '')}>
+                    <p className={classNames('truncate font-medium', isActive ? 'text-white font-semibold' : 'text-slate-200')}>
                       {item.label}
                     </p>
-                    <p className={classNames('truncate text-[11px]', isActive ? 'text-cyan-200/90' : 'text-slate-500')}>
+                    <p className={classNames('truncate text-[11px]', isActive ? 'text-cyan-200/80' : 'text-slate-500')}>
                       {item.description}
                     </p>
                   </div>
@@ -357,8 +380,8 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
           </div>
         </aside>
 
-        <div className={classNames('flex w-full flex-col transition-all duration-300', isCollapsed ? 'lg:pl-20' : 'lg:pl-64')}>
-          <header className="sticky top-0 z-30 border-b border-white/10 gradient-sidebar px-4 py-3 backdrop-blur md:px-6">
+        <div className={classNames('flex min-w-0 w-full flex-col transition-all duration-300', isCollapsed ? 'lg:pl-20' : 'lg:pl-64')}>
+          <header className="sticky top-0 z-30 border-b border-white/10 gradient-sidebar px-4 py-3 backdrop-blur md:px-6 pt-safe">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <button
@@ -369,7 +392,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                     }
                     toggleMobile();
                   }}
-                  className="rounded-lg border border-white/10 bg-slate-950/35 p-2 text-slate-100 transition hover:bg-white/10 hover:text-cyan-200"
+                  className="rounded-lg border border-white/10 bg-slate-950/35 p-2 text-slate-100 transition hover:bg-white/10 hover:text-cyan-200 active-press"
                   aria-label={isCollapsed ? 'Open sidebar' : 'Close sidebar'}
                   title={isCollapsed ? 'Open sidebar' : 'Close sidebar'}
                 >
@@ -380,9 +403,9 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                     <Menu className="h-4 w-4" />
                   </span>
                 </button>
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-cyan-300">Admin / {tabTitle}</p>
-                  <p className="text-sm font-semibold text-slate-100">Pusat kendali data dan monitoring LOXER</p>
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-wider text-cyan-300 truncate">Admin / {tabTitle}</p>
+                  <p className="text-sm font-semibold text-slate-100 truncate hidden sm:block">Pusat kendali data dan monitoring LOXER</p>
                 </div>
               </div>
 
@@ -411,9 +434,15 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
             </div>
           </header>
 
-          <main className="flex-1 px-4 py-5 md:px-6">
+          <main className="flex-1 min-w-0 w-full max-w-[min(100%,1920px)] mx-auto px-4 sm:px-6 py-5 pb-24 lg:pb-6">
             {activeTab === 'overview' && (
               <AdminOverview adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
+            )}
+            {activeTab === 'user-data' && (
+              <AdminUserDataCenter />
+            )}
+            {activeTab === 'devices' && (
+              <AdminDeviceManagement />
             )}
             {activeTab === 'users' && (
               <AdminUsers adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
@@ -430,6 +459,76 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
             {activeTab === 'integrations' && <AdminIntegrations onToast={showToast} />}
             {activeTab === 'logs' && <AdminAuditLogs />}
           </main>
+
+          {/* Mobile Bottom Navigation Bar - Material 3 Android Native Style */}
+          <nav
+            aria-label="Admin Mobile Navigation"
+            className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/95 backdrop-blur-xl px-1 pt-1.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-2xl"
+          >
+            <div className="flex items-center justify-around">
+              {[
+                { href: '/admin/dashboard', label: 'Dashboard', icon: Home, key: 'overview' },
+                { href: '/admin/users', label: 'Users', icon: Users, key: 'users' },
+                { href: '/admin/jobs', label: 'Jobs', icon: Briefcase, key: 'jobs' },
+                { href: '/admin/applications', label: 'Pelamar', icon: ListChecks, key: 'applications' },
+                { href: '/admin/companies', label: 'Perusahaan', icon: Building2, key: 'companies' },
+              ].map((item) => {
+                const active = activeTab === item.key || window.location.pathname === item.href;
+                const Icon = item.icon;
+                return (
+                  <a
+                    key={item.key}
+                    href={item.href}
+                    className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active-press transition-transform"
+                  >
+                    <div
+                      className={classNames(
+                        'flex items-center justify-center px-3 py-1 rounded-full transition-all duration-200',
+                        active
+                          ? 'bg-cyan-500/20 text-cyan-300 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200'
+                      )}
+                    >
+                      <Icon className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
+                    </div>
+                    <span
+                      className={classNames(
+                        'text-[10px] tracking-tight mt-0.5 truncate max-w-[58px]',
+                        active ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </a>
+                );
+              })}
+              <button
+                type="button"
+                onClick={toggleMobile}
+                className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active-press transition-transform cursor-pointer"
+                aria-label="Menu Lengkap"
+              >
+                <div
+                  className={classNames(
+                    'flex items-center justify-center px-3 py-1 rounded-full transition-all duration-200',
+                    isMobileOpen
+                      ? 'bg-cyan-500/20 text-cyan-300 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  )}
+                >
+                  <Menu className="h-5 w-5" strokeWidth={isMobileOpen ? 2.2 : 1.8} />
+                </div>
+                <span
+                  className={classNames(
+                    'text-[10px] tracking-tight mt-0.5',
+                    isMobileOpen ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'
+                  )}
+                >
+                  Menu
+                </span>
+              </button>
+            </div>
+          </nav>
 
           <DashboardGuideAssistant
             workspaceLabel="Panduan Admin LOXER"
@@ -702,13 +801,13 @@ function AdminOverview({
 
   const statCards = [
     { label: 'Total User', value: stats.totalUsers, today: stats.newUsersToday, Icon: Users, color: 'text-cyan-400' },
-    { label: 'Seeker', value: stats.totalSeekers, today: stats.newUsersToday, Icon: UserCheck, color: 'text-blue-400' },
-    { label: 'Employer (Perusahaan)', value: stats.totalEmployers, today: stats.newUsersToday, Icon: Building2, color: 'text-purple-400' },
-    { label: 'Total Lowongan', value: stats.totalJobs, today: stats.newJobsToday, Icon: Briefcase, color: 'text-emerald-400' },
-    { label: 'Lowongan Aktif', value: stats.activeJobs, today: stats.newJobsToday, Icon: CheckCircle2, color: 'text-green-400' },
-    { label: 'Total Lamaran', value: stats.totalApplications, today: stats.newApplicationsToday, Icon: FileText, color: 'text-orange-400' },
-    { label: 'Total Perusahaan', value: stats.totalCompanies, today: 0, Icon: Building, color: 'text-violet-400' },
-    { label: 'Perusahaan Verified', value: stats.verifiedCompanies, today: 0, Icon: BadgeCheck, color: 'text-teal-400' },
+    { label: 'Seeker', value: stats.totalSeekers, today: stats.newUsersToday, Icon: UserCheck, color: 'text-cyan-400' },
+    { label: 'Employer (Perusahaan)', value: stats.totalEmployers, today: stats.newUsersToday, Icon: Building2, color: 'text-cyan-400' },
+    { label: 'Total Lowongan', value: stats.totalJobs, today: stats.newJobsToday, Icon: Briefcase, color: 'text-cyan-400' },
+    { label: 'Lowongan Aktif', value: stats.activeJobs, today: stats.newJobsToday, Icon: CheckCircle2, color: 'text-cyan-400' },
+    { label: 'Total Lamaran', value: stats.totalApplications, today: stats.newApplicationsToday, Icon: FileText, color: 'text-cyan-400' },
+    { label: 'Total Perusahaan', value: stats.totalCompanies, today: 0, Icon: Building, color: 'text-cyan-400' },
+    { label: 'Perusahaan Verified', value: stats.verifiedCompanies, today: 0, Icon: BadgeCheck, color: 'text-cyan-400' },
   ];
 
   return (
@@ -735,7 +834,7 @@ function AdminOverview({
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 min-[1800px]:grid-cols-8 gap-4">
         {loading
           ? Array.from({ length: 8 }).map((_, idx) => <SkeletonBlock key={idx} className="h-[122px]" />)
           : statCards.map(({ label, value, today, Icon, color }) => (
@@ -861,7 +960,7 @@ function AdminOverview({
           {loading ? (
             <SkeletonBlock className="h-[240px]" />
           ) : (
-            <div className="overflow-hidden rounded-lg border border-white/10">
+            <div className="overflow-x-auto rounded-lg border border-white/10">
               <table className="w-full text-sm">
                 <thead className="bg-slate-800/70 text-slate-400">
                   <tr>
@@ -1286,7 +1385,7 @@ function AdminUsers({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+      <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
         {loading ? (
           <div className="space-y-3 p-4">
             <SkeletonBlock className="h-10" />
@@ -1657,7 +1756,7 @@ function AdminJobs({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+      <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
         {loading ? (
           <div className="space-y-3 p-4">
             <SkeletonBlock className="h-10" />
@@ -1948,7 +2047,7 @@ function AdminApplications({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+      <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
         {loading ? (
           <div className="space-y-3 p-4">
             <SkeletonBlock className="h-10" />
@@ -2175,7 +2274,7 @@ function AdminCompanies({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+      <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
         {loading ? (
           <div className="space-y-3 p-4">
             <SkeletonBlock className="h-10" />
@@ -2263,20 +2362,21 @@ function StatMini({ title, value }: { title: string; value: number }) {
   );
 }
 
+type IntegrationProvider = {
+  id: string;
+  label: string;
+  configured: boolean;
+  endpoint: string;
+  docsUrl: string;
+  mode: string;
+  note: string;
+};
+
 function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: string) => void }) {
   const [loading, setLoading] = useState(true);
   const [publicIp, setPublicIp] = useState('');
-  const [providers, setProviders] = useState<
-    Array<{
-      id: string;
-      label: string;
-      configured: boolean;
-      endpoint: string;
-      docsUrl: string;
-      mode: string;
-      note: string;
-    }>
-  >([]);
+  const [providers, setProviders] = useState<IntegrationProvider[]>([]);
+
 
   useEffect(() => {
     let active = true;
@@ -2325,6 +2425,54 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
     }
   }
 
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; latency: number; count: number; message: string }>>({});
+
+  async function handleTestProvider(provider: IntegrationProvider) {
+    setTestingId(provider.id);
+    const start = performance.now();
+    try {
+      let url = `/api/jobs?provider=${provider.id}&keywords=staff`;
+      if (provider.id === 'jooble') {
+        url = `/api/integrations/jooble?keywords=staff&location=Indonesia`;
+      } else if (provider.id === 'internal') {
+        url = `/api/jobs?provider=internal`;
+      }
+      const res = await fetch(url);
+      const latency = Math.round(performance.now() - start);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || `HTTP ${res.status}`);
+      }
+      const count = Array.isArray(data.jobs) ? data.jobs.length : (data.totalCount || 0);
+      setTestResults((prev) => ({
+        ...prev,
+        [provider.id]: {
+          ok: true,
+          latency,
+          count,
+          message: `Berhasil (${count} lowongan ditemukan, respon ${latency}ms)`,
+        },
+      }));
+      onToast('success', `Tes koneksi ${provider.label} sukses (${latency}ms)!`);
+    } catch (err) {
+      const latency = Math.round(performance.now() - start);
+      const msg = err instanceof Error ? err.message : 'Koneksi gagal';
+      setTestResults((prev) => ({
+        ...prev,
+        [provider.id]: {
+          ok: false,
+          latency,
+          count: 0,
+          message: msg,
+        },
+      }));
+      onToast('error', `Tes ${provider.label} gagal: ${msg}`);
+    } finally {
+      setTestingId(null);
+    }
+  }
+
   const readyProviders = providers.filter((provider) => provider.configured).length;
 
   return (
@@ -2334,8 +2482,8 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Hub Integrasi</p>
           <h2 className="mt-2 text-2xl font-black text-white">Kelola semua sumber lowongan dari satu tempat</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-400">
-            Halaman ini dipakai untuk memantau koneksi API, mencatat endpoint proxy LOXER, dan menyiapkan provider baru seperti
-            Careerjet, Jooble, Arbeitnow, atau JSearch.
+            Halaman ini dipakai untuk memantau koneksi API, mencatat endpoint proxy LOXER, dan menyiapkan provider seperti
+            Jooble Indonesia, Mitra LOXER, Careerjet, dan Arbeitnow.
           </p>
         </div>
 
@@ -2362,81 +2510,123 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-white">Daftar Integrasi API</p>
-            <p className="text-xs text-slate-500">Pantau status konfigurasi, endpoint proxy, dan dokumentasi provider.</p>
+            <p className="text-xs text-slate-500">Pantau status konfigurasi, endpoint proxy, dan uji koneksi secara langsung.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => <SkeletonBlock key={index} className="h-48" />)
-            : providers.map((provider) => (
-                <div key={provider.id} className="rounded-xl border border-white/10 bg-slate-800/70 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-bold text-white">{provider.label}</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{provider.mode}</p>
-                    </div>
-                    <span
-                      className={classNames(
-                        'rounded-full px-2.5 py-1 text-xs font-semibold',
-                        provider.configured
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : 'bg-amber-500/20 text-amber-300'
-                      )}
-                    >
-                      {provider.configured ? 'Configured' : 'Perlu Setup'}
-                    </span>
-                  </div>
+            : providers.map((provider) => {
+                const test = testResults[provider.id];
+                const isTesting = testingId === provider.id;
 
-                  <div className="mt-4 space-y-3 text-sm text-slate-300">
+                return (
+                  <div key={provider.id} className="rounded-xl border border-white/10 bg-slate-800/70 p-5 flex flex-col justify-between">
                     <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Endpoint LOXER</p>
-                      <p className="mt-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 font-mono text-xs text-cyan-200">
-                        {provider.endpoint}
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-lg font-bold text-white">{provider.label}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{provider.mode}</p>
+                        </div>
+                        <span
+                          className={classNames(
+                            'rounded-full px-2.5 py-1 text-xs font-semibold',
+                            provider.configured
+                              ? 'bg-emerald-500/20 text-emerald-300'
+                              : 'bg-amber-500/20 text-amber-300'
+                          )}
+                        >
+                          {provider.configured ? 'Configured' : 'Perlu Setup'}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 space-y-3 text-sm text-slate-300">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-slate-500">Endpoint LOXER</p>
+                          <p className="mt-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 font-mono text-xs text-cyan-200">
+                            {provider.endpoint}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-slate-500">Catatan</p>
+                          <p className="mt-1 leading-relaxed text-slate-300">{provider.note}</p>
+                        </div>
+                      </div>
+
+                      {test && (
+                        <div
+                          className={classNames(
+                            'mt-3 rounded-lg border px-3 py-2 text-xs font-mono',
+                            test.ok
+                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                              : 'border-red-500/30 bg-red-500/10 text-red-300'
+                          )}
+                        >
+                          {test.message}
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Catatan</p>
-                      <p className="mt-1 leading-relaxed text-slate-300">{provider.note}</p>
+
+                    <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => handleTestProvider(provider)}
+                        disabled={isTesting}
+                        className="inline-flex items-center gap-2 rounded-lg bg-cyan-500/20 border border-cyan-400/30 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 transition disabled:opacity-50"
+                      >
+                        {isTesting ? 'Menguji...' : 'Uji Koneksi API'}
+                      </button>
+
+                      {provider.docsUrl && provider.docsUrl !== '#' && (
+                        <a
+                          href={provider.docsUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/5 transition"
+                        >
+                          Dokumentasi
+                        </a>
+                      )}
                     </div>
-                    <a
-                      href={provider.docsUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
-                    >
-                      Buka dokumentasi
-                    </a>
                   </div>
-                </div>
-              ))}
+                );
+              })}
         </div>
       </div>
 
       <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
-        <p className="text-sm font-semibold text-white">Checklist operasional</p>
+        <p className="text-sm font-semibold text-white">Checklist Operasional Integrasi</p>
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className="rounded-lg border border-white/10 bg-slate-800/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Langkah Careerjet</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Jooble & Mitra LOXER</p>
             <p className="mt-2 text-sm text-slate-300">
-              1. Isi `CAREERJET_API_KEY` di environment server.
+              1. <strong>Jooble Indonesia:</strong> Endpoint <code>/api/integrations/jooble</code> aktif dengan feed loker Indonesia.
             </p>
             <p className="mt-1 text-sm text-slate-300">
-              2. Whitelist IP publik server LOXER di dashboard Careerjet.
+              2. <strong>Mitra LOXER:</strong> Mengambil postingan aktif langsung dari database employer terverifikasi.
             </p>
             <p className="mt-1 text-sm text-slate-300">
-              3. Uji endpoint proxy `/api/jobs` dari halaman seeker browse.
+              3. Pasang <code>JOOBLE_API_KEY</code> di <code>.env</code> untuk beralih ke kunci produksi privat Anda kapan saja.
             </p>
           </div>
           <div className="rounded-lg border border-white/10 bg-slate-800/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Rencana provider berikutnya</p>
-            <p className="mt-2 text-sm text-slate-300">Jooble untuk agregator Indonesia, Arbeitnow untuk feed publik, dan JSearch untuk pencarian lintas negara.</p>
-            <p className="mt-2 text-sm text-slate-400">Begitu proxy endpoint ditambahkan, halaman ini otomatis bisa jadi pusat status dan monitoringnya.</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Careerjet & Feed Publik</p>
+            <p className="mt-2 text-sm text-slate-300">
+              1. <strong>Arbeitnow:</strong> Feed publik aktif tanpa perlu API key, menyajikan ribuan remote & tech jobs global.
+            </p>
+            <p className="mt-1 text-sm text-slate-300">
+              2. <strong>Careerjet:</strong> Pasang <code>CAREERJET_API_KEY</code> dan daftarkan IP server di dashboard partner.
+            </p>
+            <p className="mt-1 text-sm text-slate-400">
+              Semua sumber terintegrasi otomatis di halaman pencarian seeker LOXER.
+            </p>
           </div>
         </div>
       </div>
     </section>
   );
+
 }
 
 function AdminAuditLogs() {
@@ -2480,85 +2670,175 @@ function AdminAuditLogs() {
     fetchLogs();
   }, [page, actionFilter, targetFilter, adminFilter, dateFrom, dateTo]);
 
+  const hasActiveFilters = actionFilter !== 'all' || targetFilter !== 'all' || adminFilter || dateFrom || dateTo;
+
   return (
     <section className="space-y-4">
-      <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
-        <p className="mb-3 text-sm font-semibold">Filter Audit Log</p>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          <select
-            value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm"
-          >
-            <option value="all">Semua Aksi</option>
-            {Object.keys(ACTION_COLORS).map((key) => (
-              <option key={key} value={key}>
-                {key}
-              </option>
-            ))}
-          </select>
-          <select
-            value={targetFilter}
-            onChange={(e) => setTargetFilter(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm"
-          >
-            <option value="all">Semua Target</option>
-            <option value="user">user</option>
-            <option value="job">job</option>
-            <option value="company">company</option>
-            <option value="application">application</option>
-          </select>
-          <input
-            value={adminFilter}
-            onChange={(e) => setAdminFilter(e.target.value)}
-            placeholder="Filter email admin"
-            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm"
-          />
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm"
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm"
-          />
+      {/* Filter Card */}
+      <div className="rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-xl p-4 sm:p-5 shadow-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <Filter className="w-4 h-4" />
+            </span>
+            <p className="text-sm font-semibold text-white">Filter Audit Log</p>
+            <span className="text-xs text-slate-500">({total} total record)</span>
+          </div>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                setActionFilter('all');
+                setTargetFilter('all');
+                setAdminFilter('');
+                setDateFrom('');
+                setDateTo('');
+                setPage(1);
+              }}
+              className="text-xs text-cyan-400 hover:text-cyan-300 font-medium underline cursor-pointer"
+            >
+              Reset Filter
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs">
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Aksi Admin</label>
+            <select
+              value={actionFilter}
+              onChange={(e) => {
+                setActionFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
+            >
+              <option value="all">Semua Aksi</option>
+              {Object.keys(ACTION_COLORS).map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Target Entitas</label>
+            <select
+              value={targetFilter}
+              onChange={(e) => {
+                setTargetFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer"
+            >
+              <option value="all">Semua Target</option>
+              <option value="user">User</option>
+              <option value="job">Job</option>
+              <option value="company">Company</option>
+              <option value="application">Application</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Email Admin</label>
+            <input
+              value={adminFilter}
+              onChange={(e) => {
+                setAdminFilter(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Cari email admin..."
+              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Dari Tanggal</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Sampai Tanggal</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+      {/* Table Container with Horizontal Scroll */}
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/90 shadow-xl scrollbar-thin scrollbar-thumb-slate-700">
         {loading ? (
-          <div className="space-y-3 p-4">
+          <div className="space-y-3 p-4 sm:p-6">
             <SkeletonBlock className="h-10" />
             <SkeletonBlock className="h-10" />
             <SkeletonBlock className="h-10" />
           </div>
+        ) : rows.length === 0 ? (
+          <div className="py-14 px-4 text-center">
+            <FileText className="w-10 h-10 mx-auto mb-2 opacity-30 text-cyan-400" />
+            <p className="font-semibold text-slate-300 text-sm">Tidak ada riwayat audit log yang cocok</p>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              {hasActiveFilters
+                ? 'Coba sesuaikan filter atau reset untuk melihat semua riwayat aktivitas.'
+                : 'Aktivitas administratif seperti penyesuaian role, moderasi, atau perubahan entitas akan otomatis tercatat di sini.'}
+            </p>
+          </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
+          <table className="w-full text-sm min-w-[760px]">
+            <thead className="bg-slate-950/80 text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-white/10">
               <tr>
-                <th className="px-4 py-3 text-left">Waktu</th>
-                <th className="px-4 py-3 text-left">Admin</th>
-                <th className="px-4 py-3 text-left">Aksi</th>
-                <th className="px-4 py-3 text-left">Target</th>
-                <th className="px-4 py-3 text-left">Detail</th>
+                <th className="px-4 py-3 text-left w-44">Waktu</th>
+                <th className="px-4 py-3 text-left w-52">Admin</th>
+                <th className="px-4 py-3 text-left w-44">Aksi</th>
+                <th className="px-4 py-3 text-left w-32">Target</th>
+                <th className="px-4 py-3 text-left">Detail Payload</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-white/5">
               {rows.map((row) => (
-                <tr key={row.id} className="border-b border-white/5 text-slate-300 hover:bg-white/5">
-                  <td className="px-4 py-3">{new Date(row.created_at).toLocaleString('id-ID')}</td>
-                  <td className="px-4 py-3">{row.admin_email || row.admin_id}</td>
+                <tr key={row.id} className="text-slate-300 hover:bg-slate-800/50 transition">
+                  <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap font-mono">
+                    {new Date(row.created_at).toLocaleString('id-ID', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })}
+                  </td>
+                  <td className="px-4 py-3 text-xs font-medium text-slate-200 truncate max-w-[200px]" title={row.admin_email || row.admin_id}>
+                    {row.admin_email || row.admin_id}
+                  </td>
                   <td className="px-4 py-3">
-                    <span className={classNames('rounded-full px-2 py-1 text-xs', ACTION_COLORS[row.action] || 'bg-slate-500/20 text-slate-200')}>
+                    <span className={classNames('inline-block rounded-md px-2.5 py-1 text-[11px] font-semibold border border-current/20', ACTION_COLORS[row.action] || 'bg-slate-500/20 text-slate-200')}>
                       {row.action}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{row.target_type}</td>
-                  <td className="px-4 py-3">{row.detail || '-'}</td>
+                  <td className="px-4 py-3 text-xs capitalize text-slate-300">
+                    <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-medium">
+                      {row.target_type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-400 font-mono truncate max-w-[280px]" title={row.detail || '-'}>
+                    {row.detail || '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>

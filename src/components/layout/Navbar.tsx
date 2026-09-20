@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck } from 'lucide-react';
+import { Briefcase, Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck, Download } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 import BrandText from '../ui/BrandText';
 import ThemeToggle from '../ui/ThemeToggle';
 import NotificationBell from '../ui/NotificationBell';
@@ -64,6 +65,7 @@ function getNextOnlineUsers(current: number, min: number, max: number) {
 
 export default function Navbar({ onLogin, onRegister }: NavbarProps) {
   const { user, userMeta, signOut } = useAuth();
+  const { canInstall, isInstalled, promptInstall } = usePWAInstall();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -96,7 +98,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           ]),
         ),
       );
-    }, 1000);
+    }, 4000);
 
     return () => window.clearInterval(intervalId);
   }, []);
@@ -123,17 +125,17 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 pt-safe transition-all duration-300 ${
         scrolled
           ? 'bg-[#0F172A]/95 backdrop-blur-md shadow-xl shadow-sky-900/20'
           : 'bg-transparent'
       }`}
       style={{ background: scrolled ? undefined : 'linear-gradient(90deg, #0F172A, #0369A1)' }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="w-full max-w-[min(100%,1920px)] mx-auto px-[clamp(16px,3vw,48px)]">
+        <div className="flex items-center justify-between h-14 sm:h-16">
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2 group">
+          <a href="/" className="flex items-center gap-2 group active-press">
             <div className="w-8 h-8 gradient-cta rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/30">
               <Briefcase className="w-4 h-4 text-white" />
             </div>
@@ -181,6 +183,17 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
 
           {/* Right Actions */}
           <div className="hidden md:flex items-center gap-3">
+            {canInstall && !isInstalled && (
+              <button
+                type="button"
+                onClick={() => promptInstall()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-400/30 transition shadow-sm cursor-pointer active:scale-95"
+                title="Pasang Aplikasi LOXER (PWA)"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Pasang App</span>
+              </button>
+            )}
             <ThemeToggle compact />
             {user && userMeta ? (
               <>
@@ -257,17 +270,18 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
 
           {/* Mobile hamburger */}
           <button
-            className="md:hidden text-white p-2"
+            className="md:hidden text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg active-press"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? 'Tutup Menu' : 'Buka Menu'}
           >
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Drawer */}
       {mobileOpen && (
-        <div className="md:hidden bg-[#0F172A]/98 backdrop-blur-xl border-t border-white/10 px-4 py-6 flex flex-col gap-4">
+        <div className="md:hidden bg-[#0F172A]/98 backdrop-blur-xl border-t border-white/10 px-5 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-fade-up">
           <div className="flex justify-start">
             <ThemeToggle />
           </div>
@@ -292,6 +306,19 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           <a href="/#features" className="text-slate-300 hover:text-white text-sm font-medium">Features</a>
           <a href="/#how-it-works" className="text-slate-300 hover:text-white text-sm font-medium">How It Works</a>
           <a href="/browse" className="text-slate-300 hover:text-white text-sm font-medium">Browse Jobs</a>
+          {canInstall && !isInstalled && (
+            <button
+              type="button"
+              onClick={() => {
+                promptInstall();
+                setMobileOpen(false);
+              }}
+              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-sm font-semibold transition cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-cyan-400" />
+              <span>Pasang Aplikasi LOXER</span>
+            </button>
+          )}
           <hr className="border-white/10" />
           {user ? (
             <>

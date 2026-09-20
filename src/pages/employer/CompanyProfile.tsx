@@ -90,7 +90,7 @@ export default function CompanyProfile() {
         {company && (
           <div className="gradient-card rounded-2xl p-5 mb-5 flex items-center gap-4">
             <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center text-white font-black text-xl backdrop-blur-sm border border-white/20">
-              {company.name[0]}
+              {(company.name || 'C')[0]}
             </div>
             <div>
               <h2 className="text-white font-black text-lg">{company.name}</h2>

@@ -1,10 +1,18 @@
-import { Briefcase, MapPin, Search } from 'lucide-react';
+import { Briefcase, Globe2, MapPin, Search } from 'lucide-react';
+
+export const PROVIDER_OPTIONS = [
+  { value: 'all', label: '🌐 Semua Sumber (Aggregator)' },
+  { value: 'jooble', label: '🇮🇩 Jooble (Loker Indonesia)' },
+  { value: 'internal', label: '⭐ Mitra Internal LOXER' },
+  { value: 'careerjet', label: '⚡ Careerjet Regional' },
+  { value: 'arbeitnow', label: '🌍 Arbeitnow (Remote / Global)' },
+];
 
 const CONTRACT_OPTIONS = [
-  { value: '', label: 'Semua kontrak' },
-  { value: 'p', label: 'Tetap (p)' },
+  { value: '', label: 'Semua tipe kontrak' },
+  { value: 'p', label: 'Tetap / Permanen (p)' },
   { value: 'c', label: 'Kontrak (c)' },
-  { value: 'i', label: 'Magang (i)' },
+  { value: 'i', label: 'Magang / Internship (i)' },
 ];
 
 const WORK_HOURS_OPTIONS = [
@@ -18,11 +26,13 @@ export default function JobSearch({
   location,
   contractType,
   workHours,
+  provider = 'all',
   loading,
   onKeywordsChange,
   onLocationChange,
   onContractTypeChange,
   onWorkHoursChange,
+  onProviderChange,
   onSubmit,
   onReset,
 }) {
@@ -35,7 +45,7 @@ export default function JobSearch({
             type="text"
             value={keywords}
             onChange={(event) => onKeywordsChange(event.target.value)}
-            placeholder="Contoh: frontend, marketing, HR"
+            placeholder="Posisi, perusahaan, skill (cth: Kasir, Admin, Sanbe, MyRepublic)..."
             className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
           />
         </label>
@@ -46,7 +56,7 @@ export default function JobSearch({
             type="text"
             value={location}
             onChange={(event) => onLocationChange(event.target.value)}
-            placeholder="Jakarta, Surabaya, Singapore"
+            placeholder="Kota / Daerah (cth: Bandung, Cimahi, Jakarta, Remote)..."
             className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
           />
         </label>
@@ -70,7 +80,22 @@ export default function JobSearch({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <label className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-slate-50 px-4 py-3">
+          <Globe2 className="h-4 w-4 text-sky-600" />
+          <select
+            value={provider}
+            onChange={(event) => onProviderChange && onProviderChange(event.target.value)}
+            className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
+          >
+            {PROVIDER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-slate-50 px-4 py-3">
           <Briefcase className="h-4 w-4 text-sky-500" />
           <select

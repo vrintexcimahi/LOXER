@@ -286,4 +286,44 @@ export const adminGuideContent: Record<string, DashboardGuideContent> = {
       'Lakukan audit berkala terhadap catatan keamanan yang masuk.',
     ],
   },
+  '/admin/monitoring': {
+    summary: 'Log & Monitoring System menyediakan live tail konsol terminal dan error tracker global untuk memantau stabilitas sistem secara real-time.',
+    detailFunctions: [
+      'Menangkap error runtime window.onerror dan unhandled promise rejection secara otomatis.',
+      'Menampilkan terminal live stream dengan filter level (INFO, SUCCESS, WARN, ERROR) dan modul.',
+      'Menyediakan detail payload modal, stack trace, tombol copy payload, serta ekspor JSON/CSV.',
+    ],
+    usageTips: [
+      'Gunakan simulator trigger untuk menguji logging di berbagai level.',
+      'Gunakan filter search dan dropdown level untuk mempersempit investigasi bug.',
+      'Periksa badge error merah di sidebar jika ada insiden yang belum diselesaikan.',
+    ],
+  },
+  '/admin/backup': {
+    summary: 'Database Backup & Telegram Bot mengelola pencadangan data, pemulihan aman dengan Safety Preview, dan penjadwalan otomatis via bot Telegram.',
+    detailFunctions: [
+      'Melihat metrik ukuran database, jumlah tabel, total baris, dan status bot.',
+      'Mengekspor seluruh skema dan relasi data lokal ke dalam file backup JSON terstruktur.',
+      'Mengimpor backup dengan validasi schema dan preview sebelum memulihkan data.',
+      'Mengirim backup otomatis dan file JSON langsung ke chat/channel Telegram.',
+    ],
+    usageTips: [
+      'Lakukan ekspor backup sebelum menjalankan perubahan data besar.',
+      'Periksa safety preview saat restore untuk memastikan jumlah entitas yang cocok.',
+      'Gunakan tombol tes pesan dan dokumen Telegram untuk memverifikasi token dan chat ID.',
+    ],
+  },
+  '/admin/dev-workbench': {
+    summary: 'Developer Mode menghadirkan Dual-View Testing Workbench untuk menguji antarmuka Mobile Chassis dan Desktop Browser secara berdampingan.',
+    detailFunctions: [
+      'Simulasi frame ponsel premium (iPhone 15 Pro, Pixel 8, iPhone SE, iPad Mini) dengan Dynamic Island.',
+      'Simulasi browser desktop dengan traffic light, SSL badge, dan omnibox.',
+      'Sinkronisasi rute aktif dua arah dan injeksi form autofill untuk testing cepat.',
+    ],
+    usageTips: [
+      'Gunakan quick route pills untuk berpindah halaman secara serempak di kedua tampilan.',
+      'Aktifkan cache-buster jika sedang mengedit style atau asset dinamis.',
+      'Gunakan Autofill Tester untuk mengisi formulir tes otomatis tanpa ketik manual.',
+    ],
+  },
 };

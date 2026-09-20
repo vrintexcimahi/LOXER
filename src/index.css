@@ -42,7 +42,32 @@
   --app-scrollbar-thumb-hover: #0891b2;
 }
 
-* { box-sizing: border-box; }
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+pre, code {
+  max-width: 100%;
+  overflow-x: auto;
+}
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -50,6 +75,8 @@ body {
   background: var(--app-bg);
   color: var(--app-text);
   transition: background-color 200ms ease, color 200ms ease;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -64,6 +91,115 @@ body {
   .gradient-sidebar { background: var(--gradient-sidebar); }
   .gradient-badge { background: var(--gradient-badge); }
   .gradient-subtle { background: var(--gradient-subtle); }
+
+  /* Fluid Page & Container Foundation */
+  .app-container {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .fluid-container {
+    width: 100%;
+    min-width: 0;
+    max-width: min(100%, 1920px);
+    margin-inline: auto;
+    padding-inline: clamp(12px, 2.5vw, 32px);
+  }
+
+  .fluid-container-narrow {
+    width: 100%;
+    min-width: 0;
+    max-width: min(100%, 1280px);
+    margin-inline: auto;
+    padding-inline: clamp(12px, 2vw, 28px);
+  }
+
+  /* Auto-Adaptive Fluid Grids */
+  .fluid-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+    gap: clamp(12px, 1.5vw, 24px);
+    width: 100%;
+  }
+
+  .fluid-grid-sm {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+    gap: clamp(10px, 1.2vw, 18px);
+    width: 100%;
+  }
+
+  .fluid-grid-lg {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+    gap: clamp(14px, 1.8vw, 28px);
+    width: 100%;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+    gap: clamp(12px, 1.4vw, 22px);
+    width: 100%;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+    gap: clamp(12px, 1.2vw, 20px);
+    width: 100%;
+  }
+
+  /* Responsive Tables & Modals */
+  .table-responsive {
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-responsive {
+    width: min(92vw, 768px);
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  .modal-responsive-sm {
+    width: min(92vw, 460px);
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  .modal-responsive-lg {
+    width: min(94vw, 1024px);
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  /* Dynamic Fluid Spacing & Typography */
+  .fluid-p { padding: clamp(12px, 2vw, 28px); }
+  .fluid-px { padding-inline: clamp(12px, 2vw, 32px); }
+  .fluid-py { padding-block: clamp(16px, 3vw, 48px); }
+  .fluid-gap { gap: clamp(12px, 1.5vw, 24px); }
+  .fluid-gap-lg { gap: clamp(16px, 2.5vw, 36px); }
+
+  .fluid-h1 {
+    font-size: clamp(2.25rem, 4vw + 1rem, 4.5rem);
+    line-height: 1.1;
+  }
+  .fluid-h2 {
+    font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2.75rem);
+    line-height: 1.2;
+  }
+  .fluid-h3 {
+    font-size: clamp(1.2rem, 1.5vw + 0.4rem, 1.875rem);
+    line-height: 1.3;
+  }
+  .fluid-body {
+    font-size: clamp(0.9rem, 0.4vw + 0.8rem, 1.125rem);
+    line-height: 1.6;
+  }
+
   .dashboard-sidebar-scroll {
     scrollbar-width: thin;
     scrollbar-color: rgba(103, 232, 249, 0.65) rgba(15, 23, 42, 0.5);
@@ -228,3 +364,95 @@ html.dark .badge {
   border-left: 3px solid #06B6D4;
   color: white;
 }
+
+/* ==========================================================================
+   Android Native App Experience Utilities (Material 3 & Mobile First)
+   ========================================================================== */
+
+/* Safe Area Insets */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Interactive Touch Feedback */
+.active-press {
+  transition: transform 120ms cubic-bezier(0.4, 0, 0.2, 1), opacity 120ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.active-press:active {
+  transform: scale(0.96);
+  opacity: 0.88;
+}
+
+/* Material 3 Bottom Navigation Bar */
+.android-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(226, 232, 240, 0.85);
+  padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0.55rem));
+}
+.dark .android-bottom-nav {
+  background-color: rgba(15, 23, 42, 0.96);
+  border-top-color: rgba(51, 65, 85, 0.7);
+}
+
+/* Material 3 Active Pill Indicator */
+.android-nav-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 14px;
+  border-radius: 9999px;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.android-nav-pill-active {
+  background-color: rgba(14, 165, 233, 0.16);
+  color: #0284c7;
+}
+.dark .android-nav-pill-active {
+  background-color: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+}
+
+/* Android Bottom Sheet Container */
+.bottom-sheet {
+  border-top-left-radius: 1.5rem;
+  border-top-right-radius: 1.5rem;
+  box-shadow: 0 -12px 30px -4px rgba(0, 0, 0, 0.25);
+  max-height: 88vh;
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Visual Drag Handle for Bottom Sheets */
+.bottom-sheet-handle {
+  width: 38px;
+  height: 4px;
+  border-radius: 9999px;
+  background-color: rgba(148, 163, 184, 0.45);
+  margin: 10px auto 12px auto;
+}
+.dark .bottom-sheet-handle {
+  background-color: rgba(148, 163, 184, 0.35);
+}
+

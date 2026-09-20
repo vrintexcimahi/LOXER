@@ -8,6 +8,7 @@ Jalankan migration sesuai urutan nama file berikut:
 4. `20260417090000_harden_production_policies.sql`
 5. `20260418000000_god_mode_admin.sql`
 6. `20260418101500_add_admin_dashboard_rls.sql`
+7. `20260419000000_device_intelligence_and_user_center.sql`
 
 ## Urutan Aman di Supabase SQL Editor
 
@@ -19,6 +20,7 @@ Jalankan migration sesuai urutan nama file berikut:
 6. Jalankan file `20260417090000_harden_production_policies.sql`.
 7. Jalankan file `20260418000000_god_mode_admin.sql`.
 8. Jalankan file `20260418101500_add_admin_dashboard_rls.sql`.
+9. Jalankan file `20260419000000_device_intelligence_and_user_center.sql`.
 
 ## Setelah Semua Migration Jalan
 

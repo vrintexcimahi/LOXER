@@ -1,4 +1,4 @@
-import { CareerjetProxyError, searchJobs } from '../services/careerjetService.js';
+import { searchUnifiedJobs, CareerjetProxyError } from '../services/unifiedJobService.js';
 
 let publicIpPromise = null;
 
@@ -74,7 +74,8 @@ export default async function handler(req, res) {
       '';
     const userIp = await resolveCareerjetIp(req);
 
-    const data = await searchJobs({
+    const data = await searchUnifiedJobs({
+      provider: req.query?.provider || 'all',
       keywords: req.query?.keywords || '',
       location: req.query?.location || '',
       page: Number(req.query?.page || '1') || 1,
@@ -95,8 +96,9 @@ export default async function handler(req, res) {
       return;
     }
 
-    const message = error instanceof Error ? error.message : 'Terjadi kesalahan pada proxy Careerjet';
+    const message = error instanceof Error ? error.message : 'Terjadi kesalahan pada proxy lowongan LOXER';
 
     res.status(500).json({ message });
   }
 }
+

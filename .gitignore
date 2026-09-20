@@ -28,3 +28,5 @@ dist-ssr
 .vercel-deploy-tmp/
 .last_temp_deploy_path
 .tmp-*
+
+*.pid
