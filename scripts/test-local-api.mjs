@@ -2,12 +2,14 @@ import { createServer } from 'vite';
 
 async function test() {
   console.log('--- Testing LOXER Local Server & DB ---');
+  const port = Number(process.env.TEST_PORT || 3331);
+  const baseUrl = `http://localhost:${port}`;
   const server = await createServer({
     configFile: './vite.config.ts',
-    server: { port: 3031 },
+    server: { port },
   });
   await server.listen();
-  console.log('Test Vite server running on port 3031...');
+  console.log(`Test Vite server running on port ${port}...`);
 
   try {
     async function safeFetch(url, options = {}, retries = 2) {
@@ -31,12 +33,12 @@ async function test() {
     }
 
     // 1. Test /api/auth-capabilities
-    const capRes = await safeFetch('http://localhost:3031/api/auth-capabilities');
+    const capRes = await safeFetch(`${baseUrl}/api/auth-capabilities`);
     const capData = await capRes.json();
     console.log('1. Capabilities:', capData.emailAuthEnabled ? 'OK' : 'FAIL');
 
     // 2. Test /api/local/auth/login with seeded admin
-    const loginRes = await safeFetch('http://localhost:3031/api/local/auth/login', {
+    const loginRes = await safeFetch(`${baseUrl}/api/local/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -50,7 +52,7 @@ async function test() {
     const adminToken = loginData.data?.session?.access_token;
 
     // 3. Test /api/local/db/query for job_listings
-    const queryRes = await safeFetch('http://localhost:3031/api/local/db/query', {
+    const queryRes = await safeFetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -63,7 +65,7 @@ async function test() {
     console.log('3. Query Job Listings:', queryData.data?.length > 0 ? `OK (${queryData.data.length} jobs found)` : 'FAIL');
 
     // 4. Test /api/admin/users
-    const usersRes = await safeFetch('http://localhost:3031/api/admin/users', {
+    const usersRes = await safeFetch(`${baseUrl}/api/admin/users`, {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
     const usersData = await usersRes.json();
@@ -71,7 +73,7 @@ async function test() {
     console.log('4. Admin Users Endpoint:', usersData.rows?.length > 0 ? `OK (${usersData.rows.length} users)` : 'FAIL');
 
     // 5. Test Seeker login
-    const seekerLogin = await safeFetch('http://localhost:3031/api/local/auth/login', {
+    const seekerLogin = await safeFetch(`${baseUrl}/api/local/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

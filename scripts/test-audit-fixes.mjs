@@ -3,16 +3,18 @@ import { getLocalDb, queryOne, queryAll, execute } from '../server/localDb.js';
 
 async function testAuditFixes() {
   console.log('--- Testing Audit & Bug Fixes ---');
+  const port = Number(process.env.TEST_PORT_AUDIT || 3332);
+  const baseUrl = `http://localhost:${port}`;
   const server = await createServer({
     configFile: './vite.config.ts',
-    server: { port: 3032 },
+    server: { port },
   });
   await server.listen();
-  console.log('Test Vite server running on port 3032...');
+  console.log(`Test Vite server running on port ${port}...`);
 
   try {
     // 1. Login as Admin to get token
-    const loginRes = await fetch('http://localhost:3032/api/local/auth/login', {
+    const loginRes = await fetch(`${baseUrl}/api/local/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -25,7 +27,7 @@ async function testAuditFixes() {
     if (!adminToken) throw new Error('Admin login failed');
 
     // 2. Test handleAdminAuditLog: admin_id should be properly set (not null/undefined)
-    const auditRes = await fetch('http://localhost:3032/api/admin-audit-log', {
+    const auditRes = await fetch(`${baseUrl}/api/admin-audit-log`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -47,7 +49,7 @@ async function testAuditFixes() {
     // 3. Test handleApplicationStatusNotification: should insert into notifications with is_read column without crashing
     const app = queryOne('SELECT id FROM applications LIMIT 1');
     if (app) {
-      const notifRes = await fetch('http://localhost:3032/api/application-status-notification', {
+      const notifRes = await fetch(`${baseUrl}/api/application-status-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +70,7 @@ async function testAuditFixes() {
     }
 
     // 4. Test empty update in handleDbQuery (should not produce SQL error)
-    const emptyUpdateRes = await fetch('http://localhost:3032/api/local/db/query', {
+    const emptyUpdateRes = await fetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -82,7 +84,7 @@ async function testAuditFixes() {
     console.log('3. Empty Update Graceful Handling:', emptyUpdateRes.ok && !emptyUpdateData.error ? 'OK' : 'FAIL');
 
     // 5. Test moderation_queue query and column support (reason, ai_score, ai_flags)
-    const modRes = await fetch('http://localhost:3032/api/local/db/query', {
+    const modRes = await fetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -94,7 +96,7 @@ async function testAuditFixes() {
     console.log('4. Moderation Queue Query & Schema check:', modRes.ok && !modData.error ? 'OK' : 'FAIL');
 
     // 6. Test analytics_snapshots table
-    const snapRes = await fetch('http://localhost:3032/api/local/db/query', {
+    const snapRes = await fetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -106,7 +108,7 @@ async function testAuditFixes() {
     console.log('5. Analytics Snapshots Query & Table check:', snapRes.ok && !snapData.error ? 'OK' : 'FAIL');
 
     // 7. Test applications enrichment with interview_invitations
-    const appQueryRes = await fetch('http://localhost:3032/api/local/db/query', {
+    const appQueryRes = await fetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -120,7 +122,7 @@ async function testAuditFixes() {
     console.log('6. Applications enrichment with interview_invitations:', invEnriched ? 'OK' : 'FAIL');
 
     // 8. Test auto-generate daily analytics snapshot endpoint
-    const snapGenRes = await fetch('http://localhost:3032/api/admin/analytics-snapshot/generate', {
+    const snapGenRes = await fetch(`${baseUrl}/api/admin/analytics-snapshot/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -131,7 +133,7 @@ async function testAuditFixes() {
     );
 
     // 9. Test audit logs stats endpoint
-    const statsRes = await fetch('http://localhost:3032/api/admin/audit-logs/stats');
+    const statsRes = await fetch(`${baseUrl}/api/admin/audit-logs/stats`);
     const statsData = await statsRes.json();
     console.log(
       '8. Audit Logs Stats API:',
@@ -141,7 +143,7 @@ async function testAuditFixes() {
     // 10. Test internal job query with company relation
     const anyJob = queryOne("SELECT id FROM job_listings WHERE status = 'active' LIMIT 1");
     if (anyJob) {
-      const jobRes = await fetch('http://localhost:3032/api/local/db/query', {
+      const jobRes = await fetch(`${baseUrl}/api/local/db/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -161,7 +163,7 @@ async function testAuditFixes() {
       // Clean up previous test run application to avoid UNIQUE constraint violation
       execute("DELETE FROM applications WHERE job_id = ? AND seeker_id = ?", [anyJob.id, seeker.id]);
 
-      const applyRes = await fetch('http://localhost:3032/api/local/db/query', {
+      const applyRes = await fetch(`${baseUrl}/api/local/db/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
