@@ -201,6 +201,9 @@ CREATE TABLE IF NOT EXISTS moderation_queue (
   id TEXT PRIMARY KEY,
   entity_type TEXT NOT NULL,
   entity_id TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  ai_score REAL,
+  ai_flags TEXT DEFAULT '[]',
   status TEXT NOT NULL DEFAULT 'pending',
   risk_score INTEGER NOT NULL DEFAULT 0,
   flags TEXT DEFAULT '[]',
@@ -315,6 +318,23 @@ CREATE TABLE IF NOT EXISTS user_activity_logs (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- 23. Analytics Snapshots Table (God Mode Analytics)
+CREATE TABLE IF NOT EXISTS analytics_snapshots (
+  id TEXT PRIMARY KEY,
+  snapshot_date TEXT UNIQUE NOT NULL DEFAULT (date('now')),
+  total_users INTEGER NOT NULL DEFAULT 0,
+  new_users INTEGER NOT NULL DEFAULT 0,
+  active_users INTEGER NOT NULL DEFAULT 0,
+  total_jobs INTEGER NOT NULL DEFAULT 0,
+  new_jobs INTEGER NOT NULL DEFAULT 0,
+  total_apps INTEGER NOT NULL DEFAULT 0,
+  new_apps INTEGER NOT NULL DEFAULT 0,
+  conversion_rate REAL NOT NULL DEFAULT 0,
+  avg_time_to_hire REAL NOT NULL DEFAULT 0,
+  platform_score INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Indices for Fast Queries
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_meta_role ON users_meta(role);
@@ -335,4 +355,5 @@ CREATE INDEX IF NOT EXISTS idx_user_activity_user_id ON user_activity_logs(user_
 CREATE INDEX IF NOT EXISTS idx_user_activity_device_id ON user_activity_logs(device_id);
 CREATE INDEX IF NOT EXISTS idx_user_activity_event_type ON user_activity_logs(event_type);
 CREATE INDEX IF NOT EXISTS idx_user_activity_created_at ON user_activity_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_date ON analytics_snapshots(snapshot_date);
 

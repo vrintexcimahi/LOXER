@@ -63,8 +63,8 @@ export default function SeekerProfile() {
       phone: form.phone,
       domicile_city: form.domicile_city,
       about: form.about,
-      expected_salary_min: form.expected_salary_min ? parseInt(form.expected_salary_min) * 1000000 : 0,
-      expected_salary_max: form.expected_salary_max ? parseInt(form.expected_salary_max) * 1000000 : 0,
+      expected_salary_min: form.expected_salary_min ? parseInt(form.expected_salary_min, 10) * 1000000 : 0,
+      expected_salary_max: form.expected_salary_max ? parseInt(form.expected_salary_max, 10) * 1000000 : 0,
       updated_at: new Date().toISOString(),
     };
 

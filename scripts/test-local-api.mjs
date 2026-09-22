@@ -10,13 +10,33 @@ async function test() {
   console.log('Test Vite server running on port 3031...');
 
   try {
+    async function safeFetch(url, options = {}, retries = 2) {
+      for (let i = 0; i <= retries; i++) {
+        try {
+          const opts = {
+            ...options,
+            headers: {
+              Connection: 'close',
+              ...(options.headers || {}),
+            },
+          };
+          return await fetch(url, opts);
+        } catch (err) {
+          if (i === retries || (err.cause?.code !== 'ECONNRESET' && err.code !== 'ECONNRESET')) {
+            throw err;
+          }
+          await new Promise((r) => setTimeout(r, 150));
+        }
+      }
+    }
+
     // 1. Test /api/auth-capabilities
-    const capRes = await fetch('http://localhost:3031/api/auth-capabilities');
+    const capRes = await safeFetch('http://localhost:3031/api/auth-capabilities');
     const capData = await capRes.json();
     console.log('1. Capabilities:', capData.emailAuthEnabled ? 'OK' : 'FAIL');
 
     // 2. Test /api/local/auth/login with seeded admin
-    const loginRes = await fetch('http://localhost:3031/api/local/auth/login', {
+    const loginRes = await safeFetch('http://localhost:3031/api/local/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -30,7 +50,7 @@ async function test() {
     const adminToken = loginData.data?.session?.access_token;
 
     // 3. Test /api/local/db/query for job_listings
-    const queryRes = await fetch('http://localhost:3031/api/local/db/query', {
+    const queryRes = await safeFetch('http://localhost:3031/api/local/db/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -43,7 +63,7 @@ async function test() {
     console.log('3. Query Job Listings:', queryData.data?.length > 0 ? `OK (${queryData.data.length} jobs found)` : 'FAIL');
 
     // 4. Test /api/admin/users
-    const usersRes = await fetch('http://localhost:3031/api/admin/users', {
+    const usersRes = await safeFetch('http://localhost:3031/api/admin/users', {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
     const usersData = await usersRes.json();
@@ -51,7 +71,7 @@ async function test() {
     console.log('4. Admin Users Endpoint:', usersData.rows?.length > 0 ? `OK (${usersData.rows.length} users)` : 'FAIL');
 
     // 5. Test Seeker login
-    const seekerLogin = await fetch('http://localhost:3031/api/local/auth/login', {
+    const seekerLogin = await safeFetch('http://localhost:3031/api/local/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

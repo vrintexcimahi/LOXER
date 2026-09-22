@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Compass, Layers, MapPinned, SearchX, Sparkles } from 'lucide-react';
 import JobCard from './JobCard';
 import JobSearch from './JobSearch';
@@ -26,6 +26,7 @@ export default function JobList({
   initialContractType = '',
   initialWorkHours = '',
   initialProvider = 'all',
+  onSelectJob,
 }) {
   const [keywords, setKeywords] = useState(initialKeywords);
   const [location, setLocation] = useState(initialLocation);
@@ -39,7 +40,6 @@ export default function JobList({
   const [locationOptions, setLocationOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const initialFetchDone = useRef(false);
 
   async function loadJobs(
     nextPage,
@@ -86,8 +86,12 @@ export default function JobList({
   }
 
   useEffect(() => {
-    if (initialFetchDone.current) return;
-    initialFetchDone.current = true;
+    setKeywords(initialKeywords);
+    setLocation(initialLocation);
+    setPage(initialPage);
+    setContractType(initialContractType);
+    setWorkHours(initialWorkHours);
+    setProvider(initialProvider);
     void loadJobs(initialPage, initialKeywords, initialLocation, initialContractType, initialWorkHours, initialProvider);
   }, [initialKeywords, initialLocation, initialPage, initialContractType, initialWorkHours, initialProvider]);
 
@@ -309,7 +313,11 @@ export default function JobList({
 
           <div className="grid grid-cols-1 md:grid-cols-2 min-[1800px]:grid-cols-3 gap-4">
             {jobs.map((job) => (
-              <JobCard key={`${job.site}-${job.url}-${job.title}`} job={job} />
+              <JobCard
+                key={`${job.site}-${job.url}-${job.title}`}
+                job={job}
+                onSelectJob={onSelectJob}
+              />
             ))}
           </div>
 

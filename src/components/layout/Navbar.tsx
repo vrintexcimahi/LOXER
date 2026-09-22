@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Briefcase, Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck, Download } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
@@ -69,6 +69,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [onlineUsersByGroup, setOnlineUsersByGroup] = useState<Record<string, number>>(() =>
     Object.fromEntries(
       userPresenceGroups.map((group) => [
@@ -77,6 +78,26 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
       ]),
     ),
   );
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [userMenuOpen]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -152,8 +173,8 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               How It Works
               <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
             </a>
-            {!user && (
-              <a href="/browse" className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group">
+            {(!user || userMeta?.role === 'seeker') && (
+              <a href="/seeker/browse" className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group">
                 Browse Jobs
                 <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
               </a>
@@ -211,7 +232,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
                 </a>
 
                 {/* User Menu */}
-                <div className="relative">
+                <div ref={userMenuRef} className="relative">
                   <button
                     onClick={() => { setUserMenuOpen(!userMenuOpen); }}
                     className="flex items-center gap-2 glass rounded-full px-3 py-1.5 text-white text-sm hover:bg-white/15 transition-colors"

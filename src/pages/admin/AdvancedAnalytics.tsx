@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Briefcase, Building2, FileText, RefreshCw, Users } from 'lucide-react';
+import { Activity, Briefcase, Building2, FileText, RefreshCw, Users, Zap, CheckCircle2 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import GodModeLayout from './GodModeLayout';
 import { supabase } from '../../lib/supabase';
@@ -205,6 +205,33 @@ export default function AdvancedAnalytics() {
     void loadData();
   }, []);
 
+  const [generatingSnapshot, setGeneratingSnapshot] = useState(false);
+  const [snapshotFeedback, setSnapshotFeedback] = useState<string | null>(null);
+
+  async function handleGenerateSnapshot() {
+    setGeneratingSnapshot(true);
+    setSnapshotFeedback(null);
+    try {
+      const res = await fetch('/api/admin/analytics-snapshot/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        setSnapshotFeedback('Snapshot hari ini berhasil disinkronkan.');
+        await loadData();
+      } else {
+        await loadData();
+        setSnapshotFeedback('Data diperbarui dari database.');
+      }
+    } catch {
+      await loadData();
+      setSnapshotFeedback('Data diperbarui dari database.');
+    } finally {
+      setGeneratingSnapshot(false);
+      setTimeout(() => setSnapshotFeedback(null), 4000);
+    }
+  }
+
   const funnelSteps = useMemo(() => {
     if (!snapshot) return [];
     const totalUsers = Math.max(snapshot.total_users, 1);
@@ -228,19 +255,40 @@ export default function AdvancedAnalytics() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Live Metrics</p>
-            <p className="mt-1 text-sm text-slate-400">
-              {snapshot ? `Snapshot: ${snapshot.snapshot_date}` : 'Belum ada snapshot tersimpan'}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-slate-400">
+                {snapshot ? `Snapshot: ${snapshot.snapshot_date}` : 'Belum ada snapshot tersimpan'}
+              </p>
+              {snapshotFeedback && (
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 animate-fadeIn">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {snapshotFeedback}
+                </span>
+              )}
+            </div>
           </div>
-          <button
-            onClick={() => {
-              void loadData();
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                void handleGenerateSnapshot();
+              }}
+              disabled={generatingSnapshot || loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/15 px-3.5 py-2 text-sm font-medium text-cyan-200 hover:bg-cyan-500/25 transition-colors disabled:opacity-50"
+            >
+              <Zap className={`h-4 w-4 text-cyan-400 ${generatingSnapshot ? 'animate-pulse' : ''}`} />
+              {generatingSnapshot ? 'Merekam Snapshot...' : 'Sinkronkan Snapshot Hari Ini'}
+            </button>
+            <button
+              onClick={() => {
+                void loadData();
+              }}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {errorMessage ? (

@@ -34,14 +34,26 @@ function isLocalIp(ip) {
   );
 }
 
+let cachedPublicIp = '';
+let cachedPublicIpAt = 0;
+const PUBLIC_IP_CACHE_MS = 15 * 60 * 1000;
+
 async function getPublicIp() {
+  if (cachedPublicIp && Date.now() - cachedPublicIpAt < PUBLIC_IP_CACHE_MS) {
+    return cachedPublicIp;
+  }
   if (publicIpPromise) return publicIpPromise;
 
   publicIpPromise = fetch('https://api.ipify.org?format=json')
     .then(async (response) => {
       if (!response.ok) return '';
       const payload = await response.json();
-      return payload.ip || '';
+      const ip = payload.ip || '';
+      if (ip) {
+        cachedPublicIp = ip;
+        cachedPublicIpAt = Date.now();
+      }
+      return ip;
     })
     .catch(() => '')
     .finally(() => {

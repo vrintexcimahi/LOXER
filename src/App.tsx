@@ -5,6 +5,8 @@ import { useAuth } from './contexts/useAuth';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import { isDefaultAdminEmail } from './lib/constants';
+import { supabase } from './lib/supabase';
+import { syncQueuedApplications } from './lib/offlineSyncService';
 import Homepage from './pages/Homepage';
 import PWAInstallBanner from './components/ui/PWAInstallBanner';
 
@@ -45,9 +47,20 @@ function FullScreenLoader({ message = 'Memuat LOXER...' }: { message?: string })
 function Router() {
   const { user, userMeta, loading, configured } = useAuth();
   const [authMode, setAuthMode] = useState<AuthMode>(null);
-  const path = window.location.pathname;
+  const [path, setPath] = useState<string>(() => window.location.pathname);
   const isDefaultAdminAccount = isDefaultAdminEmail(user?.email);
   const effectiveRole = isDefaultAdminAccount ? 'admin' : userMeta?.role;
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setPath(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   const getHomePathByRole = () => {
     if (!user || !effectiveRole) return '/';
@@ -59,6 +72,24 @@ function Router() {
     if (path === '/login') setAuthMode('login');
     if (path === '/register') setAuthMode('register');
   }, [path]);
+
+  // Automatic PWA Offline Sync when internet connectivity is restored
+  useEffect(() => {
+    const handleOnlineSync = () => {
+      if (supabase) {
+        void syncQueuedApplications(supabase);
+      }
+    };
+
+    window.addEventListener('online', handleOnlineSync);
+    if (typeof navigator !== 'undefined' && navigator.onLine && supabase) {
+      void syncQueuedApplications(supabase);
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnlineSync);
+    };
+  }, []);
 
   if (loading) {
     return <FullScreenLoader />;
@@ -130,8 +161,12 @@ VITE_SUPABASE_ANON_KEY=...`}
   const page = renderPage();
 
   if (page === null && path !== '/') {
-    window.location.href = getHomePathByRole();
-    return null;
+    if ((path === '/login' || path === '/register') && !user) {
+      // Allow unauthenticated visitor to view the login or register modal on homepage
+    } else {
+      window.location.href = getHomePathByRole();
+      return null;
+    }
   }
 
   if (page) {
@@ -160,7 +195,10 @@ VITE_SUPABASE_ANON_KEY=...`}
             mode={authMode}
             onClose={() => {
               setAuthMode(null);
-              if (path === '/login' || path === '/register') window.history.pushState({}, '', '/');
+              if (path === '/login' || path === '/register') {
+                window.history.pushState({}, '', '/');
+                setPath('/');
+              }
             }}
             onSwitchMode={setAuthMode}
           />

@@ -78,7 +78,11 @@ export default function JobListings() {
 
   async function toggleStatus(job: JobListing, newStatus: JobStatus) {
     if (!supabase) return;
-    await supabase.from('job_listings').update({ status: newStatus }).eq('id', job.id);
+    let query = supabase.from('job_listings').update({ status: newStatus }).eq('id', job.id);
+    if (company) {
+      query = query.eq('company_id', company.id);
+    }
+    await query;
     setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: newStatus } : j)));
   }
 

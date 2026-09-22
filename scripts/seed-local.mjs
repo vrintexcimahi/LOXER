@@ -277,6 +277,82 @@ export async function seedDatabase() {
     console.log('✅ Feature flags bawaan berhasil diinisialisasi.');
   }
 
+  // 7. Seed Demo Interview Invitation
+  const demoApp = queryOne('SELECT id, status FROM applications LIMIT 1');
+  if (demoApp) {
+    const existingInv = queryOne('SELECT id FROM interview_invitations WHERE application_id = ?', [demoApp.id]);
+    if (!existingInv) {
+      const interviewDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+      execute(
+        `INSERT INTO interview_invitations (id, application_id, scheduled_at, location_or_link, notes, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          demoApp.id,
+          interviewDate,
+          'https://meet.google.com/lox-demo-interview',
+          'Harap menyiapkan laptop dengan webcam aktif, portofolio proyek terbaru, dan koneksi internet stabil.',
+          now,
+        ]
+      );
+      execute("UPDATE applications SET status = 'interview_scheduled' WHERE id = ?", [demoApp.id]);
+      console.log('✅ Demo Undangan Interview dijadwalkan.');
+    }
+  }
+
+  // 8. Seed Analytics Snapshots
+  const snapCount = queryOne('SELECT count(*) as c FROM analytics_snapshots');
+  if (!snapCount || snapCount.c === 0) {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().slice(0, 10);
+      execute(
+        `INSERT OR IGNORE INTO analytics_snapshots (id, snapshot_date, total_users, new_users, active_users, total_jobs, new_jobs, total_apps, new_apps, conversion_rate, avg_time_to_hire, platform_score, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          dateStr,
+          4 + (6 - i) * 2,
+          2,
+          3 + (6 - i),
+          3,
+          1,
+          1 + (6 - i),
+          1,
+          75.0,
+          4.5,
+          85,
+          d.toISOString(),
+        ]
+      );
+    }
+    console.log('✅ 7 Hari data analytics_snapshots berhasil diinisialisasi.');
+  }
+
+  // 9. Seed Moderation Queue
+  const modCount = queryOne('SELECT count(*) as c FROM moderation_queue');
+  if (!modCount || modCount.c === 0) {
+    const firstJob = queryOne('SELECT id FROM job_listings LIMIT 1');
+    if (firstJob) {
+      execute(
+        `INSERT INTO moderation_queue (id, entity_type, entity_id, reason, ai_score, ai_flags, status, risk_score, flags, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          'job',
+          firstJob.id,
+          'Verifikasi otomatis lowongan baru terbitan employer',
+          0.85,
+          '["verified_employer"]',
+          15,
+          '["verified_employer"]',
+          now,
+        ]
+      );
+      console.log('✅ Item antrean moderasi demo berhasil diinisialisasi.');
+    }
+  }
+
   console.log('🎉 Database lokal LOXER siap digunakan!');
 }
 

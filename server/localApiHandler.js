@@ -7,6 +7,7 @@ import {
   verifyPassword,
   generateToken,
   verifyToken,
+  recordDailyAnalyticsSnapshot,
 } from './localDb.js';
 import crypto from 'node:crypto';
 import { buildApplicationStatusNotification } from '../services/applicationStatusNotification.js';
@@ -336,6 +337,10 @@ function enrichRowRelations(table, row) {
       }
       row.seeker_profiles = profile || null;
     }
+    if (row.id) {
+      const invitation = queryOne('SELECT * FROM interview_invitations WHERE application_id = ? ORDER BY created_at DESC LIMIT 1', [row.id]);
+      row.interview_invitations = invitation || null;
+    }
   } else if (table === 'seeker_profiles') {
     row.seeker_skills = queryAll('SELECT * FROM seeker_skills WHERE seeker_id = ?', [row.id]) || [];
     row.seeker_education = queryAll('SELECT * FROM seeker_education WHERE seeker_id = ?', [row.id]) || [];
@@ -395,8 +400,14 @@ async function handleDbQuery(req, res) {
       for (const item of records) {
         const row = { ...item };
         if (!row.id) row.id = crypto.randomUUID();
-        if (!row.created_at) row.created_at = new Date().toISOString();
-        if (!row.updated_at && (table === 'seeker_profiles' || table === 'companies' || table === 'job_listings' || table === 'applications' || table === 'pages')) {
+        const tablesWithoutCreatedAt = new Set(['applications', 'pages', 'feature_flags', 'admin_sessions']);
+        if (!row.created_at && !tablesWithoutCreatedAt.has(table)) {
+          row.created_at = new Date().toISOString();
+        }
+        if (table === 'applications' && !row.applied_at) {
+          row.applied_at = new Date().toISOString();
+        }
+        if (!row.updated_at && (table === 'seeker_profiles' || table === 'companies' || table === 'job_listings' || table === 'applications' || table === 'pages' || table === 'feature_flags' || table === 'user_devices' || table === 'user_preferences')) {
           row.updated_at = new Date().toISOString();
         }
 
@@ -1372,6 +1383,85 @@ async function handleAdminDeviceRevoke(req, res) {
   return sendJson(res, 200, { ok: true });
 }
 
+async function handleGenerateAnalyticsSnapshot(req, res) {
+  try {
+    const snapshot = recordDailyAnalyticsSnapshot();
+    return sendJson(res, 200, { success: true, snapshot });
+  } catch (err) {
+    return sendJson(res, 500, { success: false, message: err.message });
+  }
+}
+
+async function handleAuditLogsStats(req, res) {
+  try {
+    const countRow = queryOne('SELECT count(*) as c FROM audit_logs');
+    const oldestRow = queryOne('SELECT created_at FROM audit_logs ORDER BY created_at ASC LIMIT 1');
+    const newestRow = queryOne('SELECT created_at FROM audit_logs ORDER BY created_at DESC LIMIT 1');
+    return sendJson(res, 200, {
+      total: countRow?.c || 0,
+      oldestDate: oldestRow?.created_at || null,
+      newestDate: newestRow?.created_at || null,
+    });
+  } catch (err) {
+    return sendJson(res, 500, { message: err.message });
+  }
+}
+
+async function handleAuditLogsArchive(req, res) {
+  const caller = verifyAdminCaller(req);
+  if (!caller.allowed) {
+    return sendJson(res, 403, { message: 'Akses khusus administrator' });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const retentionDays = Number(body.retentionDays || 30);
+    const purgeOnly = Boolean(body.purgeOnly);
+
+    // Fetch rows older than retention days
+    const oldRows = queryAll(
+      "SELECT * FROM audit_logs WHERE DATE(created_at) < DATE('now', '-' || ? || ' days')",
+      [retentionDays]
+    );
+
+    // Delete old rows
+    execute(
+      "DELETE FROM audit_logs WHERE DATE(created_at) < DATE('now', '-' || ? || ' days')",
+      [retentionDays]
+    );
+
+    // Run vacuum to optimize disk space
+    try {
+      execute('VACUUM');
+    } catch {
+      // ignore
+    }
+
+    // Log this retention purge
+    execute(
+      'INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        crypto.randomUUID(),
+        caller.callerId || null,
+        caller.callerMeta?.email || '',
+        'archive_audit_logs',
+        'system',
+        'audit_logs',
+        `Archived and purged ${oldRows.length} audit logs older than ${retentionDays} days`,
+        new Date().toISOString(),
+      ]
+    );
+
+    return sendJson(res, 200, {
+      success: true,
+      archivedCount: oldRows.length,
+      rows: purgeOnly ? [] : oldRows,
+    });
+  } catch (err) {
+    return sendJson(res, 500, { message: err.message });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main Router Middleware for Node.js http server / Vite
 // ---------------------------------------------------------------------------
@@ -1446,6 +1536,15 @@ export function createLocalDbMiddleware(env = {}) {
       }
       if (url.startsWith('/api/application-status-notification') && req.method === 'POST') {
         return handleApplicationStatusNotification(req, res);
+      }
+      if (url.startsWith('/api/admin/analytics-snapshot/generate') && req.method === 'POST') {
+        return handleGenerateAnalyticsSnapshot(req, res);
+      }
+      if (url.startsWith('/api/admin/audit-logs/stats') && req.method === 'GET') {
+        return handleAuditLogsStats(req, res);
+      }
+      if (url.startsWith('/api/admin/audit-logs/archive') && req.method === 'POST') {
+        return handleAuditLogsArchive(req, res);
       }
     }
 

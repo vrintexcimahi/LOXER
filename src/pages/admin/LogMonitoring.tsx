@@ -20,6 +20,9 @@ import {
   X,
   Sparkles,
   Zap,
+  Sliders,
+  Database,
+  Archive,
 } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
 import {
@@ -27,6 +30,7 @@ import {
   logger,
   exportLogsAsJson,
   exportLogsAsCsv,
+  purgeOldConsoleLogs,
   LogLevel,
   SystemLogEntry,
 } from '../../lib/logService';
@@ -70,6 +74,74 @@ export default function LogMonitoring() {
   const [activeLogDetail, setActiveLogDetail] = useState<SystemLogEntry | null>(null);
   const [copied, setCopied] = useState(false);
   const [snapshotLogs, setSnapshotLogs] = useState<SystemLogEntry[]>([]);
+
+  // Retention & Archiving state
+  const [showRetentionModal, setShowRetentionModal] = useState(false);
+  const [retentionDays, setRetentionDays] = useState(30);
+  const [downloadArchiveFirst, setDownloadArchiveFirst] = useState(true);
+  const [retentionLoading, setRetentionLoading] = useState(false);
+  const [retentionStats, setRetentionStats] = useState<{ total: number; oldestDate: string | null; newestDate: string | null } | null>(null);
+  const [retentionFeedback, setRetentionFeedback] = useState<string | null>(null);
+
+  const fetchRetentionStats = async () => {
+    try {
+      const res = await fetch('/api/admin/audit-logs/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setRetentionStats(data);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (showRetentionModal) {
+      void fetchRetentionStats();
+      setRetentionFeedback(null);
+    }
+  }, [showRetentionModal]);
+
+  const handleExecuteRetention = async () => {
+    setRetentionLoading(true);
+    setRetentionFeedback(null);
+    try {
+      const res = await fetch('/api/admin/audit-logs/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          retentionDays,
+          purgeOnly: !downloadArchiveFirst,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (downloadArchiveFirst && Array.isArray(data.rows) && data.rows.length > 0) {
+          const blob = new Blob([JSON.stringify(data.rows, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `loxer_audit_logs_archive_${retentionDays}d_${Date.now()}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+
+        const purgedClientCount = purgeOldConsoleLogs(retentionDays);
+
+        setRetentionFeedback(
+          `Sukses! ${data.archivedCount} log database berhasil dipurge dan ${purgedClientCount} log konsol lokal dibersihkan.`
+        );
+        void fetchRetentionStats();
+      } else {
+        setRetentionFeedback(data.message || 'Gagal memproses arsip log.');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.';
+      setRetentionFeedback(msg);
+    } finally {
+      setRetentionLoading(false);
+    }
+  };
 
   const terminalEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -349,6 +421,16 @@ export default function LogMonitoring() {
 
               <button
                 type="button"
+                onClick={() => setShowRetentionModal(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 text-xs border border-purple-500/30 transition cursor-pointer"
+                title="Retensi & Arsip Database"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Retensi &amp; Arsip</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={clearLogs}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs border border-rose-500/30 transition cursor-pointer"
                 title="Bersihkan Log"
@@ -614,6 +696,132 @@ export default function LogMonitoring() {
                   className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium transition cursor-pointer"
                 >
                   Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Manajemen Retensi & Arsip Database */}
+        {showRetentionModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+            <div className="relative w-full max-w-xl rounded-2xl border border-purple-500/30 bg-slate-900 p-6 shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Retensi &amp; Arsip Database</h3>
+                    <p className="text-xs text-slate-400">Kelola batas penyimpanan log dan kompresi SQLite</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowRetentionModal(false)}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="py-4 space-y-4 text-xs">
+                {/* Stats Summary */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Database className="w-3.5 h-3.5 text-purple-400" />
+                      <span className="text-[11px] font-medium">Log di Database</span>
+                    </div>
+                    <p className="text-lg font-bold text-white mt-1">
+                      {retentionStats ? `${retentionStats.total} entri` : 'Memuat...'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                      {retentionStats?.oldestDate ? `Sejak: ${retentionStats.oldestDate.slice(0, 10)}` : 'Tabel audit_logs'}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="text-[11px] font-medium">Log Konsol Lokal</span>
+                    </div>
+                    <p className="text-lg font-bold text-white mt-1">{logs.length} entri</p>
+                    <p className="text-[10px] text-slate-500 truncate mt-0.5">Local storage browser</p>
+                  </div>
+                </div>
+
+                {/* Retention Period Selector */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    Batas Retensi Log yang Disimpan:
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[7, 14, 30, 60].map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => setRetentionDays(days)}
+                        className={`py-2 px-3 rounded-xl border text-center font-medium transition cursor-pointer ${
+                          retentionDays === days
+                            ? 'bg-purple-600/20 border-purple-500 text-purple-300 shadow-sm'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        {days} Hari
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1.5">
+                    Log yang lebih tua dari <span className="text-purple-300 font-semibold">{retentionDays} hari</span> akan dibersihkan dari database untuk menghemat ruang disk dan mempercepat query.
+                  </p>
+                </div>
+
+                {/* Download Archive Checkbox */}
+                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="downloadArchiveCheck"
+                    checked={downloadArchiveFirst}
+                    onChange={(e) => setDownloadArchiveFirst(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-700 text-purple-500 focus:ring-purple-400 bg-slate-900 cursor-pointer"
+                  />
+                  <label htmlFor="downloadArchiveCheck" className="text-xs text-slate-300 cursor-pointer">
+                    <span className="font-semibold block text-white">Unduh Berkas Arsip (.JSON) Sebelum Dihapus</span>
+                    <span className="text-slate-400 text-[11px] block mt-0.5">
+                      Menyimpan cadangan log lama secara lokal di komputer sebelum dihapus dari SQLite.
+                    </span>
+                  </label>
+                </div>
+
+                {/* Feedback Message */}
+                {retentionFeedback && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{retentionFeedback}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowRetentionModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium transition cursor-pointer"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteRetention}
+                  disabled={retentionLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/30 transition cursor-pointer disabled:opacity-50"
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>{retentionLoading ? 'Memproses...' : 'Eksekusi Arsip & Pembersihan'}</span>
                 </button>
               </div>
             </div>

@@ -90,6 +90,19 @@ export function clearLogs() {
   window.dispatchEvent(new CustomEvent('loxer:system-log-change', { detail: { count: 0 } }));
 }
 
+export function purgeOldConsoleLogs(retentionDays: number): number {
+  if (typeof window === 'undefined') return 0;
+  const cutoffTime = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+  const logs = getStoredLogs();
+  const kept = logs.filter((l) => {
+    const time = new Date(l.timestamp).getTime();
+    return isNaN(time) || time >= cutoffTime;
+  });
+  const purgedCount = logs.length - kept.length;
+  saveLogs(kept);
+  return purgedCount;
+}
+
 export function resolveLog(id: string) {
   const logs = getStoredLogs();
   const updated = logs.map((l) => (l.id === id ? { ...l, resolved: true } : l));

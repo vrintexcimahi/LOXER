@@ -59,6 +59,12 @@ export default function PostJob() {
               .maybeSingle();
 
             if (jobData) {
+              if (jobData.company_id !== compData.id) {
+                setError('Anda tidak memiliki otorisasi untuk mengedit lowongan perusahaan lain.');
+                setLoading(false);
+                return;
+              }
+
               setForm({
                 title: jobData.title || '',
                 category: jobData.category || '',
@@ -91,11 +97,11 @@ export default function PostJob() {
       category: form.category,
       location_city: form.location_city,
       job_type: form.job_type,
-      salary_min: form.salary_min ? parseInt(form.salary_min) * 1000000 : 0,
-      salary_max: form.salary_max ? parseInt(form.salary_max) * 1000000 : 0,
+      salary_min: form.salary_min ? parseInt(form.salary_min, 10) * 1000000 : 0,
+      salary_max: form.salary_max ? parseInt(form.salary_max, 10) * 1000000 : 0,
       description: form.description,
       requirements: form.requirements,
-      quota: parseInt(form.quota) || 1,
+      quota: parseInt(form.quota, 10) || 1,
       status: form.status,
     };
 
@@ -107,7 +113,8 @@ export default function PostJob() {
           ...jobPayload,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', editId);
+        .eq('id', editId)
+        .eq('company_id', company.id);
       err = updateErr;
     } else {
       const { error: insertErr } = await supabase

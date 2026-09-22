@@ -4,17 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 3030",
-    "dev:live": "vite --host 0.0.0.0 --port 3030 --open",
-    "dev:local": "vite --host 0.0.0.0 --port 3030",
+    "dev": "vite --host 0.0.0.0 --port 3035",
+    "dev:live": "vite --host 0.0.0.0 --port 3035 --open",
+    "dev:local": "vite --host 0.0.0.0 --port 3035",
     "db:seed": "node scripts/seed-local.mjs",
     "db:reset": "node -e \"import fs from 'node:fs'; fs.rmSync('data/loxer.db', {force: true});\" && node scripts/seed-local.mjs",
     "test:local": "node scripts/test-local-api.mjs && node scripts/test-audit-fixes.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "check:prod": "npm run typecheck && npm run lint && npm run build",
-    "preview": "vite preview --port 3030",
-    "preview:live": "vite preview --host --port 3030 --open",
+    "preview": "vite preview --port 3035",
+    "preview:live": "vite preview --host --port 3035 --open",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {

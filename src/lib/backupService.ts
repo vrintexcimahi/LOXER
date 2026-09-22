@@ -66,6 +66,7 @@ export const ALL_TABLE_DEFINITIONS: Array<{ name: string; label: string; descrip
   { name: 'user_devices', label: 'Perangkat Pengguna', description: 'Registry device intelligence, OS, browser, dan fingerprint' },
   { name: 'user_preferences', label: 'Preferensi Pengguna', description: 'Pengaturan tema, bahasa, densitas, dan navigasi user' },
   { name: 'user_activity_logs', label: 'Log Aktivitas Pengguna', description: 'Rekam aktivitas login, navigasi, dan interaksi device' },
+  { name: 'analytics_snapshots', label: 'Snapshot Analitik', description: 'Data agregasi historis platform score, pertumbuhan, dan metriks' },
 ];
 
 export async function fetchDatabaseStats(): Promise<{
@@ -73,56 +74,65 @@ export async function fetchDatabaseStats(): Promise<{
   totalRecords: number;
   totalSizeBytes: number;
 }> {
-  const result: TableEntityInfo[] = [];
+  const encoder = new TextEncoder();
+  const tableStats = await Promise.all(
+    ALL_TABLE_DEFINITIONS.map(async (def): Promise<TableEntityInfo> => {
+      try {
+        const { data, count } = await supabase.from(def.name).select('*', { count: 'exact' });
+        const recordCount = typeof count === 'number' ? count : (Array.isArray(data) ? data.length : 0);
+        const jsonString = JSON.stringify(data || []);
+        const sizeBytes = encoder.encode(jsonString).length;
+
+        return {
+          name: def.name,
+          label: def.label,
+          description: def.description,
+          count: recordCount,
+          sizeEstimateBytes: sizeBytes,
+          status: recordCount > 0 ? 'active' : 'empty',
+        };
+      } catch {
+        return {
+          name: def.name,
+          label: def.label,
+          description: def.description,
+          count: 0,
+          sizeEstimateBytes: 0,
+          status: 'empty',
+        };
+      }
+    })
+  );
+
   let totalRecords = 0;
   let totalSizeBytes = 0;
-
-  for (const def of ALL_TABLE_DEFINITIONS) {
-    try {
-      const { data, count } = await supabase.from(def.name).select('*', { count: 'exact' });
-      const recordCount = typeof count === 'number' ? count : (Array.isArray(data) ? data.length : 0);
-      const jsonString = JSON.stringify(data || []);
-      const sizeBytes = new TextEncoder().encode(jsonString).length;
-
-      totalRecords += recordCount;
-      totalSizeBytes += sizeBytes;
-
-      result.push({
-        name: def.name,
-        label: def.label,
-        description: def.description,
-        count: recordCount,
-        sizeEstimateBytes: sizeBytes,
-        status: recordCount > 0 ? 'active' : 'empty',
-      });
-    } catch {
-      result.push({
-        name: def.name,
-        label: def.label,
-        description: def.description,
-        count: 0,
-        sizeEstimateBytes: 0,
-        status: 'empty',
-      });
-    }
+  for (const item of tableStats) {
+    totalRecords += item.count;
+    totalSizeBytes += item.sizeEstimateBytes;
   }
 
-  return { tables: result, totalRecords, totalSizeBytes };
+  return { tables: tableStats, totalRecords, totalSizeBytes };
 }
 
 export async function generateBackupPackage(includeLogs = true): Promise<BackupPackage> {
   const tablesData: Record<string, unknown[]> = {};
   let totalRecords = 0;
 
-  for (const def of ALL_TABLE_DEFINITIONS) {
-    try {
-      const { data } = await supabase.from(def.name).select('*');
-      const rows = Array.isArray(data) ? data : [];
-      tablesData[def.name] = rows;
-      totalRecords += rows.length;
-    } catch {
-      tablesData[def.name] = [];
-    }
+  const tableDumps = await Promise.all(
+    ALL_TABLE_DEFINITIONS.map(async (def) => {
+      try {
+        const { data } = await supabase.from(def.name).select('*');
+        const rows = Array.isArray(data) ? data : [];
+        return { name: def.name, rows };
+      } catch {
+        return { name: def.name, rows: [] };
+      }
+    })
+  );
+
+  for (const dump of tableDumps) {
+    tablesData[dump.name] = dump.rows;
+    totalRecords += dump.rows.length;
   }
 
   let logsData: unknown[] = [];

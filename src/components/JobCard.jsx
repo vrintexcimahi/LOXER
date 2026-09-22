@@ -112,7 +112,7 @@ function getProviderBadge(site) {
   };
 }
 
-export default function JobCard({ job }) {
+export default function JobCard({ job, onSelectJob }) {
   const summary = stripHtml(job.description);
   const shortSummary = summary.length > 160 ? `${summary.slice(0, 160)}...selengkapnya` : summary;
   const isRemote = (job.locations || '').toLowerCase().includes('remote');
@@ -120,8 +120,18 @@ export default function JobCard({ job }) {
   const ProviderIcon = provider.icon;
   const isInternal = Boolean(job.is_internal);
 
+  const handleCardClick = (e) => {
+    if (isInternal && onSelectJob) {
+      e.preventDefault();
+      onSelectJob(job);
+    }
+  };
+
   return (
-    <article className="group flex h-full flex-col rounded-3xl border border-sky-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl hover:shadow-sky-100/80">
+    <article
+      onClick={isInternal && onSelectJob ? handleCardClick : undefined}
+      className={`group flex h-full flex-col rounded-3xl border border-sky-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl hover:shadow-sky-100/80 ${isInternal && onSelectJob ? 'cursor-pointer' : ''}`}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="mb-2.5 flex flex-wrap items-center gap-2">
@@ -142,6 +152,7 @@ export default function JobCard({ job }) {
             href={job.url}
             target={isInternal ? '_self' : '_blank'}
             rel={isInternal ? undefined : 'noreferrer'}
+            onClick={handleCardClick}
             className="text-lg font-black leading-tight text-slate-900 transition hover:text-sky-700 sm:text-xl"
           >
             {job.title}
@@ -156,6 +167,7 @@ export default function JobCard({ job }) {
           href={job.url}
           target={isInternal ? '_self' : '_blank'}
           rel={isInternal ? undefined : 'noreferrer'}
+          onClick={handleCardClick}
           className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-sky-100 text-sky-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800"
           aria-label={`Buka lowongan ${job.title}`}
         >
@@ -198,7 +210,8 @@ export default function JobCard({ job }) {
           href={job.url}
           target={isInternal ? '_self' : '_blank'}
           rel={isInternal ? undefined : 'noreferrer'}
-          className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:brightness-110 active:scale-95"
+          onClick={handleCardClick}
+          className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:brightness-110 active:scale-95 cursor-pointer"
         >
           {isInternal ? 'Lamar di LOXER' : 'Lamar Sekarang'}
           <ArrowUpRight className="h-4 w-4" />

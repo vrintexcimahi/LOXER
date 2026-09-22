@@ -42,6 +42,7 @@ export default function AdminDeviceManagement() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deviceType, setDeviceType] = useState('all');
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -50,13 +51,21 @@ export default function AdminDeviceManagement() {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize),
-        search: search.trim(),
+        search: debouncedSearch.trim(),
         device_type: deviceType,
       });
 
@@ -77,7 +86,7 @@ export default function AdminDeviceManagement() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, deviceType, session?.access_token]);
+  }, [page, debouncedSearch, deviceType, session?.access_token]);
 
   useEffect(() => {
     loadData();

@@ -1,5 +1,5 @@
 import { createServer } from 'vite';
-import { getLocalDb, queryOne, queryAll } from '../server/localDb.js';
+import { getLocalDb, queryOne, queryAll, execute } from '../server/localDb.js';
 
 async function testAuditFixes() {
   console.log('--- Testing Audit & Bug Fixes ---');
@@ -80,6 +80,107 @@ async function testAuditFixes() {
     });
     const emptyUpdateData = await emptyUpdateRes.json();
     console.log('3. Empty Update Graceful Handling:', emptyUpdateRes.ok && !emptyUpdateData.error ? 'OK' : 'FAIL');
+
+    // 5. Test moderation_queue query and column support (reason, ai_score, ai_flags)
+    const modRes = await fetch('http://localhost:3032/api/local/db/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'moderation_queue',
+        action: 'select',
+      }),
+    });
+    const modData = await modRes.json();
+    console.log('4. Moderation Queue Query & Schema check:', modRes.ok && !modData.error ? 'OK' : 'FAIL');
+
+    // 6. Test analytics_snapshots table
+    const snapRes = await fetch('http://localhost:3032/api/local/db/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'analytics_snapshots',
+        action: 'select',
+      }),
+    });
+    const snapData = await snapRes.json();
+    console.log('5. Analytics Snapshots Query & Table check:', snapRes.ok && !snapData.error ? 'OK' : 'FAIL');
+
+    // 7. Test applications enrichment with interview_invitations
+    const appQueryRes = await fetch('http://localhost:3032/api/local/db/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'applications',
+        action: 'select',
+      }),
+    });
+    const appQueryData = await appQueryRes.json();
+    const hasApps = Array.isArray(appQueryData.data) && appQueryData.data.length > 0;
+    const invEnriched = hasApps && 'interview_invitations' in appQueryData.data[0];
+    console.log('6. Applications enrichment with interview_invitations:', invEnriched ? 'OK' : 'FAIL');
+
+    // 8. Test auto-generate daily analytics snapshot endpoint
+    const snapGenRes = await fetch('http://localhost:3032/api/admin/analytics-snapshot/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const snapGenData = await snapGenRes.json();
+    console.log(
+      '7. Generate Daily Analytics Snapshot API:',
+      snapGenRes.ok && snapGenData.success && snapGenData.snapshot?.snapshot_date ? 'OK' : 'FAIL'
+    );
+
+    // 9. Test audit logs stats endpoint
+    const statsRes = await fetch('http://localhost:3032/api/admin/audit-logs/stats');
+    const statsData = await statsRes.json();
+    console.log(
+      '8. Audit Logs Stats API:',
+      statsRes.ok && typeof statsData.total === 'number' ? 'OK' : 'FAIL'
+    );
+
+    // 10. Test internal job query with company relation
+    const anyJob = queryOne("SELECT id FROM job_listings WHERE status = 'active' LIMIT 1");
+    if (anyJob) {
+      const jobRes = await fetch('http://localhost:3032/api/local/db/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: 'job_listings',
+          action: 'select',
+          filters: [{ column: 'id', op: 'eq', value: anyJob.id }],
+        }),
+      });
+      const jobData = await jobRes.json();
+      const jobObj = Array.isArray(jobData.data) ? jobData.data[0] : jobData.data;
+      console.log('9. Job Detail Query with Company Enrichment:', jobObj?.companies?.name ? 'OK' : 'FAIL');
+    }
+
+    // 11. Test Seeker application submission
+    const seeker = queryOne("SELECT id, user_id FROM seeker_profiles LIMIT 1");
+    if (seeker && anyJob) {
+      // Clean up previous test run application to avoid UNIQUE constraint violation
+      execute("DELETE FROM applications WHERE job_id = ? AND seeker_id = ?", [anyJob.id, seeker.id]);
+
+      const applyRes = await fetch('http://localhost:3032/api/local/db/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: 'applications',
+          action: 'insert',
+          data: {
+            id: 'test_app_' + Date.now(),
+            job_id: anyJob.id,
+            seeker_id: seeker.id,
+            status: 'applied',
+          },
+        }),
+      });
+      const applyData = await applyRes.json();
+      if (applyData.error) {
+        console.error('Apply error detail:', applyData.error);
+      }
+      console.log('10. Seeker Application Submission for Internal Job:', applyRes.ok && !applyData.error ? 'OK' : 'FAIL');
+    }
 
     console.log('All audit fix tests passed with flying colors!');
   } finally {

@@ -3,6 +3,7 @@ import { MapPin, Clock, DollarSign, Bookmark, CheckCircle } from 'lucide-react';
 import { JobListing } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
+import { queueApplicationOffline, getQueuedApplications } from '../../lib/offlineSyncService';
 
 interface JobCardProps {
   job: JobListing;
@@ -43,31 +44,68 @@ export default function JobCard({ job, appliedJobIds = [], onApplied, onClick }:
   const { user, userMeta } = useAuth();
   const [applying, setApplying] = useState(false);
   const [justApplied, setJustApplied] = useState(false);
-  const isApplied = appliedJobIds.includes(job.id) || justApplied;
+  const isQueuedOffline = getQueuedApplications().some((q) => q.jobId === job.id);
+  const isApplied = appliedJobIds.includes(job.id) || justApplied || isQueuedOffline;
 
   async function handleApply(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!supabase || !user || !userMeta || userMeta.role !== 'seeker' || isApplied) return;
+    if (!user || !userMeta || userMeta.role !== 'seeker' || isApplied) return;
     setApplying(true);
     try {
-      const { data: profile } = await supabase
-        .from('seeker_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      let profileId = user.id;
+      if (supabase) {
+        const { data: profile } = await supabase
+          .from('seeker_profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      if (!profile) return;
+        if (profile) profileId = profile.id;
+      }
+
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+      if (!isOnline || !supabase) {
+        queueApplicationOffline({
+          jobId: job.id,
+          jobTitle: job.title,
+          companyName: job.companies?.name,
+          seekerId: profileId,
+        });
+        setJustApplied(true);
+        onApplied?.();
+        return;
+      }
 
       const { error } = await supabase.from('applications').insert({
         job_id: job.id,
-        seeker_id: profile.id,
+        seeker_id: profileId,
         status: 'applied',
       });
 
       if (!error) {
         setJustApplied(true);
         onApplied?.();
+      } else {
+        // Fallback into offline queue on insert error
+        queueApplicationOffline({
+          jobId: job.id,
+          jobTitle: job.title,
+          companyName: job.companies?.name,
+          seekerId: profileId,
+        });
+        setJustApplied(true);
+        onApplied?.();
       }
+    } catch {
+      queueApplicationOffline({
+        jobId: job.id,
+        jobTitle: job.title,
+        companyName: job.companies?.name,
+        seekerId: user.id,
+      });
+      setJustApplied(true);
+      onApplied?.();
     } finally {
       setApplying(false);
     }
@@ -145,6 +183,11 @@ export default function JobCard({ job, appliedJobIds = [], onApplied, onClick }:
                 <span className="flex items-center gap-1">
                   <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   Melamar...
+                </span>
+              ) : isQueuedOffline ? (
+                <span className="flex items-center gap-1 text-amber-700 font-semibold">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  Antrean Offline
                 </span>
               ) : isApplied ? (
                 <><CheckCircle className="w-3.5 h-3.5" /> Terlamar</>

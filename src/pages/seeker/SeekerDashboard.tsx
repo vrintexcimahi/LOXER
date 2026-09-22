@@ -190,7 +190,7 @@ export default function SeekerDashboard() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {recentJobs.slice(0, 3).map((job) => (
-              <a key={job.id} href="/seeker/browse" className="flex items-center gap-3 p-3 rounded-xl border border-sky-100 hover:border-sky-300 hover:bg-sky-50 transition-all group">
+              <a key={job.id} href={`/seeker/browse?job_id=${job.id}`} className="flex items-center gap-3 p-3 rounded-xl border border-sky-100 hover:border-sky-300 hover:bg-sky-50 transition-all group">
                 <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0 text-sky-600 font-black text-sm">
                   {(job.companies?.name || 'C')[0]}
                 </div>

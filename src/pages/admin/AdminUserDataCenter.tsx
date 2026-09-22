@@ -97,6 +97,7 @@ export default function AdminUserDataCenter() {
 
   // Filters & pagination
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [role, setRole] = useState('all');
   const [status, setStatus] = useState('all');
   const [deviceFilter, setDeviceFilter] = useState('all');
@@ -114,13 +115,21 @@ export default function AdminUserDataCenter() {
   const [detailData, setDetailData] = useState<UserDetailData | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize),
-        search: search.trim(),
+        search: debouncedSearch.trim(),
         role,
         status,
         device: deviceFilter,
@@ -150,7 +159,7 @@ export default function AdminUserDataCenter() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, role, status, deviceFilter, osFilter, browserFilter, pwaFilter, activityFilter, sort, sortOrder, session?.access_token]);
+  }, [page, debouncedSearch, role, status, deviceFilter, osFilter, browserFilter, pwaFilter, activityFilter, sort, sortOrder, session?.access_token]);
 
   useEffect(() => {
     loadData();
