@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Briefcase, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone } from 'lucide-react';
+import { X, Briefcase, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { UserRole } from '../../lib/types';
 import BrandText from '../../components/ui/BrandText';
@@ -209,11 +209,18 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
     const derivedFullName = selectedName?.trim() || fullName.trim() || selectedEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const derivedPhone = selectedPhone?.trim() || phone.trim() || '';
 
+    const normalizedEmail = selectedEmail.trim().toLowerCase();
+    try {
+      localStorage.setItem('loxer_last_google_email', normalizedEmail);
+    } catch {
+      // ignore
+    }
+
     const { error } = await signInWithGoogle({
       role,
       fullName: derivedFullName,
       phone: derivedPhone,
-      email: selectedEmail.trim().toLowerCase(),
+      email: normalizedEmail,
       avatarUrl,
       mode,
     });
@@ -277,8 +284,9 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
       return;
     }
 
-    // 4. Otherwise, open clean Google Email entry prompt (no fake demo users)
-    setCustomGoogleEmail('');
+    // 4. Otherwise, open clean Google Email entry prompt with remembered email
+    const rememberedEmail = (typeof window !== 'undefined' ? localStorage.getItem('loxer_last_google_email') : '') || '';
+    setCustomGoogleEmail(rememberedEmail);
     setShowGooglePrompt(true);
   }
 
@@ -627,19 +635,19 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
       </div>
 
       {showGooglePrompt && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-sm rounded-3xl bg-slate-900 p-6 shadow-2xl border border-slate-700/80 text-white">
             <button
               type="button"
               onClick={() => setShowGooglePrompt(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               aria-label="Tutup"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="text-center mb-5">
-              <div className="mx-auto w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-3 shadow-sm">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mb-3 shadow-inner">
                 <svg viewBox="0 0 24 24" className="h-6 w-6">
                   <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.6 2.5 12 2.5A9.5 9.5 0 1 0 12 21.5c5.5 0 9.1-3.8 9.1-9.2 0-.6-.1-1.1-.1-1.6H12Z" />
                   <path fill="#34A853" d="M3.4 7.7l3.2 2.3C7.4 8 9.5 6.2 12 6.2c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.6 2.5 12 2.5c-3.6 0-6.7 2.1-8.2 5.2Z" />
@@ -647,13 +655,44 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
                   <path fill="#4285F4" d="M21.1 12.3c0-.6-.1-1.1-.1-1.6H12v3.9h5.5c-.3 1.3-1.1 2.4-2.2 3.1l2.8 2.3c1.7-1.5 3-4 3-7.7Z" />
                 </svg>
               </div>
-              <h3 className="text-base font-bold text-slate-800">
+              <h3 className="text-base font-bold text-white">
                 {mode === 'login' ? 'Masuk dengan Akun Google' : 'Daftar dengan Akun Google'}
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 Autentikasi akun Google Anda sebagai {role === 'employer' ? 'Perusahaan' : 'Pencari Kerja'}
               </p>
             </div>
+
+            {customGoogleEmail && customGoogleEmail.includes('@') && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => executeGoogleLogin(customGoogleEmail.trim())}
+                  className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-cyan-500/40 text-left transition-all group shadow-sm hover:border-cyan-400"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
+                      {customGoogleEmail[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-white group-hover:text-cyan-400 transition-colors">
+                        Lanjutkan 1-Klik sebagai:
+                      </div>
+                      <div className="text-[11px] text-cyan-300 font-mono truncate max-w-[200px]">
+                        {customGoogleEmail}
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform" />
+                </button>
+                <div className="flex items-center my-3.5 gap-2">
+                  <div className="flex-1 h-px bg-slate-800" />
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">atau ketik akun lain</span>
+                  <div className="flex-1 h-px bg-slate-800" />
+                </div>
+              </div>
+            )}
 
             <form
               onSubmit={(e) => {
@@ -665,15 +704,15 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
               className="space-y-3"
             >
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Alamat Email Google / Gmail Anda:
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Alamat Email Google / Gmail:
                 </label>
                 <input
                   type="email"
                   value={customGoogleEmail}
                   onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                  placeholder="contoh: nama.anda@gmail.com"
-                  className="input-field text-sm py-2.5 px-3 w-full"
+                  placeholder="nama.anda@gmail.com"
+                  className="w-full bg-slate-950/70 border border-slate-700 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                   required
                   autoFocus
                 />
@@ -682,16 +721,17 @@ export default function AuthModal({ mode, onClose, onSwitchMode }: AuthModalProp
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full gradient-cta text-white text-sm font-semibold py-3 px-4 rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-md shadow-cyan-500/20 flex items-center justify-center gap-2"
+                className="w-full gradient-cta text-white text-sm font-semibold py-3 px-4 rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2"
               >
                 {loading ? 'Memproses...' : 'Lanjutkan dengan Google'}
               </button>
             </form>
 
-            <div className="mt-4 pt-4 border-t border-slate-100 text-center">
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Tip: Untuk popup 1-klik native dari <strong>accounts.google.com</strong>, pasang <code>VITE_GOOGLE_CLIENT_ID</code> di file <code>.env</code>.
-              </p>
+            <div className="mt-4 pt-3 border-t border-slate-800 text-center">
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+                <Check className="w-3.5 h-3.5" />
+                Daftar instan tanpa password — langsung aktif otomatis
+              </span>
             </div>
           </div>
         </div>
