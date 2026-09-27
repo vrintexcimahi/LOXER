@@ -855,3 +855,63 @@
   - `npm run lint`: PASS (0 errors, 0 warnings).
   - `npm run test:local`: PASS (15/15 local integration tests).
   - `npm run build`: PASS (Vite production bundle dibuat dalam 18.09s).
+
+---
+
+## [2026-09-28] Audit & Bug Fix Run — Ultra Max
+- Branch: audit/otonom-ultra-max-20260927 | Commit awal: 736b6bc | Commit akhir: 44337d3
+- Scope run ini: Full-Stack Codebase Audit (Database Engine, Auth & Security, API Gateway, Aggregator Services, Employer & Seeker Flows, Talent Marketplace & Backup)
+
+### Area yang sudah diaudit
+- `server/localDb.js`: SQLite WAL engine, auto-migrations, password hashing & verification, backup snapshots.
+- `server/localApiHandler.js`: Auth endpoints (signup, signin, google), generic DB query gateway, brute-force rate limiter, auto-void stale applications, admin audit logs.
+- `data/schema.sql`: 25 relational tables, CHECK constraints, foreign key constraints, indexes.
+- `services/unifiedJobService.js` & `api/jobs.js`: Aggregator queries, provider fallback, IP resolution, job deduplication.
+- `src/components/marketplace/` & `src/pages/seeker/SeekerMarketplace.tsx`: Reverse hiring, offer submission, post publication.
+- `src/components/jobs/JobDetailModal.tsx`: Application status check, candidate apply authorization, offline queue.
+- `src/pages/employer/PostJob.tsx`: Job vacancy form validation, salary range integrity, edit flow.
+- `src/pages/seeker/Applications.tsx`: Application status filter tabs, PWA offline sync banner.
+- `src/lib/backupService.ts`: 25 registered database entities, JSON backup dump, restore validator, Telegram bot config.
+- `vite.config.ts`: Internal server dev and preview middlewares, capability proxy.
+
+### Bug ditemukan & diperbaiki
+- [Critical] SQLite `users_meta` CHECK Constraint Violation — `schema.sql` dan database `users_meta` membatasi `role IN ('seeker', 'employer', 'admin')`. Penambahan role `superadmin` dan `freelancer` menyebabkan SQLite melempar error `CHECK constraint failed: role IN ('seeker', 'employer', 'admin')` saat registrasi atau pembaruan role — Dibuat auto-migration di `server/localDb.js` untuk tabel `users_meta` dan diperbarui di `data/schema.sql` mencakup seluruh 5 role — commit `eaaa493` — Verifikasi: Lolos uji regresi Test 11 & 11.1 di `scripts/test-audit-fixes.mjs`.
+- [Critical] SQLite `applications` Status CHECK Constraint Violation — Pemanggilan endpoint `/api/admin/applications/void-stale` dan antarmuka GodMode menandai status menjadi `expired`, namun tabel `applications` dibatasi pada `CHECK (status IN ('applied', 'reviewed', 'shortlisted', 'interview_scheduled', 'hired', 'rejected'))` sehingga query update melempar error `CHECK constraint failed` — Dibuat auto-migration di `server/localDb.js` dan diperbarui di `data/schema.sql` menyertakan `'expired'` — commit `eaaa493` — Verifikasi: Lolos uji regresi Test 12 di `scripts/test-audit-fixes.mjs`.
+- [Critical] Mismatch Nama Kolom `talent_marketplace_posts` (`bio` & `availability`) — Frontend (`SeekerMarketplace.tsx`, `TalentCard.tsx`, `TalentDetailModal.tsx`) mengirim payload kolom `bio` dan `availability`, sementara skema SQLite mendefinisikan `bio_summary` dan `availability_status` sehingga simpan profil melempar error `table talent_marketplace_posts has no column named bio` — Ditambahkan kolom `bio` dan `availability` via auto-migration di `server/localDb.js`, diperbarui di `data/schema.sql`, dan dinormalisasi dwiarah di `enrichRowRelations` `server/localApiHandler.js` — commit `eaaa493` & `2c8e11d` — Verifikasi: Lolos uji regresi Test 13 di `scripts/test-audit-fixes.mjs`.
+- [High] IDOR / Potensi Kebocoran Hash Kredensial pada `/api/local/db/query` — Endpoint query database generik tidak membatasi mutasi langsung pada tabel sensitif `users` dan mengembalikan `password_hash` pada operasi `select *` — Diberikan whitelist 25 tabel valid, proteksi mutasi 403 Forbidden untuk tabel `users`, penapisan otomatis `password_hash` dari output query, serta sanitasi regex identifier (`/^[a-zA-Z0-9_]+$/`) pada kolom `where`, `order`, dan `insert/update` — commit `2c8e11d` — Verifikasi: Lolos uji regresi Test 14 & 14.1 di `scripts/test-audit-fixes.mjs`.
+- [High] Potensi Crash Uncaught `RangeError` pada `crypto.timingSafeEqual` (`server/localDb.js`) — `verifyPassword` memanggil `crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(originalHash))` tanpa memvalidasi kesamaan panjang buffer, berisiko melempar fatal exception jika input hash rusak — Ditambahkan pemeriksaan `bufA.length !== bufB.length` sebelum pemanggilan `timingSafeEqual` — commit `eaaa493` — Verifikasi: Lolos uji auth `npm run test:local`.
+- [High] Kegagalan Relasi Foreign Key pada Pengiriman Penawaran Kerja Langsung (`TalentDetailModal.tsx`) — `TalentDetailModal` menggunakan fallback `userMeta?.company_id || 'direct-hire'` yang melanggar `FOREIGN KEY (company_id) REFERENCES companies(id)` karena `company_id` belum dimuat di `AuthContext` — `AuthContext` diperbarui untuk mengisi `company_id` pada role employer, dan `TalentDetailModal` secara cerdas me-resolve atau membuat entri profil perusahaan di database sebelum insert — commit `07f8efc` — Verifikasi: `npm run typecheck` & `npm run build` PASS.
+- [High] Shifting Index pada Aggregator Lowongan (`services/unifiedJobService.js`) — Destrukturisasi hasil `Promise.all` berbasis array index statis (`results[2]` untuk Careerjet, `results[3]` untuk Arbeitnow) bergeser saat `CAREERJET_API_KEY` tidak disetel, menyebabkan lowongan Arbeitnow tertukar atau menjadi undefined — Diubah menjadi fixed-tuple destructuring dengan promise kondisional — commit `007b085` — Verifikasi: `npm run test:local` PASS.
+- [Medium] Pemblokiran Pelamaran Pekerjaan untuk Role Freelancer (`src/components/jobs/JobDetailModal.tsx`) — `JobDetailModal` membatasi pengajuan lamaran dengan kondisi kaku `userMeta?.role !== 'seeker'`, memblokir pengguna ber-role `freelancer` meskipun matriks kapabilitas memberikan hak `canApply: true` — Diperluas menjadi `userMeta?.role === 'seeker' || userMeta?.role === 'freelancer'` — commit `07f8efc` — Verifikasi: `npm run check:prod` PASS.
+- [Medium] Ketidaksesuaian Response Auth Capabilities pada Vite Dev/Preview Middleware (`vite.config.ts`) — Middleware lokal `/api/auth-capabilities` di `vite.config.ts` tidak menyertakan objek `roleCapabilities: DEV_ROLE_CAPABILITIES` sebagaimana endpoint produksi `api/auth-capabilities.js` — Ditambahkan `roleCapabilities` lengkap 5 role pada dev/preview server middleware — commit `007b085` — Verifikasi: `npm run test:local` PASS.
+- [Medium] Validasi Rentang Gaji Terbalik pada Form Lowongan (`src/pages/employer/PostJob.tsx`) — Form employer mengizinkan penyimpanan lowongan saat gaji minimum lebih besar daripada gaji maksimum — Ditambahkan validasi form `Gaji maksimum tidak boleh lebih kecil dari gaji minimum.` — commit `07f8efc` — Verifikasi: `npm run check:prod` PASS.
+- [Medium] Typo Nama Tabel Audit Log di Handler Sistem (`server/localApiHandler.js`) — Fungsi `handleVoidStaleApplications` dan `handleCreateSnapshot` mengeksekusi `INSERT INTO admin_audit_logs` dengan kolom `details`, padahal nama tabel adalah `audit_logs` dengan kolom `detail` — Diperbaiki ke nama tabel dan kolom yang valid — commit `2c8e11d` — Verifikasi: Lolos uji regresi Test 15 di `scripts/test-audit-fixes.mjs`.
+- [Low] Ketidakhadiran Tab Filter Lamaran Kadaluarsa (`src/pages/seeker/Applications.tsx`) — Seeker tidak memiliki pill filter untuk status `expired` — Ditambahkan opsi filter `{ label: 'Kadaluarsa', value: 'expired' }` — commit `07f8efc` — Verifikasi: `npm run check:prod` PASS.
+- [Low] Dua Tabel Marketplace Belum Terdaftar pada Backup Service (`src/lib/backupService.ts`) — `talent_marketplace_posts` dan `direct_job_offers` belum masuk ke `ALL_TABLE_DEFINITIONS` sehingga backup JSON tidak mencakup data talent — Ditambahkan 2 tabel tersebut sehingga total 25 tabel terbackup — commit `07f8efc` — Verifikasi: `npm run check:prod` PASS.
+
+### Blocked (percobaan gagal)
+- Tidak ada item blocked. Seluruh 13 isu yang ditemukan berhasil diselesaikan dan lolos 100% verifikasi.
+
+### Known issues / sengaja belum diperbaiki
+- Ekstensi file legacy `src/components/JobCard.jsx`, `JobList.jsx`, `JobSearch.jsx` dipertahankan sebagai `.jsx` karena kompatibel penuh dengan pipeline Vite dan modul aggregator tanpa kompilasi issue.
+- Kredensial API eksternal pihak ketiga (`CAREERJET_API_KEY`, `RAPIDAPI_KEY`, `JOOBLE_API_KEY`) bersifat opsional di environment lokal, sistem secara mulus beroperasi dengan feed live publik Arbeitnow dan database SQLite internal LOXER.
+
+### Keputusan teknis & asumsi (Kelas 2)
+- Auto-migration SQLite dieksekusi secara otomatis saat inisialisasi `getLocalDb()`: Memastikan instance SQLite yang sedang berjalan di staging, development, maupun server produksi langsung termigrasi tanpa memerlukan intervensi manual shell atau data wipe.
+- Normalisasi dwiarah field `bio`/`bio_summary` dan `availability`/`availability_status`: Menjaga kompatibilitas mundur dengan entitas Supabase legacy sekaligus kompatibel penuh dengan form frontend terbaru.
+- Whitelist ketat 25 tabel relasional pada `/api/local/db/query`: Mencegah akses ke tabel internal SQLite (`sqlite_master`, `sqlite_sequence`) dan melindungi integritas database dari probing eksternal.
+
+### Risk register
+- Kebutuhan persistent disk untuk direktori `data/` pada deployment kontainer/cloud: Karena SQLite menyimpan database pada `data/loxer.db`, lingkungan serverless stateless (seperti Vercel) harus menggunakan mode Supabase Cloud atau volume persisten (seperti PM2 pada Linux/VPS).
+- Background interval snapshot analitik (`setInterval` 1 jam di `server/localDb.js`) menggunakan `.unref()` agar tidak menahan terminasi proses Node.js.
+
+### Perlu diperhatikan agent berikutnya
+- Saat menambahkan tabel baru ke `data/schema.sql`, SELALU daftarkan ke:
+  1. `ALL_TABLE_DEFINITIONS` di `src/lib/backupService.ts`
+  2. `ALLOWED_DB_TABLES` di `server/localApiHandler.js`
+- SQLite mengeksekusi operasi secara synchronous via `node:sqlite`. Jangan gunakan async wrapper palsu yang tidak perlu pada fungsi `queryOne`, `queryAll`, dan `execute`.
+
+### Saran fitur yang sudah disampaikan ke user
+1. **Email / In-App Notification saat Penawaran Kerja Langsung Masuk**: Notifikasi realtime kepada talent ketika employer mengirim tawaran kerja melalui reverse hiring modal (Effort: S, Leverage: High).
+2. **Pencarian Full-Text SQLite (FTS5) untuk Lowongan & Profil Talent**: Meningkatkan kecepatan dan akurasi pencarian kata kunci multi-kata pada database lokal ribuan loker (Effort: M, Leverage: High).
+3. **Download Arsip Audit Log Otomatis ke Format Excel/CSV**: Ekspor log audit keamanan dan riwayat aksi admin langsung dari GodMode Security Center (Effort: S, Leverage: Medium).
