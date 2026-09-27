@@ -85,52 +85,37 @@ export async function searchUnifiedJobs(params = {}) {
   }
 
   // 2. Default Aggregator Mode ('all')
-  // Concurrently fetch from internal DB + Jooble (+ Careerjet if configured)
-  const tasks = [];
+  // Concurrently fetch from internal DB + Jooble + Careerjet (if configured) + Arbeitnow with stable tuple unpacking
+  const [internalResult, joobleResult, careerjetResult, arbeitnowResult] = await Promise.all([
+    // A. Internal LOXER jobs
+    Promise.resolve().then(() => searchInternalJobs({ keywords, location, page })),
 
-  // A. Internal LOXER jobs
-  tasks.push(
-    Promise.resolve().then(() => searchInternalJobs({ keywords, location, page }))
-  );
-
-  // B. Jooble (Indonesia Aggregator)
-  tasks.push(
+    // B. Jooble (Indonesia Aggregator)
     searchJoobleJobs({ keywords, location, page }).catch((err) => {
       console.warn('[Aggregator] Jooble failed:', err.message);
       return { jobs: [], hits: 0, pages: 0 };
-    })
-  );
+    }),
 
-  // C. Careerjet (only if configured)
-  if (process.env.CAREERJET_API_KEY) {
-    tasks.push(
-      searchCareerjetJobs({
-        keywords,
-        location,
-        page,
-        sort,
-        contract_type,
-        work_hours,
-        user_ip,
-        user_agent,
-      }).catch((err) => {
-        console.warn('[Aggregator] Careerjet failed:', err.message);
-        return { jobs: [], hits: 0, pages: 0 };
-      })
-    );
-  }
+    // C. Careerjet (only if configured)
+    process.env.CAREERJET_API_KEY
+      ? searchCareerjetJobs({
+          keywords,
+          location,
+          page,
+          sort,
+          contract_type,
+          work_hours,
+          user_ip,
+          user_agent,
+        }).catch((err) => {
+          console.warn('[Aggregator] Careerjet failed:', err.message);
+          return { jobs: [], hits: 0, pages: 0 };
+        })
+      : Promise.resolve({ jobs: [], hits: 0, pages: 0 }),
 
-  // D. Arbeitnow (Live Public Feed - 100% Real data)
-  tasks.push(
-    searchArbeitnowJobs({ keywords, location, page }).catch(() => ({ jobs: [], hits: 0, pages: 0 }))
-  );
-
-  const results = await Promise.all(tasks);
-
-  const internalResult = results[0] || { jobs: [] };
-  const joobleResult = results[1] || { jobs: [] };
-  const careerjetResult = results[2] || { jobs: [] };
-  const arbeitnowResult = results[3] || { jobs: [] };
+    // D. Arbeitnow (Live Public Feed - 100% Real data)
+    searchArbeitnowJobs({ keywords, location, page }).catch(() => ({ jobs: [], hits: 0, pages: 0 })),
+  ]);
 
   // Combine: Internal (verified) first, then Jooble, then Careerjet, then Arbeitnow
   const combinedJobs = [

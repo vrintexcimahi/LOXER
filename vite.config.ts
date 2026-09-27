@@ -732,6 +732,14 @@ function createAdminAuditLogMiddleware(env: Record<string, string>) {
   };
 }
 
+const DEV_ROLE_CAPABILITIES = {
+  seeker: { canApply: true, canBrowse: true, canPostJob: false, canReviewApplicants: false, canOfferServices: false, canAccessAdmin: false, canAccessGodMode: false },
+  employer: { canApply: false, canBrowse: true, canPostJob: true, canReviewApplicants: true, canOfferServices: false, canAccessAdmin: false, canAccessGodMode: false },
+  freelancer: { canApply: true, canBrowse: true, canPostJob: false, canReviewApplicants: false, canOfferServices: true, canAccessAdmin: false, canAccessGodMode: false },
+  admin: { canApply: false, canBrowse: true, canPostJob: true, canReviewApplicants: true, canOfferServices: false, canAccessAdmin: true, canAccessGodMode: false },
+  superadmin: { canApply: false, canBrowse: true, canPostJob: true, canReviewApplicants: true, canOfferServices: false, canAccessAdmin: true, canAccessGodMode: true },
+};
+
 function createAuthCapabilitiesMiddleware(env: Record<string, string>) {
   const CACHE_TTL_MS = 10 * 60 * 1000;
   let capabilitiesCache: { value: unknown; fetchedAt: number } = {
@@ -793,6 +801,7 @@ function createAuthCapabilitiesMiddleware(env: Record<string, string>) {
         smsOtpEnabled: false,
         mailerAutoconfirm: true,
         smsProvider: '',
+        roleCapabilities: DEV_ROLE_CAPABILITIES,
         fetchedAt: new Date().toISOString(),
       };
     }
@@ -829,6 +838,7 @@ function createAuthCapabilitiesMiddleware(env: Record<string, string>) {
         emailOtp: emailOtpProbe,
         smsOtp: smsOtpProbe,
       },
+      roleCapabilities: DEV_ROLE_CAPABILITIES,
       fetchedAt: new Date().toISOString(),
     };
   }
