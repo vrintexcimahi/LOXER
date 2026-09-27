@@ -120,7 +120,7 @@ async function handleSignUp(req, res) {
     now,
   ]);
 
-  if (role === 'seeker') {
+  if (role === 'seeker' || role === 'freelancer') {
     execute(
       'INSERT INTO seeker_profiles (id, user_id, full_name, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       [crypto.randomUUID(), userId, fullName, phone, now, now]
@@ -276,7 +276,7 @@ async function handleGoogleAuth(req, res) {
   const email = String(body.email || '').trim().toLowerCase();
   const fullName = String(body.fullName || body.name || '').trim();
   const phone = String(body.phone || '').trim();
-  const role = body.role === 'employer' ? 'employer' : 'seeker';
+  const role = body.role === 'employer' ? 'employer' : (body.role === 'freelancer' ? 'freelancer' : 'seeker');
   const avatarUrl = body.avatarUrl || 'https://lh3.googleusercontent.com/a/default-user';
 
   if (!email || !email.includes('@')) {
@@ -304,7 +304,7 @@ async function handleGoogleAuth(req, res) {
     ]);
 
     const resolvedName = fullName || email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    if (role === 'seeker') {
+    if (role === 'seeker' || role === 'freelancer') {
       execute(
         'INSERT INTO seeker_profiles (id, user_id, full_name, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
         [crypto.randomUUID(), userId, resolvedName, phone, now, now]
@@ -322,7 +322,7 @@ async function handleGoogleAuth(req, res) {
       return sendJson(res, 403, { error: { message: 'Akun Anda telah disuspend oleh administrator.' } });
     }
 
-    if (body.role && (body.role === 'employer' || body.role === 'seeker')) {
+    if (body.role && (body.role === 'employer' || body.role === 'seeker' || body.role === 'freelancer')) {
       const targetRole = body.role;
       execute('UPDATE users_meta SET role = ? WHERE id = ?', [targetRole, userId]);
 
@@ -335,7 +335,7 @@ async function handleGoogleAuth(req, res) {
             [crypto.randomUUID(), userId, resolvedName, now, now]
           );
         }
-      } else if (targetRole === 'seeker') {
+      } else if (targetRole === 'seeker' || targetRole === 'freelancer') {
         const prof = queryOne('SELECT id FROM seeker_profiles WHERE user_id = ?', [userId]);
         if (!prof) {
           execute(
@@ -389,6 +389,7 @@ function buildWhereClause(filters = []) {
 
   for (const filter of filters) {
     const { column, op, value } = filter;
+    if (!column || !/^[a-zA-Z0-9_]+$/.test(column)) continue;
     if (op === 'eq') {
       if (value === null) {
         conditions.push(`"${column}" IS NULL`);
@@ -470,6 +471,10 @@ function enrichRowRelations(table, row) {
       }
       row.seeker_profiles = profile || null;
     }
+    row.bio = row.bio || row.bio_summary || '';
+    row.bio_summary = row.bio_summary || row.bio || '';
+    row.availability = row.availability || row.availability_status || 'fulltime';
+    row.availability_status = row.availability_status || row.availability || 'available';
     if (typeof row.skills === 'string') {
       try {
         row.skills = JSON.parse(row.skills);
@@ -489,19 +494,52 @@ function enrichRowRelations(table, row) {
   return row;
 }
 
+const ALLOWED_DB_TABLES = new Set([
+  'users',
+  'users_meta',
+  'seeker_profiles',
+  'seeker_education',
+  'seeker_experience',
+  'seeker_skills',
+  'companies',
+  'company_members',
+  'job_listings',
+  'applications',
+  'interview_invitations',
+  'notifications',
+  'pages',
+  'audit_logs',
+  'feature_flags',
+  'moderation_queue',
+  'broadcast_campaigns',
+  'ip_blocks',
+  'admin_sessions',
+  'user_devices',
+  'user_preferences',
+  'user_activity_logs',
+  'analytics_snapshots',
+  'talent_marketplace_posts',
+  'direct_job_offers',
+]);
+
 async function handleDbQuery(req, res) {
   const body = await parseJsonBody(req);
   const { table, action, data, filters = [], order, limit, range, onConflict, count } = body;
 
-  if (!table) {
-    return sendJson(res, 400, { error: { message: 'Table name wajib ditentukan.' } });
+  if (!table || !ALLOWED_DB_TABLES.has(table)) {
+    return sendJson(res, 400, { error: { message: 'Tabel tidak valid atau tidak terdaftar.' } });
+  }
+
+  // Security Guard: direct mutation on users table is strictly forbidden via generic query endpoint
+  if (table === 'users' && (action === 'insert' || action === 'update' || action === 'delete' || action === 'upsert')) {
+    return sendJson(res, 403, { error: { message: 'Operasi modifikasi tabel users tidak diizinkan melalui endpoint ini.' } });
   }
 
   try {
     if (action === 'select') {
       const { whereSql, params } = buildWhereClause(filters);
       let orderSql = '';
-      if (order && order.column) {
+      if (order && order.column && /^[a-zA-Z0-9_]+$/.test(order.column)) {
         orderSql = `ORDER BY "${order.column}" ${order.ascending ? 'ASC' : 'DESC'}`;
       }
 
@@ -524,6 +562,13 @@ async function handleDbQuery(req, res) {
 
       // Expand joins
       rows = rows.map((r) => enrichRowRelations(table, r));
+
+      // Security: Never leak password_hash
+      if (table === 'users') {
+        rows.forEach((r) => {
+          if (r && 'password_hash' in r) delete r.password_hash;
+        });
+      }
 
       return sendJson(res, 200, {
         data: rows,
@@ -560,7 +605,7 @@ async function handleDbQuery(req, res) {
           }
         }
 
-        const keys = Object.keys(processed);
+        const keys = Object.keys(processed).filter((k) => /^[a-zA-Z0-9_]+$/.test(k));
         const placeholders = keys.map(() => '?').join(', ');
         const values = keys.map((k) => processed[k]);
 
@@ -585,6 +630,7 @@ async function handleDbQuery(req, res) {
       const setValues = [];
 
       for (const [k, v] of Object.entries(data)) {
+        if (!/^[a-zA-Z0-9_]+$/.test(k)) continue;
         setPairs.push(`"${k}" = ?`);
         if (v !== null && typeof v === 'object') {
           setValues.push(JSON.stringify(v));
@@ -1763,7 +1809,7 @@ async function handleVoidStaleApplications(req, res) {
   // Audit log
   try {
     execute(
-      `INSERT INTO admin_audit_logs (id, admin_id, admin_email, action, target_type, target_id, details, created_at)
+      `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         crypto.randomUUID(),
@@ -1829,7 +1875,7 @@ async function handleAdminCreateSnapshot(req, res) {
 
     try {
       execute(
-        `INSERT INTO admin_audit_logs (id, admin_id, admin_email, action, target_type, target_id, details, created_at)
+        `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           crypto.randomUUID(),
