@@ -184,6 +184,79 @@ async function testAuditFixes() {
       console.log('10. Seeker Application Submission for Internal Job:', applyRes.ok && !applyData.error ? 'OK' : 'FAIL');
     }
 
+    // 12. Test users_meta role constraints (freelancer & superadmin)
+    const testUserId = 'test_usr_' + Date.now();
+    execute("INSERT INTO users (id, email, password_hash, created_at) VALUES (?, 'free_test@example.com', 'pwd_hash', datetime('now'))", [testUserId]);
+    execute("INSERT INTO users_meta (id, email, role, created_at) VALUES (?, 'free_test@example.com', 'freelancer', datetime('now'))", [testUserId]);
+    const freeMeta = queryOne("SELECT role FROM users_meta WHERE id = ?", [testUserId]);
+    console.log('11. Freelancer & Superadmin Role Check in users_meta:', freeMeta?.role === 'freelancer' ? 'OK' : 'FAIL');
+    execute("UPDATE users_meta SET role = 'superadmin' WHERE id = ?", [testUserId]);
+    const superMeta = queryOne("SELECT role FROM users_meta WHERE id = ?", [testUserId]);
+    console.log('11.1 Superadmin Role Update in users_meta:', superMeta?.role === 'superadmin' ? 'OK' : 'FAIL');
+    execute("DELETE FROM users_meta WHERE id = ?", [testUserId]);
+    execute("DELETE FROM users WHERE id = ?", [testUserId]);
+
+    // 13. Test applications status constraint ('expired')
+    const anyApp = queryOne("SELECT id, status FROM applications LIMIT 1");
+    if (anyApp) {
+      execute("UPDATE applications SET status = 'expired' WHERE id = ?", [anyApp.id]);
+      const expApp = queryOne("SELECT status FROM applications WHERE id = ?", [anyApp.id]);
+      console.log('12. Applications status expired support:', expApp?.status === 'expired' ? 'OK' : 'FAIL');
+      execute("UPDATE applications SET status = ? WHERE id = ?", [anyApp.status, anyApp.id]);
+    }
+
+    // 14. Test talent_marketplace_posts bio and availability columns
+    const anySeeker = queryOne("SELECT id, user_id FROM seeker_profiles LIMIT 1");
+    if (anySeeker) {
+      const testPostId = 'test_post_' + Date.now();
+      execute(
+        "INSERT INTO talent_marketplace_posts (id, seeker_id, user_id, headline, bio, availability) VALUES (?, ?, ?, 'Fullstack Dev', 'Test Bio Summary', 'freelance')",
+        [testPostId, anySeeker.id, anySeeker.user_id]
+      );
+      const postRow = queryOne("SELECT bio, availability FROM talent_marketplace_posts WHERE id = ?", [testPostId]);
+      console.log('13. Talent Marketplace bio & availability columns:', postRow?.bio === 'Test Bio Summary' && postRow?.availability === 'freelance' ? 'OK' : 'FAIL');
+      execute("DELETE FROM talent_marketplace_posts WHERE id = ?", [testPostId]);
+    }
+
+    // 15. Test /api/local/db/query security (users table protection & no password_hash leak)
+    const usersInsertRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'users',
+        action: 'insert',
+        data: { id: 'hacked', email: 'hack@bad.com', password_hash: 'evil' },
+      }),
+    });
+    console.log('14. Security: Direct mutation on users table blocked with 403:', usersInsertRes.status === 403 ? 'OK' : 'FAIL');
+
+    const usersSelectRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'users',
+        action: 'select',
+      }),
+    });
+    const usersSelectData = await usersSelectRes.json();
+    const hasLeakedHash = Array.isArray(usersSelectData.data) && usersSelectData.data.some((u) => 'password_hash' in u);
+    console.log('14.1 Security: password_hash stripped from users query:', !hasLeakedHash ? 'OK' : 'FAIL');
+
+    // 16. Test /api/admin/applications/void-stale and audit_logs logging
+    const voidRes = await fetch(`${baseUrl}/api/admin/applications/void-stale`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        dry_run: true,
+        days_threshold: 60,
+      }),
+    });
+    const voidData = await voidRes.json();
+    console.log('15. Auto-Void Stale Applications dry-run API:', voidRes.ok && voidData.ok ? 'OK' : 'FAIL');
+
     console.log('All audit fix tests passed with flying colors!');
   } finally {
     await server.close();
