@@ -4,9 +4,11 @@ import { supabase } from '../lib/supabase';
 import PublicHomepageRenderer from '../components/puck/PublicHomepageRenderer';
 import { HomepageData, isHomepageData } from '../components/puck/homepageData';
 
+import { UserRole } from '../lib/types';
+
 interface HomepageProps {
   onLogin: () => void;
-  onRegister: () => void;
+  onRegister: (role?: UserRole) => void;
 }
 
 const HOMEPAGE_SLUG = 'homepage';

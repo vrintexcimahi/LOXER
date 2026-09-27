@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { Briefcase, Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck, Download } from 'lucide-react';
+import { Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck, Download, Sparkles } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 import BrandText from '../ui/BrandText';
 import ThemeToggle from '../ui/ThemeToggle';
 import NotificationBell from '../ui/NotificationBell';
+import AndroidToast from '../ui/AndroidToast';
+
+import { UserRole } from '../../lib/types';
 
 interface NavbarProps {
   onLogin?: () => void;
-  onRegister?: () => void;
+  onRegister?: (role?: UserRole) => void;
 }
 
 const userPresenceGroups = [
@@ -66,6 +70,13 @@ function getNextOnlineUsers(current: number, min: number, max: number) {
 export default function Navbar({ onLogin, onRegister }: NavbarProps) {
   const { user, userMeta, signOut } = useAuth();
   const { canInstall, isInstalled, promptInstall } = usePWAInstall();
+  const {
+    isUnlocked,
+    handleTriggerClick,
+    toastMessage,
+    toastVisible,
+    setToastVisible,
+  } = useAdminEasterEgg();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -133,7 +144,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
 
   const getDashboardPath = () => {
     if (!userMeta) return '/';
-    if (userMeta.role === 'admin') return '/admin/dashboard';
+    if (userMeta.role === 'admin' || userMeta.role === 'superadmin') return '/admin/dashboard';
     return userMeta.role === 'employer' ? '/employer/dashboard' : '/seeker/dashboard';
   };
 
@@ -155,11 +166,19 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
     >
       <div className="w-full max-w-[min(100%,1920px)] mx-auto px-[clamp(16px,3vw,48px)]">
         <div className="flex items-center justify-between h-14 sm:h-16">
-          {/* Logo */}
-          <a href="/" className="flex items-center gap-2 group active-press">
-            <div className="w-8 h-8 gradient-cta rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/30">
-              <Briefcase className="w-4 h-4 text-white" />
-            </div>
+          {/* Logo with Easter Egg Trigger */}
+          <a
+            href="/"
+            onClick={(e) => {
+              if (e.detail > 1) {
+                e.preventDefault();
+              }
+              handleTriggerClick(e);
+            }}
+            className="flex items-center gap-2 group active-press select-none cursor-pointer"
+            title={isUnlocked ? 'Mode Developer / Administrator Aktif' : undefined}
+          >
+            <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-cyan-500/30 group-hover:brightness-110 transition" />
             <BrandText className="text-xl font-black tracking-tight" />
           </a>
 
@@ -177,6 +196,32 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               <a href="/seeker/browse" className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group">
                 Browse Jobs
                 <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
+              </a>
+            )}
+            <a href="/talents" className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              Marketplace Talent
+              <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
+            </a>
+            {!user && (
+              <button
+                type="button"
+                onClick={() => onRegister?.('employer')}
+                className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group"
+              >
+                Untuk Perusahaan
+                <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
+              </button>
+            )}
+
+            {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin') && (
+              <a
+                href="/admin/dashboard"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 hover:bg-cyan-500/30 transition shadow-sm animate-pulse"
+                title="Panel Administrator God Mode"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                <span>God Mode</span>
               </a>
             )}
           </div>
@@ -248,10 +293,10 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
                       <a href={getDashboardPath()} className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 transition-colors">
                         <User className="w-4 h-4 text-sky-500" /> Profile
                       </a>
-                      <a href={userMeta.role === 'employer' ? '/employer/company' : userMeta.role === 'admin' ? '/admin/dashboard' : '/seeker/profile'} className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 transition-colors">
+                      <a href={userMeta.role === 'employer' ? '/employer/company' : (userMeta.role === 'admin' || userMeta.role === 'superadmin') ? '/admin/dashboard' : '/seeker/profile'} className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 transition-colors">
                         <Settings className="w-4 h-4 text-sky-500" /> Settings
                       </a>
-                      {userMeta.role === 'admin' ? (
+                      {(userMeta.role === 'admin' || userMeta.role === 'superadmin') ? (
                         <a
                           href="/admin/dashboard"
                           className="mx-3 mb-2 mt-1 flex items-center gap-2 rounded-lg border border-cyan-500/20 px-4 py-2 text-sm text-cyan-500 hover:bg-cyan-500/10"
@@ -280,7 +325,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
                   Sign In
                 </button>
                 <button
-                  onClick={onRegister}
+                  onClick={() => onRegister?.('seeker')}
                   className="gradient-cta text-white rounded-full px-5 py-2 text-sm font-semibold shadow-lg shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all duration-150"
                 >
                   Get Started
@@ -327,6 +372,10 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           <a href="/#features" className="text-slate-300 hover:text-white text-sm font-medium">Features</a>
           <a href="/#how-it-works" className="text-slate-300 hover:text-white text-sm font-medium">How It Works</a>
           <a href="/browse" className="text-slate-300 hover:text-white text-sm font-medium">Browse Jobs</a>
+          <a href="/talents" className="text-cyan-300 hover:text-cyan-200 text-sm font-semibold flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" />
+            Marketplace Talent
+          </a>
           {canInstall && !isInstalled && (
             <button
               type="button"
@@ -344,9 +393,9 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           {user ? (
             <>
               <a href={getDashboardPath()} className="text-white font-medium text-sm">Dashboard</a>
-              {userMeta?.role === 'admin' ? (
+              {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin') ? (
                 <a href="/admin/dashboard" className="text-cyan-300 font-medium text-sm inline-flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4" /> Admin (Administrator)
+                  <ShieldCheck className="w-4 h-4 text-cyan-400" /> Mode Administrator (God Mode)
                 </a>
               ) : null}
               <button onClick={handleSignOut} className="text-red-400 text-sm text-left font-medium">Sign Out</button>
@@ -354,11 +403,27 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           ) : (
             <>
               <button onClick={onLogin} className="text-white text-sm font-medium text-left">Sign In</button>
-              <button onClick={onRegister} className="gradient-cta text-white rounded-xl px-5 py-3 text-sm font-semibold w-full">Get Started Free</button>
+              <button onClick={() => { setMobileOpen(false); onRegister?.('employer'); }} className="text-cyan-400 text-sm font-medium text-left">Daftar sebagai Perusahaan</button>
+              {(isUnlocked) && (
+                <a
+                  href="/admin/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className="text-cyan-300 text-sm font-semibold inline-flex items-center gap-2"
+                >
+                  <ShieldCheck className="w-4 h-4 text-cyan-400" /> Portal Admin (God Mode)
+                </a>
+              )}
+              <button onClick={() => { setMobileOpen(false); onRegister?.('seeker'); }} className="gradient-cta text-white rounded-xl px-5 py-3 text-sm font-semibold w-full">Get Started Free</button>
             </>
           )}
         </div>
       )}
+
+      <AndroidToast
+        message={toastMessage}
+        visible={toastVisible}
+        onDismiss={() => setToastVisible(false)}
+      />
     </nav>
   );
 }

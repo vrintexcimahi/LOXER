@@ -1,5 +1,5 @@
 // ==============================================================================
-// LOXER PWA - Offline Application Sync Queue
+// LOXER PWA - Offline Application Sync Queue (with Tenant & User Isolation)
 // ==============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,13 +14,17 @@ export interface QueuedApplication {
   queuedAt: string;
 }
 
-export function getQueuedApplications(): QueuedApplication[] {
+export function getQueuedApplications(seekerId?: string): QueuedApplication[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const list: QueuedApplication[] = Array.isArray(parsed) ? parsed : [];
+    if (seekerId) {
+      return list.filter((item) => item.seekerId === seekerId);
+    }
+    return list;
   } catch {
     return [];
   }
@@ -32,8 +36,8 @@ export function queueApplicationOffline(
   if (typeof window === 'undefined') return [];
   const current = getQueuedApplications();
 
-  // Prevent duplicate queuing for the same job
-  if (current.some((item) => item.jobId === data.jobId)) {
+  // Prevent duplicate queuing for the same job by the same seeker
+  if (current.some((item) => item.jobId === data.jobId && item.seekerId === data.seekerId)) {
     return current;
   }
 
@@ -53,10 +57,14 @@ export function queueApplicationOffline(
   return updated;
 }
 
-export function removeQueuedApplication(jobId: string): QueuedApplication[] {
+export function removeQueuedApplication(jobId: string, seekerId?: string): QueuedApplication[] {
   if (typeof window === 'undefined') return [];
   const current = getQueuedApplications();
-  const updated = current.filter((item) => item.jobId !== jobId);
+  const updated = current.filter((item) => {
+    if (item.jobId !== jobId) return true;
+    if (seekerId && item.seekerId !== seekerId) return true;
+    return false;
+  });
   try {
     localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('loxer:offline-queue-changed', { detail: updated }));
@@ -66,11 +74,17 @@ export function removeQueuedApplication(jobId: string): QueuedApplication[] {
   return updated;
 }
 
-export function clearQueuedApplications(): void {
+export function clearQueuedApplications(seekerId?: string): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.removeItem(QUEUE_STORAGE_KEY);
-    window.dispatchEvent(new CustomEvent('loxer:offline-queue-changed', { detail: [] }));
+    if (seekerId) {
+      const remaining = getQueuedApplications().filter((item) => item.seekerId !== seekerId);
+      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(remaining));
+      window.dispatchEvent(new CustomEvent('loxer:offline-queue-changed', { detail: remaining }));
+    } else {
+      localStorage.removeItem(QUEUE_STORAGE_KEY);
+      window.dispatchEvent(new CustomEvent('loxer:offline-queue-changed', { detail: [] }));
+    }
   } catch {
     // ignore
   }
@@ -83,7 +97,8 @@ interface MinimalSupabaseClient {
 }
 
 export async function syncQueuedApplications(
-  client: unknown
+  client: unknown,
+  activeSeekerId?: string
 ): Promise<{ synced: number; failed: number }> {
   if (!client || typeof client !== 'object' || !('from' in client) || typeof window === 'undefined') {
     return { synced: 0, failed: 0 };
@@ -95,10 +110,19 @@ export async function syncQueuedApplications(
     return { synced: 0, failed: 0 };
   }
 
+  // Tenant / User Isolation Guard: only sync items that belong to active user
+  const eligibleItems = activeSeekerId
+    ? queue.filter((item) => item.seekerId === activeSeekerId)
+    : queue;
+
+  if (eligibleItems.length === 0) {
+    return { synced: 0, failed: 0 };
+  }
+
   let synced = 0;
   let failed = 0;
 
-  for (const item of queue) {
+  for (const item of eligibleItems) {
     try {
       const { error } = await supabaseClient.from('applications').insert({
         job_id: item.jobId,
@@ -107,7 +131,7 @@ export async function syncQueuedApplications(
       });
 
       if (!error) {
-        removeQueuedApplication(item.jobId);
+        removeQueuedApplication(item.jobId, item.seekerId);
         synced++;
       } else {
         failed++;
@@ -120,7 +144,7 @@ export async function syncQueuedApplications(
   if (synced > 0) {
     window.dispatchEvent(
       new CustomEvent('loxer:offline-queue-synced', {
-        detail: { synced, remaining: queue.length - synced },
+        detail: { synced, remaining: getQueuedApplications().length },
       })
     );
   }
@@ -128,8 +152,8 @@ export async function syncQueuedApplications(
   return { synced, failed };
 }
 
-export function useOfflineQueue() {
-  const [queue, setQueue] = useState<QueuedApplication[]>(() => getQueuedApplications());
+export function useOfflineQueue(seekerId?: string) {
+  const [queue, setQueue] = useState<QueuedApplication[]>(() => getQueuedApplications(seekerId));
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -137,9 +161,8 @@ export function useOfflineQueue() {
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    const handleQueueChange = (e: Event) => {
-      const customEvent = e as CustomEvent<QueuedApplication[]>;
-      setQueue(customEvent.detail || getQueuedApplications());
+    const handleQueueChange = () => {
+      setQueue(getQueuedApplications(seekerId));
     };
 
     window.addEventListener('online', handleOnline);
@@ -151,11 +174,14 @@ export function useOfflineQueue() {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('loxer:offline-queue-changed', handleQueueChange);
     };
-  }, []);
+  }, [seekerId]);
 
-  const triggerSync = useCallback(async (client: unknown) => {
-    return syncQueuedApplications(client);
-  }, []);
+  const triggerSync = useCallback(
+    async (client: unknown, specificSeekerId?: string) => {
+      return syncQueuedApplications(client, specificSeekerId || seekerId);
+    },
+    [seekerId]
+  );
 
   return {
     queue,

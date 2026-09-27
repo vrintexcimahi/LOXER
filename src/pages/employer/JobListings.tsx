@@ -21,10 +21,10 @@ const DATE_FILTER_OPTIONS: { value: 'all' | '7d' | '30d' | 'this_month'; label: 
 ];
 
 const JOB_TYPE_LABELS: Record<string, string> = {
-  'full-time': 'Full Time',
-  'part-time': 'Part Time',
+  'full-time': 'Purna Waktu',
+  'part-time': 'Paruh Waktu',
   contract: 'Kontrak',
-  freelance: 'Freelance',
+  freelance: 'Lepas Waktu',
   internship: 'Magang',
 };
 

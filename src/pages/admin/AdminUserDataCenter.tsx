@@ -458,8 +458,15 @@ export default function AdminUserDataCenter() {
                   </td>
                 </tr>
               ) : (
-                rows.map((u) => (
-                  <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
+                rows.map((u, idx) => (
+                  <tr
+                    key={u.id}
+                    className={`transition-colors border-b border-white/5 ${
+                      idx % 2 === 0
+                        ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]'
+                        : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                    }`}
+                  >
                     <td className="px-3.5 py-3 font-mono text-slate-500">{u.index}</td>
                     <td className="px-3.5 py-3">
                       <div className="flex items-center gap-2">

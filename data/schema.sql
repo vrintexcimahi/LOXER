@@ -335,6 +335,54 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- 24. Talent Marketplace Posts (Pencari Kerja & Jasa)
+CREATE TABLE IF NOT EXISTS talent_marketplace_posts (
+  id TEXT PRIMARY KEY,
+  seeker_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  headline TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT '',
+  bio_summary TEXT NOT NULL DEFAULT '',
+  skills TEXT NOT NULL DEFAULT '[]',
+  experience_years INTEGER NOT NULL DEFAULT 0,
+  availability_status TEXT NOT NULL DEFAULT 'available' CHECK (availability_status IN ('available', 'busy', 'not_looking')),
+  work_types TEXT NOT NULL DEFAULT '["full-time"]',
+  expected_salary INTEGER NOT NULL DEFAULT 0,
+  rate_type TEXT NOT NULL DEFAULT 'monthly' CHECK (rate_type IN ('monthly', 'hourly', 'project')),
+  domicile_city TEXT NOT NULL DEFAULT '',
+  whatsapp_number TEXT NOT NULL DEFAULT '',
+  portfolio_url TEXT NOT NULL DEFAULT '',
+  resume_url TEXT NOT NULL DEFAULT '',
+  badge TEXT NOT NULL DEFAULT 'SIAP KERJA',
+  photo_url TEXT NOT NULL DEFAULT '',
+  views_count INTEGER NOT NULL DEFAULT 0,
+  is_published INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (seeker_id) REFERENCES seeker_profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 25. Direct Job Offers Table (Penawaran Pekerjaan Langsung dari Perusahaan ke Seeker)
+CREATE TABLE IF NOT EXISTS direct_job_offers (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL,
+  seeker_id TEXT NOT NULL,
+  employer_id TEXT NOT NULL,
+  company_id TEXT NOT NULL,
+  job_id TEXT,
+  position_title TEXT NOT NULL,
+  offered_salary INTEGER NOT NULL DEFAULT 0,
+  message TEXT NOT NULL,
+  whatsapp_contact TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (post_id) REFERENCES talent_marketplace_posts(id) ON DELETE CASCADE,
+  FOREIGN KEY (seeker_id) REFERENCES seeker_profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
 -- Indices for Fast Queries
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_meta_role ON users_meta(role);
@@ -356,4 +404,9 @@ CREATE INDEX IF NOT EXISTS idx_user_activity_device_id ON user_activity_logs(dev
 CREATE INDEX IF NOT EXISTS idx_user_activity_event_type ON user_activity_logs(event_type);
 CREATE INDEX IF NOT EXISTS idx_user_activity_created_at ON user_activity_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_snapshots_date ON analytics_snapshots(snapshot_date);
+CREATE INDEX IF NOT EXISTS idx_talent_posts_seeker ON talent_marketplace_posts(seeker_id);
+CREATE INDEX IF NOT EXISTS idx_talent_posts_category ON talent_marketplace_posts(category);
+CREATE INDEX IF NOT EXISTS idx_talent_posts_published ON talent_marketplace_posts(is_published);
+CREATE INDEX IF NOT EXISTS idx_direct_offers_seeker ON direct_job_offers(seeker_id);
+CREATE INDEX IF NOT EXISTS idx_direct_offers_employer ON direct_job_offers(employer_id);
 

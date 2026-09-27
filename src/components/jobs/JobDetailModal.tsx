@@ -4,7 +4,7 @@ import {
   Building2,
   MapPin,
   Clock,
-  DollarSign,
+  Banknote,
   CheckCircle2,
   Sparkles,
   Send,
@@ -28,11 +28,11 @@ interface JobDetailModalProps {
 }
 
 const JOB_TYPE_LABELS: Record<string, string> = {
-  'full-time': 'Full Time',
-  'part-time': 'Part Time',
+  'full-time': 'Purna Waktu (Full Time)',
+  'part-time': 'Paruh Waktu (Part Time)',
   contract: 'Kontrak',
-  freelance: 'Freelance',
-  internship: 'Magang',
+  freelance: 'Lepas Waktu (Freelance)',
+  internship: 'Magang (Internship)',
 };
 
 function formatSalary(min?: number, max?: number, fallbackText?: string) {
@@ -266,20 +266,26 @@ export default function JobDetailModal({
   const salaryText = formatSalary(job?.salary_min, job?.salary_max, extendedJob?.salary);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
-      <div className="relative flex flex-col w-full max-w-2xl max-h-[92vh] rounded-3xl bg-white shadow-2xl border border-sky-100 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+      <div className="relative flex flex-col w-full max-w-2xl max-h-[92vh] max-h-[92dvh] rounded-t-3xl sm:rounded-3xl bg-slate-900 shadow-2xl border-t sm:border border-white/10 overflow-hidden pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        {/* Mobile Drag Handle */}
+        <div className="sm:hidden flex justify-center pt-2 pb-1 bg-slate-900">
+          <div className="w-12 h-1 bg-slate-600/70 rounded-full" />
+        </div>
+
         {/* Modal Header */}
-        <div className="relative border-b border-sky-100 bg-gradient-to-r from-sky-50/80 via-white to-cyan-50/80 p-5 sm:p-6 pr-14">
+        <div className="relative border-b border-white/10 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-5 sm:p-6 pr-14">
+          <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-sky-500/10 blur-2xl pointer-events-none" />
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 p-2 rounded-2xl bg-white/80 hover:bg-white text-slate-400 hover:text-slate-700 shadow-sm border border-sky-100 transition active:scale-95"
+            className="absolute right-4 top-4 p-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white shadow-sm border border-white/10 transition active:scale-95"
             aria-label="Tutup detail lowongan"
           >
             <X className="h-5 w-5" />
           </button>
 
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl border border-sky-100 bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="w-14 h-14 rounded-2xl border border-white/10 bg-slate-800 shadow-md flex items-center justify-center flex-shrink-0 overflow-hidden">
               {company?.logo_url ? (
                 <img src={company.logo_url} alt={companyName} className="w-full h-full object-cover" />
               ) : (
@@ -291,52 +297,52 @@ export default function JobDetailModal({
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-full uppercase tracking-wider">
                   ⭐ Lowongan Resmi LOXER
                 </span>
                 {company?.verified && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Terverifikasi
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Terverifikasi
                   </span>
                 )}
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
+              <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
                 {job?.title || 'Memuat Lowongan...'}
               </h2>
 
-              <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <Building2 className="h-4 w-4 text-cyan-500 shrink-0" />
+              <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-400">
+                <Building2 className="h-4 w-4 text-sky-400 shrink-0" />
                 <span className="truncate">{companyName}</span>
               </p>
             </div>
           </div>
 
           {/* Quick Meta Badges */}
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-100 px-3 py-1 shadow-2xs">
-              <MapPin className="h-3.5 w-3.5 text-cyan-500" />
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 border border-white/10 px-3 py-1 text-slate-300">
+              <MapPin className="h-3.5 w-3.5 text-sky-400" />
               {locationText}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-100 px-3 py-1 shadow-2xs text-emerald-700 font-semibold">
-              <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 border border-white/10 px-3 py-1 text-emerald-300 font-semibold">
+              <Banknote className="h-3.5 w-3.5 text-emerald-400" />
               {salaryText}
             </span>
             {job?.job_type && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-100 px-3 py-1 shadow-2xs">
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 border border-white/10 px-3 py-1 text-slate-300">
+                <Clock className="h-3.5 w-3.5 text-amber-400" />
                 {JOB_TYPE_LABELS[job.job_type] || job.job_type}
               </span>
             )}
             {job?.category && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-100 px-3 py-1 shadow-2xs">
-                <Briefcase className="h-3.5 w-3.5 text-sky-500" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 border border-white/10 px-3 py-1 text-slate-300">
+                <Briefcase className="h-3.5 w-3.5 text-sky-400" />
                 {job.category}
               </span>
             )}
             {job?.quota && job.quota > 1 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-sky-100 px-3 py-1 shadow-2xs">
-                <Users className="h-3.5 w-3.5 text-indigo-500" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 border border-white/10 px-3 py-1 text-slate-300">
+                <Users className="h-3.5 w-3.5 text-indigo-400" />
                 Kuota: {job.quota} orang
               </span>
             ) : null}
@@ -344,10 +350,10 @@ export default function JobDetailModal({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-slate-700 text-sm leading-relaxed">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-slate-300 text-sm leading-relaxed">
           {loading ? (
             <div className="py-12 text-center space-y-3">
-              <div className="w-8 h-8 border-3 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="w-8 h-8 border-3 border-sky-400 border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-xs text-slate-400">Memuat detail lowongan...</p>
             </div>
           ) : (
@@ -355,9 +361,9 @@ export default function JobDetailModal({
               {/* Job Description */}
               <section className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 text-cyan-500" /> Deskripsi Pekerjaan
+                  <Sparkles className="h-4 w-4 text-sky-400" /> Deskripsi Pekerjaan
                 </h3>
-                <div className="rounded-2xl border border-sky-100 bg-sky-50/30 p-4 whitespace-pre-line text-slate-700 text-sm">
+                <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-4 whitespace-pre-line text-slate-300 text-sm">
                   {job?.description || 'Deskripsi detail lowongan tidak dicantumkan oleh perusahaan.'}
                 </div>
               </section>
@@ -366,9 +372,9 @@ export default function JobDetailModal({
               {job?.requirements && (
                 <section className="space-y-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Kualifikasi & Persyaratan
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Kualifikasi & Persyaratan
                   </h3>
-                  <div className="rounded-2xl border border-sky-100 bg-sky-50/30 p-4 whitespace-pre-line text-slate-700 text-sm">
+                  <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-4 whitespace-pre-line text-slate-300 text-sm">
                     {job.requirements}
                   </div>
                 </section>
@@ -376,22 +382,22 @@ export default function JobDetailModal({
 
               {/* Company Info Card */}
               {company && (
-                <section className="rounded-2xl border border-sky-100 bg-slate-50/60 p-4 space-y-2">
+                <section className="rounded-2xl border border-white/10 bg-slate-800/60 p-4 space-y-2">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Tentang Perusahaan</h4>
-                  <p className="font-bold text-slate-900">{company.name}</p>
+                  <p className="font-bold text-white">{company.name}</p>
                   {company.description && (
-                    <p className="text-xs text-slate-600 line-clamp-3">{company.description}</p>
+                    <p className="text-xs text-slate-400 line-clamp-3">{company.description}</p>
                   )}
-                  <div className="flex flex-wrap gap-4 pt-1 text-xs text-slate-500">
-                    {company.industry && <span>Industri: <strong>{company.industry}</strong></span>}
-                    {company.city && <span>Kota: <strong>{company.city}</strong></span>}
-                    {company.employee_count && <span>Ukuran: <strong>{company.employee_count}</strong></span>}
+                  <div className="flex flex-wrap gap-4 pt-1 text-xs text-slate-400">
+                    {company.industry && <span>Industri: <strong className="text-slate-200">{company.industry}</strong></span>}
+                    {company.city && <span>Kota: <strong className="text-slate-200">{company.city}</strong></span>}
+                    {company.employee_count && <span>Ukuran: <strong className="text-slate-200">{company.employee_count}</strong></span>}
                     {company.website && (
                       <a
                         href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-sky-600 hover:underline"
+                        className="inline-flex items-center gap-1 text-sky-400 hover:underline"
                       >
                         Kunjungi Website <ExternalLink className="h-3 w-3" />
                       </a>
@@ -404,22 +410,22 @@ export default function JobDetailModal({
         </div>
 
         {/* Modal Sticky Footer / Actions */}
-        <div className="border-t border-sky-100 bg-white p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+        <div className="border-t border-white/10 bg-slate-900 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={handleShare}
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-2xl border border-sky-100 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition active:scale-95 w-full sm:w-auto justify-center"
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-white/10 bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition active:scale-95 w-full sm:w-auto justify-center"
               title="Salin tautan lowongan"
             >
               {copiedLink ? (
                 <>
-                  <Check className="h-4 w-4 text-emerald-600" />
-                  <span className="text-emerald-700 font-bold">Tersalin!</span>
+                  <Check className="h-4 w-4 text-emerald-400" />
+                  <span className="text-emerald-300 font-bold">Tersalin!</span>
                 </>
               ) : (
                 <>
-                  <Share2 className="h-4 w-4 text-slate-500" />
+                  <Share2 className="h-4 w-4 text-slate-400" />
                   <span>Bagikan</span>
                 </>
               )}
@@ -431,21 +437,21 @@ export default function JobDetailModal({
               <button
                 type="button"
                 onClick={() => onRequireAuth?.('login')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:brightness-110 active:scale-95 transition"
               >
                 Masuk / Daftar untuk Melamar
               </button>
             ) : userMeta?.role === 'seeker' ? (
               isApplied ? (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                     {isQueuedOffline ? 'Tersimpan di Antrean Offline' : 'Lamaran Terkirim'}
                     {appliedDate ? ` · ${new Date(appliedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}` : ''}
                   </span>
                   <a
                     href="/seeker/applications"
-                    className="text-xs font-semibold text-sky-600 hover:underline"
+                    className="text-xs font-semibold text-sky-400 hover:underline"
                   >
                     Lihat Progres Lamaran &rarr;
                   </a>
@@ -455,7 +461,7 @@ export default function JobDetailModal({
                   type="button"
                   onClick={handleApply}
                   disabled={applying}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition disabled:opacity-50"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:brightness-110 active:scale-95 transition disabled:opacity-50"
                 >
                   {applying ? (
                     <>

@@ -19,6 +19,7 @@ import {
   Smartphone,
   Layers,
   Menu,
+  LogOut,
 } from 'lucide-react';
 import BrandText from '../../components/ui/BrandText';
 import ThemeToggle from '../../components/ui/ThemeToggle';
@@ -213,19 +214,21 @@ export default function GodModeLayout({ title, description, children }: GodModeL
       <div className="flex min-h-screen">
         <aside
           className={classNames(
-            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-[300px] flex-col overflow-hidden border-r border-white/10 bg-slate-950/95 backdrop-blur transition-transform lg:static',
+            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-[300px] flex-col overflow-hidden border-r border-rose-500/20 gradient-sidebar-admin backdrop-blur transition-transform lg:static',
             isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
             isCollapsed ? 'lg:w-[112px]' : 'lg:w-[300px]'
           )}
         >
-          <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4">
-            <a href="/admin/dashboard" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/15 text-cyan-300">
-              <Shield className="h-5 w-5" />
+          <div className="flex items-center gap-3 border-b border-rose-500/20 px-4 py-4">
+            <a href="/admin/dashboard" className="flex items-center justify-center shrink-0">
+              <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-rose-500/30" />
             </a>
             {!isCollapsed && (
               <div>
                 <BrandText className="text-lg text-white" />
-                <p className="text-[11px] uppercase tracking-[0.35em] text-cyan-300/70">God Mode</p>
+                <span className="inline-block mt-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[9px] font-bold text-rose-300 shadow-sm shadow-rose-500/20">
+                  Super Admin
+                </span>
               </div>
             )}
             <button
@@ -282,7 +285,7 @@ export default function GodModeLayout({ title, description, children }: GodModeL
         </aside>
 
         <div className="flex min-h-screen flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/90 backdrop-blur-md">
+          <header className="sticky top-0 z-30 border-b border-rose-500/20 gradient-sidebar-admin backdrop-blur-md">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 sm:py-4 lg:px-6">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <button
@@ -292,24 +295,31 @@ export default function GodModeLayout({ title, description, children }: GodModeL
                 >
                   <Menu className="h-5 w-5" />
                 </button>
+                <div className="flex items-center gap-2 lg:hidden shrink-0">
+                  <img src="/branding/icon64.png" alt="LOXER Logo" className="w-7 h-7 rounded-lg shadow-md shadow-rose-500/30 shrink-0" />
+                  <BrandText className="text-base font-black" />
+                  <span className="whitespace-nowrap rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20 shrink-0">
+                    Super Admin
+                  </span>
+                </div>
                 <button
                   onClick={toggleCollapsed}
                   className="hidden rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/10 lg:inline-flex shrink-0 transition"
                 >
                   {isCollapsed ? 'Expand' : 'Collapse'}
                 </button>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.25em] text-cyan-400">Admin / God Mode</p>
+                <div className="min-w-0 flex-1 hidden md:block">
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.25em] text-rose-300">Admin / God Mode</p>
                   <h1 className="mt-0.5 text-lg sm:text-2xl font-bold text-white truncate">{title}</h1>
                   <p className="text-xs sm:text-sm text-slate-400 truncate hidden sm:block">{description}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 shrink-0 self-end sm:self-auto">
-                <ThemeToggle compact />
-                <NotificationBell />
-                <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-2.5 py-1.5 sm:px-3 sm:py-2 text-right max-w-[150px] sm:max-w-[220px]">
-                  <p className="text-[10px] text-cyan-300 font-medium hidden sm:block">Admin Session</p>
+                <ThemeToggle compact variant="dark" />
+                <NotificationBell variant="dark" compact />
+                <div className="hidden sm:block rounded-xl border border-rose-400/30 bg-rose-500/20 px-2.5 py-1.5 sm:px-3 sm:py-2 text-right max-w-[150px] sm:max-w-[220px] shadow-sm shadow-rose-500/20">
+                  <p className="text-[10px] text-rose-200 font-medium hidden sm:block">Super Admin Session</p>
                   <p className="text-xs sm:text-sm font-semibold text-white truncate" title={user?.email || 'admin'}>
                     {user?.email || 'admin'}
                   </p>
@@ -318,9 +328,11 @@ export default function GodModeLayout({ title, description, children }: GodModeL
                   onClick={() => {
                     void signOut().then(() => window.location.assign('/'));
                   }}
-                  className="rounded-xl border border-red-500/30 bg-red-500/15 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-red-200 hover:bg-red-500/25 transition cursor-pointer shrink-0"
+                  title="Logout"
+                  className="rounded-xl border border-red-500/30 bg-red-500/15 p-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-red-200 hover:bg-red-500/25 transition cursor-pointer shrink-0"
                 >
-                  Logout
+                  <span className="hidden sm:inline">Logout</span>
+                  <LogOut className="h-3.5 w-3.5 sm:hidden" />
                 </button>
               </div>
             </div>

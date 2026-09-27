@@ -31,6 +31,12 @@ import {
   Database,
   Smartphone,
   Layers,
+  Clock,
+  Banknote,
+  ExternalLink,
+  Globe,
+  MapPin,
+  Code,
 } from 'lucide-react';
 import {
   Area,
@@ -121,11 +127,12 @@ function badgeRoleClass(role: UserRole) {
 function roleLabel(role: UserRole) {
   if (role === 'seeker') return 'Seeker (Pencari Kerja)';
   if (role === 'employer') return 'Employer (Perusahaan)';
+  if (role === 'superadmin') return 'Super Admin (Pemilik)';
   return 'Admin (Administrator)';
 }
 
 function normalizeRoleByEmail(email: string | undefined, role: UserRole): UserRole {
-  if (isDefaultAdminEmail(email)) return 'admin';
+  if (isDefaultAdminEmail(email)) return 'superadmin';
   return role;
 }
 
@@ -232,19 +239,21 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
       { key: 'jobs', label: 'Manajemen Jobs', description: 'Atur seluruh lowongan yang tayang', href: '/admin/jobs', icon: Briefcase },
       { key: 'applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', href: '/admin/applications', icon: ListChecks },
       { key: 'companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', href: '/admin/companies', icon: Building2 },
-      { key: 'logs', label: 'Audit Log', description: 'Lihat semua jejak aksi admin', href: '/admin/logs', icon: FileText },
+      ...(effectiveRole === 'superadmin' ? [{ key: 'logs', label: 'Audit Log', description: 'Lihat semua jejak aksi admin', href: '/admin/logs', icon: FileText }] : []),
       { key: 'integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', href: '/admin/integrations', icon: Link2 },
-      { key: 'analytics', label: 'Advanced Analytics', description: 'Funnel, growth, dan health score', href: '/admin/analytics', icon: BarChart3 },
-      { key: 'flags', label: 'Feature Flags', description: 'Toggle fitur tanpa redeploy', href: '/admin/flags', icon: Flag },
+      ...(effectiveRole === 'superadmin' ? [{ key: 'analytics', label: 'Advanced Analytics', description: 'Funnel, growth, dan health score', href: '/admin/analytics', icon: BarChart3 }] : []),
+      ...(effectiveRole === 'superadmin' ? [{ key: 'flags', label: 'Feature Flags', description: 'Toggle fitur tanpa redeploy', href: '/admin/flags', icon: Flag }] : []),
       { key: 'moderation', label: 'Moderation Queue', description: 'Review konten dan AI scoring', href: '/admin/moderation', icon: AlertTriangle },
-      { key: 'broadcast', label: 'Broadcast System', description: 'Kirim notifikasi ke segmen user', href: '/admin/broadcast', icon: Megaphone },
-      { key: 'security', label: 'Security Center', description: 'IP block, session, dan alerts', href: '/admin/security', icon: Shield },
-      { key: 'editor', label: 'CMS Homepage', description: 'Visual editor halaman utama LOXER', href: '/admin/editor', icon: Sparkles },
-      { key: 'monitoring', label: 'Log & Monitoring', description: 'Real-time live tail & error tracker', href: '/admin/monitoring', icon: Terminal },
-      { key: 'backup', label: 'Backup Database', description: 'Ekspor, restore & Telegram bot harian', href: '/admin/backup', icon: Database },
-      { key: 'dev-workbench', label: 'Developer Mode', description: 'Dual-view workbench (mobile & desktop)', href: '/admin/dev-workbench', icon: Smartphone },
+      ...(effectiveRole === 'superadmin' ? [
+        { key: 'broadcast', label: 'Broadcast System', description: 'Kirim notifikasi ke segmen user', href: '/admin/broadcast', icon: Megaphone },
+        { key: 'security', label: 'Security Center', description: 'IP block, session, dan alerts', href: '/admin/security', icon: Shield },
+        { key: 'editor', label: 'CMS Homepage', description: 'Visual editor halaman utama LOXER', href: '/admin/editor', icon: Sparkles },
+        { key: 'monitoring', label: 'Log & Monitoring', description: 'Real-time live tail & error tracker', href: '/admin/monitoring', icon: Terminal },
+        { key: 'backup', label: 'Backup Database', description: 'Ekspor, restore & Telegram bot harian', href: '/admin/backup', icon: Database },
+        { key: 'dev-workbench', label: 'Developer Mode', description: 'Dual-view workbench (mobile & desktop)', href: '/admin/dev-workbench', icon: Smartphone }
+      ] : []),
     ],
-    []
+    [effectiveRole]
   );
   const assistantGuides = useMemo(
     () =>
@@ -276,7 +285,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
     window.location.assign('/');
   };
 
-  if (!user || effectiveRole !== 'admin') {
+  if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'superadmin')) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
         <div className="max-w-md rounded-2xl border border-red-400/30 bg-red-500/10 p-6 text-center">
@@ -325,17 +334,20 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
 
         <aside
           className={classNames(
-            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-64 flex-col overflow-hidden border-r border-white/10 bg-slate-900 transition-all duration-300',
+            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-64 flex-col overflow-hidden border-r border-rose-500/20 gradient-sidebar-admin transition-all duration-300',
             isMobileOpen ? 'translate-x-0' : '-translate-x-full',
             isCollapsed ? 'lg:w-20' : 'lg:w-64',
             'lg:translate-x-0'
           )}
         >
-          <div className={classNames('flex h-16 items-center border-b border-white/10', isCollapsed ? 'justify-center px-3' : 'gap-2 px-5')}>
-            <div className="rounded-lg bg-cyan-500/20 p-2">
-              <ShieldCheck className="h-4 w-4 text-cyan-300" />
-            </div>
+          <div className={classNames('flex h-16 items-center border-b border-rose-500/20', isCollapsed ? 'justify-center px-3' : 'gap-2 px-5')}>
+            <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-rose-500/30" />
             <BrandText className={classNames('text-lg font-black', isCollapsed ? 'lg:hidden' : '')} />
+            {!isCollapsed && (
+              <span className="ml-auto rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20">
+                {effectiveRole === 'superadmin' ? 'Super Admin' : 'Admin'}
+              </span>
+            )}
             <button onClick={closeMobile} className="ml-auto rounded-lg p-2 text-slate-300 hover:bg-white/10 lg:hidden">
               <X className="h-4 w-4" />
             </button>
@@ -354,7 +366,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                   className={classNames(
                     'group mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
                     isActive
-                      ? 'border border-cyan-400/30 bg-cyan-500/10 text-white shadow-lg shadow-cyan-500/10'
+                      ? 'border border-rose-500/40 bg-rose-500/15 text-white shadow-lg shadow-rose-500/15'
                       : 'border border-transparent text-slate-300 hover:border-white/10 hover:bg-slate-900/80 hover:text-white',
                     isCollapsed ? 'lg:justify-center lg:px-2' : ''
                   )}
@@ -362,7 +374,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                   <Icon
                     className={classNames(
                       'h-5 w-5 shrink-0 transition-colors',
-                      isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'
+                      isActive ? 'text-rose-400' : 'text-slate-400 group-hover:text-slate-200'
                     )}
                     strokeWidth={1.8}
                   />
@@ -370,7 +382,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                     <p className={classNames('truncate font-medium', isActive ? 'text-white font-semibold' : 'text-slate-200')}>
                       {item.label}
                     </p>
-                    <p className={classNames('truncate text-[11px]', isActive ? 'text-cyan-200/80' : 'text-slate-500')}>
+                    <p className="truncate text-[11px] text-slate-400">
                       {item.description}
                     </p>
                   </div>
@@ -378,12 +390,31 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
               );
             })}
           </div>
+
+          <div className="border-t border-rose-500/20 p-3 mt-auto">
+            <div className={classNames('flex items-center gap-2.5 rounded-xl border border-white/10 bg-slate-950/40 p-2.5', isCollapsed ? 'lg:justify-center lg:p-2' : '')}>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-500/20 border border-rose-500/30 text-xs font-bold text-rose-300 shrink-0">
+                {(adminEmail || 'A')[0].toUpperCase()}
+              </div>
+              <div className={classNames('min-w-0 flex-1', isCollapsed ? 'lg:hidden' : '')}>
+                <p className="truncate text-xs font-medium text-white">{adminEmail || 'admin@loxer.id'}</p>
+                <p className="truncate text-[10px] text-rose-400 font-semibold">{effectiveRole === 'superadmin' ? 'Super Admin' : 'Admin'}</p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                title="Logout"
+                className={classNames('p-1.5 text-slate-400 hover:text-red-400 transition cursor-pointer', isCollapsed ? 'lg:hidden' : '')}
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </aside>
 
         <div className={classNames('flex min-w-0 w-full flex-col transition-all duration-300', isCollapsed ? 'lg:pl-20' : 'lg:pl-64')}>
-          <header className="sticky top-0 z-30 border-b border-white/10 gradient-sidebar px-4 py-3 backdrop-blur md:px-6 pt-safe">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+          <header className="sticky top-0 z-30 border-b border-rose-500/20 gradient-sidebar-admin px-3 sm:px-4 py-3 backdrop-blur md:px-6 pt-safe">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <button
                   onClick={() => {
                     if (window.innerWidth >= 1024) {
@@ -392,7 +423,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                     }
                     toggleMobile();
                   }}
-                  className="rounded-lg border border-white/10 bg-slate-950/35 p-2 text-slate-100 transition hover:bg-white/10 hover:text-cyan-200 active-press"
+                  className="rounded-lg border border-rose-500/20 bg-slate-950/40 p-2 text-slate-100 transition hover:bg-rose-500/10 hover:text-rose-200 active-press shrink-0"
                   aria-label={isCollapsed ? 'Open sidebar' : 'Close sidebar'}
                   title={isCollapsed ? 'Open sidebar' : 'Close sidebar'}
                 >
@@ -403,32 +434,38 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                     <Menu className="h-4 w-4" />
                   </span>
                 </button>
-                <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-wider text-cyan-300 truncate">Admin / {tabTitle}</p>
+                <div className="flex items-center gap-1.5 lg:hidden shrink-0">
+                  <img src="/branding/icon64.png" alt="LOXER Logo" className="w-6 h-6 rounded-lg shadow-md shadow-rose-500/30 shrink-0" />
+                  <BrandText className="text-base font-black shrink-0" />
+                  <span className="whitespace-nowrap rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20 shrink-0">
+                    {effectiveRole === 'superadmin' ? 'Super Admin' : 'Admin'}
+                  </span>
+                </div>
+                <div className="min-w-0 hidden md:block">
+                  <p className="text-xs uppercase tracking-wider text-rose-300 truncate">Admin / {tabTitle}</p>
                   <p className="text-sm font-semibold text-slate-100 truncate hidden sm:block">Pusat kendali data dan monitoring LOXER</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <ThemeToggle compact />
-                <span className="rounded-full border border-cyan-400/30 bg-cyan-500/20 px-3 py-1 text-xs font-semibold text-cyan-200">
-                  {roleLabel(effectiveRole || 'admin')}
+              <div className="flex items-center gap-2 shrink-0">
+                <ThemeToggle compact variant="dark" />
+                <span className="hidden sm:inline-flex whitespace-nowrap rounded-full border border-rose-400/30 bg-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-200 shadow-sm shadow-rose-500/20">
+                  {effectiveRole === 'superadmin' ? 'Super Admin' : 'Admin'}
                 </span>
                 <NotificationBell variant="dark" compact />
-                <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-slate-950/35 px-3 py-1.5 sm:flex">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-500/20 text-xs font-bold text-cyan-300">
+                <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-slate-950/35 px-3 py-1.5 lg:flex">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500/20 text-xs font-bold text-rose-300">
                     {(adminEmail || 'A')[0].toUpperCase()}
                   </div>
                   <p className="max-w-[180px] truncate text-xs text-slate-200">{adminEmail}</p>
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-500/20"
+                  title="Logout"
+                  className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-500/20 shrink-0 cursor-pointer"
                 >
-                  <span className="inline-flex items-center gap-1">
-                    <LogOut className="h-3.5 w-3.5" />
-                    Logout
-                  </span>
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Logout</span>
                 </button>
               </div>
             </div>
@@ -485,7 +522,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                       className={classNames(
                         'flex items-center justify-center px-3 py-1 rounded-full transition-all duration-200',
                         active
-                          ? 'bg-cyan-500/20 text-cyan-300 shadow-sm'
+                          ? 'bg-rose-500/20 text-rose-300 shadow-sm shadow-rose-500/20'
                           : 'text-slate-400 hover:text-slate-200'
                       )}
                     >
@@ -494,7 +531,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                     <span
                       className={classNames(
                         'text-[10px] tracking-tight mt-0.5 truncate max-w-[58px]',
-                        active ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'
+                        active ? 'text-rose-300 font-bold' : 'text-slate-400 font-medium'
                       )}
                     >
                       {item.label}
@@ -512,7 +549,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                   className={classNames(
                     'flex items-center justify-center px-3 py-1 rounded-full transition-all duration-200',
                     isMobileOpen
-                      ? 'bg-cyan-500/20 text-cyan-300 shadow-sm'
+                      ? 'bg-rose-500/20 text-rose-300 shadow-sm shadow-rose-500/20'
                       : 'text-slate-400 hover:text-slate-200'
                   )}
                 >
@@ -521,7 +558,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
                 <span
                   className={classNames(
                     'text-[10px] tracking-tight mt-0.5',
-                    isMobileOpen ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'
+                    isMobileOpen ? 'text-rose-300 font-bold' : 'text-slate-400 font-medium'
                   )}
                 >
                   Menu
@@ -800,14 +837,15 @@ function AdminOverview({
   }, [period, adminId, adminEmail, onToast]);
 
   const statCards = [
-    { label: 'Total User', value: stats.totalUsers, today: stats.newUsersToday, Icon: Users, color: 'text-cyan-400' },
-    { label: 'Seeker', value: stats.totalSeekers, today: stats.newUsersToday, Icon: UserCheck, color: 'text-cyan-400' },
-    { label: 'Employer (Perusahaan)', value: stats.totalEmployers, today: stats.newUsersToday, Icon: Building2, color: 'text-cyan-400' },
-    { label: 'Total Lowongan', value: stats.totalJobs, today: stats.newJobsToday, Icon: Briefcase, color: 'text-cyan-400' },
-    { label: 'Lowongan Aktif', value: stats.activeJobs, today: stats.newJobsToday, Icon: CheckCircle2, color: 'text-cyan-400' },
-    { label: 'Total Lamaran', value: stats.totalApplications, today: stats.newApplicationsToday, Icon: FileText, color: 'text-cyan-400' },
-    { label: 'Total Perusahaan', value: stats.totalCompanies, today: 0, Icon: Building, color: 'text-cyan-400' },
-    { label: 'Perusahaan Verified', value: stats.verifiedCompanies, today: 0, Icon: BadgeCheck, color: 'text-cyan-400' },
+    { label: 'Total User', value: stats.totalUsers, today: stats.newUsersToday, Icon: Users, color: 'text-rose-400' },
+    { label: 'Seeker', value: stats.totalSeekers, today: stats.newUsersToday, Icon: UserCheck, color: 'text-rose-400' },
+    { label: 'Employer (Perusahaan)', value: stats.totalEmployers, today: stats.newUsersToday, Icon: Building2, color: 'text-rose-400' },
+    { label: 'Total Lowongan', value: stats.totalJobs, today: stats.newJobsToday, Icon: Briefcase, color: 'text-rose-400' },
+    { label: 'Lowongan Aktif', value: stats.activeJobs, today: stats.newJobsToday, Icon: CheckCircle2, color: 'text-rose-400' },
+    { label: 'Total Lamaran', value: stats.totalApplications, today: stats.newApplicationsToday, Icon: FileText, color: 'text-rose-400' },
+    { label: 'Total Perusahaan', value: stats.totalCompanies, today: 0, Icon: Building, color: 'text-rose-400' },
+    { label: 'Perusahaan Verified', value: stats.verifiedCompanies, today: 0, Icon: BadgeCheck, color: 'text-rose-400' },
+    { label: 'Lamaran Menunggu', value: stats.pendingApplications, today: 0, Icon: Clock, color: 'text-rose-400' },
   ];
 
   return (
@@ -821,7 +859,7 @@ function AdminOverview({
               onClick={() => setPeriod(value as 7 | 30 | 90)}
               className={classNames(
                 'rounded-md px-3 py-1.5 transition-colors',
-                period === value ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400 hover:text-white'
+                period === value ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30' : 'text-slate-400 hover:text-white'
               )}
             >
               {value} hari
@@ -834,17 +872,30 @@ function AdminOverview({
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>
       ) : null}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 min-[1800px]:grid-cols-8 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3.5 lg:gap-4">
         {loading
-          ? Array.from({ length: 8 }).map((_, idx) => <SkeletonBlock key={idx} className="h-[122px]" />)
+          ? Array.from({ length: 9 }).map((_, idx) => <SkeletonBlock key={idx} className="h-[92px] sm:h-[110px] rounded-xl" />)
           : statCards.map(({ label, value, today, Icon, color }) => (
-              <div key={label} className="rounded-xl border border-white/10 bg-slate-800 p-5">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm text-slate-400">{label}</span>
-                  <Icon className={classNames('h-5 w-5', color)} />
+              <div
+                key={label}
+                className="group relative overflow-hidden rounded-xl border border-rose-500/20 bg-slate-900/90 p-2.5 sm:p-4 hover:border-rose-500/40 hover:bg-slate-900 transition-all shadow-md shadow-slate-950/40 flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between gap-1 mb-1 sm:mb-2">
+                  <span className="text-[10px] sm:text-xs font-semibold text-slate-300 truncate" title={label}>
+                    {label}
+                  </span>
+                  <div className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/20 shrink-0">
+                    <Icon className={classNames('h-3 w-3 sm:h-4 sm:w-4', color)} />
+                  </div>
                 </div>
-                <p className="text-3xl font-bold text-white">{value.toLocaleString('id-ID')}</p>
-                <p className="mt-1 text-xs text-slate-500">+{today.toLocaleString('id-ID')} hari ini</p>
+                <div>
+                  <p className="text-base sm:text-2xl lg:text-3xl font-bold text-white tracking-tight">
+                    {value.toLocaleString('id-ID')}
+                  </p>
+                  <p className="mt-0.5 sm:mt-1 text-[9px] sm:text-xs text-rose-300/70 truncate">
+                    +{today.toLocaleString('id-ID')} hari ini
+                  </p>
+                </div>
               </div>
             ))}
       </div>
@@ -970,7 +1021,12 @@ function AdminOverview({
                 </thead>
                 <tbody>
                   {recentActivities.map((item, idx) => (
-                    <tr key={`${item.type}-${idx}`} className="border-t border-white/5 text-slate-200">
+                    <tr
+                      key={`${item.type}-${idx}`}
+                      className={`border-t border-white/5 text-slate-200 transition-colors ${
+                        idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                      }`}
+                    >
                       <td className="px-4 py-2">{item.description}</td>
                       <td className="px-4 py-2 text-slate-400">{formatRelativeTime(item.at)}</td>
                     </tr>
@@ -1407,7 +1463,12 @@ function AdminUsers({
             </thead>
             <tbody>
               {filteredRows.map((row, idx) => (
-                <tr key={row.id} className="border-b border-white/5 text-slate-300 hover:bg-white/5">
+                <tr
+                  key={row.id}
+                  className={`border-b border-white/5 text-slate-300 transition-colors ${
+                    idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                  }`}
+                >
                   <td className="px-4 py-3">{(page - 1) * PAGE_SIZE + idx + 1}</td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-white">{row.full_name || row.company_name || '-'}</p>
@@ -1787,10 +1848,15 @@ function AdminJobs({
               </tr>
             </thead>
             <tbody>
-              {filteredJobs.map((job) => {
+              {filteredJobs.map((job, idx) => {
                 const company = getFirstValue(job.companies);
                 return (
-                  <tr key={job.id} className="border-b border-white/5 text-slate-300 hover:bg-white/5">
+                  <tr
+                    key={job.id}
+                    className={`border-b border-white/5 text-slate-300 transition-colors ${
+                      idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                    }`}
+                  >
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
@@ -1871,6 +1937,7 @@ function AdminApplications({
   const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [voidLoading, setVoidLoading] = useState(false);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -1993,17 +2060,54 @@ function AdminApplications({
     onToast('success', 'CSV berhasil diekspor.');
   }
 
+  async function voidStaleApplications() {
+    const daysInput = window.prompt('Tandai lamaran sebagai kadaluarsa jika lebih dari N hari tanpa tindakan dari employer.\nMasukkan jumlah hari (default: 30):', '30');
+    if (daysInput === null) return;
+    const days = Math.max(1, parseInt(daysInput || '30', 10));
+    if (!window.confirm(`Yakin ingin membatalkan semua lamaran 'applied'/'reviewed' yang sudah lebih dari ${days} hari? Aksi ini tidak dapat diurungkan.`)) return;
+
+    setVoidLoading(true);
+    try {
+      const token = localStorage.getItem('loxer_local_auth_token') || '';
+      const resp = await fetch('/api/admin/applications/void-stale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ days_threshold: days }),
+      });
+      const result = await resp.json();
+      if (resp.ok && result.ok) {
+        onToast('success', `${result.voided} lamaran telah ditandai kadaluarsa.`);
+        setPage(1);
+      } else {
+        onToast('error', result.message || 'Gagal membatalkan lamaran kadaluarsa.');
+      }
+    } catch {
+      onToast('error', 'Gagal terhubung ke server.');
+    } finally {
+      setVoidLoading(false);
+    }
+  }
+
   return (
     <section className="space-y-4">
       <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-semibold">Monitoring Lamaran</p>
-          <button
-            onClick={exportCSV}
-            className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200"
-          >
-            Export CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={voidStaleApplications}
+              disabled={voidLoading}
+              className="rounded-lg border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-xs text-orange-200 hover:bg-orange-500/20 disabled:opacity-50 transition"
+            >
+              {voidLoading ? 'Memproses...' : 'Void Kadaluarsa'}
+            </button>
+            <button
+              onClick={exportCSV}
+              className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200"
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
@@ -2076,7 +2180,12 @@ function AdminApplications({
                 const job = getFirstValue(row.job_listings as Record<string, unknown> | Array<Record<string, unknown>> | undefined);
                 const company = getFirstValue(job?.companies as Record<string, unknown> | Array<Record<string, unknown>> | undefined);
                 return (
-                  <tr key={String(row.id)} className="border-b border-white/5 text-slate-300 hover:bg-white/5">
+                  <tr
+                    key={String(row.id)}
+                    className={`border-b border-white/5 text-slate-300 transition-colors ${
+                      idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                    }`}
+                  >
                     <td className="px-4 py-3">{(page - 1) * PAGE_SIZE + idx + 1}</td>
                     <td className="px-4 py-3">{String(seeker?.full_name || '-')}</td>
                     <td className="px-4 py-3 text-white">{String(job?.title || '-')}</td>
@@ -2297,8 +2406,13 @@ function AdminCompanies({
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((company) => (
-                <tr key={company.id} className="border-b border-white/5 text-slate-300 hover:bg-white/5">
+              {filteredRows.map((company, idx) => (
+                <tr
+                  key={company.id}
+                  className={`border-b border-white/5 text-slate-300 transition-colors ${
+                    idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                  }`}
+                >
                   <td className="px-4 py-3">
                     {company.logo_url ? (
                       <img src={company.logo_url} alt={company.name} className="h-8 w-8 rounded-full border border-white/20 object-cover" />
@@ -2372,11 +2486,449 @@ type IntegrationProvider = {
   note: string;
 };
 
+interface IntegratedJobItem {
+  title: string;
+  company: string;
+  locations: string;
+  salary: string;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_currency_code?: string;
+  salary_type?: string;
+  description: string;
+  url: string;
+  date: string;
+  site?: string;
+  source?: string;
+  is_internal?: boolean;
+  job_id?: string;
+  contract_type?: string;
+  work_hours?: string;
+}
+
+function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, message: string) => void }) {
+  const [provider, setProvider] = useState<'all' | 'internal' | 'jooble' | 'arbeitnow'>('all');
+  const [keyword, setKeyword] = useState('');
+  const [location, setLocation] = useState('Indonesia');
+  const [loading, setLoading] = useState(false);
+  const [jobs, setJobs] = useState<IntegratedJobItem[]>([]);
+  const [latency, setLatency] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activeJsonJob, setActiveJsonJob] = useState<IntegratedJobItem | null>(null);
+  const [copiedJson, setCopiedJson] = useState(false);
+
+  const fetchJobs = useCallback(
+    async (selectedProvider = provider, kw = keyword, loc = location) => {
+      setLoading(true);
+      setError(null);
+      const start = performance.now();
+      try {
+        let url = '';
+        if (selectedProvider === 'jooble') {
+          const q = new URLSearchParams();
+          if (kw.trim()) q.set('keywords', kw.trim());
+          if (loc.trim()) q.set('location', loc.trim());
+          url = `/api/integrations/jooble?${q.toString()}`;
+        } else {
+          const q = new URLSearchParams();
+          q.set('provider', selectedProvider);
+          if (kw.trim()) q.set('keywords', kw.trim());
+          if (loc.trim()) q.set('location', loc.trim());
+          url = `/api/jobs?${q.toString()}`;
+        }
+
+        const res = await fetch(url);
+        const elapsed = Math.round(performance.now() - start);
+        setLatency(elapsed);
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const list: IntegratedJobItem[] = Array.isArray(data.jobs) ? data.jobs : [];
+        setJobs(list);
+      } catch (err) {
+        const elapsed = Math.round(performance.now() - start);
+        setLatency(elapsed);
+        const msg = err instanceof Error ? err.message : 'Gagal memuat lowongan dari provider.';
+        setError(msg);
+        setJobs([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [provider, keyword, location]
+  );
+
+  useEffect(() => {
+    void fetchJobs(provider, keyword, location);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
+
+  const handleCopyJson = async (job: IntegratedJobItem) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(job, null, 2));
+      setCopiedJson(true);
+      onToast('success', 'Schema JSON loker berhasil disalin!');
+      setTimeout(() => setCopiedJson(false), 2000);
+    } catch {
+      onToast('error', 'Gagal menyalin JSON.');
+    }
+  };
+
+  const handleReset = () => {
+    setKeyword('');
+    setLocation('Indonesia');
+    void fetchJobs(provider, '', 'Indonesia');
+  };
+
+  const cleanDescription = (html: string) => {
+    return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+
+  const providerTabs = [
+    { id: 'all', label: 'Semua Feed (Unified)', desc: 'Agregator terpadu seluruh sumber', icon: Globe },
+    { id: 'internal', label: 'Mitra Internal LOXER', desc: 'Loker verified employer LOXER', icon: Building2 },
+    { id: 'jooble', label: 'Jooble Indonesia', desc: 'Feed nasional via Jooble API', icon: Sparkles },
+    { id: 'arbeitnow', label: 'Arbeitnow Global', desc: 'Remote & global tech jobs', icon: Briefcase },
+  ] as const;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-slate-900 p-5 space-y-5">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-white/10 pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <CheckCircle2 className="h-4 w-4" />
+            </span>
+            <h3 className="text-lg font-bold text-white">Validasi Tampilan Loker Terintegrasi</h3>
+            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300 border border-emerald-500/30">
+              Live Feed Inspector
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">
+            Validasi tampilan kartu loker, kelengkapan metadata (gaji, lokasi, nama perusahaan), dan fungsionalitas link pelamar secara real-time.
+          </p>
+        </div>
+
+        {/* Live Metrics */}
+        <div className="flex items-center gap-2 font-mono text-xs shrink-0">
+          <div className="rounded-lg border border-white/10 bg-slate-950 px-3 py-1.5 text-slate-300">
+            <span className="text-slate-500">Status: </span>
+            <span className={error ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+              {loading ? 'Memuat...' : error ? 'Error' : 'Feed Aktif & Valid'}
+            </span>
+          </div>
+          {latency !== null && (
+            <div className="rounded-lg border border-white/10 bg-slate-950 px-3 py-1.5 text-cyan-300">
+              <span className="text-slate-500">Latency: </span>
+              {latency}ms
+            </div>
+          )}
+          <div className="rounded-lg border border-white/10 bg-slate-950 px-3 py-1.5 text-purple-300">
+            <span className="text-slate-500">Total: </span>
+            {jobs.length} Loker
+          </div>
+        </div>
+      </div>
+
+      {/* Provider Selector Tabs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {providerTabs.map((tab) => {
+          const isActive = provider === tab.id;
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setProvider(tab.id)}
+              className={classNames(
+                'flex flex-col items-start p-3 rounded-xl border text-left transition cursor-pointer',
+                isActive
+                  ? 'border-cyan-400/50 bg-cyan-500/10 text-white shadow-lg'
+                  : 'border-white/5 bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              )}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <TabIcon className={classNames('h-3.5 w-3.5', isActive ? 'text-cyan-400' : 'text-slate-400')} />
+                <span className={classNames('text-xs font-bold', isActive ? 'text-cyan-300' : 'text-slate-300')}>
+                  {tab.label}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 line-clamp-1">{tab.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search & Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center gap-2 rounded-xl bg-slate-950/80 p-3 border border-white/10">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Cari kata kunci loker (cth: Staff, Kasir, Engineer, Admin)..."
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void fetchJobs(provider, keyword, location)}
+            className="w-full rounded-lg border border-white/10 bg-slate-900 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
+          />
+        </div>
+
+        <div className="relative w-full sm:w-60">
+          <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Lokasi (cth: Indonesia, Bandung, Cimahi)..."
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void fetchJobs(provider, keyword, location)}
+            className="w-full rounded-lg border border-white/10 bg-slate-900 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => void fetchJobs(provider, keyword, location)}
+            disabled={loading}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg bg-cyan-500 px-3.5 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-400 transition disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={classNames('h-3.5 w-3.5', loading && 'animate-spin')} />
+            <span>{loading ? 'Memvalidasi...' : 'Uji Validasi'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleReset}
+            className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition cursor-pointer"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs text-rose-300 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+          <div>
+            <p className="font-bold">Gagal mengambil feed loker:</p>
+            <p className="mt-0.5">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Job Cards View */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-white/5 bg-slate-800/40 p-4 space-y-3 animate-pulse">
+              <div className="h-4 bg-slate-700/60 rounded w-2/3" />
+              <div className="h-3 bg-slate-700/40 rounded w-1/2" />
+              <div className="h-6 bg-slate-700/30 rounded w-full" />
+              <div className="h-10 bg-slate-700/20 rounded w-full" />
+            </div>
+          ))}
+        </div>
+      ) : jobs.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-white/15 bg-slate-950/40 p-10 text-center">
+          <Briefcase className="h-8 w-8 mx-auto text-slate-500 mb-2" />
+          <p className="text-sm font-semibold text-white">Tidak ada lowongan yang sesuai kriteria</p>
+          <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+            Coba kosongkan kata kunci atau gunakan lokasi yang lebih luas seperti "Indonesia" untuk memuat seluruh feed loker.
+          </p>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/15 transition cursor-pointer"
+          >
+            Reset Filter
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {jobs.map((job, idx) => {
+            const isInternal = job.is_internal || job.site === 'LOXER Mitra' || (job.source || '').includes('LOXER');
+            const isJooble = (job.site || '').toLowerCase().includes('jooble') || (job.source || '').toLowerCase().includes('jooble') || (job.url || '').includes('jooble');
+            const isArbeit = (job.site || '').toLowerCase().includes('arbeitnow') || (job.source || '').toLowerCase().includes('arbeitnow');
+
+            return (
+              <div
+                key={job.job_id || job.url || idx}
+                className="group rounded-xl border border-white/10 bg-slate-800/80 hover:border-cyan-400/50 hover:bg-slate-800 transition p-4 flex flex-col justify-between shadow-sm hover:shadow-cyan-500/5 hover:shadow-xl"
+              >
+                <div>
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                        <span className="text-xs font-semibold text-slate-300 truncate">
+                          {job.company || 'Perusahaan Terdaftar'}
+                        </span>
+                      </div>
+                      <h4 className="mt-1 text-sm font-bold text-white group-hover:text-cyan-200 transition line-clamp-2">
+                        {job.title}
+                      </h4>
+                    </div>
+
+                    {/* Source Tag */}
+                    <span
+                      className={classNames(
+                        'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md border',
+                        isInternal
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          : isJooble
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                          : isArbeit
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                          : 'bg-slate-700/50 text-slate-300 border-white/10'
+                      )}
+                    >
+                      {isInternal ? 'Mitra LOXER' : isJooble ? 'Jooble ID' : isArbeit ? 'Arbeitnow' : job.site || 'Aggregator'}
+                    </span>
+                  </div>
+
+                  {/* Metadata Badges */}
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+                    {/* Location */}
+                    <span className="inline-flex items-center gap-1 rounded-md bg-slate-900/90 border border-white/5 px-2 py-1 text-[11px] text-slate-300">
+                      <MapPin className="h-3 w-3 text-cyan-400 shrink-0" />
+                      <span className="truncate max-w-[140px]">{job.locations || 'Indonesia'}</span>
+                    </span>
+
+                    {/* Salary */}
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-1 text-[11px] font-semibold text-emerald-300">
+                      <Banknote className="h-3 w-3 text-emerald-400 shrink-0" />
+                      <span className="truncate max-w-[160px]">{job.salary || 'Gaji Kompetitif'}</span>
+                    </span>
+
+                    {/* Contract / Hours */}
+                    {(job.contract_type || job.work_hours) && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-purple-500/15 border border-purple-500/20 px-2 py-1 text-[11px] text-purple-300">
+                        <Clock className="h-3 w-3 text-purple-400 shrink-0" />
+                        <span>
+                          {job.work_hours === 'f'
+                            ? 'Penuh Waktu'
+                            : job.work_hours === 'p'
+                            ? 'Paruh Waktu'
+                            : job.contract_type === 'c'
+                            ? 'Kontrak'
+                            : 'Reguler'}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Description Preview */}
+                  <p className="mt-3 text-xs leading-relaxed text-slate-400 line-clamp-3">
+                    {cleanDescription(job.description) || 'Tidak ada ringkasan deskripsi.'}
+                  </p>
+                </div>
+
+                {/* Card Footer */}
+                <div className="mt-4 border-t border-white/10 pt-3">
+                  {/* Schema Validation Checklist Pill */}
+                  <div className="mb-2.5 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                    <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Validasi Schema Sukses
+                    </span>
+                    <span className="text-slate-500">
+                      {job.date ? new Date(job.date).toLocaleDateString('id-ID') : 'Aktif'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveJsonJob(job)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-slate-900/80 px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-900 transition cursor-pointer"
+                      title="Inspeksi data schema JSON mentah"
+                    >
+                      <Code className="h-3.5 w-3.5 text-cyan-400" />
+                      <span>Schema JSON</span>
+                    </button>
+
+                    {job.url && job.url !== '#' ? (
+                      <a
+                        href={job.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 transition"
+                      >
+                        <span>Lihat Loker</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-500">Link internal</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Raw JSON Inspector Modal */}
+      {activeJsonJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-2xl rounded-2xl border border-cyan-500/30 bg-slate-950 p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <Code className="h-4 w-4 text-cyan-400" />
+                <h4 className="text-sm font-bold text-white">Inspeksi Schema JSON Loker</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveJsonJob(null)}
+                className="rounded-lg p-1 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-slate-900 p-3 max-h-[380px] overflow-auto font-mono text-xs text-cyan-200 no-scrollbar">
+              <pre>{JSON.stringify(activeJsonJob, null, 2)}</pre>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-slate-400">
+                Data divalidasi dan dinormalisasi untuk interface pencari kerja (Seeker).
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopyJson(activeJsonJob)}
+                  className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 transition cursor-pointer"
+                >
+                  {copiedJson ? 'Tersalin!' : 'Salin JSON'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveJsonJob(null)}
+                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: string) => void }) {
   const [loading, setLoading] = useState(true);
   const [publicIp, setPublicIp] = useState('');
   const [providers, setProviders] = useState<IntegrationProvider[]>([]);
-
 
   useEffect(() => {
     let active = true;
@@ -2432,11 +2984,13 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
     setTestingId(provider.id);
     const start = performance.now();
     try {
-      let url = `/api/jobs?provider=${provider.id}&keywords=staff`;
+      let url = `/api/jobs?provider=${provider.id}`;
       if (provider.id === 'jooble') {
         url = `/api/integrations/jooble?keywords=staff&location=Indonesia`;
       } else if (provider.id === 'internal') {
         url = `/api/jobs?provider=internal`;
+      } else if (provider.id === 'arbeitnow') {
+        url = `/api/jobs?provider=arbeitnow`;
       }
       const res = await fetch(url);
       const latency = Math.round(performance.now() - start);
@@ -2493,7 +3047,7 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
           <p className="mt-2 text-sm text-cyan-100/80">Gunakan IP ini untuk whitelist provider yang mewajibkan server IP.</p>
           <button
             onClick={copyPublicIp}
-            className="mt-4 rounded-lg border border-cyan-300/30 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-400/10"
+            className="mt-4 rounded-lg border border-cyan-300/30 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-400/10 cursor-pointer"
           >
             Salin IP
           </button>
@@ -2573,7 +3127,7 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
                         type="button"
                         onClick={() => handleTestProvider(provider)}
                         disabled={isTesting}
-                        className="inline-flex items-center gap-2 rounded-lg bg-cyan-500/20 border border-cyan-400/30 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 transition disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-lg bg-cyan-500/20 border border-cyan-400/30 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 transition disabled:opacity-50 cursor-pointer"
                       >
                         {isTesting ? 'Menguji...' : 'Uji Koneksi API'}
                       </button>
@@ -2594,6 +3148,9 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
               })}
         </div>
       </div>
+
+      {/* Validasi Tampilan Loker Terintegrasi (Live Feed & Inspector) */}
+      <LiveJobIntegrationsValidator onToast={onToast} />
 
       <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
         <p className="text-sm font-semibold text-white">Checklist Operasional Integrasi</p>
@@ -2626,7 +3183,6 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
       </div>
     </section>
   );
-
 }
 
 function AdminAuditLogs() {
@@ -2811,8 +3367,13 @@ function AdminAuditLogs() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {rows.map((row) => (
-                <tr key={row.id} className="text-slate-300 hover:bg-slate-800/50 transition">
+              {rows.map((row, idx) => (
+                <tr
+                  key={row.id}
+                  className={`text-slate-300 transition-colors ${
+                    idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                  }`}
+                >
                   <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap font-mono">
                     {new Date(row.created_at).toLocaleString('id-ID', {
                       year: 'numeric',

@@ -72,6 +72,18 @@ export async function searchUnifiedJobs(params = {}) {
     };
   }
 
+  if (provider === 'jsearch') {
+    if (!process.env.RAPIDAPI_KEY) {
+      throw new Error('RAPIDAPI_KEY belum dikonfigurasi di environment server.');
+    }
+    return {
+      jobs: [],
+      hits: 0,
+      pages: 0,
+      provider: 'jsearch',
+    };
+  }
+
   // 2. Default Aggregator Mode ('all')
   // Concurrently fetch from internal DB + Jooble (+ Careerjet if configured)
   const tasks = [];
@@ -108,15 +120,10 @@ export async function searchUnifiedJobs(params = {}) {
     );
   }
 
-  // D. Arbeitnow (if searching remote or general tech)
-  if (
-    (location && location.toLowerCase().includes('remote')) ||
-    (keywords && ['react', 'node', 'developer', 'frontend', 'backend', 'design'].some((w) => keywords.toLowerCase().includes(w)))
-  ) {
-    tasks.push(
-      searchArbeitnowJobs({ keywords, location, page }).catch(() => ({ jobs: [], hits: 0, pages: 0 }))
-    );
-  }
+  // D. Arbeitnow (Live Public Feed - 100% Real data)
+  tasks.push(
+    searchArbeitnowJobs({ keywords, location, page }).catch(() => ({ jobs: [], hits: 0, pages: 0 }))
+  );
 
   const results = await Promise.all(tasks);
 

@@ -20,7 +20,7 @@ export default function NotificationBell({
 }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { notifications, loading, unreadCount, markAllRead } = useNotifications();
+  const { notifications, loading, unreadCount, markAllRead, permission, requestPermission } = useNotifications();
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -80,12 +80,25 @@ export default function NotificationBell({
             {unreadCount > 0 ? (
               <button
                 onClick={markAllRead}
-                className="text-xs font-medium text-cyan-400 hover:text-cyan-300"
+                className="text-xs font-medium text-cyan-400 hover:text-cyan-300 cursor-pointer"
               >
                 Tandai semua dibaca
               </button>
             ) : null}
           </div>
+
+          {permission === 'default' && (
+            <div className="flex items-center justify-between gap-2 px-4 py-2 bg-cyan-500/10 border-b border-cyan-500/20 text-xs text-cyan-300">
+              <span>Aktifkan notifikasi sistem</span>
+              <button
+                type="button"
+                onClick={() => requestPermission()}
+                className="px-2 py-0.5 rounded bg-cyan-500 text-white font-medium hover:bg-cyan-400 text-[10px] transition cursor-pointer"
+              >
+                Aktifkan
+              </button>
+            </div>
+          )}
 
           <div className="max-h-80 overflow-y-auto">
             {loading ? (

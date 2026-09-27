@@ -1,16 +1,22 @@
-import { Briefcase, Twitter, Linkedin, Instagram, Github } from 'lucide-react';
+import { Twitter, Linkedin, Instagram, Github, ShieldCheck } from 'lucide-react';
 import BrandText from '../ui/BrandText';
+import AndroidToast from '../ui/AndroidToast';
+import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 
 export default function Footer() {
+  const { isUnlocked, handleTriggerClick, toastMessage, toastVisible, setToastVisible } = useAdminEasterEgg();
+
   return (
     <footer className="bg-[#0F172A] text-slate-400">
       <div className="w-full max-w-[min(100%,1920px)] mx-auto px-[clamp(16px,3vw,48px)] py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           <div className="col-span-1 md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 gradient-cta rounded-lg flex items-center justify-center">
-                <Briefcase className="w-4 h-4 text-white" />
-              </div>
+            <div
+              onClick={handleTriggerClick}
+              className="flex items-center gap-2 mb-4 cursor-pointer select-none group"
+              title={isUnlocked ? 'Mode Administrator Aktif' : undefined}
+            >
+              <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg group-hover:brightness-110 transition" />
               <BrandText className="text-xl font-black" />
             </div>
             <p className="text-sm leading-relaxed text-slate-500 mb-6">
@@ -70,12 +76,35 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-white/10 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-slate-600 text-sm">© 2024 LOXER. Hak Cipta Dilindungi.</p>
+          <p
+            onClick={handleTriggerClick}
+            className="text-slate-500 text-sm cursor-pointer select-none hover:text-slate-400 active:text-cyan-400 transition-colors"
+            title="© 2026 LOXER"
+          >
+            © 2026 LOXER. Hak Cipta Dilindungi.
+          </p>
+
+          {isUnlocked && (
+            <a
+              href="/admin/dashboard"
+              className="text-xs font-semibold text-cyan-300 bg-cyan-950/80 border border-cyan-400/30 px-3.5 py-1.5 rounded-full inline-flex items-center gap-1.5 hover:bg-cyan-900/50 hover:border-cyan-400/60 shadow-lg shadow-cyan-500/10 transition-all animate-in fade-in"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Portal Administrator (God Mode)</span>
+            </a>
+          )}
+
           <p className="text-slate-600 text-sm">
             Dibuat dengan <span className="text-cyan-400">love</span> di Indonesia
           </p>
         </div>
       </div>
+
+      <AndroidToast
+        message={toastMessage}
+        visible={toastVisible}
+        onDismiss={() => setToastVisible(false)}
+      />
     </footer>
   );
 }

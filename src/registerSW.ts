@@ -1,46 +1,81 @@
 // ==============================================================================
-// LOXER PWA Service Worker Registration
+// LOXER PWA Service Worker Registration & Update Notification
 // ==============================================================================
+
+let swRegistration: ServiceWorkerRegistration | null = null;
 
 export function registerServiceWorker() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-  // In development mode or localhost, unregister any service workers to prevent stale cache & blank screens
-  const isLocalhost =
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname === '[::1]' ||
-    window.location.port === '3030';
+  const urlParams = new URLSearchParams(window.location.search);
+  const forcePwa = urlParams.get('pwa') === 'true';
+  const bypassSw = urlParams.get('no-sw') === 'true';
 
-  if (import.meta.env.DEV || isLocalhost) {
+  if (bypassSw) {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       for (const registration of registrations) {
-        registration.unregister().then((success) => {
-          if (success) {
-            console.log('[PWA] Unregistered development service worker on localhost:', registration.scope);
-          }
-        });
+        registration.unregister();
       }
     });
+    return;
+  }
 
-    if ('caches' in window) {
-      caches.keys().then((names) => {
-        for (const name of names) {
-          caches.delete(name);
-        }
-      });
-    }
+  // During raw Vite dev server, only register SW if explicitly requested via ?pwa=true to avoid HMR cache clashes
+  if (import.meta.env.DEV && !forcePwa) {
     return;
   }
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('/sw.js')
+      .register('/sw.js', { scope: '/' })
       .then((registration) => {
+        swRegistration = registration;
         console.log('[PWA] ServiceWorker registered with scope:', registration.scope);
+
+        // Check for updates on load
+        registration.update().catch(() => {});
+
+        // Detect new Service Worker waiting to activate
+        registration.onupdatefound = () => {
+          const installingWorker = registration.installing;
+          if (!installingWorker) return;
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[PWA] New version available! Dispatching update event.');
+              window.dispatchEvent(
+                new CustomEvent('loxer:pwa-update-available', {
+                  detail: { registration },
+                })
+              );
+            }
+          };
+        };
       })
       .catch((error) => {
         console.warn('[PWA] ServiceWorker registration failed:', error);
       });
+
+    // Handle controller change (when new worker takes control)
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
   });
+}
+
+export function applyPwaUpdate(): void {
+  if (swRegistration && swRegistration.waiting) {
+    swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  } else {
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (reg && reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      } else {
+        window.location.reload();
+      }
+    });
+  }
 }

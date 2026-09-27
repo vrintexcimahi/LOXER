@@ -21,6 +21,7 @@ import {
 import EmployerLayout from '../../components/layout/EmployerLayout';
 import ApplicationStatusBadge from '../../components/ui/ApplicationStatusBadge';
 import { supabase } from '../../lib/supabase';
+import { broadcastSync } from '../../lib/realtimeSync';
 import { useAuth } from '../../contexts/useAuth';
 import {
   Application,
@@ -246,6 +247,7 @@ export default function Applicants() {
     }
 
     setUpdatingId('');
+    broadcastSync('application', { appId, status });
   }
 
   async function sendInterviewInvite() {
@@ -289,6 +291,7 @@ export default function Applicants() {
     }
 
     setInterviewModal(false);
+    broadcastSync('application', { appId: selectedApplicant.application.id, status: 'interview_scheduled' });
     setInterviewForm({
       scheduled_at: '',
       location_or_link: '',
@@ -358,6 +361,7 @@ export default function Applicants() {
       }
 
       setSelectedIds([]);
+      broadcastSync('application', { appIds: selectedIds, status });
     } finally {
       setBulkLoading(false);
     }
@@ -900,7 +904,7 @@ export default function Applicants() {
 
       {/* --- Floating Bulk Action Bar --- */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-900/95 px-4 py-2.5 text-white shadow-2xl backdrop-blur-md transition-all animate-fade-up sm:gap-3 sm:px-6">
+        <div className="fixed bottom-20 lg:bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-900/95 px-4 py-2.5 text-white shadow-2xl backdrop-blur-md transition-all animate-fade-up sm:gap-3 sm:px-6">
           <div className="flex items-center gap-2 border-r border-slate-700 pr-3 sm:pr-4">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sky-500 text-xs font-bold text-white">
               {selectedIds.length}

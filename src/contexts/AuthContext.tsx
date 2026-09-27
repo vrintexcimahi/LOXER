@@ -77,21 +77,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       String(authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Pengguna LOXER');
     const derivedPhone = pendingIntent?.phone.trim() || String(authUser.user_metadata?.phone || '');
 
-    if (!nextMeta) {
-      const { data: createdMeta, error: metaError } = await supabase
+    if (!nextMeta || nextMeta.role !== desiredRole) {
+      const { data: upsertedMeta, error: metaError } = await supabase
         .from('users_meta')
-        .insert({
-          id: authUser.id,
-          email: authUser.email || '',
-          role: desiredRole,
-        })
+        .upsert(
+          {
+            id: authUser.id,
+            email: authUser.email || '',
+            role: desiredRole,
+          },
+          { onConflict: 'id' }
+        )
         .select('*')
         .maybeSingle();
 
       if (metaError) {
-        console.warn('[AuthContext] Gagal membuat users_meta untuk OAuth:', metaError.message);
-      } else if (createdMeta) {
-        nextMeta = createdMeta as UserMeta;
+        console.warn('[AuthContext] Gagal upsert users_meta untuk OAuth:', metaError.message);
+      } else if (upsertedMeta) {
+        nextMeta = upsertedMeta as UserMeta;
       }
     }
 
@@ -113,6 +116,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (insertProfileError) {
           console.warn('[AuthContext] Gagal membuat seeker_profiles untuk OAuth:', insertProfileError.message);
+        }
+      }
+    } else if (desiredRole === 'employer') {
+      const { data: existingComp, error: compError } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if (compError) {
+        console.warn('[AuthContext] Gagal memeriksa companies OAuth:', compError.message);
+      } else if (!existingComp) {
+        const { error: insertCompError } = await supabase.from('companies').insert({
+          user_id: authUser.id,
+          name: derivedFullName,
+        });
+
+        if (insertCompError) {
+          console.warn('[AuthContext] Gagal membuat companies untuk OAuth:', insertCompError.message);
         }
       }
     }
@@ -207,16 +229,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const simRole = typeof window !== 'undefined' ? (searchParams?.get('sim_role') || (window.name?.startsWith('loxer_sim_') ? window.name.replace('loxer_sim_', '') : null)) : null;
+    const previewRole = searchParams?.get('preview_role') || searchParams?.get('role') || simRole;
+
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        setSession(session);
-        setUser(session?.user ?? null);
         if (session?.user) {
+          setSession(session);
+          setUser(session.user);
           fetchUserMeta(session.user).finally(() => setLoading(false));
-        } else {
-          setLoading(false);
+          return;
         }
+
+        if (previewRole) {
+          const mockUser: User = {
+            id: `preview-${previewRole}-id`,
+            email: previewRole === 'admin' ? DEFAULT_ADMIN_EMAIL : `${previewRole}@loxer.id`,
+            app_metadata: {},
+            user_metadata: {
+              full_name:
+                previewRole === 'admin'
+                  ? 'Super Admin (Preview)'
+                  : previewRole === 'employer'
+                  ? 'HRD PT Maju (Preview)'
+                  : previewRole === 'freelancer'
+                  ? 'Freelancer Expert (Preview)'
+                  : 'Budi Santoso (Preview)',
+            },
+            aud: 'authenticated',
+            created_at: new Date().toISOString(),
+          } as unknown as User;
+
+          const mockMeta: UserMeta = {
+            id: `preview-${previewRole}-id`,
+            email: mockUser.email || '',
+            role: previewRole === 'admin' ? 'admin' : previewRole === 'employer' ? 'employer' : 'seeker',
+            created_at: new Date().toISOString(),
+            is_banned: false,
+          };
+
+          if (previewRole === 'admin') {
+            try {
+              sessionStorage.setItem('loxer_admin_unlocked', 'true');
+            } catch {
+              // ignore storage error
+            }
+          }
+
+          setSession({ user: mockUser, access_token: 'preview-token' } as unknown as Session);
+          setUser(mockUser);
+          setUserMeta(mockMeta);
+          setLoading(false);
+          return;
+        }
+
+        setSession(null);
+        setUser(null);
+        setUserMeta(null);
+        setLoading(false);
       })
       .catch(() => setLoading(false));
 
@@ -282,19 +354,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) return { error };
     if (data.user) {
-      const { error: metaError } = await supabase.from('users_meta').insert({
-        id: data.user.id,
-        email: normalizedEmail,
-        role,
-      });
-      if (metaError) return { error: metaError };
+      await supabase.from('users_meta').upsert(
+        {
+          id: data.user.id,
+          email: normalizedEmail,
+          role,
+        },
+        { onConflict: 'id' }
+      );
 
       if (role === 'seeker') {
-        await supabase.from('seeker_profiles').insert({
-          user_id: data.user.id,
-          full_name: normalizedFullName,
-          phone: normalizedPhone,
-        });
+        const { data: existingProf } = await supabase
+          .from('seeker_profiles')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
+        if (!existingProf) {
+          await supabase.from('seeker_profiles').insert({
+            user_id: data.user.id,
+            full_name: normalizedFullName,
+            phone: normalizedPhone,
+          });
+        }
+      } else if (role === 'employer') {
+        const { data: existingComp } = await supabase
+          .from('companies')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
+        if (!existingComp) {
+          await supabase.from('companies').insert({
+            user_id: data.user.id,
+            name: normalizedFullName || normalizedEmail.split('@')[0],
+          });
+        }
       }
     }
     return { error: null };

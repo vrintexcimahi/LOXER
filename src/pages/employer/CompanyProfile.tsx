@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Building2, Globe, MapPin, Users, Save } from 'lucide-react';
+import { Building2, Globe, MapPin, Users, Save, Upload, Sparkles } from 'lucide-react';
 import EmployerLayout from '../../components/layout/EmployerLayout';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { Company } from '../../lib/types';
+import { compressImageFile, formatFileSize } from '../../lib/imageCompressor';
 
 const INDUSTRIES = ['Technology', 'Finance', 'E-Commerce', 'Healthcare', 'Education', 'Media', 'Logistics', 'Manufacturing', 'Retail', 'Travel & Hospitality', 'Government', 'NGO', 'Other'];
 const EMPLOYEE_COUNTS = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1001-5000', '5000+'];
@@ -14,11 +15,30 @@ export default function CompanyProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [compressingLogo, setCompressingLogo] = useState(false);
+  const [compressionStats, setCompressionStats] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: '', industry: '', city: '', description: '',
     website: '', employee_count: '', logo_url: '',
   });
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setCompressingLogo(true);
+      setCompressionStats(null);
+      const res = await compressImageFile(file, { maxWidth: 400, maxHeight: 400, quality: 0.85 });
+      setForm((prev) => ({ ...prev, logo_url: res.dataUrl }));
+      setCompressionStats(`WebP ${formatFileSize(res.compressedSize)} (Hemat ${res.compressionRatio}%)`);
+    } catch (err) {
+      console.warn('Gagal mengompres logo perusahaan:', err);
+    } finally {
+      setCompressingLogo(false);
+    }
+  }
 
   const loadCompany = useCallback(async () => {
     if (!supabase || !user) return;
@@ -142,9 +162,64 @@ export default function CompanyProfile() {
                   <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="www.perusahaan.com" className="input-field pl-10" />
                 </div>
               </div>
-              <div>
-                <label className="label">URL Logo</label>
-                <input value={form.logo_url} onChange={(e) => setForm({ ...form, logo_url: e.target.value })} placeholder="https://..." className="input-field" />
+              <div className="sm:col-span-2">
+                <label className="label">Logo Perusahaan</label>
+                <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl border border-sky-100 bg-slate-50/50">
+                  <div className="relative group w-16 h-16 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-sm">
+                    {form.logo_url ? (
+                      <img src={form.logo_url} alt="Logo" className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <Building2 className="w-8 h-8 text-slate-300" />
+                    )}
+                    {compressingLogo && (
+                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-2 text-center sm:text-left">
+                    <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 transition-all active:scale-95">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{form.logo_url ? 'Ganti Logo' : 'Unggah Logo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                          disabled={compressingLogo}
+                        />
+                      </label>
+
+                      {form.logo_url && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, logo_url: '' }));
+                            setCompressionStats(null);
+                          }}
+                          className="px-2.5 py-1 text-xs text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                        >
+                          Hapus
+                        </button>
+                      )}
+
+                      {compressionStats && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">
+                          <Sparkles className="w-3 h-3 text-emerald-600" />
+                          {compressionStats}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      value={form.logo_url}
+                      onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
+                      placeholder="Atau tempel URL gambar eksternal (https://...)"
+                      className="input-field text-xs py-1.5"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="label">Deskripsi Perusahaan</label>

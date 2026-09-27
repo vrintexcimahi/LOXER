@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Trash2, Save, User, MapPin, Phone, DollarSign, GraduationCap, Briefcase, Tag } from 'lucide-react';
+import { Plus, Trash2, Save, User, MapPin, Phone, GraduationCap, Briefcase, Tag, Camera, Sparkles } from 'lucide-react';
 import SeekerLayout from '../../components/layout/SeekerLayout';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { SeekerProfile as SeekerProfileType, SeekerEducation, SeekerExperience, SeekerSkill } from '../../lib/types';
 import MyDevicesSection from '../../components/ui/MyDevicesSection';
+import { compressImageFile, formatFileSize } from '../../lib/imageCompressor';
 
 export default function SeekerProfile() {
   const { user } = useAuth();
@@ -16,10 +17,12 @@ export default function SeekerProfile() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [newSkill, setNewSkill] = useState('');
+  const [compressingPhoto, setCompressingPhoto] = useState(false);
+  const [compressionStats, setCompressionStats] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     full_name: '', phone: '', domicile_city: '', about: '',
-    expected_salary_min: '', expected_salary_max: '',
+    expected_salary_min: '', expected_salary_max: '', photo_url: '',
   });
 
   const loadProfile = useCallback(async () => {
@@ -36,6 +39,7 @@ export default function SeekerProfile() {
         about: p.about || '',
         expected_salary_min: p.expected_salary_min ? String(Math.round(p.expected_salary_min / 1000000)) : '',
         expected_salary_max: p.expected_salary_max ? String(Math.round(p.expected_salary_max / 1000000)) : '',
+        photo_url: p.photo_url || '',
       });
 
       const [eduRes, expRes, skillRes] = await Promise.all([
@@ -54,6 +58,23 @@ export default function SeekerProfile() {
     if (user) void loadProfile();
   }, [loadProfile, user]);
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setCompressingPhoto(true);
+      setCompressionStats(null);
+      const res = await compressImageFile(file, { maxWidth: 512, maxHeight: 512, quality: 0.82 });
+      setForm((prev) => ({ ...prev, photo_url: res.dataUrl }));
+      setCompressionStats(`WebP ${formatFileSize(res.compressedSize)} (Hemat ${res.compressionRatio}%)`);
+    } catch (err) {
+      console.warn('Gagal mengompres foto profil:', err);
+    } finally {
+      setCompressingPhoto(false);
+    }
+  }
+
   async function saveProfile() {
     if (!supabase || !user) return;
     setSaving(true);
@@ -63,6 +84,7 @@ export default function SeekerProfile() {
       phone: form.phone,
       domicile_city: form.domicile_city,
       about: form.about,
+      photo_url: form.photo_url || profile?.photo_url || '',
       expected_salary_min: form.expected_salary_min ? parseInt(form.expected_salary_min, 10) * 1000000 : 0,
       expected_salary_max: form.expected_salary_max ? parseInt(form.expected_salary_max, 10) * 1000000 : 0,
       updated_at: new Date().toISOString(),
@@ -179,6 +201,70 @@ export default function SeekerProfile() {
           </div>
         )}
 
+        {/* Foto Profil & WebP Compression Card */}
+        <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6 mb-5">
+          <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <Camera className="w-4 h-4 text-sky-500" /> Foto Profil
+          </h2>
+          <div className="flex flex-col sm:flex-row items-center gap-5">
+            <div className="relative group w-24 h-24 rounded-2xl bg-gradient-to-tr from-sky-100 to-cyan-50 border-2 border-sky-200 overflow-hidden flex items-center justify-center shadow-inner">
+              {form.photo_url ? (
+                <img
+                  src={form.photo_url}
+                  alt="Foto Profil"
+                  className="w-full h-full object-cover rounded-2xl"
+                />
+              ) : (
+                <User className="w-10 h-10 text-sky-300" />
+              )}
+              {compressingPhoto && (
+                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 text-center sm:text-left space-y-2">
+              <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold rounded-xl border border-sky-200 transition-all active:scale-95">
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>{form.photo_url ? 'Ganti Foto' : 'Unggah Foto'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                    disabled={compressingPhoto}
+                  />
+                </label>
+
+                {form.photo_url && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm((prev) => ({ ...prev, photo_url: '' }));
+                      setCompressionStats(null);
+                    }}
+                    className="px-3 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                  >
+                    Hapus Foto
+                  </button>
+                )}
+
+                {compressionStats && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium">
+                    <Sparkles className="w-3 h-3 text-emerald-500" />
+                    {compressionStats}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                Format didukung: JPG, PNG, WebP. Foto otomatis dikompres ke WebP ringan untuk menghemat kuota PWA.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Personal Info */}
         <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6 mb-5">
           <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -207,7 +293,7 @@ export default function SeekerProfile() {
               <label className="label">Gaji Diharapkan (juta Rp/bln)</label>
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-400" />
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-sky-500 font-mono select-none">Rp</span>
                   <input type="number" value={form.expected_salary_min} onChange={(e) => setForm({ ...form, expected_salary_min: e.target.value })} placeholder="Min" className="input-field pl-10" />
                 </div>
                 <span className="text-slate-400 text-sm">-</span>

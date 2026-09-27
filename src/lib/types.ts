@@ -1,4 +1,4 @@
-export type UserRole = 'seeker' | 'employer' | 'admin';
+export type UserRole = 'seeker' | 'employer' | 'admin' | 'superadmin' | 'freelancer';
 
 export interface UserMeta {
   id: string;
@@ -6,6 +6,7 @@ export interface UserMeta {
   role: UserRole;
   created_at: string;
   is_banned?: boolean;
+  company_id?: string;
 }
 
 export interface SeekerProfile {
@@ -98,7 +99,8 @@ export type ApplicationStatus =
   | 'shortlisted'
   | 'interview_scheduled'
   | 'hired'
-  | 'rejected';
+  | 'rejected'
+  | 'expired';
 
 export interface Application {
   id: string;
@@ -174,4 +176,53 @@ export interface ChartDataPoint {
   employers: number;
   jobs: number;
   applications: number;
+}
+
+export type AvailabilityStatus = 'fulltime' | 'freelance' | 'parttime' | 'remote';
+export type RateType = 'monthly' | 'hourly' | 'project';
+
+export interface TalentMarketplacePost {
+  id: string;
+  seeker_id: string;
+  user_id: string;
+  headline: string;
+  category: string;
+  bio: string;
+  bio_summary?: string;
+  skills: string[] | string;
+  experience_years: number;
+  availability: AvailabilityStatus | string;
+  availability_status?: AvailabilityStatus;
+  work_types?: string[];
+  expected_salary: number;
+  rate_type: RateType;
+  domicile_city: string;
+  whatsapp_number: string;
+  portfolio_url?: string;
+  resume_url?: string;
+  badge?: string;
+  photo_url?: string;
+  views_count: number;
+  is_published: boolean | number;
+  created_at: string;
+  updated_at: string;
+  seeker_profiles?: SeekerProfile;
+}
+
+export interface DirectJobOffer {
+  id: string;
+  post_id: string;
+  seeker_id: string;
+  employer_id: string;
+  company_id: string;
+  job_id?: string;
+  position_title: string;
+  offered_salary: number;
+  message: string;
+  whatsapp_contact?: string;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+  updated_at: string;
+  companies?: Company;
+  job_listings?: Pick<JobListing, 'id' | 'title' | 'category' | 'salary_min' | 'salary_max'>;
 }

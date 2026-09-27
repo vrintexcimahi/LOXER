@@ -90,6 +90,9 @@ function attachJsonHelpers(res: ServerResponse) {
   response.json = (payload: unknown) => {
     if (!response.headersSent) {
       response.setHeader('Content-Type', 'application/json; charset=utf-8');
+      response.setHeader('X-Content-Type-Options', 'nosniff');
+      response.setHeader('X-Frame-Options', 'SAMEORIGIN');
+      response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     }
 
     response.end(JSON.stringify(payload));
@@ -253,13 +256,13 @@ function createIntegrationsStatusMiddleware(env: Record<string, string>) {
         {
           id: 'jooble',
           label: 'Jooble API (Indonesia)',
-          configured: Boolean(process.env.JOOBLE_API_KEY) || true, // Sandbox fallback available
+          configured: Boolean(process.env.JOOBLE_API_KEY),
           endpoint: '/api/integrations/jooble',
           docsUrl: 'https://jooble.org/api/about',
           mode: 'server-proxy',
           note: process.env.JOOBLE_API_KEY
-            ? 'Terhubung dengan live Jooble API key.'
-            : 'Berjalan dengan live curated Indonesia feed & siap dipasangi JOOBLE_API_KEY.',
+            ? 'Terhubung dengan live Jooble API key (100% data riil).'
+            : 'Perlu JOOBLE_API_KEY di environment server untuk mengaktifkan live feed.',
         },
         {
           id: 'careerjet',
@@ -274,7 +277,7 @@ function createIntegrationsStatusMiddleware(env: Record<string, string>) {
           id: 'arbeitnow',
           label: 'Arbeitnow API',
           configured: true,
-          endpoint: 'https://www.arbeitnow.com/api/job-board-api',
+          endpoint: '/api/jobs?provider=arbeitnow',
           docsUrl: 'https://www.arbeitnow.com/api/job-board-api',
           mode: 'public-feed',
           note: 'Feed publik tanpa API key, cocok untuk remote jobs internasional.',
@@ -283,7 +286,7 @@ function createIntegrationsStatusMiddleware(env: Record<string, string>) {
           id: 'jsearch',
           label: 'JSearch via RapidAPI',
           configured: Boolean(process.env.RAPIDAPI_KEY),
-          endpoint: '/api/integrations/jsearch',
+          endpoint: '/api/jobs?provider=jsearch',
           docsUrl: 'https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch',
           mode: 'server-proxy',
           note: 'Perlu RapidAPI key dan pengaturan quota sesuai paket.',
@@ -347,7 +350,7 @@ function createAdminUsersMiddleware(env: Record<string, string>) {
       return;
     }
 
-    if (callerMeta?.role !== 'admin') {
+    if (callerMeta?.role !== 'admin' && callerMeta?.role !== 'superadmin') {
       response.status(403).json({ message: 'Forbidden' });
       return;
     }
@@ -460,7 +463,7 @@ function createEnsureDefaultAdminMiddleware(env: Record<string, string>) {
     const payload = {
       id: signedInUser.id,
       email: signedInUser.email || defaultAdminEmail,
-      role: 'admin',
+      role: 'superadmin',
     } as const;
 
     const { data: upserted, error: upsertError } = await adminClient
@@ -528,7 +531,7 @@ function createApplicationStatusNotificationMiddleware(env: Record<string, strin
       return;
     }
 
-    if (!callerMeta || !['admin', 'employer'].includes(callerMeta.role)) {
+    if (!callerMeta || !['admin', 'employer', 'superadmin'].includes(callerMeta.role)) {
       response.status(403).json({ message: 'Forbidden' });
       return;
     }
@@ -682,7 +685,7 @@ function createAdminAuditLogMiddleware(env: Record<string, string>) {
       return;
     }
 
-    if (callerMeta?.role !== 'admin') {
+    if (callerMeta?.role !== 'admin' && callerMeta?.role !== 'superadmin') {
       response.status(403).json({ message: 'Forbidden' });
       return;
     }

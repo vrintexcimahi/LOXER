@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Clock, DollarSign, Bookmark, CheckCircle } from 'lucide-react';
+import { MapPin, Clock, Banknote, Bookmark, CheckCircle } from 'lucide-react';
 import { JobListing } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
@@ -21,11 +21,11 @@ const jobTypeColors: Record<string, string> = {
 };
 
 const jobTypeLabels: Record<string, string> = {
-  'full-time': 'Full Time',
-  'part-time': 'Part Time',
-  'contract': 'Kontrak',
-  'freelance': 'Freelance',
-  'internship': 'Magang',
+  'full-time': 'Purna Waktu',
+  'part-time': 'Paruh Waktu',
+  contract: 'Kontrak',
+  freelance: 'Lepas Waktu',
+  internship: 'Magang',
 };
 
 function formatSalary(min: number, max: number) {
@@ -165,7 +165,7 @@ export default function JobCard({ job, appliedJobIds = [], onApplied, onClick }:
         {/* Bottom */}
         <div className="flex items-center justify-between mt-4">
           <span className="text-sky-600 font-semibold text-sm flex items-center gap-1">
-            <DollarSign className="w-3.5 h-3.5" />
+            <Banknote className="w-3.5 h-3.5" />
             {formatSalary(job.salary_min, job.salary_max)}
           </span>
 

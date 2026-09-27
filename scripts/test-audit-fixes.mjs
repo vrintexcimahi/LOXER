@@ -191,7 +191,7 @@ async function testAuditFixes() {
   }
 }
 
-testAuditFixes().catch((err) => {
+testAuditFixes().then(() => { process.exit(0); }).catch((err) => {
   console.error('Audit fix test failed:', err);
   process.exit(1);
 });

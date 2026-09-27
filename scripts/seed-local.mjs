@@ -14,15 +14,40 @@ export async function seedDatabase() {
 
   const now = new Date().toISOString();
 
-  // 1. Seed Default Admin
+  // 1. Seed Default Super Admin (vrintex)
+  const VRINTEX_USER = 'vrintex';
+  let vrintexAdmin = queryOne('SELECT id FROM users WHERE email = ?', [VRINTEX_USER]);
+  const vrintexHash = hashPassword('kayaraya3+');
+  if (!vrintexAdmin) {
+    const vrintexId = crypto.randomUUID();
+    execute('INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)', [
+      vrintexId,
+      VRINTEX_USER,
+      vrintexHash,
+      now,
+    ]);
+    execute('INSERT INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)', [
+      vrintexId,
+      VRINTEX_USER,
+      'admin',
+      now,
+    ]);
+    console.log(`✅ Super Admin vrintex dibuat: ${VRINTEX_USER} (password: kayaraya3+)`);
+  } else {
+    execute('UPDATE users SET password_hash = ? WHERE email = ?', [vrintexHash, VRINTEX_USER]);
+    execute("UPDATE users_meta SET role = 'admin' WHERE id = ?", [vrintexAdmin.id]);
+    console.log(`ℹ️ Super Admin vrintex diperbarui: ${VRINTEX_USER} (password: kayaraya3+)`);
+  }
+
+  // Also ensure legacy/fallback admin exists
+  const adminHash = hashPassword('admin123');
   let adminUser = queryOne('SELECT id FROM users WHERE email = ?', [DEFAULT_ADMIN_EMAIL]);
   if (!adminUser) {
     const adminId = crypto.randomUUID();
-    const hash = hashPassword('admin123');
     execute('INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)', [
       adminId,
       DEFAULT_ADMIN_EMAIL,
-      hash,
+      adminHash,
       now,
     ]);
     execute('INSERT INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)', [
@@ -31,10 +56,9 @@ export async function seedDatabase() {
       'admin',
       now,
     ]);
-    console.log(`✅ Admin default dibuat: ${DEFAULT_ADMIN_EMAIL} (password: admin123)`);
   } else {
+    execute('UPDATE users SET password_hash = ? WHERE email = ?', [adminHash, DEFAULT_ADMIN_EMAIL]);
     execute("UPDATE users_meta SET role = 'admin' WHERE id = ?", [adminUser.id]);
-    console.log(`ℹ️ Admin default sudah ada: ${DEFAULT_ADMIN_EMAIL}`);
   }
 
   // 2. Seed Demo Employer & Company
@@ -351,6 +375,180 @@ export async function seedDatabase() {
       );
       console.log('✅ Item antrean moderasi demo berhasil diinisialisasi.');
     }
+  }
+
+  // 10. Seed Talent Marketplace Posts (Pencari Kerja & Jasa)
+  const existingTalents = queryOne('SELECT count(*) as c FROM talent_marketplace_posts');
+  if (!existingTalents || existingTalents.c === 0) {
+    const demoTalents = [
+      {
+        fullName: 'Arifin Ahmad',
+        email: 'arifin.ahmad@example.com',
+        headline: 'Senior Fullstack Engineer (React, TypeScript & Node.js)',
+        category: 'Teknologi & IT',
+        bio: 'Pengembang web & mobile dengan 4+ tahun pengalaman membangun aplikasi SaaS terukur, integrasi payment gateway, dan arsitektur database performa tinggi. Siap kerja full-time maupun freelance.',
+        skills: JSON.stringify(['React', 'TypeScript', 'Node.js', 'Tailwind CSS', 'PostgreSQL', 'Docker']),
+        expYears: 4,
+        salary: 14000000,
+        rateType: 'monthly',
+        city: 'Bandung',
+        phone: '6283821955288',
+        badge: 'TOP TALENT',
+        workTypes: JSON.stringify(['full-time', 'freelance', 'remote']),
+        photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+      },
+      {
+        fullName: 'Agus Sanusi',
+        email: 'agus.sanusi@example.com',
+        headline: 'Staff Akuntansi & Perpajakan (Brevet AB Terakreditasi)',
+        category: 'Keuangan & Akuntansi',
+        bio: 'Praktisi keuangan dengan ketelitian tinggi dalam pembukuan, rekonsiliasi bank, pelaporan SPT masa/tahunan, dan audit internal. Mahir menggunakan Accurate & SAP.',
+        skills: JSON.stringify(['Accurate', 'SAP', 'Pph 21/23', 'Laporan Keuangan', 'Microsoft Excel']),
+        expYears: 3,
+        salary: 7500000,
+        rateType: 'monthly',
+        city: 'Jakarta Selatan',
+        phone: '6285659095369',
+        badge: 'SIAP KERJA',
+        workTypes: JSON.stringify(['full-time', 'hybrid']),
+        photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=250',
+      },
+      {
+        fullName: 'Puji Prayitno',
+        email: 'puji.prayitno@example.com',
+        headline: 'Product Designer (UI/UX) & Design System Specialist',
+        category: 'Desain & Kreatif',
+        bio: 'UI/UX Designer fokus pada user engagement, prototipe micro-interactions, dan standarisasi sistem komponen modern di Figma. Portofolio mencakup 8+ aplikasi marketplace & fintech.',
+        skills: JSON.stringify(['Figma', 'UI/UX', 'Design System', 'Prototyping', 'User Research']),
+        expYears: 3,
+        salary: 9500000,
+        rateType: 'monthly',
+        city: 'Cimahi',
+        phone: '6287821775917',
+        badge: 'FREELANCER',
+        workTypes: JSON.stringify(['freelance', 'remote', 'contract']),
+        photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=250',
+      },
+      {
+        fullName: 'Sulis Setiawati',
+        email: 'sulis.setiawati@example.com',
+        headline: 'Digital Marketing & Performance Ads Specialist',
+        category: 'Pemasaran & Media',
+        bio: 'Spesialis periklanan Meta Ads, Google Ads, dan TikTok Ads dengan rekam jejak ROAS 4.2x. Mahir menganalisis funnel konversi web, riset audiens, dan optimasi konten viral.',
+        skills: JSON.stringify(['Meta Ads', 'Google Ads', 'TikTok Marketing', 'SEO Content', 'Copywriting']),
+        expYears: 2,
+        salary: 6500000,
+        rateType: 'monthly',
+        city: 'Surabaya',
+        phone: '6285732111396',
+        badge: 'SIAP KERJA',
+        workTypes: JSON.stringify(['full-time', 'remote']),
+        photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=250',
+      },
+      {
+        fullName: 'Kak Hilman',
+        email: 'hilman.pratama@example.com',
+        headline: 'Mobile App Developer (Flutter & Android Native)',
+        category: 'Teknologi & IT',
+        bio: 'Pengembang mobile berpengalaman merilis 5+ aplikasi ke Google Play & App Store. Ahli state management Bloc/Provider, offline local database caching, dan push notifications.',
+        skills: JSON.stringify(['Flutter', 'Dart', 'Android SDK', 'REST API', 'Firebase', 'SQLite']),
+        expYears: 4,
+        salary: 12000000,
+        rateType: 'monthly',
+        city: 'Jakarta Barat',
+        phone: '628980589468',
+        badge: 'TOP TALENT',
+        workTypes: JSON.stringify(['full-time', 'contract', 'freelance']),
+        photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=250',
+      },
+      {
+        fullName: 'Harry Agustian',
+        email: 'harry.agustian@example.com',
+        headline: 'Operations & Customer Success Lead',
+        category: 'Operasional & CS',
+        bio: 'Pengalaman memimpin tim helpdesk dan customer care lebih dari 3 tahun dengan CSAT rating 98%. Fasih komunikasi bisnis, penanganan komplain cepat, dan Zendesk CRM.',
+        skills: JSON.stringify(['Customer Service', 'CRM Zendesk', 'Problem Solving', 'Leadership', 'Omnichannel']),
+        expYears: 3,
+        salary: 6000000,
+        rateType: 'monthly',
+        city: 'Tangerang',
+        phone: '6281546917718',
+        badge: 'VERIFIED',
+        workTypes: JSON.stringify(['full-time', 'shift']),
+        photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=250',
+      },
+    ];
+
+    for (const t of demoTalents) {
+      let u = queryOne('SELECT id FROM users WHERE email = ?', [t.email]);
+      let uId = u?.id;
+      if (!uId) {
+        uId = crypto.randomUUID();
+        const pwdHash = hashPassword('seeker123');
+        execute('INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)', [
+          uId,
+          t.email,
+          pwdHash,
+          now,
+        ]);
+        execute('INSERT INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)', [
+          uId,
+          t.email,
+          'seeker',
+          now,
+        ]);
+      }
+
+      let p = queryOne('SELECT id FROM seeker_profiles WHERE user_id = ?', [uId]);
+      let pId = p?.id;
+      if (!pId) {
+        pId = crypto.randomUUID();
+        execute(
+          `INSERT INTO seeker_profiles (id, user_id, full_name, photo_url, domicile_city, about, phone, expected_salary_min, expected_salary_max, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            pId,
+            uId,
+            t.fullName,
+            t.photo,
+            t.city,
+            t.bio,
+            t.phone,
+            t.salary,
+            Math.round(t.salary * 1.3),
+            now,
+            now,
+          ]
+        );
+      }
+
+      execute(
+        `INSERT INTO talent_marketplace_posts (id, seeker_id, user_id, headline, category, bio_summary, skills, experience_years, availability_status, work_types, expected_salary, rate_type, domicile_city, whatsapp_number, portfolio_url, resume_url, badge, photo_url, views_count, is_published, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, ?, ?, ?, ?, '', ?, ?, ?, 1, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          pId,
+          uId,
+          t.headline,
+          t.category,
+          t.bio,
+          t.skills,
+          t.expYears,
+          t.workTypes,
+          t.salary,
+          t.rateType,
+          t.city,
+          t.phone,
+          'https://github.com',
+          t.badge,
+          t.photo,
+          Math.floor(Math.random() * 80) + 20,
+          now,
+          now,
+        ]
+      );
+    }
+    console.log(`✅ ${demoTalents.length} Postingan Talent Marketplace demo berhasil ditambahkan.`);
   }
 
   console.log('🎉 Database lokal LOXER siap digunakan!');

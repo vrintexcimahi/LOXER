@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Compass, Layers, MapPinned, SearchX, Sparkles } from 'lucide-react';
+import {
+  Briefcase,
+  Compass,
+  MapPinned,
+  RefreshCw,
+  Search,
+  SearchX,
+  Sparkles,
+} from 'lucide-react';
 import JobCard from './JobCard';
 import JobSearch from './JobSearch';
 import { fetchUnifiedJobs } from '../services/careerjetService';
@@ -12,11 +20,28 @@ function normalizeLocationOptions(payload) {
 }
 
 const PROVIDER_TAGS = [
-  { id: 'all', label: '🌐 Semua Sumber', desc: 'Agregator Lengkap' },
-  { id: 'jooble', label: '🇮🇩 Jooble ID', desc: 'Lowongan Indonesia' },
-  { id: 'internal', label: '⭐ Mitra LOXER', desc: 'Verified Employer' },
-  { id: 'careerjet', label: '⚡ Careerjet', desc: 'Regional SEA' },
-  { id: 'arbeitnow', label: '🌍 Arbeitnow', desc: 'Remote & Global' },
+  { id: 'all', label: '🌐 Semua Sumber' },
+  { id: 'jooble', label: '🇮🇩 Jooble ID' },
+  { id: 'internal', label: '⭐ Mitra LOXER' },
+  { id: 'careerjet', label: '⚡ Careerjet' },
+  { id: 'arbeitnow', label: '🌍 Arbeitnow' },
+];
+
+const JOB_CATEGORIES = [
+  'Semua',
+  'Teknologi & IT',
+  'Desain & Kreatif',
+  'Pemasaran & Digital',
+  'Admin & Operasional',
+  'F&B & Hospitality',
+  'Logistik & Gudang',
+];
+
+const CONTRACT_OPTIONS = [
+  { value: '', label: 'Semua Tipe Kontrak' },
+  { value: 'permanent', label: 'Permanen' },
+  { value: 'temporary', label: 'Temporer' },
+  { value: 'freelance', label: 'Freelance' },
 ];
 
 export default function JobList({
@@ -33,6 +58,7 @@ export default function JobList({
   const [contractType, setContractType] = useState(initialContractType);
   const [workHours, setWorkHours] = useState(initialWorkHours);
   const [provider, setProvider] = useState(initialProvider);
+  const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [jobs, setJobs] = useState([]);
   const [pages, setPages] = useState(0);
   const [page, setPage] = useState(initialPage);
@@ -135,6 +161,7 @@ export default function JobList({
     setContractType('');
     setWorkHours('');
     setProvider('all');
+    setSelectedCategory('Semua');
     setPage(1);
     syncUrl('', '', 1, '', '', 'all');
     void loadJobs(1, '', '', '', '', 'all');
@@ -154,106 +181,145 @@ export default function JobList({
   }
 
   const totalPages = Math.max(pages, 1);
-  const activeFilters = [
-    provider !== 'all' ? `Sumber: ${provider.toUpperCase()}` : null,
-    location ? `Lokasi: ${location}` : null,
-    contractType ? `Kontrak: ${contractType}` : null,
-    workHours ? `Jam kerja: ${workHours}` : null,
-  ].filter(Boolean);
+
+  // Filter jobs by selected category if it's not 'Semua'
+  const filteredJobs = selectedCategory === 'Semua'
+    ? jobs
+    : jobs.filter((job) => {
+        const cat = (job.category || '').toLowerCase();
+        const sel = selectedCategory.toLowerCase();
+        return cat.includes(sel.split(' ')[0].toLowerCase()) || sel.includes(cat);
+      });
 
   return (
-    <section className="space-y-5">
-      <div className="rounded-3xl border border-sky-100 bg-gradient-to-br from-slate-950 via-sky-950 to-cyan-900 p-6 text-white shadow-xl shadow-sky-900/10">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">
-                <Sparkles className="h-3.5 w-3.5" />
-                LOXER Unified Job Hub
-              </span>
-            </div>
-            <h2 className="mt-2 text-2xl font-black leading-tight md:text-3xl">
-              Pusat Lowongan Kerja Indonesia & Global
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-300">
-              Pencarian terintegrasi dari <strong>Jooble Indonesia</strong>, mitra resmi terverifikasi <strong>LOXER</strong>, <strong>Careerjet</strong>, dan feed publik <strong>Arbeitnow</strong> langsung dari satu pintu.
-            </p>
+    <div className="space-y-6">
+      {/* Search & Filter Bar */}
+      <section className="space-y-4">
+        {/* Main search row */}
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+              placeholder="Cari posisi (Frontend, Barista, Manager...), keahlian, atau perusahaan..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-white/10 bg-slate-900/90 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-sky-400 shadow-inner"
+            />
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs font-semibold">
-            {PROVIDER_TAGS.map((tag) => (
+          <div className="flex items-center gap-2">
+            {/* Contract Type */}
+            <select
+              value={contractType}
+              onChange={(e) => setContractType(e.target.value)}
+              className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-sky-400"
+            >
+              {CONTRACT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+
+            {/* Location input */}
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Kota / Remote"
+              className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 w-28 sm:w-36"
+            />
+
+            <button
+              onClick={handleSubmit}
+              title="Cari lowongan"
+              className="p-2.5 rounded-2xl bg-sky-500 text-white hover:bg-sky-400 transition-colors shadow-md shadow-sky-500/20"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => void loadJobs(page)}
+              title="Segarkan data"
+              className="p-2.5 rounded-2xl border border-white/10 bg-slate-900 text-slate-400 hover:text-white transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Provider Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {PROVIDER_TAGS.map((tag) => {
+            const active = provider === tag.id;
+            return (
               <button
                 key={tag.id}
                 type="button"
                 onClick={() => handleProviderSelect(tag.id)}
-                className={`rounded-full border px-3 py-1.5 transition ${
-                  provider === tag.id
-                    ? 'border-cyan-400 bg-cyan-500 text-white shadow-lg shadow-cyan-500/30'
-                    : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/30 hover:bg-white/10'
+                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                  active
+                    ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/25'
+                    : 'bg-slate-900 border border-white/10 text-slate-400 hover:text-white hover:border-white/20'
                 }`}
               >
                 {tag.label}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      </div>
 
-      <JobSearch
-        keywords={keywords}
-        location={location}
-        contractType={contractType}
-        workHours={workHours}
-        provider={provider}
-        loading={loading}
-        onKeywordsChange={setKeywords}
-        onLocationChange={setLocation}
-        onContractTypeChange={setContractType}
-        onWorkHoursChange={setWorkHours}
-        onProviderChange={handleProviderSelect}
-        onSubmit={handleSubmit}
-        onReset={handleReset}
-      />
-
-      {activeFilters.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {activeFilters.map((filter) => (
-            <span key={filter} className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
-              {filter}
-            </span>
-          ))}
+        {/* Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+          {JOB_CATEGORIES.map((cat) => {
+            const active = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                  active
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/25'
+                    : 'bg-slate-900 border border-white/10 text-slate-400 hover:text-white hover:border-white/20'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
         </div>
-      ) : null}
+      </section>
 
+      {/* Error */}
       {error ? (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-red-700">
+        <div className="rounded-3xl border border-red-500/30 bg-red-950/40 p-5 text-red-300">
           <p className="font-semibold">Lowongan LOXER belum bisa dimuat.</p>
           <p className="mt-1 text-sm">{error}</p>
         </div>
       ) : null}
 
+      {/* Location disambiguation */}
       {type === 'LOCATIONS' && locationOptions.length > 0 ? (
-        <div className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm">
+        <div className="rounded-3xl border border-sky-500/20 bg-slate-900/80 p-5 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-cyan-50 p-3 text-cyan-600">
+            <div className="rounded-2xl bg-sky-500/20 p-3 text-sky-400">
               <MapPinned className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-black text-slate-900">LOXER menemukan beberapa lokasi</h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <h3 className="text-lg font-black text-white">LOXER menemukan beberapa lokasi</h3>
+              <p className="mt-1 text-sm text-slate-400">
                 Pilih lokasi yang paling sesuai agar pencariannya lebih presisi.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {locationOptions.map((option) => {
                   const label = typeof option === 'string' ? option : option?.name || option?.label || option?.location || '';
                   if (!label) return null;
-
                   return (
                     <button
                       key={label}
                       type="button"
                       onClick={() => handleLocationChoice(label)}
-                      className="rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100"
+                      className="rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition hover:border-sky-400/50 hover:bg-sky-500/20"
                     >
                       {label}
                     </button>
@@ -265,54 +331,64 @@ export default function JobList({
         </div>
       ) : null}
 
+      {/* Loading Skeleton */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 min-[1800px]:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm">
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 w-24 rounded bg-sky-100" />
-                <div className="h-8 rounded bg-sky-100" />
-                <div className="h-4 w-2/3 rounded bg-slate-100" />
-                <div className="h-20 rounded bg-slate-100" />
-                <div className="flex gap-2">
-                  <div className="h-8 w-28 rounded-full bg-slate-100" />
-                  <div className="h-8 w-36 rounded-full bg-slate-100" />
-                </div>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="h-80 rounded-2xl border border-white/5 bg-slate-900/50 animate-pulse p-4 space-y-4">
+              <div className="h-32 rounded-xl bg-slate-800" />
+              <div className="h-4 w-3/4 rounded bg-slate-800" />
+              <div className="h-4 w-1/2 rounded bg-slate-800" />
             </div>
           ))}
         </div>
       ) : null}
 
-      {!loading && type !== 'LOCATIONS' && jobs.length === 0 && !error ? (
-        <div className="rounded-3xl border border-sky-100 bg-white px-6 py-12 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-sky-50 text-sky-500">
-            <SearchX className="h-8 w-8" />
-          </div>
-          <h3 className="mt-4 text-xl font-black text-slate-900">Belum ada lowongan yang cocok</h3>
-          <p className="mt-2 text-sm text-slate-500">
+      {/* Empty State */}
+      {!loading && type !== 'LOCATIONS' && filteredJobs.length === 0 && !error ? (
+        <div className="text-center py-16 px-4 rounded-3xl border border-dashed border-white/10 bg-slate-900/30">
+          <SearchX className="w-12 h-12 mx-auto text-slate-600 mb-3" />
+          <h3 className="text-base font-bold text-white mb-1">Belum ada lowongan yang cocok</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
             Coba kata kunci lain, perluas lokasi, atau ganti pilihan sumber penyedia lowongan.
           </p>
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/30"
+          >
+            Reset Semua Filter
+          </button>
         </div>
       ) : null}
 
-      {!loading && jobs.length > 0 ? (
+      {/* Job Grid */}
+      {!loading && filteredJobs.length > 0 ? (
         <>
-          <div className="flex flex-col gap-3 rounded-3xl border border-sky-100 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-500">Hasil Pencarian</p>
-              <h3 className="mt-1 text-lg font-black text-slate-900">
-                {jobs.length} lowongan ditemukan pada halaman {page}
-              </h3>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
-              <Compass className="h-4 w-4" />
-              {keywords || location ? `${keywords || 'Semua posisi'}${location ? ` | ${location}` : ''}` : 'Semua posisi terbaru'}
+          {/* Results Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-sky-400" />
+              Daftar Lowongan ({filteredJobs.length})
+              {selectedCategory !== 'Semua' && (
+                <span className="text-xs font-normal text-slate-400">— {selectedCategory}</span>
+              )}
+            </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">
+                {keywords || location
+                  ? `${keywords || 'Semua posisi'}${location ? ` | ${location}` : ''}`
+                  : 'Semua posisi terbaru'}
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500 border border-white/10 rounded-full px-2 py-0.5">
+                <Compass className="h-3 w-3" />
+                Hal {page}
+              </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 min-[1800px]:grid-cols-3 gap-4">
-            {jobs.map((job) => (
+          {/* 4-column grid — matches TalentMarketplace layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+            {filteredJobs.map((job) => (
               <JobCard
                 key={`${job.site}-${job.url}-${job.title}`}
                 job={job}
@@ -321,18 +397,18 @@ export default function JobList({
             ))}
           </div>
 
-          <div className="flex flex-col gap-3 rounded-3xl border border-sky-100 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-slate-500">
-              Halaman <span className="font-semibold text-slate-900">{page}</span> dari{' '}
-              <span className="font-semibold text-slate-900">{totalPages}</span>
+          {/* Pagination */}
+          <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-slate-900/80 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-slate-400">
+              Halaman <span className="font-semibold text-white">{page}</span> dari{' '}
+              <span className="font-semibold text-white">{totalPages}</span>
             </p>
-
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => handlePageChange(page - 1)}
                 disabled={page <= 1 || loading}
-                className="rounded-2xl border border-sky-100 px-4 py-2.5 text-sm font-semibold text-sky-700 transition hover:border-sky-300 hover:text-sky-900 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-sky-400 transition hover:border-sky-400/30 hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Sebelumnya
               </button>
@@ -340,7 +416,7 @@ export default function JobList({
                 type="button"
                 onClick={() => handlePageChange(page + 1)}
                 disabled={page >= totalPages || loading}
-                className="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/20 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Selanjutnya
               </button>
@@ -348,6 +424,6 @@ export default function JobList({
           </div>
         </>
       ) : null}
-    </section>
+    </div>
   );
 }

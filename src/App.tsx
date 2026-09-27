@@ -7,8 +7,11 @@ import Footer from './components/layout/Footer';
 import { isDefaultAdminEmail } from './lib/constants';
 import { supabase } from './lib/supabase';
 import { syncQueuedApplications } from './lib/offlineSyncService';
+import { UserRole } from './lib/types';
 import Homepage from './pages/Homepage';
-import PWAInstallBanner from './components/ui/PWAInstallBanner';
+import OfflineIndicator from './components/pwa/OfflineIndicator';
+import PwaUpdateNotification from './components/pwa/PwaUpdateNotification';
+import PublicMobileBottomNav from './components/layout/PublicMobileBottomNav';
 
 const AuthModal = lazy(() => import('./pages/auth/AuthModal'));
 const SeekerDashboard = lazy(() => import('./pages/seeker/SeekerDashboard'));
@@ -30,6 +33,8 @@ const AdminEditor = lazy(() => import('./pages/admin/AdminEditor'));
 const LogMonitoring = lazy(() => import('./pages/admin/LogMonitoring'));
 const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const DeveloperWorkbench = lazy(() => import('./pages/admin/DeveloperWorkbench'));
+const TalentMarketplace = lazy(() => import('./pages/public/TalentMarketplace'));
+const SeekerMarketplace = lazy(() => import('./pages/seeker/SeekerMarketplace'));
 
 type AuthMode = 'login' | 'register' | null;
 
@@ -44,12 +49,45 @@ function FullScreenLoader({ message = 'Memuat LOXER...' }: { message?: string })
   );
 }
 
+import { getActiveSimRole } from './lib/simSession';
+
 function Router() {
   const { user, userMeta, loading, configured } = useAuth();
   const [authMode, setAuthMode] = useState<AuthMode>(null);
+  const [authInitialRole, setAuthInitialRole] = useState<UserRole>('seeker');
   const [path, setPath] = useState<string>(() => window.location.pathname);
-  const isDefaultAdminAccount = isDefaultAdminEmail(user?.email);
-  const effectiveRole = isDefaultAdminAccount ? 'admin' : userMeta?.role;
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const simRole = getActiveSimRole();
+  const previewRole = searchParams?.get('preview_role') || searchParams?.get('role') || simRole;
+
+  const isGodModeUnlocked = (() => {
+    try {
+      if (previewRole && previewRole !== 'admin') return false;
+      if (previewRole === 'admin') return true;
+      return (
+        sessionStorage.getItem('loxer_admin_unlocked') === 'true' ||
+        sessionStorage.getItem('app_admin_unlocked') === 'true'
+      );
+    } catch {
+      return false;
+    }
+  })();
+  const isDefaultAdminAccount = (!previewRole || previewRole === 'admin') && (isDefaultAdminEmail(user?.email) || isGodModeUnlocked);
+  const effectiveRole = previewRole === 'admin'
+    ? 'admin'
+    : previewRole === 'employer'
+    ? 'employer'
+    : previewRole === 'seeker' || previewRole === 'freelancer'
+    ? 'seeker'
+    : isDefaultAdminAccount
+    ? 'admin'
+    : userMeta?.role;
+
+
+  const handleOpenRegister = (role: UserRole = 'seeker') => {
+    setAuthInitialRole(role);
+    setAuthMode('register');
+  };
 
   useEffect(() => {
     const handlePopState = () => {
@@ -63,14 +101,21 @@ function Router() {
   }, []);
 
   const getHomePathByRole = () => {
+    if (previewRole === 'admin') return '/admin/dashboard';
+    if (previewRole === 'employer') return '/employer/dashboard';
+    if (previewRole === 'seeker') return '/seeker/dashboard';
+    if (previewRole === 'freelancer') return '/browse?category=freelance';
     if (!user || !effectiveRole) return '/';
-    if (effectiveRole === 'admin') return '/admin/dashboard';
+    if (effectiveRole === 'admin' || effectiveRole === 'superadmin') return '/admin/dashboard';
     return effectiveRole === 'employer' ? '/employer/dashboard' : '/seeker/dashboard';
   };
 
   useEffect(() => {
     if (path === '/login') setAuthMode('login');
-    if (path === '/register') setAuthMode('register');
+    if (path === '/register') {
+      setAuthInitialRole('seeker');
+      setAuthMode('register');
+    }
   }, [path]);
 
   // Automatic PWA Offline Sync when internet connectivity is restored
@@ -117,18 +162,33 @@ VITE_SUPABASE_ANON_KEY=...`}
     );
   }
 
+  const isRoleAuthorized = (role: 'seeker' | 'employer' | 'admin' | 'superadmin') => {
+    if (previewRole === role) return true;
+    if (previewRole === 'freelancer' && role === 'seeker') return true;
+    if (role === 'admin' && (isDefaultAdminAccount || isGodModeUnlocked || effectiveRole === 'superadmin' || effectiveRole === 'admin')) return true;
+    if (role === 'superadmin' && (isDefaultAdminAccount || isGodModeUnlocked || effectiveRole === 'superadmin')) return true;
+    return Boolean(user && effectiveRole === role);
+  };
+
   const renderPage = () => {
-    if (path === '/seeker/dashboard') return user && effectiveRole === 'seeker' ? <SeekerDashboard /> : null;
+    if (path === '/seeker/dashboard') return isRoleAuthorized('seeker') ? <SeekerDashboard /> : null;
     if (path === '/browse' || path === '/seeker/browse') return <Browse />;
-    if (path === '/seeker/applications') return user && effectiveRole === 'seeker' ? <Applications /> : null;
-    if (path === '/seeker/profile') return user && effectiveRole === 'seeker' ? <SeekerProfile /> : null;
-    if (path === '/employer/dashboard') return user && effectiveRole === 'employer' ? <EmployerDashboard /> : null;
-    if (path === '/employer/jobs') return user && effectiveRole === 'employer' ? <JobListings /> : null;
-    if (path === '/employer/jobs/new' || (path.startsWith('/employer/jobs/') && path.endsWith('/edit'))) return user && effectiveRole === 'employer' ? <PostJob /> : null;
-    if (path === '/employer/applicants') return user && effectiveRole === 'employer' ? <Applicants /> : null;
-    if (path === '/employer/company') return user && effectiveRole === 'employer' ? <CompanyProfile /> : null;
+    if (path === '/seeker/applications') return isRoleAuthorized('seeker') ? <Applications /> : null;
+    if (path === '/seeker/profile') return isRoleAuthorized('seeker') ? <SeekerProfile /> : null;
+    if (path === '/seeker/marketplace') return isRoleAuthorized('seeker') ? <SeekerMarketplace /> : null;
+    if (path === '/talents' || path === '/marketplace' || path === '/employer/talents') return <TalentMarketplace />;
+    if (path === '/employer/dashboard') return isRoleAuthorized('employer') ? <EmployerDashboard /> : null;
+    if (path === '/employer/jobs') return isRoleAuthorized('employer') ? <JobListings /> : null;
+    if (path === '/employer/jobs/new' || (path.startsWith('/employer/jobs/') && path.endsWith('/edit'))) return isRoleAuthorized('employer') ? <PostJob /> : null;
+    if (path === '/employer/applicants') return isRoleAuthorized('employer') ? <Applicants /> : null;
+    if (path === '/employer/company') return isRoleAuthorized('employer') ? <CompanyProfile /> : null;
 
     if (path.startsWith('/admin/')) {
+      const isSuper = isRoleAuthorized('superadmin');
+      const isAdmin = isRoleAuthorized('admin') || isSuper;
+
+      if (!isAdmin) return null;
+
       const adminPages: Record<string, JSX.Element> = {
         '/admin/dashboard': <AdminDashboard tab="overview" />,
         '/admin/user-data': <AdminDashboard tab="user-data" />,
@@ -137,11 +197,14 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/jobs': <AdminDashboard tab="jobs" />,
         '/admin/applications': <AdminDashboard tab="applications" />,
         '/admin/companies': <AdminDashboard tab="companies" />,
-        '/admin/logs': <AdminDashboard tab="logs" />,
         '/admin/integrations': <AdminDashboard tab="integrations" />,
+        '/admin/moderation': <ModerationQueue />,
+      };
+      
+      const superPages: Record<string, JSX.Element> = {
+        '/admin/logs': <AdminDashboard tab="logs" />,
         '/admin/analytics': <AdvancedAnalytics />,
         '/admin/flags': <FeatureFlags />,
-        '/admin/moderation': <ModerationQueue />,
         '/admin/broadcast': <BroadcastSystem />,
         '/admin/security': <SecurityCenter />,
         '/admin/editor': <AdminEditor />,
@@ -150,9 +213,13 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/dev-workbench': <DeveloperWorkbench />,
       };
 
-      const page = adminPages[path];
-      if (!page) return null;
-      return user && effectiveRole === 'admin' ? page : null;
+      if (superPages[path] && !isSuper) {
+        window.location.href = '/admin/dashboard';
+        return null;
+      }
+      
+      const page = adminPages[path] || (isSuper ? superPages[path] : null);
+      return page || null;
     }
 
     return null;
@@ -164,47 +231,57 @@ VITE_SUPABASE_ANON_KEY=...`}
     if ((path === '/login' || path === '/register') && !user) {
       // Allow unauthenticated visitor to view the login or register modal on homepage
     } else {
-      window.location.href = getHomePathByRole();
+      const homePath = getHomePathByRole();
+      if (homePath !== path && !homePath.startsWith(path)) {
+        window.location.href = homePath;
+      }
       return null;
     }
   }
 
-  if (page) {
-    return (
-      <Suspense fallback={<FullScreenLoader message="Menyiapkan halaman..." />}>
-        {page}
-      </Suspense>
-    );
-  }
-
   return (
-    <div className="bg-sky-50 min-h-screen">
-      <Navbar
-        onLogin={() => setAuthMode('login')}
-        onRegister={() => setAuthMode('register')}
-      />
-      <Homepage
-        onLogin={() => setAuthMode('login')}
-        onRegister={() => setAuthMode('register')}
-      />
-      <Footer />
-
-      {authMode && (
-        <Suspense fallback={null}>
-          <AuthModal
-            mode={authMode}
-            onClose={() => {
-              setAuthMode(null);
-              if (path === '/login' || path === '/register') {
-                window.history.pushState({}, '', '/');
-                setPath('/');
-              }
-            }}
-            onSwitchMode={setAuthMode}
-          />
+    <>
+      <OfflineIndicator />
+      <PwaUpdateNotification />
+      {page ? (
+        <Suspense fallback={<FullScreenLoader message="Menyiapkan halaman..." />}>
+          {page}
         </Suspense>
+      ) : (
+        <div className="bg-sky-50 min-h-screen pb-20 md:pb-0">
+          <Navbar
+            onLogin={() => setAuthMode('login')}
+            onRegister={handleOpenRegister}
+          />
+          <Homepage
+            onLogin={() => setAuthMode('login')}
+            onRegister={handleOpenRegister}
+          />
+          <Footer />
+          <PublicMobileBottomNav
+            currentPath="/"
+            onLogin={() => setAuthMode('login')}
+          />
+
+          {authMode && (
+            <Suspense fallback={null}>
+              <AuthModal
+                mode={authMode}
+                initialRole={authInitialRole}
+                onClose={() => {
+                  setAuthMode(null);
+                  if (path === '/login' || path === '/register') {
+                    window.history.pushState({}, '', '/');
+                    setPath('/');
+                  }
+                }}
+                onSwitchMode={setAuthMode}
+              />
+            </Suspense>
+          )}
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -213,7 +290,6 @@ export default function App() {
     <AuthProvider>
       <DeviceProvider>
         <Router />
-        <PWAInstallBanner />
       </DeviceProvider>
     </AuthProvider>
   );

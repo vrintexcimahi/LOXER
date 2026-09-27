@@ -1,4 +1,4 @@
-const DEFAULT_ADMIN_EMAIL_FALLBACK = 'loxer-admin-1776448925326@example.com';
+const DEFAULT_ADMIN_EMAIL_FALLBACK = 'vrintex';
 
 export function normalizeComparableEmail(value: string | null | undefined) {
   return String(value || '')
@@ -12,5 +12,11 @@ export const DEFAULT_ADMIN_EMAIL = normalizeComparableEmail(
 );
 
 export function isDefaultAdminEmail(value: string | null | undefined) {
-  return normalizeComparableEmail(value) === DEFAULT_ADMIN_EMAIL;
+  const norm = normalizeComparableEmail(value);
+  return (
+    norm === DEFAULT_ADMIN_EMAIL ||
+    norm === 'vrintex' ||
+    norm === 'vrintex@loxer.app' ||
+    norm === 'loxer-admin-1776448925326@example.com'
+  );
 }

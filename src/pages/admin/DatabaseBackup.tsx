@@ -62,6 +62,11 @@ export default function DatabaseBackup() {
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
   const [isSendingBackupTelegram, setIsSendingBackupTelegram] = useState(false);
 
+  // Snapshot (.db) state
+  const [snapshots, setSnapshots] = useState<Array<{ filename: string; sizeBytes: number; createdAt: string }>>([]);
+  const [loadingSnapshots, setLoadingSnapshots] = useState(false);
+  const [creatingSnapshot, setCreatingSnapshot] = useState(false);
+
   // Toasts / Feedback
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -69,6 +74,75 @@ export default function DatabaseBackup() {
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 4000);
+  };
+
+  const loadSnapshots = useCallback(async () => {
+    setLoadingSnapshots(true);
+    try {
+      const token = localStorage.getItem('loxer_local_auth_token') || '';
+      const res = await fetch('/api/admin/backups/snapshots', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSnapshots(data.snapshots || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingSnapshots(false);
+    }
+  }, []);
+
+  const handleCreateSnapshot = async () => {
+    setCreatingSnapshot(true);
+    try {
+      const token = localStorage.getItem('loxer_local_auth_token') || '';
+      const res = await fetch('/api/admin/backups/create-snapshot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ label: 'manual' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showToast('success', `Snapshot ${data.snapshot.filename} berhasil dibuat!`);
+        await loadSnapshots();
+      } else {
+        showToast('error', data.message || 'Gagal membuat snapshot database.');
+      }
+    } catch {
+      showToast('error', 'Terjadi kesalahan jaringan saat membuat snapshot.');
+    } finally {
+      setCreatingSnapshot(false);
+    }
+  };
+
+  const handleDownloadSnapshot = (filename: string) => {
+    const token = localStorage.getItem('loxer_local_auth_token') || '';
+    fetch(`/api/admin/backups/download-snapshot?file=${encodeURIComponent(filename)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Gagal mengunduh');
+        return res.blob();
+      })
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        showToast('success', `Berkas ${filename} berhasil diunduh.`);
+      })
+      .catch(() => {
+        showToast('error', 'Gagal mengunduh berkas snapshot.');
+      });
   };
 
   const loadStats = useCallback(async () => {
@@ -87,7 +161,8 @@ export default function DatabaseBackup() {
 
   useEffect(() => {
     loadStats();
-  }, [loadStats]);
+    loadSnapshots();
+  }, [loadStats, loadSnapshots]);
 
   // Handle Export JSON
   const handleExportBackup = async () => {
@@ -549,6 +624,117 @@ export default function DatabaseBackup() {
           </div>
         </div>
 
+        {/* Section: SQLite Hot-Backup (.db Snapshots) */}
+        <div className="rounded-2xl border border-cyan-500/20 bg-slate-900/90 backdrop-blur-xl shadow-xl overflow-hidden">
+          <div className="p-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-cyan-500/10 p-2.5 text-cyan-400 border border-cyan-500/30">
+                <HardDrive className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-white">Snapshot Database SQLite Otomatis (.db)</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                    Hot-Backup Atomik
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Pencadangan biner atomik instan menggunakan <code className="text-cyan-300">VACUUM INTO</code> tanpa henti layanan (zero-downtime).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={loadSnapshots}
+                disabled={loadingSnapshots}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingSnapshots ? 'animate-spin' : ''}`} />
+                <span>Segarkan</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateSnapshot}
+                disabled={creatingSnapshot}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-semibold shadow-md shadow-cyan-500/20 transition cursor-pointer disabled:opacity-50"
+              >
+                {creatingSnapshot ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                <span>{creatingSnapshot ? 'Membuat Snapshot...' : 'Buat Snapshot Baru'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5">
+            {snapshots.length === 0 ? (
+              <div className="py-8 text-center border border-dashed border-slate-800 rounded-xl bg-slate-950/40">
+                <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <p className="text-sm font-medium text-slate-300">Belum Ada Snapshot Biner Tersimpan</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                  Klik tombol <strong>&quot;Buat Snapshot Baru&quot;</strong> di atas untuk membuat salinan atomik SQLite <code>.db</code> pertama Anda.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950/60 text-slate-400 uppercase font-semibold border-b border-slate-800 tracking-wider">
+                    <tr>
+                      <th className="px-4 py-3">Nama Berkas Snapshot</th>
+                      <th className="px-4 py-3">Waktu Pembuatan</th>
+                      <th className="px-4 py-3 text-right">Ukuran Berkas</th>
+                      <th className="px-4 py-3 text-center">Integritas</th>
+                      <th className="px-4 py-3 text-right">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {snapshots.map((s) => (
+                      <tr key={s.filename} className="hover:bg-slate-800/30 transition">
+                        <td className="px-4 py-3 font-semibold text-slate-200 flex items-center gap-2">
+                          <Database className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                          <span>{s.filename}</span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-400 font-sans">
+                          {new Date(s.createdAt).toLocaleString('id-ID', {
+                            dateStyle: 'medium',
+                            timeStyle: 'medium',
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-right text-emerald-400 font-bold">
+                          {formatBytes(s.sizeBytes)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-sans">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Siap Pulih
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadSnapshot(s.filename)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 text-xs font-medium transition cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Unduh .db</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-4 p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 flex items-start gap-3">
+              <Sparkles className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-400 leading-relaxed">
+                <strong className="text-slate-300">Rolling Snapshot Retention 7 Hari:</strong> Server secara mandiri memangkas berkas cadangan yang berumur lebih dari 7 hari untuk menghemat ruang disk lokal. Berkas snapshot <code>.db</code> dapat langsung dimuat ke SQLite atau di-restore sebagai database utama saat pemulihan darurat.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Section: Database Explorer Table */}
         <div className="rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-xl shadow-xl overflow-hidden">
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
@@ -579,8 +765,15 @@ export default function DatabaseBackup() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-mono">
-                {tables.map((t) => (
-                  <tr key={t.name} className="hover:bg-slate-800/40 transition">
+                {tables.map((t, idx) => (
+                  <tr
+                    key={t.name}
+                    className={`transition border-b border-white/5 ${
+                      idx % 2 === 0
+                        ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]'
+                        : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                    }`}
+                  >
                     <td className="px-5 py-3.5 font-bold text-white flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-cyan-400" />
                       <span>{t.name}</span>

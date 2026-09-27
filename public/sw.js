@@ -1,15 +1,20 @@
 // ==============================================================================
-// LOXER Progressive Web App Service Worker
+// LOXER Progressive Web App Service Worker (v1.2.0)
 // ==============================================================================
 
-const CACHE_NAME = 'loxer-pwa-v1';
+const CACHE_NAME = 'loxer-pwa-v1.2.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/site.webmanifest',
-  '/branding/icon192.png',
-  '/branding/icon512.png',
   '/branding/icon32.png',
+  '/branding/icon48.png',
+  '/branding/icon64.png',
+  '/branding/icon96.png',
+  '/branding/icon128.png',
+  '/branding/icon192.png',
+  '/branding/icon256.png',
+  '/branding/icon512.png',
 ];
 
 // Install: Cache core static assets
@@ -21,16 +26,17 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  self.skipWaiting();
+  // Don't skipWaiting immediately without user consent to prevent state loss
 });
 
-// Activate: Clean up older caches
+// Activate: Clean up older caches and claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('[PWA] Purging outdated cache:', key);
             return caches.delete(key);
           }
         })
@@ -40,50 +46,41 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: Strategy depending on request type
+// Message: Support manual skipWaiting from client update toast
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// Fetch: Multi-tier caching strategy
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Never intercept localhost/development or non-GET requests or browser extensions
+  // Ignore non-GET requests or non-http protocols (like chrome-extension://)
+  if (request.method !== 'GET' || !url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Bypass Vite internal HMR/dev tooling if encountered
   if (
-    url.hostname === 'localhost' ||
-    url.hostname === '127.0.0.1' ||
-    url.hostname === '[::1]' ||
-    url.port === '3030' ||
-    request.method !== 'GET' ||
-    !url.protocol.startsWith('http')
+    url.pathname.startsWith('/@vite/') ||
+    url.pathname.startsWith('/@fs/') ||
+    url.pathname.includes('hot-update')
   ) {
     return;
   }
 
-  // Never cache API requests (keep them live / real-time)
+  // Never persistent-cache live authentication or mutations API
   if (url.pathname.startsWith('/api/')) {
     return;
   }
 
-  // HTML Navigation: Network-first with Cache fallback
+  // HTML Navigation: Network-first with Cache App Shell fallback
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
-        .then((networkResponse) => {
-          const cloned = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
-          return networkResponse;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          if (cached) return cached;
-          return caches.match('/index.html');
-        })
-    );
-    return;
-  }
-
-  // Static Assets (scripts, styles, fonts, images): Cache-first with background network update
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const cloned = networkResponse.clone();
@@ -91,9 +88,96 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          const shell = await caches.match('/index.html');
+          if (shell) return shell;
+          return caches.match('/');
+        })
+    );
+    return;
+  }
 
-      return cachedResponse || fetchPromise;
+  // Static Assets (CSS, JS, Fonts, Images): Cache-first with background network revalidation
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        // Asynchronously update cache in the background for immutable assets
+        fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const cloned = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+            }
+          })
+          .catch(() => {});
+        return cachedResponse;
+      }
+
+      return fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const cloned = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Fallback image if an image asset fails while offline
+          if (request.destination === 'image') {
+            return caches.match('/branding/icon192.png');
+          }
+          return new Response('Offline resource not found', { status: 503, statusText: 'Offline' });
+        });
+    })
+  );
+});
+
+// Push: Handle incoming Web Push notifications
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = { body: event.data.text() };
+    }
+  }
+
+  const title = data.title || 'LOXER - Karir Indonesia';
+  const options = {
+    body: data.body || 'Pembaruan baru terkait akun atau lamaran kerja Anda.',
+    icon: data.icon || '/branding/icon192.png',
+    badge: data.badge || '/branding/icon32.png',
+    tag: data.tag || 'loxer-notification',
+    data: {
+      url: data.url || data.link || '/seeker/applications',
+    },
+    vibrate: [100, 50, 100],
+    renotify: true,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Notification Click: Handle opening or focusing window upon click
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          if (targetUrl && client.url.includes(targetUrl)) {
+            return client.focus();
+          }
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
     })
   );
 });

@@ -1,17 +1,30 @@
 import { useEffect, useState } from 'react';
-import { Briefcase, MapPin, DollarSign, Users, FileText, Save } from 'lucide-react';
+import { Briefcase, MapPin, Banknote, Users, FileText, Save } from 'lucide-react';
 import EmployerLayout from '../../components/layout/EmployerLayout';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { Company } from '../../lib/types';
 
-const CATEGORIES = ['Technology', 'Marketing', 'Finance', 'Design', 'Sales', 'Operations', 'HR', 'Legal', 'Customer Service', 'Product', 'Engineering', 'Data'];
+const CATEGORIES = [
+  'Teknologi & IT',
+  'Pemasaran & Digital',
+  'Keuangan & Akuntansi',
+  'Desain & Kreatif',
+  'Penjualan / Sales',
+  'Operasional & Logistik',
+  'SDM & HRD',
+  'Hukum & Legal',
+  'Layanan Pelanggan (CS)',
+  'Manajemen Produk',
+  'Teknik & Rekayasa',
+  'Analisis Data',
+];
 const JOB_TYPES = [
-  { value: 'full-time', label: 'Full Time' },
-  { value: 'part-time', label: 'Part Time' },
+  { value: 'full-time', label: 'Purna Waktu (Full Time)' },
+  { value: 'part-time', label: 'Paruh Waktu (Part Time)' },
   { value: 'contract', label: 'Kontrak' },
-  { value: 'freelance', label: 'Freelance' },
-  { value: 'internship', label: 'Magang' },
+  { value: 'freelance', label: 'Lepas Waktu (Freelance)' },
+  { value: 'internship', label: 'Magang (Internship)' },
 ];
 
 export default function PostJob() {
@@ -219,7 +232,7 @@ export default function PostJob() {
           {/* Salary */}
           <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6">
             <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-sky-500" /> Kisaran Gaji (juta Rp/bulan)
+              <Banknote className="w-4 h-4 text-sky-500" /> Kisaran Gaji (juta Rp/bulan)
             </h2>
             <div className="flex items-center gap-4">
               <div className="flex-1">

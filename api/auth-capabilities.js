@@ -53,6 +53,14 @@ async function probeOtpCapability(baseUrl, anonKey, payload) {
   };
 }
 
+const ROLE_CAPABILITIES = {
+  seeker: { canApply: true, canBrowse: true, canPostJob: false, canReviewApplicants: false, canOfferServices: false, canAccessAdmin: false, canAccessGodMode: false },
+  employer: { canApply: false, canBrowse: true, canPostJob: true, canReviewApplicants: true, canOfferServices: false, canAccessAdmin: false, canAccessGodMode: false },
+  freelancer: { canApply: true, canBrowse: true, canPostJob: false, canReviewApplicants: false, canOfferServices: true, canAccessAdmin: false, canAccessGodMode: false },
+  admin: { canApply: false, canBrowse: true, canPostJob: true, canReviewApplicants: true, canOfferServices: false, canAccessAdmin: true, canAccessGodMode: false },
+  superadmin: { canApply: false, canBrowse: true, canPostJob: true, canReviewApplicants: true, canOfferServices: false, canAccessAdmin: true, canAccessGodMode: true },
+};
+
 async function loadCapabilities() {
   const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) {
@@ -65,6 +73,7 @@ async function loadCapabilities() {
       smsOtpEnabled: false,
       mailerAutoconfirm: true,
       smsProvider: '',
+      roleCapabilities: ROLE_CAPABILITIES,
       fetchedAt: new Date().toISOString(),
     };
   }
@@ -103,6 +112,7 @@ async function loadCapabilities() {
       emailOtp: emailOtpProbe,
       smsOtp: smsOtpProbe,
     },
+    roleCapabilities: ROLE_CAPABILITIES,
     fetchedAt: new Date().toISOString(),
   };
 }

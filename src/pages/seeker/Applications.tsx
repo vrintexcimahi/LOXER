@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/useAuth';
 import { Application, ApplicationStatus, Company, InterviewInvitation, JobListing, SeekerProfile } from '../../lib/types';
 import { formatFormalDate, openPrintInterviewLetter } from '../../lib/employerFeatures';
 import { useOfflineQueue } from '../../lib/offlineSyncService';
+import { useRealtimeSync } from '../../hooks/useRealtimeSync';
 
 type ApplicationJob = JobListing & { companies?: Company | null };
 type ApplicationRow = Application & {
@@ -31,7 +32,7 @@ export default function Applications() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ApplicationStatus | 'all'>('all');
 
-  const { queue, queueCount, isOnline, triggerSync } = useOfflineQueue();
+  const { queue, queueCount, isOnline, triggerSync } = useOfflineQueue(profile?.id || user?.id);
   const [syncingOffline, setSyncingOffline] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
@@ -53,26 +54,36 @@ export default function Applications() {
     }
   };
 
-  const loadApplications = useCallback(async () => {
+  const loadApplications = useCallback(async (isSilent = false) => {
     if (!supabase || !user) return;
 
-    const { data: prof } = await supabase.from('seeker_profiles').select('*').eq('user_id', user.id).maybeSingle();
-    setProfile(prof);
-    if (!prof) { setLoading(false); return; }
+    if (!isSilent) {
+      setLoading(true);
+    }
+    try {
+      const { data: prof } = await supabase.from('seeker_profiles').select('*').eq('user_id', user.id).maybeSingle();
+      setProfile(prof);
+      if (!prof) return;
 
-    const { data } = await supabase
-      .from('applications')
-      .select('*, job_listings(*, companies(*)), interview_invitations(*)')
-      .eq('seeker_id', prof.id)
-      .order('applied_at', { ascending: false });
+      const { data } = await supabase
+        .from('applications')
+        .select('*, job_listings(*, companies(*)), interview_invitations(*)')
+        .eq('seeker_id', prof.id)
+        .order('applied_at', { ascending: false });
 
-    setApplications((data || []) as ApplicationRow[]);
-    setLoading(false);
+      setApplications((data || []) as ApplicationRow[]);
+    } finally {
+      if (!isSilent) {
+        setLoading(false);
+      }
+    }
   }, [user]);
 
   useEffect(() => {
-    if (user) void loadApplications();
+    if (user) void loadApplications(false);
   }, [loadApplications, user]);
+
+  useRealtimeSync(loadApplications, { enabled: Boolean(user), intervalMs: 15000 });
 
   const filtered = filter === 'all' ? applications : applications.filter((a) => a.status === filter);
 
@@ -88,8 +99,14 @@ export default function Applications() {
   return (
     <SeekerLayout currentPath="/seeker/applications">
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-slate-800">Lamaran Saya</h1>
-        <p className="text-slate-500 text-sm mt-1">Pantau status setiap lamaran kerjamu</p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-black text-slate-800">Lamaran Saya</h1>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200" title="Pembaruan status otomatis aktif">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
+          </span>
+        </div>
+        <p className="text-slate-500 text-sm mt-1">Pantau status setiap lamaran kerjamu secara realtime</p>
       </div>
 
       {/* Offline Applications Queue Banner */}

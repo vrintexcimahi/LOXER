@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const DB_FILE = path.join(DATA_DIR, 'loxer.db');
+const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 const SCHEMA_FILE = path.join(DATA_DIR, 'schema.sql');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'loxer-local-jwt-secret-key-2026';
@@ -233,4 +234,91 @@ export function recordDailyAnalyticsSnapshot(targetDate = null) {
     platform_score: platformScore,
     created_at: now,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Automated Database Backup & Snapshot Engine
+// ---------------------------------------------------------------------------
+
+export function createDatabaseSnapshot(label = '') {
+  if (!fs.existsSync(BACKUPS_DIR)) {
+    fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+  }
+
+  const db = getLocalDb();
+  try {
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+  } catch {
+    // ignore
+  }
+
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+  const slug = label ? `-${label.replace(/[^a-zA-Z0-9_-]/g, '')}` : '';
+  const filename = `loxer-snapshot-${dateStr}-${timeStr}${slug}.db`;
+  const destPath = path.join(BACKUPS_DIR, filename);
+
+  db.prepare('VACUUM INTO ?').run(destPath);
+  const stats = fs.statSync(destPath);
+
+  try {
+    pruneOldSnapshots(7);
+  } catch {
+    // ignore
+  }
+
+  return {
+    filename,
+    path: destPath,
+    sizeBytes: stats.size,
+    createdAt: now.toISOString(),
+  };
+}
+
+export function listDatabaseSnapshots() {
+  if (!fs.existsSync(BACKUPS_DIR)) return [];
+  const files = fs.readdirSync(BACKUPS_DIR)
+    .filter((f) => f.startsWith('loxer-snapshot-') && f.endsWith('.db'))
+    .sort()
+    .reverse();
+
+  return files.map((filename) => {
+    const fullPath = path.join(BACKUPS_DIR, filename);
+    const stats = fs.statSync(fullPath);
+    return {
+      filename,
+      sizeBytes: stats.size,
+      createdAt: stats.mtime.toISOString(),
+    };
+  });
+}
+
+export function pruneOldSnapshots(maxKeepDays = 7) {
+  if (!fs.existsSync(BACKUPS_DIR)) return 0;
+  const cutoff = Date.now() - maxKeepDays * 24 * 60 * 60 * 1000;
+  const files = fs.readdirSync(BACKUPS_DIR).filter((f) => f.startsWith('loxer-snapshot-') && f.endsWith('.db'));
+  let deleted = 0;
+  for (const f of files) {
+    const fullPath = path.join(BACKUPS_DIR, f);
+    const stats = fs.statSync(fullPath);
+    if (stats.mtimeMs < cutoff) {
+      fs.unlinkSync(fullPath);
+      deleted++;
+    }
+  }
+  return deleted;
+}
+
+export function getSnapshotFilePath(filename) {
+  // Prevent path traversal
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return null;
+  }
+  if (!filename.startsWith('loxer-snapshot-') || !filename.endsWith('.db')) {
+    return null;
+  }
+  const full = path.join(BACKUPS_DIR, filename);
+  if (!fs.existsSync(full)) return null;
+  return full;
 }

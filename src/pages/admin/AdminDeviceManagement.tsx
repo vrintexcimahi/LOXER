@@ -216,8 +216,15 @@ export default function AdminDeviceManagement() {
                   </td>
                 </tr>
               ) : (
-                rows.map((d) => (
-                  <tr key={d.id} className="hover:bg-white/[0.02] transition-colors">
+                rows.map((d, idx) => (
+                  <tr
+                    key={d.id}
+                    className={`transition-colors border-b border-white/5 ${
+                      idx % 2 === 0
+                        ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]'
+                        : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                    }`}
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 capitalize font-medium text-white">
                         {getDeviceIcon(d.deviceType)}

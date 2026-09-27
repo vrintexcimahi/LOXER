@@ -2,7 +2,13 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/branding/icon32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/branding/icon48.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/branding/icon64.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/branding/icon96.png" />
+    <link rel="icon" type="image/png" sizes="128x128" href="/branding/icon128.png" />
+    <link rel="icon" type="image/png" sizes="256x256" href="/branding/icon256.png" />
+    <link rel="shortcut icon" href="/branding/icon32.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <title>LOXER - Platform Rekrutmen Indonesia</title>
     <meta
@@ -11,8 +17,9 @@
     />
     <!-- PWA & Android Native App Settings -->
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/branding/icon32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/branding/icon192.png" />
     <link rel="apple-touch-icon" sizes="192x192" href="/branding/icon192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/branding/icon512.png" />
     <meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#0284c7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0284c7" />
@@ -30,19 +37,12 @@
     <!-- Google Identity Services (GIS) for Native Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
-      // Force unregister all service workers and clean stale cache on localhost immediately
-      if (typeof window !== 'undefined') {
+      // Optional manual SW bypass: only if URL explicitly has ?no-sw=true
+      if (typeof window !== 'undefined' && window.location.search.includes('no-sw=true')) {
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(regs) {
             for (var i = 0; i < regs.length; i++) {
               regs[i].unregister();
-            }
-          });
-        }
-        if ('caches' in window) {
-          caches.keys().then(function(keys) {
-            for (var i = 0; i < keys.length; i++) {
-              caches.delete(keys[i]);
             }
           });
         }
