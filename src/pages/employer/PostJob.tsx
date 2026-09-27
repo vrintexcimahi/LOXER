@@ -101,6 +101,10 @@ export default function PostJob() {
     e.preventDefault();
     if (!supabase || !company) return;
     if (!form.title.trim()) { setError('Judul lowongan wajib diisi.'); return; }
+    if (form.salary_min && form.salary_max && parseInt(form.salary_min, 10) > parseInt(form.salary_max, 10)) {
+      setError('Gaji maksimum tidak boleh lebih kecil dari gaji minimum.');
+      return;
+    }
     setError('');
     setSaving(true);
 

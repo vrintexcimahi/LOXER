@@ -23,6 +23,7 @@ const STATUS_FILTERS: { label: string; value: ApplicationStatus | 'all' }[] = [
   { label: 'Interview', value: 'interview_scheduled' },
   { label: 'Diterima', value: 'hired' },
   { label: 'Ditolak', value: 'rejected' },
+  { label: 'Kadaluarsa', value: 'expired' },
 ];
 
 export default function Applications() {

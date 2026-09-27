@@ -216,6 +216,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       nextMeta = await ensureOAuthProvisioning(authUser, nextMeta);
     }
 
+    if (nextMeta && nextMeta.role === 'employer' && !nextMeta.company_id) {
+      try {
+        const { data: comp } = await supabase
+          .from('companies')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .maybeSingle();
+        if (comp) {
+          nextMeta = { ...nextMeta, company_id: comp.id };
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     setUserMeta(nextMeta);
   }, []);
 

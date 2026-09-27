@@ -101,7 +101,7 @@ export default function JobDetailModal({
 
   // Check if seeker has already applied to this job
   const checkApplicationStatus = useCallback(async () => {
-    if (!supabase || !user || !jobId || userMeta?.role !== 'seeker') {
+    if (!supabase || !user || !jobId || (userMeta?.role !== 'seeker' && userMeta?.role !== 'freelancer')) {
       setAlreadyApplied(false);
       return;
     }
@@ -157,7 +157,7 @@ export default function JobDetailModal({
 
   const handleApply = async () => {
     if (!jobId || !user) return;
-    if (userMeta?.role !== 'seeker') return;
+    if (userMeta?.role !== 'seeker' && userMeta?.role !== 'freelancer') return;
 
     setApplying(true);
     try {
@@ -441,7 +441,7 @@ export default function JobDetailModal({
               >
                 Masuk / Daftar untuk Melamar
               </button>
-            ) : userMeta?.role === 'seeker' ? (
+            ) : (userMeta?.role === 'seeker' || userMeta?.role === 'freelancer') ? (
               isApplied ? (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold">

@@ -81,13 +81,30 @@ export default function TalentDetailModal({
     setErrorMsg('');
 
     try {
+      let companyId = userMeta?.company_id;
+      if (!companyId && user?.id) {
+        const { data: comp } = await supabase.from('companies').select('id').eq('user_id', user.id).maybeSingle();
+        if (comp) companyId = comp.id;
+      }
+      if (!companyId && user?.id) {
+        const { data: newComp } = await supabase.from('companies').insert({
+          user_id: user.id,
+          name: user.email?.split('@')[0] || 'Perusahaan',
+        }).select('id').maybeSingle();
+        if (newComp) companyId = newComp.id;
+      }
+
+      if (!companyId) {
+        throw new Error('Profil perusahaan tidak ditemukan. Pastikan Anda masuk sebagai perusahaan.');
+      }
+
       const offerId = `offer-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const payload = {
         id: offerId,
         post_id: talent.id,
         seeker_id: talent.seeker_id,
         employer_id: user?.id || 'guest-employer',
-        company_id: userMeta?.company_id || 'direct-hire',
+        company_id: companyId,
         position_title: positionTitle,
         offered_salary: parseInt(offeredSalary.replace(/\D/g, ''), 10) || talent.expected_salary || 0,
         message,

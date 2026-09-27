@@ -67,6 +67,8 @@ export const ALL_TABLE_DEFINITIONS: Array<{ name: string; label: string; descrip
   { name: 'user_preferences', label: 'Preferensi Pengguna', description: 'Pengaturan tema, bahasa, densitas, dan navigasi user' },
   { name: 'user_activity_logs', label: 'Log Aktivitas Pengguna', description: 'Rekam aktivitas login, navigasi, dan interaksi device' },
   { name: 'analytics_snapshots', label: 'Snapshot Analitik', description: 'Data agregasi historis platform score, pertumbuhan, dan metriks' },
+  { name: 'talent_marketplace_posts', label: 'Postingan Marketplace Talent', description: 'Profil showcase talent, tarif, keahlian, dan ketersediaan kerja freelance/fulltime' },
+  { name: 'direct_job_offers', label: 'Penawaran Kerja Langsung', description: 'Tawaran kerja dan undangan interview langsung dari employer ke kandidat' },
 ];
 
 export async function fetchDatabaseStats(): Promise<{
