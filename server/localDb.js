@@ -49,6 +49,71 @@ export function getLocalDb() {
     } catch {
       // Column already exists
     }
+    try {
+      dbInstance.exec('ALTER TABLE talent_marketplace_posts ADD COLUMN bio TEXT NOT NULL DEFAULT "";');
+    } catch {
+      // Column already exists
+    }
+    try {
+      dbInstance.exec('ALTER TABLE talent_marketplace_posts ADD COLUMN availability TEXT NOT NULL DEFAULT "fulltime";');
+    } catch {
+      // Column already exists
+    }
+
+    // Role check constraint migration for users_meta (adds 'superadmin' and 'freelancer')
+    try {
+      const metaTable = dbInstance.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users_meta'").get();
+      if (metaTable && metaTable.sql && !metaTable.sql.includes('freelancer')) {
+        dbInstance.exec('PRAGMA foreign_keys = OFF;');
+        dbInstance.exec(`
+          CREATE TABLE users_meta_new (
+            id TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('seeker', 'employer', 'admin', 'superadmin', 'freelancer')),
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            is_banned INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
+          );
+          INSERT INTO users_meta_new SELECT id, email, role, created_at, is_banned FROM users_meta;
+          DROP TABLE users_meta;
+          ALTER TABLE users_meta_new RENAME TO users_meta;
+          CREATE INDEX IF NOT EXISTS idx_users_meta_role ON users_meta(role);
+        `);
+        dbInstance.exec('PRAGMA foreign_keys = ON;');
+      }
+    } catch (e) {
+      console.warn('[localDb] users_meta migration notice:', e.message);
+    }
+
+    // Application status check constraint migration (adds 'expired')
+    try {
+      const appTable = dbInstance.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='applications'").get();
+      if (appTable && appTable.sql && !appTable.sql.includes('expired')) {
+        dbInstance.exec('PRAGMA foreign_keys = OFF;');
+        dbInstance.exec(`
+          CREATE TABLE applications_new (
+            id TEXT PRIMARY KEY,
+            job_id TEXT NOT NULL,
+            seeker_id TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'applied' CHECK (status IN ('applied', 'reviewed', 'shortlisted', 'interview_scheduled', 'hired', 'rejected', 'expired')),
+            applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (job_id) REFERENCES job_listings(id) ON DELETE CASCADE,
+            FOREIGN KEY (seeker_id) REFERENCES seeker_profiles(id) ON DELETE CASCADE,
+            UNIQUE(job_id, seeker_id)
+          );
+          INSERT INTO applications_new SELECT id, job_id, seeker_id, status, applied_at, updated_at FROM applications;
+          DROP TABLE applications;
+          ALTER TABLE applications_new RENAME TO applications;
+          CREATE INDEX IF NOT EXISTS idx_applications_job ON applications(job_id);
+          CREATE INDEX IF NOT EXISTS idx_applications_seeker ON applications(seeker_id);
+          CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+        `);
+        dbInstance.exec('PRAGMA foreign_keys = ON;');
+      }
+    } catch (e) {
+      console.warn('[localDb] applications migration notice:', e.message);
+    }
 
     // Auto-record today's analytics snapshot on initialization
     try {
@@ -86,8 +151,12 @@ export function hashPassword(password) {
 export function verifyPassword(password, storedHash) {
   if (!storedHash || !storedHash.includes(':')) return false;
   const [salt, originalHash] = storedHash.split(':');
+  if (!salt || !originalHash) return false;
   const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-  return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(originalHash));
+  const bufA = Buffer.from(hash);
+  const bufB = Buffer.from(originalHash);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 }
 
 function base64UrlEncode(str) {
