@@ -34,6 +34,7 @@ import {
   LogLevel,
   SystemLogEntry,
 } from '../../lib/logService';
+import { exportToCsv } from '../../lib/employerFeatures';
 
 const LEVEL_COLORS: Record<LogLevel, { badge: string; text: string; dot: string; border: string }> = {
   INFO: {
@@ -79,6 +80,7 @@ export default function LogMonitoring() {
   const [showRetentionModal, setShowRetentionModal] = useState(false);
   const [retentionDays, setRetentionDays] = useState(30);
   const [downloadArchiveFirst, setDownloadArchiveFirst] = useState(true);
+  const [archiveFormat, setArchiveFormat] = useState<'json' | 'csv'>('csv');
   const [retentionLoading, setRetentionLoading] = useState(false);
   const [retentionStats, setRetentionStats] = useState<{ total: number; oldestDate: string | null; newestDate: string | null } | null>(null);
   const [retentionFeedback, setRetentionFeedback] = useState<string | null>(null);
@@ -117,13 +119,28 @@ export default function LogMonitoring() {
       const data = await res.json();
       if (res.ok && data.success) {
         if (downloadArchiveFirst && Array.isArray(data.rows) && data.rows.length > 0) {
-          const blob = new Blob([JSON.stringify(data.rows, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `loxer_audit_logs_archive_${retentionDays}d_${Date.now()}.json`;
-          a.click();
-          URL.revokeObjectURL(url);
+          if (archiveFormat === 'csv') {
+            const headers = ['ID', 'Admin ID', 'Admin Email', 'Action', 'Target Type', 'Target ID', 'Detail', 'Created At'];
+            const rows = (data.rows as Record<string, unknown>[]).map((r) => [
+              String(r.id || ''),
+              String(r.admin_id || ''),
+              String(r.admin_email || ''),
+              String(r.action || ''),
+              String(r.target_type || ''),
+              String(r.target_id || ''),
+              typeof r.detail === 'object' ? JSON.stringify(r.detail) : String(r.detail || ''),
+              String(r.created_at || ''),
+            ]);
+            exportToCsv(`loxer_audit_logs_archive_${retentionDays}d_${Date.now()}`, headers, rows);
+          } else {
+            const blob = new Blob([JSON.stringify(data.rows, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `loxer_audit_logs_archive_${retentionDays}d_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
         }
 
         const purgedClientCount = purgeOldConsoleLogs(retentionDays);
@@ -779,21 +796,52 @@ export default function LogMonitoring() {
                   </p>
                 </div>
 
-                {/* Download Archive Checkbox */}
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2.5">
-                  <input
-                    type="checkbox"
-                    id="downloadArchiveCheck"
-                    checked={downloadArchiveFirst}
-                    onChange={(e) => setDownloadArchiveFirst(e.target.checked)}
-                    className="mt-0.5 rounded border-slate-700 text-purple-500 focus:ring-purple-400 bg-slate-900 cursor-pointer"
-                  />
-                  <label htmlFor="downloadArchiveCheck" className="text-xs text-slate-300 cursor-pointer">
-                    <span className="font-semibold block text-white">Unduh Berkas Arsip (.JSON) Sebelum Dihapus</span>
-                    <span className="text-slate-400 text-[11px] block mt-0.5">
-                      Menyimpan cadangan log lama secara lokal di komputer sebelum dihapus dari SQLite.
-                    </span>
-                  </label>
+                {/* Download Archive Checkbox & Format */}
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2.5">
+                    <input
+                      type="checkbox"
+                      id="downloadArchiveCheck"
+                      checked={downloadArchiveFirst}
+                      onChange={(e) => setDownloadArchiveFirst(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-700 text-purple-500 focus:ring-purple-400 bg-slate-900 cursor-pointer"
+                    />
+                    <label htmlFor="downloadArchiveCheck" className="text-xs text-slate-300 cursor-pointer flex-1">
+                      <span className="font-semibold block text-white">Unduh Berkas Arsip Sebelum Dihapus</span>
+                      <span className="text-slate-400 text-[11px] block mt-0.5">
+                        Menyimpan cadangan log lama secara lokal di komputer sebelum dibersihkan dari SQLite.
+                      </span>
+                    </label>
+                  </div>
+                  {downloadArchiveFirst && (
+                    <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs">
+                      <span className="text-slate-400">Format Arsip Ekspor:</span>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setArchiveFormat('csv')}
+                          className={`px-2.5 py-1 rounded-lg font-medium text-xs transition cursor-pointer ${
+                            archiveFormat === 'csv'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                          }`}
+                        >
+                          CSV (Excel)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setArchiveFormat('json')}
+                          className={`px-2.5 py-1 rounded-lg font-medium text-xs transition cursor-pointer ${
+                            archiveFormat === 'json'
+                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                              : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                          }`}
+                        >
+                          JSON (Raw)
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Feedback Message */}

@@ -15,6 +15,7 @@ import {
 import { TalentMarketplacePost } from '../../lib/types';
 import { useAuth } from '../../contexts/useAuth';
 import { supabase } from '../../lib/supabase';
+import { broadcastSync } from '../../lib/realtimeSync';
 
 const AVAILABILITY_LABELS: Record<string, string> = {
   fulltime: 'Purna Waktu',
@@ -119,6 +120,31 @@ export default function TalentDetailModal({
       if (error) {
         throw error;
       }
+
+      // Dispatch in-app notification to talent
+      try {
+        const talentUserId = talent.user_id || talent.seeker_profiles?.user_id;
+        if (talentUserId) {
+          await supabase.from('notifications').insert({
+            user_id: talentUserId,
+            type: 'direct_offer',
+            title: 'Penawaran Kerja Baru!',
+            message: `Perusahaan mengirim penawaran kerja untuk posisi "${positionTitle}" dengan estimasi Rp ${(payload.offered_salary || 0).toLocaleString('id-ID')}.`,
+            metadata: JSON.stringify({
+              offer_id: offerId,
+              post_id: talent.id,
+              position_title: positionTitle,
+              company_id: companyId,
+            }),
+            is_read: 0,
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Gagal dispatch notifikasi penawaran kerja:', notifErr);
+      }
+
+      broadcastSync('notification');
+      broadcastSync('application');
 
       setOfferSuccess(true);
       setShowOfferForm(false);

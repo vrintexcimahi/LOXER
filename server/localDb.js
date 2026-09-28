@@ -115,6 +115,19 @@ export function getLocalDb() {
       console.warn('[localDb] applications migration notice:', e.message);
     }
 
+    // High Performance Search Indexes for job listings & marketplace
+    try {
+      dbInstance.exec(`
+        CREATE INDEX IF NOT EXISTS idx_job_listings_title ON job_listings(title);
+        CREATE INDEX IF NOT EXISTS idx_job_listings_location ON job_listings(location_city);
+        CREATE INDEX IF NOT EXISTS idx_job_listings_category ON job_listings(category);
+        CREATE INDEX IF NOT EXISTS idx_talent_posts_headline ON talent_marketplace_posts(headline);
+        CREATE INDEX IF NOT EXISTS idx_talent_posts_category ON talent_marketplace_posts(category);
+      `);
+    } catch {
+      // ignore
+    }
+
     // Auto-record today's analytics snapshot on initialization
     try {
       recordDailyAnalyticsSnapshot();

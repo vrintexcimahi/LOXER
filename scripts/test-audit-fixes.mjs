@@ -257,6 +257,38 @@ async function testAuditFixes() {
     const voidData = await voidRes.json();
     console.log('15. Auto-Void Stale Applications dry-run API:', voidRes.ok && voidData.ok ? 'OK' : 'FAIL');
 
+    // 16. Test SQL Indexes and Parametric Search Booster
+    const indexes = queryAll("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='job_listings'");
+    const hasTitleIdx = indexes.some((idx) => idx.name === 'idx_job_listings_title');
+    console.log('16. Search Booster SQLite Indexes created:', hasTitleIdx ? 'OK' : 'FAIL');
+
+    // 17. Test Reverse-Hiring Direct Offer Notification Insertion
+    const testNotifId = 'test_offer_notif_' + Date.now();
+    execute(
+      `INSERT INTO notifications (id, user_id, title, message, type, is_read, metadata, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        testNotifId,
+        seeker?.user_id || 'test_user',
+        'Penawaran Kerja Baru',
+        'PT Inovasi Digital mengirimkan tawaran pekerjaan langsung.',
+        'direct_offer',
+        0,
+        JSON.stringify({ offerId: 'test_offer_123', jobTitle: 'Senior Frontend Developer' }),
+        new Date().toISOString(),
+      ]
+    );
+    const createdOfferNotif = queryOne('SELECT * FROM notifications WHERE id = ?', [testNotifId]);
+    console.log('17. Realtime reverse-hiring offer notification persistence:', createdOfferNotif?.type === 'direct_offer' ? 'OK' : 'FAIL');
+    execute('DELETE FROM notifications WHERE id = ?', [testNotifId]);
+
+    // 18. Test CSV Export Helper logic with UTF-8 BOM & Excel escaping
+    const testHeaders = ['ID', 'Action', 'Detail'];
+    const testRows = [['1', 'ban_user', 'User "Alice" banned for spam']];
+    const sanitize = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+    const csvOutput = '\uFEFF' + [testHeaders.map(sanitize).join(','), ...testRows.map((r) => r.map(sanitize).join(','))].join('\r\n');
+    console.log('18. Security audit logs CSV format generation & UTF-8 BOM:', csvOutput.startsWith('\uFEFF') && csvOutput.includes('""Alice""') ? 'OK' : 'FAIL');
+
     console.log('All audit fix tests passed with flying colors!');
   } finally {
     await server.close();

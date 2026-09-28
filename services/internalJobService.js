@@ -3,13 +3,50 @@
  * Reads verified employer postings from local SQLite or Supabase
  */
 
-import { queryAll } from '../server/localDb.js';
+import { queryAll, queryOne } from '../server/localDb.js';
 
 export function searchInternalJobs(params = {}) {
   const { keywords = '', location = '', page = 1 } = params;
 
   try {
-    const rows = queryAll(`
+    const conditions = ["j.status = 'active'"];
+    const sqlParams = [];
+
+    if (keywords && keywords.trim()) {
+      const terms = keywords.trim().split(/\s+/).filter(Boolean);
+      for (const term of terms) {
+        conditions.push(`(
+          j.title LIKE ? OR 
+          c.name LIKE ? OR 
+          j.description LIKE ? OR 
+          j.category LIKE ? OR 
+          j.requirements LIKE ?
+        )`);
+        const wildcard = `%${term}%`;
+        sqlParams.push(wildcard, wildcard, wildcard, wildcard, wildcard);
+      }
+    }
+
+    if (location && location.trim() && location.toLowerCase() !== 'indonesia') {
+      conditions.push('j.location_city LIKE ?');
+      sqlParams.push(`%${location.trim()}%`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countSql = `
+      SELECT count(*) as total
+      FROM job_listings j
+      LEFT JOIN companies c ON j.company_id = c.id
+      ${whereClause}
+    `;
+    const countRow = queryOne(countSql, sqlParams);
+    const totalHits = countRow ? countRow.total : 0;
+
+    const pageSize = 10;
+    const offset = Math.max(0, (page - 1) * pageSize);
+
+    const querySql = `
       SELECT 
         j.id, 
         j.title, 
@@ -25,33 +62,12 @@ export function searchInternalJobs(params = {}) {
         c.logo_url AS company_logo
       FROM job_listings j
       LEFT JOIN companies c ON j.company_id = c.id
-      WHERE j.status = 'active'
+      ${whereClause}
       ORDER BY j.created_at DESC
-    `);
+      LIMIT ? OFFSET ?
+    `;
 
-    let filtered = rows;
-
-    if (keywords) {
-      const kw = keywords.toLowerCase();
-      filtered = filtered.filter(
-        (job) =>
-          (job.title || '').toLowerCase().includes(kw) ||
-          (job.company_name || '').toLowerCase().includes(kw) ||
-          (job.description || '').toLowerCase().includes(kw) ||
-          (job.category || '').toLowerCase().includes(kw)
-      );
-    }
-
-    if (location) {
-      const loc = location.toLowerCase();
-      filtered = filtered.filter((job) =>
-        (job.location_city || '').toLowerCase().includes(loc)
-      );
-    }
-
-    const pageSize = 10;
-    const startIndex = (page - 1) * pageSize;
-    const paginated = filtered.slice(startIndex, startIndex + pageSize);
+    const paginated = queryAll(querySql, [...sqlParams, pageSize, offset]);
 
     const normalized = paginated.map((job) => {
       const min = Number(job.salary_min) || 0;
@@ -84,8 +100,8 @@ export function searchInternalJobs(params = {}) {
 
     return {
       jobs: normalized,
-      hits: filtered.length,
-      pages: Math.ceil(filtered.length / pageSize) || 1,
+      hits: totalHits,
+      pages: Math.ceil(totalHits / pageSize) || 1,
     };
   } catch (error) {
     console.warn('[Internal Jobs] Error querying SQLite jobs:', error.message);

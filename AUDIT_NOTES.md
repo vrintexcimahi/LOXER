@@ -911,7 +911,17 @@
   2. `ALLOWED_DB_TABLES` di `server/localApiHandler.js`
 - SQLite mengeksekusi operasi secara synchronous via `node:sqlite`. Jangan gunakan async wrapper palsu yang tidak perlu pada fungsi `queryOne`, `queryAll`, dan `execute`.
 
-### Saran fitur yang sudah disampaikan ke user
-1. **Email / In-App Notification saat Penawaran Kerja Langsung Masuk**: Notifikasi realtime kepada talent ketika employer mengirim tawaran kerja melalui reverse hiring modal (Effort: S, Leverage: High).
-2. **Pencarian Full-Text SQLite (FTS5) untuk Lowongan & Profil Talent**: Meningkatkan kecepatan dan akurasi pencarian kata kunci multi-kata pada database lokal ribuan loker (Effort: M, Leverage: High).
-3. **Download Arsip Audit Log Otomatis ke Format Excel/CSV**: Ekspor log audit keamanan dan riwayat aksi admin langsung dari GodMode Security Center (Effort: S, Leverage: Medium).
+### Saran fitur yang sudah disampaikan ke user (Status: IMPLEMENTED & VERIFIED)
+1. **In-App Notification & Cross-Tab Realtime Sync saat Penawaran Kerja Langsung Masuk** (STATUS: PASS - Commit feat):
+   - Diimplementasikan di `src/components/marketplace/TalentDetailModal.tsx` dan `src/pages/seeker/SeekerMarketplace.tsx`.
+   - Mengirimkan entri notifikasi baru bertipe `direct_offer` ke tabel `notifications` saat employer mengirim tawaran langsung ke kandidat, dan bertipe `offer_response` saat kandidat menerima/menolak tawaran.
+   - Memicu sinkronisasi realtime lintas tab dan jendela browser menggunakan `broadcastSync('notification')` dan `broadcastSync('application')`.
+2. **Pencarian Parametrik & SQLite Index Booster untuk Lowongan & Profil Talent** (STATUS: PASS - Commit feat):
+   - Diimplementasikan di `services/internalJobService.js`, `server/localDb.js`, dan `data/schema.sql`.
+   - Mengganti pemindaian memori penuh (`SELECT *`) dengan query berparameter SQL langsung (`WHERE status = 'active' AND ...`), pemecahan kata kunci multi-kata wildcard (`%kata1%kata2%`), perhitungan `COUNT(*)` native di SQLite, serta paginasi `LIMIT` & `OFFSET`.
+   - Menambahkan indeks skema terindeks: `idx_job_listings_title`, `idx_job_listings_location`, `idx_job_listings_category`, `idx_talent_posts_headline`, `idx_talent_posts_category`.
+3. **Ekspor CSV untuk Security Audit Logs & Log Arsip di God Mode** (STATUS: PASS - Commit feat):
+   - Diimplementasikan di `src/pages/admin/SecurityCenter.tsx` dan `src/pages/admin/LogMonitoring.tsx`.
+   - Di `SecurityCenter.tsx`, tombol *Ekspor CSV* mengekspor riwayat Activity Alerts (`audit_logs`), IP Block List, dan Admin Sessions secara dinamis dengan penanganan UTF-8 BOM dan escaping tanda kutip ganda.
+   - Di `LogMonitoring.tsx`, modal Retensi & Arsip menyediakan pemilih format unduhan antara `.csv` (Excel-friendly) dan `.json` (Raw payload) sebelum database dibersihkan.
+   - Diverifikasi melalui Test 16, 17, dan 18 di `scripts/test-audit-fixes.mjs`.

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Ban, Clock, Monitor, RefreshCw, Shield, Trash2, Wifi } from 'lucide-react';
+import { AlertCircle, Ban, Clock, Download, Monitor, RefreshCw, Shield, Trash2, Wifi } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
 import { useAuth } from '../../contexts/useAuth';
 import { logAdminAction } from '../../lib/adminUtils';
+import { exportToCsv } from '../../lib/employerFeatures';
 import { supabase } from '../../lib/supabase';
 
 interface IPBlockRow {
@@ -128,6 +129,48 @@ export default function SecurityCenter() {
 
   const activeSessions = useMemo(() => sessions.filter((session) => !session.ended_at).length, [sessions]);
 
+  const handleExportCsv = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (tab === 'alerts') {
+      if (!alerts.length) return;
+      const headers = ['ID', 'Aksi (Action)', 'Tipe Target', 'ID Target', 'Detail', 'Waktu Dibuat'];
+      const rows = alerts.map((a) => [
+        a.id,
+        a.action,
+        a.target_type,
+        a.target_id,
+        a.detail,
+        new Date(a.created_at).toLocaleString('id-ID'),
+      ]);
+      exportToCsv(`loxer_security_alerts_${today}`, headers, rows);
+    } else if (tab === 'ip') {
+      if (!ipBlocks.length) return;
+      const headers = ['ID', 'IP Address', 'Alasan (Reason)', 'Dibuat Pada', 'Kadaluarsa Pada'];
+      const rows = ipBlocks.map((b) => [
+        b.id,
+        b.ip_address,
+        b.reason,
+        new Date(b.created_at).toLocaleString('id-ID'),
+        b.expires_at ? new Date(b.expires_at).toLocaleString('id-ID') : '-',
+      ]);
+      exportToCsv(`loxer_ip_blocks_${today}`, headers, rows);
+    } else if (tab === 'sessions') {
+      if (!sessions.length) return;
+      const headers = ['ID', 'Admin ID', 'IP Address', 'User Agent', 'Mulai (Started)', 'Aktivitas Terakhir', 'Berakhir (Ended)', 'Status'];
+      const rows = sessions.map((s) => [
+        s.id,
+        s.admin_id,
+        s.ip_address || '-',
+        s.user_agent || '-',
+        new Date(s.started_at).toLocaleString('id-ID'),
+        new Date(s.last_active_at).toLocaleString('id-ID'),
+        s.ended_at ? new Date(s.ended_at).toLocaleString('id-ID') : '-',
+        s.ended_at ? 'Ended' : 'Active',
+      ]);
+      exportToCsv(`loxer_admin_sessions_${today}`, headers, rows);
+    }
+  };
+
   return (
     <GodModeLayout title="Security Center" description="Pantau blokir IP, session admin aktif, dan jejak tindakan sensitif di panel admin.">
       <div className="space-y-6">
@@ -171,15 +214,30 @@ export default function SecurityCenter() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => {
-              void loadData();
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCsv}
+              disabled={
+                (tab === 'alerts' && alerts.length === 0) ||
+                (tab === 'ip' && ipBlocks.length === 0) ||
+                (tab === 'sessions' && sessions.length === 0)
+              }
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+              title="Ekspor data tab aktif ke CSV"
+            >
+              <Download className="h-4 w-4 text-emerald-400" />
+              Ekspor CSV
+            </button>
+            <button
+              onClick={() => {
+                void loadData();
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {errorMessage ? (

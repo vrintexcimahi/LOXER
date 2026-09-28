@@ -19,6 +19,7 @@ import SeekerLayout from '../../components/layout/SeekerLayout';
 import TalentCard from '../../components/marketplace/TalentCard';
 import TalentDetailModal from '../../components/marketplace/TalentDetailModal';
 import { supabase } from '../../lib/supabase';
+import { broadcastSync } from '../../lib/realtimeSync';
 import { useAuth } from '../../contexts/useAuth';
 import {
   TalentMarketplacePost,
@@ -249,6 +250,33 @@ export default function SeekerMarketplace() {
       setOffers((prev) =>
         prev.map((o) => (o.id === offerId ? { ...o, status } : o))
       );
+
+      // Dispatch notification to employer
+      const targetOffer = offers.find((o) => o.id === offerId);
+      if (targetOffer && targetOffer.employer_id) {
+        const isAccepted = status === 'accepted';
+        try {
+          await supabase.from('notifications').insert({
+            user_id: targetOffer.employer_id,
+            type: 'offer_response',
+            title: isAccepted ? 'Tawaran Kerja Diterima!' : 'Tawaran Kerja Ditolak',
+            message: isAccepted
+              ? `Kandidat telah menerima tawaran kerja untuk posisi "${targetOffer.position_title}". Segera hubungi kandidat untuk tahap selanjutnya.`
+              : `Kandidat belum dapat menerima tawaran untuk posisi "${targetOffer.position_title}".`,
+            metadata: JSON.stringify({
+              offer_id: offerId,
+              status,
+              position_title: targetOffer.position_title,
+            }),
+            is_read: 0,
+          });
+        } catch (notifErr) {
+          console.warn('Gagal dispatch notifikasi respon tawaran:', notifErr);
+        }
+      }
+
+      broadcastSync('notification');
+      broadcastSync('application');
     } catch (err) {
       console.error('Error updating offer:', err);
     }
