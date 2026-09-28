@@ -8,6 +8,8 @@
  * When unconfigured or on error, returns empty results gracefully.
  */
 
+import { joobleBreaker, outboundApiSemaphore } from './resilienceService.js';
+
 class JoobleProxyError extends Error {
   constructor(message, status, details) {
     super(message);
@@ -44,6 +46,7 @@ function normalizeJoobleJob(job) {
 
 /**
  * Search jobs using Jooble API (100% live real data only)
+ * Protected with AbortSignal.timeout(3500), CircuitBreaker, and ConcurrencySemaphore
  */
 export async function searchJoobleJobs(params = {}) {
   const apiKey = getJoobleApiKey();
@@ -59,51 +62,48 @@ export async function searchJoobleJobs(params = {}) {
     };
   }
 
-  try {
-    const endpoint = `https://id.jooble.org/api/${apiKey}`;
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        keywords: keywords || 'Indonesia',
-        location: location || 'Indonesia',
-        page: Number(page) || 1,
-        salary: Number(salary) || 0,
-      }),
-    });
+  const fallback = {
+    jobs: [],
+    hits: 0,
+    pages: 0,
+    isSampleFeed: false,
+  };
 
-    if (!response.ok) {
-      console.warn(`[Jooble API] Response ${response.status}`);
+  return await joobleBreaker.execute(async () => {
+    return await outboundApiSemaphore.run(async () => {
+      const endpoint = `https://id.jooble.org/api/${apiKey}`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(3500),
+        body: JSON.stringify({
+          keywords: keywords || 'Indonesia',
+          location: location || 'Indonesia',
+          page: Number(page) || 1,
+          salary: Number(salary) || 0,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Jooble API HTTP error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const rawJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+      const totalCount = Number(data?.totalCount) || rawJobs.length;
+
       return {
-        jobs: [],
-        hits: 0,
-        pages: 0,
+        jobs: rawJobs.map(normalizeJoobleJob),
+        hits: totalCount,
+        pages: Math.ceil(totalCount / 20) || 1,
         isSampleFeed: false,
       };
-    }
-
-    const data = await response.json();
-    const rawJobs = Array.isArray(data?.jobs) ? data.jobs : [];
-    const totalCount = Number(data?.totalCount) || rawJobs.length;
-
-    return {
-      jobs: rawJobs.map(normalizeJoobleJob),
-      hits: totalCount,
-      pages: Math.ceil(totalCount / 20) || 1,
-      isSampleFeed: false,
-    };
-  } catch (error) {
-    console.warn('[Jooble API] Fetch failed:', error.message);
-    return {
-      jobs: [],
-      hits: 0,
-      pages: 0,
-      isSampleFeed: false,
-    };
-  }
+    });
+  }, fallback);
 }
 
 export { JoobleProxyError };
+

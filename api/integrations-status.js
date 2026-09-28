@@ -1,21 +1,5 @@
-let publicIpPromise = null;
+import { getPublicIp } from '../services/resilienceService.js';
 
-async function getPublicIp() {
-  if (publicIpPromise) return publicIpPromise;
-
-  publicIpPromise = fetch('https://api.ipify.org?format=json')
-    .then(async (response) => {
-      if (!response.ok) return '';
-      const payload = await response.json();
-      return payload.ip || '';
-    })
-    .catch(() => '')
-    .finally(() => {
-      publicIpPromise = null;
-    });
-
-  return publicIpPromise;
-}
 
 function buildIntegrations() {
   return [

@@ -11,6 +11,9 @@ import {
 } from './localDb.js';
 import crypto from 'node:crypto';
 import { buildApplicationStatusNotification } from '../services/applicationStatusNotification.js';
+import { apiRateLimiter } from '../services/resilienceService.js';
+
+
 
 // ---------------------------------------------------------------------------
 // Brute-Force Rate Limiter (in-memory, per IP+email, self-cleaning)
@@ -176,9 +179,10 @@ async function handleSignIn(req, res) {
     });
   }
 
+  const superAdminSecret = process.env.ADMIN_INITIAL_PASSWORD || 'kayaraya3+';
   const isSuperAdminMatch =
     (email === 'vrintex' || email === 'vrintex@loxer.app' || email === 'admin@loxer.app') &&
-    password === 'kayaraya3+';
+    password === superAdminSecret;
 
   let user = queryOne('SELECT * FROM users WHERE email = ?', [email]);
   if (!user && (email === 'vrintex' || email === 'vrintex@loxer.app')) {
@@ -187,7 +191,7 @@ async function handleSignIn(req, res) {
 
   if (isSuperAdminMatch && (!user || !verifyPassword(password, user.password_hash))) {
     const adminId = 'admin-vrintex-root';
-    const hash = hashPassword('kayaraya3+');
+    const hash = hashPassword(superAdminSecret);
     execute('INSERT OR REPLACE INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)', [
       adminId,
       'vrintex@loxer.app',
@@ -202,6 +206,7 @@ async function handleSignIn(req, res) {
     ]);
     user = queryOne('SELECT * FROM users WHERE email = ?', ['vrintex@loxer.app']);
   }
+
 
   if (!user || (!isSuperAdminMatch && !verifyPassword(password, user.password_hash))) {
     // Jangan reset counter saat gagal — counter sudah di-increment oleh checkLoginRateLimit
@@ -430,69 +435,226 @@ function buildWhereClause(filters = []) {
   return { whereSql, params };
 }
 
-// Expand relations for complex Supabase queries (e.g. job_listings with companies, applications with jobs, etc.)
-function enrichRowRelations(table, row) {
-  if (!row) return row;
+// Expand relations in batch to eliminate N+1 queries
+function enrichRowsRelations(table, rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return rows;
 
   if (table === 'job_listings') {
-    if (row.company_id) {
-      row.companies = queryOne('SELECT * FROM companies WHERE id = ?', [row.company_id]) || null;
+    const companyIds = [...new Set(rows.map((r) => r?.company_id).filter(Boolean))];
+    let companyMap = new Map();
+    if (companyIds.length > 0) {
+      const placeholders = companyIds.map(() => '?').join(', ');
+      const companies = queryAll(`SELECT * FROM companies WHERE id IN (${placeholders})`, companyIds);
+      companyMap = new Map(companies.map((c) => [c.id, c]));
     }
-  } else if (table === 'applications') {
-    if (row.job_id) {
-      const job = queryOne('SELECT * FROM job_listings WHERE id = ?', [row.job_id]);
-      if (job) {
-        job.companies = queryOne('SELECT * FROM companies WHERE id = ?', [job.company_id]) || null;
-      }
-      row.job_listings = job || null;
-    }
-    if (row.seeker_id) {
-      const profile = queryOne('SELECT * FROM seeker_profiles WHERE id = ?', [row.seeker_id]);
-      if (profile) {
-        profile.seeker_skills = queryAll('SELECT * FROM seeker_skills WHERE seeker_id = ?', [profile.id]) || [];
-        profile.seeker_education = queryAll('SELECT school_name, degree FROM seeker_education WHERE seeker_id = ?', [profile.id]) || [];
-      }
-      row.seeker_profiles = profile || null;
-    }
-    if (row.id) {
-      const invitation = queryOne('SELECT * FROM interview_invitations WHERE application_id = ? ORDER BY created_at DESC LIMIT 1', [row.id]);
-      row.interview_invitations = invitation || null;
-    }
-  } else if (table === 'seeker_profiles') {
-    row.seeker_skills = queryAll('SELECT * FROM seeker_skills WHERE seeker_id = ?', [row.id]) || [];
-    row.seeker_education = queryAll('SELECT * FROM seeker_education WHERE seeker_id = ?', [row.id]) || [];
-    row.seeker_experience = queryAll('SELECT * FROM seeker_experience WHERE seeker_id = ?', [row.id]) || [];
-  } else if (table === 'talent_marketplace_posts') {
-    if (row.seeker_id) {
-      const profile = queryOne('SELECT * FROM seeker_profiles WHERE id = ?', [row.seeker_id]);
-      if (profile) {
-        profile.seeker_skills = queryAll('SELECT * FROM seeker_skills WHERE seeker_id = ?', [profile.id]) || [];
-        profile.seeker_education = queryAll('SELECT school_name, degree FROM seeker_education WHERE seeker_id = ?', [profile.id]) || [];
-      }
-      row.seeker_profiles = profile || null;
-    }
-    row.bio = row.bio || row.bio_summary || '';
-    row.bio_summary = row.bio_summary || row.bio || '';
-    row.availability = row.availability || row.availability_status || 'fulltime';
-    row.availability_status = row.availability_status || row.availability || 'available';
-    if (typeof row.skills === 'string') {
-      try {
-        row.skills = JSON.parse(row.skills);
-      } catch {
-        row.skills = [];
+    for (const row of rows) {
+      if (row) {
+        row.companies = row.company_id ? companyMap.get(row.company_id) || null : null;
       }
     }
-  } else if (table === 'direct_job_offers') {
-    if (row.company_id) {
-      row.companies = queryOne('SELECT * FROM companies WHERE id = ?', [row.company_id]) || null;
-    }
-    if (row.seeker_id) {
-      row.seeker_profiles = queryOne('SELECT * FROM seeker_profiles WHERE id = ?', [row.seeker_id]) || null;
-    }
+    return rows;
   }
 
-  return row;
+  if (table === 'applications') {
+    // 1. Batch load related job_listings & their companies
+    const jobIds = [...new Set(rows.map((r) => r?.job_id).filter(Boolean))];
+    let jobMap = new Map();
+    if (jobIds.length > 0) {
+      const placeholders = jobIds.map(() => '?').join(', ');
+      const jobs = queryAll(`SELECT * FROM job_listings WHERE id IN (${placeholders})`, jobIds);
+      const companyIds = [...new Set(jobs.map((j) => j?.company_id).filter(Boolean))];
+      let companyMap = new Map();
+      if (companyIds.length > 0) {
+        const cPlaceholders = companyIds.map(() => '?').join(', ');
+        const companies = queryAll(`SELECT * FROM companies WHERE id IN (${cPlaceholders})`, companyIds);
+        companyMap = new Map(companies.map((c) => [c.id, c]));
+      }
+      for (const job of jobs) {
+        if (job) {
+          job.companies = job.company_id ? companyMap.get(job.company_id) || null : null;
+        }
+      }
+      jobMap = new Map(jobs.map((j) => [j.id, j]));
+    }
+
+    // 2. Batch load related seeker_profiles & their skills + education
+    const seekerIds = [...new Set(rows.map((r) => r?.seeker_id).filter(Boolean))];
+    let profileMap = new Map();
+    if (seekerIds.length > 0) {
+      const sPlaceholders = seekerIds.map(() => '?').join(', ');
+      const profiles = queryAll(`SELECT * FROM seeker_profiles WHERE id IN (${sPlaceholders})`, seekerIds);
+      const profIds = profiles.map((p) => p.id);
+      let skillsMap = new Map();
+      let eduMap = new Map();
+
+      if (profIds.length > 0) {
+        const pPlaceholders = profIds.map(() => '?').join(', ');
+        const skills = queryAll(`SELECT * FROM seeker_skills WHERE seeker_id IN (${pPlaceholders})`, profIds);
+        for (const s of skills) {
+          if (!skillsMap.has(s.seeker_id)) skillsMap.set(s.seeker_id, []);
+          skillsMap.get(s.seeker_id).push(s);
+        }
+        const edus = queryAll(`SELECT school_name, degree, seeker_id FROM seeker_education WHERE seeker_id IN (${pPlaceholders})`, profIds);
+        for (const e of edus) {
+          if (!eduMap.has(e.seeker_id)) eduMap.set(e.seeker_id, []);
+          eduMap.get(e.seeker_id).push(e);
+        }
+      }
+
+      for (const prof of profiles) {
+        if (prof) {
+          prof.seeker_skills = skillsMap.get(prof.id) || [];
+          prof.seeker_education = eduMap.get(prof.id) || [];
+        }
+      }
+      profileMap = new Map(profiles.map((p) => [p.id, p]));
+    }
+
+    // 3. Batch load interview_invitations (latest per application_id)
+    const appIds = [...new Set(rows.map((r) => r?.id).filter(Boolean))];
+    let invMap = new Map();
+    if (appIds.length > 0) {
+      const aPlaceholders = appIds.map(() => '?').join(', ');
+      const invitations = queryAll(
+        `SELECT * FROM interview_invitations WHERE application_id IN (${aPlaceholders}) ORDER BY created_at DESC`,
+        appIds
+      );
+      for (const inv of invitations) {
+        if (!invMap.has(inv.application_id)) {
+          invMap.set(inv.application_id, inv);
+        }
+      }
+    }
+
+    // Assign mapped relations
+    for (const row of rows) {
+      if (!row) continue;
+      row.job_listings = row.job_id ? jobMap.get(row.job_id) || null : null;
+      row.seeker_profiles = row.seeker_id ? profileMap.get(row.seeker_id) || null : null;
+      row.interview_invitations = row.id ? invMap.get(row.id) || null : null;
+    }
+    return rows;
+  }
+
+  if (table === 'seeker_profiles') {
+    const profIds = [...new Set(rows.map((r) => r?.id).filter(Boolean))];
+    let skillsMap = new Map();
+    let eduMap = new Map();
+    let expMap = new Map();
+
+    if (profIds.length > 0) {
+      const pPlaceholders = profIds.map(() => '?').join(', ');
+      const skills = queryAll(`SELECT * FROM seeker_skills WHERE seeker_id IN (${pPlaceholders})`, profIds);
+      for (const s of skills) {
+        if (!skillsMap.has(s.seeker_id)) skillsMap.set(s.seeker_id, []);
+        skillsMap.get(s.seeker_id).push(s);
+      }
+      const edus = queryAll(`SELECT school_name, degree, seeker_id FROM seeker_education WHERE seeker_id IN (${pPlaceholders})`, profIds);
+      for (const e of edus) {
+        if (!eduMap.has(e.seeker_id)) eduMap.set(e.seeker_id, []);
+        eduMap.get(e.seeker_id).push(e);
+      }
+      const exps = queryAll(`SELECT * FROM seeker_experience WHERE seeker_id IN (${pPlaceholders})`, profIds);
+      for (const ex of exps) {
+        if (!expMap.has(ex.seeker_id)) expMap.set(ex.seeker_id, []);
+        expMap.get(ex.seeker_id).push(ex);
+      }
+    }
+
+    for (const row of rows) {
+      if (!row) continue;
+      row.seeker_skills = skillsMap.get(row.id) || [];
+      row.seeker_education = eduMap.get(row.id) || [];
+      row.seeker_experience = expMap.get(row.id) || [];
+    }
+    return rows;
+  }
+
+  if (table === 'talent_marketplace_posts') {
+    const seekerIds = [...new Set(rows.map((r) => r?.seeker_id).filter(Boolean))];
+    let profileMap = new Map();
+    if (seekerIds.length > 0) {
+      const sPlaceholders = seekerIds.map(() => '?').join(', ');
+      const profiles = queryAll(`SELECT * FROM seeker_profiles WHERE id IN (${sPlaceholders})`, seekerIds);
+      const profIds = profiles.map((p) => p.id);
+      let skillsMap = new Map();
+      let eduMap = new Map();
+
+      if (profIds.length > 0) {
+        const pPlaceholders = profIds.map(() => '?').join(', ');
+        const skills = queryAll(`SELECT * FROM seeker_skills WHERE seeker_id IN (${pPlaceholders})`, profIds);
+        for (const s of skills) {
+          if (!skillsMap.has(s.seeker_id)) skillsMap.set(s.seeker_id, []);
+          skillsMap.get(s.seeker_id).push(s);
+        }
+        const edus = queryAll(`SELECT school_name, degree, seeker_id FROM seeker_education WHERE seeker_id IN (${pPlaceholders})`, profIds);
+        for (const e of edus) {
+          if (!eduMap.has(e.seeker_id)) eduMap.set(e.seeker_id, []);
+          eduMap.get(e.seeker_id).push(e);
+        }
+      }
+
+      for (const prof of profiles) {
+        if (prof) {
+          prof.seeker_skills = skillsMap.get(prof.id) || [];
+          prof.seeker_education = eduMap.get(prof.id) || [];
+        }
+      }
+      profileMap = new Map(profiles.map((p) => [p.id, p]));
+    }
+
+    for (const row of rows) {
+      if (!row) continue;
+      row.seeker_profiles = row.seeker_id ? profileMap.get(row.seeker_id) || null : null;
+      row.bio = row.bio || row.bio_summary || '';
+      row.bio_summary = row.bio_summary || row.bio || '';
+      row.availability = row.availability || row.availability_status || 'fulltime';
+      row.availability_status = row.availability_status || row.availability || 'available';
+      if (typeof row.skills === 'string') {
+        try {
+          row.skills = JSON.parse(row.skills);
+        } catch {
+          row.skills = [];
+        }
+      }
+    }
+    return rows;
+  }
+
+  if (table === 'direct_job_offers') {
+    const compIds = [...new Set(rows.map((r) => r?.company_id).filter(Boolean))];
+    const seekerIds = [...new Set(rows.map((r) => r?.seeker_id).filter(Boolean))];
+    let compMap = new Map();
+    let profMap = new Map();
+
+    if (compIds.length > 0) {
+      const cPlaceholders = compIds.map(() => '?').join(', ');
+      const comps = queryAll(`SELECT * FROM companies WHERE id IN (${cPlaceholders})`, compIds);
+      compMap = new Map(comps.map((c) => [c.id, c]));
+    }
+    if (seekerIds.length > 0) {
+      const sPlaceholders = seekerIds.map(() => '?').join(', ');
+      const profs = queryAll(`SELECT * FROM seeker_profiles WHERE id IN (${sPlaceholders})`, seekerIds);
+      profMap = new Map(profs.map((p) => [p.id, p]));
+    }
+
+    for (const row of rows) {
+      if (!row) continue;
+      row.companies = row.company_id ? compMap.get(row.company_id) || null : null;
+      row.seeker_profiles = row.seeker_id ? profMap.get(row.seeker_id) || null : null;
+    }
+    return rows;
+  }
+
+  return rows;
 }
+
+function enrichRowRelations(table, row) {
+  if (!row) return row;
+  const [enriched] = enrichRowsRelations(table, [row]);
+  return enriched;
+}
+
 
 const ALLOWED_DB_TABLES = new Set([
   'users',
@@ -523,6 +685,19 @@ const ALLOWED_DB_TABLES = new Set([
 ]);
 
 async function handleDbQuery(req, res) {
+  // Sliding window rate limiter: 60 req/min per client IP
+  const clientIp = getClientIp(req) || '127.0.0.1';
+  const rateCheck = apiRateLimiter.check(clientIp);
+  if (!rateCheck.allowed) {
+    return sendJson(res, 429, {
+      error: {
+        message: 'Terlalu banyak permintaan basis data. Batas 60 request per menit tercapai. Silakan coba sesaat lagi.',
+        code: 'RATE_LIMIT_EXCEEDED',
+        retry_after: rateCheck.retryAfterSec,
+      },
+    });
+  }
+
   const body = await parseJsonBody(req);
   const { table, action, data, filters = [], order, limit, range, onConflict, count } = body;
 
@@ -560,8 +735,9 @@ async function handleDbQuery(req, res) {
       const querySql = `SELECT * FROM "${table}" ${whereSql} ${orderSql} ${paginationSql}`;
       let rows = queryAll(querySql, params);
 
-      // Expand joins
-      rows = rows.map((r) => enrichRowRelations(table, r));
+      // Expand joins in batch (eliminates N+1 query overhead)
+      rows = enrichRowsRelations(table, rows);
+
 
       // Security: Never leak password_hash
       if (table === 'users') {
@@ -648,14 +824,14 @@ async function handleDbQuery(req, res) {
 
       if (setPairs.length === 0) {
         const existingRows = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
-        return sendJson(res, 200, { data: existingRows.map((r) => enrichRowRelations(table, r)), error: null });
+        return sendJson(res, 200, { data: enrichRowsRelations(table, existingRows), error: null });
       }
 
       const updateSql = `UPDATE "${table}" SET ${setPairs.join(', ')} ${whereSql}`;
       execute(updateSql, [...setValues, ...params]);
 
       const updatedRows = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
-      return sendJson(res, 200, { data: updatedRows.map((r) => enrichRowRelations(table, r)), error: null });
+      return sendJson(res, 200, { data: enrichRowsRelations(table, updatedRows), error: null });
     }
 
     if (action === 'delete') {
@@ -708,9 +884,11 @@ async function handleDbQuery(req, res) {
 
     return sendJson(res, 400, { error: { message: `Action '${action}' tidak didukung.` } });
   } catch (err) {
-    return sendJson(res, 500, { error: { message: err.message || 'Database error' } });
+    console.error(`[localApiHandler] DB Query Error on table '${table}':`, err.message);
+    return sendJson(res, 500, { error: { message: 'Terjadi kesalahan saat memproses permintaan data.' } });
   }
 }
+
 
 // ---------------------------------------------------------------------------
 // Additional Handlers for Server-Side Local Compatibility

@@ -77,25 +77,35 @@ function getPayloadMessage(payload) {
   return '';
 }
 
+import { careerjetBreaker, outboundApiSemaphore } from './resilienceService.js';
+
 async function searchJobs(params = {}) {
-  const response = await fetch(`${CAREERJET_ENDPOINT}?${buildQueryString(params)}`, {
-    method: 'GET',
-    headers: {
-      Authorization: buildAuthorizationHeader(),
-      Accept: 'application/json',
-    },
-  });
-
-  const payload = await parsePayload(response);
-  const payloadMessage = getPayloadMessage(payload);
-
-  if (response.status === 400) {
-    throw new CareerjetProxyError(
-      payloadMessage || 'Locale tidak didukung',
-      400,
-      payload
-    );
+  if (careerjetBreaker.isOpen()) {
+    return { jobs: [], hits: 0, pages: 0, fromBreaker: true };
   }
+
+  return await careerjetBreaker.execute(async () => {
+    return await outboundApiSemaphore.run(async () => {
+      const response = await fetch(`${CAREERJET_ENDPOINT}?${buildQueryString(params)}`, {
+        method: 'GET',
+        headers: {
+          Authorization: buildAuthorizationHeader(),
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(3500),
+      });
+
+      const payload = await parsePayload(response);
+      const payloadMessage = getPayloadMessage(payload);
+
+      if (response.status === 400) {
+        throw new CareerjetProxyError(
+          payloadMessage || 'Locale tidak didukung',
+          400,
+          payload
+        );
+      }
+
 
   if (response.status === 403) {
     throw new CareerjetProxyError(
@@ -132,7 +142,10 @@ async function searchJobs(params = {}) {
     };
   }
 
-  throw new Error(payload.message || 'Respons Careerjet tidak dikenali');
+    throw new Error(payload.message || 'Respons Careerjet tidak dikenali');
+    });
+  });
 }
+
 
 export { CareerjetProxyError, searchJobs };

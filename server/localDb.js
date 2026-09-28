@@ -25,7 +25,12 @@ export function getLocalDb() {
 
     dbInstance = new DatabaseSync(DB_FILE);
     dbInstance.exec('PRAGMA journal_mode = WAL;');
+    dbInstance.exec('PRAGMA synchronous = NORMAL;');
+    dbInstance.exec('PRAGMA busy_timeout = 5000;');
+    dbInstance.exec('PRAGMA cache_size = -64000;');
+    dbInstance.exec('PRAGMA temp_store = MEMORY;');
     dbInstance.exec('PRAGMA foreign_keys = ON;');
+
 
     // Auto-init schema if tables don't exist
     if (fs.existsSync(SCHEMA_FILE)) {
@@ -121,8 +126,12 @@ export function getLocalDb() {
         CREATE INDEX IF NOT EXISTS idx_job_listings_title ON job_listings(title);
         CREATE INDEX IF NOT EXISTS idx_job_listings_location ON job_listings(location_city);
         CREATE INDEX IF NOT EXISTS idx_job_listings_category ON job_listings(category);
+        CREATE INDEX IF NOT EXISTS idx_job_listings_status ON job_listings(status);
+        CREATE INDEX IF NOT EXISTS idx_job_listings_company_id ON job_listings(company_id);
+        CREATE INDEX IF NOT EXISTS idx_job_listings_created_at ON job_listings(created_at);
         CREATE INDEX IF NOT EXISTS idx_talent_posts_headline ON talent_marketplace_posts(headline);
         CREATE INDEX IF NOT EXISTS idx_talent_posts_category ON talent_marketplace_posts(category);
+
       `);
     } catch {
       // ignore
@@ -234,26 +243,76 @@ export function verifyToken(token) {
 }
 
 // ---------------------------------------------------------------------------
-// Database Operations Helper
+// Database Operations Helper & Statement Caching Engine
 // ---------------------------------------------------------------------------
 
+const statementCache = new Map();
+const MAX_STATEMENT_CACHE_ENTRIES = 250;
+
+export function clearStatementCache() {
+  statementCache.clear();
+}
+
+function getCachedStatement(db, sql) {
+  let stmt = statementCache.get(sql);
+  if (!stmt) {
+    if (statementCache.size >= MAX_STATEMENT_CACHE_ENTRIES) {
+      const oldestKey = statementCache.keys().next().value;
+      if (oldestKey) statementCache.delete(oldestKey);
+    }
+    stmt = db.prepare(sql);
+    statementCache.set(sql, stmt);
+  }
+  return stmt;
+}
+
+function runWithBusyRetry(operation, maxRetries = 3, backoffs = [50, 150, 300]) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return operation();
+    } catch (err) {
+      const isBusy =
+        err &&
+        (err.code === 'SQLITE_BUSY' ||
+          (typeof err.message === 'string' && err.message.toLowerCase().includes('busy')));
+
+      if (isBusy && attempt < maxRetries) {
+        const delayMs = backoffs[attempt] || 100;
+        const start = Date.now();
+        while (Date.now() - start < delayMs) {
+          // Synchronous sleep spin-wait for busy backoff
+        }
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 export function queryOne(sql, params = []) {
-  const db = getLocalDb();
-  const stmt = db.prepare(sql);
-  return stmt.get(...params);
+  return runWithBusyRetry(() => {
+    const db = getLocalDb();
+    const stmt = getCachedStatement(db, sql);
+    return stmt.get(...params);
+  });
 }
 
 export function queryAll(sql, params = []) {
-  const db = getLocalDb();
-  const stmt = db.prepare(sql);
-  return stmt.all(...params);
+  return runWithBusyRetry(() => {
+    const db = getLocalDb();
+    const stmt = getCachedStatement(db, sql);
+    return stmt.all(...params);
+  });
 }
 
 export function execute(sql, params = []) {
-  const db = getLocalDb();
-  const stmt = db.prepare(sql);
-  return stmt.run(...params);
+  return runWithBusyRetry(() => {
+    const db = getLocalDb();
+    const stmt = getCachedStatement(db, sql);
+    return stmt.run(...params);
+  });
 }
+
 
 // ---------------------------------------------------------------------------
 // Automated Daily Analytics Snapshot Generator

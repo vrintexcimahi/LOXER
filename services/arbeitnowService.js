@@ -30,54 +30,57 @@ function normalizeArbeitnowJob(job) {
   };
 }
 
+import { arbeitnowBreaker, outboundApiSemaphore } from './resilienceService.js';
+
 export async function searchArbeitnowJobs(params = {}) {
   const { keywords = '', location = '', page = 1 } = params;
+  const fallback = {
+    jobs: [],
+    hits: 0,
+    pages: 0,
+  };
 
-  try {
-    const response = await fetch(`${ARBEITNOW_ENDPOINT}?page=${page}`, {
-      headers: {
-        Accept: 'application/json',
-      },
+  return await arbeitnowBreaker.execute(async () => {
+    return await outboundApiSemaphore.run(async () => {
+      const response = await fetch(`${ARBEITNOW_ENDPOINT}?page=${page}`, {
+        headers: {
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(3500),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Arbeitnow API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      let rawJobs = Array.isArray(data?.data) ? data.data : [];
+
+      if (keywords) {
+        const kw = keywords.toLowerCase();
+        rawJobs = rawJobs.filter((job) =>
+          (job.title || '').toLowerCase().includes(kw) ||
+          (job.company_name || '').toLowerCase().includes(kw) ||
+          (job.tags || []).some((t) => t.toLowerCase().includes(kw))
+        );
+      }
+
+      if (location) {
+        const loc = location.toLowerCase();
+        rawJobs = rawJobs.filter((job) =>
+          (job.location || '').toLowerCase().includes(loc) ||
+          (loc.includes('remote') && job.remote)
+        );
+      }
+
+      const normalized = rawJobs.map(normalizeArbeitnowJob);
+
+      return {
+        jobs: normalized,
+        hits: data?.meta?.total || normalized.length,
+        pages: data?.meta?.last_page || 1,
+      };
     });
-
-    if (!response.ok) {
-      throw new Error(`Arbeitnow API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    let rawJobs = Array.isArray(data?.data) ? data.data : [];
-
-    if (keywords) {
-      const kw = keywords.toLowerCase();
-      rawJobs = rawJobs.filter((job) =>
-        (job.title || '').toLowerCase().includes(kw) ||
-        (job.company_name || '').toLowerCase().includes(kw) ||
-        (job.tags || []).some((t) => t.toLowerCase().includes(kw))
-      );
-    }
-
-    if (location) {
-      const loc = location.toLowerCase();
-      rawJobs = rawJobs.filter((job) =>
-        (job.location || '').toLowerCase().includes(loc) ||
-        (loc.includes('remote') && job.remote)
-      );
-    }
-
-    const normalized = rawJobs.map(normalizeArbeitnowJob);
-
-    return {
-      jobs: normalized,
-      hits: data?.meta?.total || normalized.length,
-      pages: data?.meta?.last_page || 1,
-    };
-  } catch (error) {
-    console.warn('[Arbeitnow] Fetch failed:', error.message);
-    return {
-      jobs: [],
-      hits: 0,
-      pages: 0,
-      error: error.message,
-    };
-  }
+  }, fallback);
 }
+

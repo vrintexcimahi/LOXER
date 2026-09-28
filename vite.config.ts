@@ -6,8 +6,7 @@ import { searchUnifiedJobs } from './services/unifiedJobService.js';
 import { searchJoobleJobs } from './services/joobleService.js';
 import { buildApplicationStatusNotification } from './services/applicationStatusNotification.js';
 import { createLocalDbMiddleware } from './server/localApiHandler.js';
-
-let publicIpPromise: Promise<string> | null = null;
+import { getPublicIp, apiRateLimiter } from './services/resilienceService.js';
 
 function getForwardedIp(req: IncomingMessage) {
   const forwardedFor = req.headers['x-forwarded-for'];
@@ -39,35 +38,6 @@ function isLocalIp(ip: string) {
     ip.startsWith('fe80:') ||
     ip.startsWith('::ffff:192.168.')
   );
-}
-
-let cachedPublicIp = '';
-let cachedPublicIpAt = 0;
-const PUBLIC_IP_CACHE_MS = 15 * 60 * 1000;
-
-async function getPublicIp() {
-  if (cachedPublicIp && Date.now() - cachedPublicIpAt < PUBLIC_IP_CACHE_MS) {
-    return cachedPublicIp;
-  }
-  if (publicIpPromise) return publicIpPromise;
-
-  publicIpPromise = fetch('https://api.ipify.org?format=json')
-    .then(async (response) => {
-      if (!response.ok) return '';
-      const payload = await response.json();
-      const ip = payload.ip || '';
-      if (ip) {
-        cachedPublicIp = ip;
-        cachedPublicIpAt = Date.now();
-      }
-      return ip;
-    })
-    .catch(() => '')
-    .finally(() => {
-      publicIpPromise = null;
-    });
-
-  return publicIpPromise;
 }
 
 async function resolveClientIp(req: IncomingMessage) {
@@ -126,6 +96,19 @@ function createApiJobsMiddleware(env: Record<string, string>) {
       response.status(405).json({ message: 'Method tidak didukung' });
       return;
     }
+
+    // Sliding window rate limiter: 60 req/min per client IP
+    const clientIp = getForwardedIp(req) || '127.0.0.1';
+    const rateCheck = apiRateLimiter.check(clientIp);
+    if (!rateCheck.allowed) {
+      response.status(429).json({
+        message: 'Terlalu banyak permintaan pencarian lowongan. Batas 60 request per menit tercapai. Silakan coba sesaat lagi.',
+        code: 'RATE_LIMIT_EXCEEDED',
+        retry_after: rateCheck.retryAfterSec,
+      });
+      return;
+    }
+
 
     try {
       const userAgent = query.user_agent || req.headers['user-agent'] || '';
