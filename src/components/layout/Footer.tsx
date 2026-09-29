@@ -71,6 +71,16 @@ export default function Footer() {
                   </a>
                 </li>
               ))}
+              <li>
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('loxer:open-cache-settings'))}
+                  className="text-slate-500 hover:text-cyan-400 text-sm transition-colors text-left cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Cache Browser</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Cepat</span>
+                </button>
+              </li>
             </ul>
           </div>
         </div>

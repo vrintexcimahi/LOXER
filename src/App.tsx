@@ -11,6 +11,7 @@ import { UserRole } from './lib/types';
 import Homepage from './pages/Homepage';
 import OfflineIndicator from './components/pwa/OfflineIndicator';
 import PwaUpdateNotification from './components/pwa/PwaUpdateNotification';
+import BrowserCachePrompt from './components/pwa/BrowserCachePrompt';
 import PublicMobileBottomNav from './components/layout/PublicMobileBottomNav';
 
 const AuthModal = lazy(() => import('./pages/auth/AuthModal'));
@@ -245,6 +246,7 @@ VITE_SUPABASE_ANON_KEY=...`}
     <>
       <OfflineIndicator />
       <PwaUpdateNotification />
+      <BrowserCachePrompt />
       {page ? (
         <Suspense fallback={<FullScreenLoader message="Menyiapkan halaman..." />}>
           {page}
