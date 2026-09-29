@@ -247,7 +247,6 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
       ...(effectiveRole === 'superadmin' ? [
         { key: 'broadcast', label: 'Broadcast System', description: 'Kirim notifikasi ke segmen user', href: '/admin/broadcast', icon: Megaphone },
         { key: 'security', label: 'Security Center', description: 'IP block, session, dan alerts', href: '/admin/security', icon: Shield },
-        { key: 'editor', label: 'CMS Homepage', description: 'Visual editor halaman utama LOXER', href: '/admin/editor', icon: Sparkles },
         { key: 'monitoring', label: 'Log & Monitoring', description: 'Real-time live tail & error tracker', href: '/admin/monitoring', icon: Terminal },
         { key: 'backup', label: 'Backup Database', description: 'Ekspor, restore & Telegram bot harian', href: '/admin/backup', icon: Database },
         { key: 'dev-workbench', label: 'Developer Mode', description: 'Dual-view workbench (mobile & desktop)', href: '/admin/dev-workbench', icon: Smartphone }
@@ -2507,7 +2506,7 @@ interface IntegratedJobItem {
 }
 
 function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, message: string) => void }) {
-  const [provider, setProvider] = useState<'all' | 'internal' | 'jooble' | 'arbeitnow'>('all');
+  const [provider, setProvider] = useState<'all' | 'internal' | 'arbeitnow'>('all');
   const [keyword, setKeyword] = useState('');
   const [location, setLocation] = useState('Indonesia');
   const [loading, setLoading] = useState(false);
@@ -2523,19 +2522,11 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
       setError(null);
       const start = performance.now();
       try {
-        let url = '';
-        if (selectedProvider === 'jooble') {
-          const q = new URLSearchParams();
-          if (kw.trim()) q.set('keywords', kw.trim());
-          if (loc.trim()) q.set('location', loc.trim());
-          url = `/api/integrations/jooble?${q.toString()}`;
-        } else {
-          const q = new URLSearchParams();
-          q.set('provider', selectedProvider);
-          if (kw.trim()) q.set('keywords', kw.trim());
-          if (loc.trim()) q.set('location', loc.trim());
-          url = `/api/jobs?${q.toString()}`;
-        }
+        const q = new URLSearchParams();
+        q.set('provider', selectedProvider);
+        if (kw.trim()) q.set('keywords', kw.trim());
+        if (loc.trim()) q.set('location', loc.trim());
+        const url = `/api/jobs?${q.toString()}`;
 
         const res = await fetch(url);
         const elapsed = Math.round(performance.now() - start);
@@ -2591,7 +2582,6 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
   const providerTabs = [
     { id: 'all', label: 'Semua Feed (Unified)', desc: 'Agregator terpadu seluruh sumber', icon: Globe },
     { id: 'internal', label: 'Mitra Internal LOXER', desc: 'Loker verified employer LOXER', icon: Building2 },
-    { id: 'jooble', label: 'Jooble Indonesia', desc: 'Feed nasional via Jooble API', icon: Sparkles },
     { id: 'arbeitnow', label: 'Arbeitnow Global', desc: 'Remote & global tech jobs', icon: Briefcase },
   ] as const;
 
@@ -2753,7 +2743,6 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {jobs.map((job, idx) => {
             const isInternal = job.is_internal || job.site === 'LOXER Mitra' || (job.source || '').includes('LOXER');
-            const isJooble = (job.site || '').toLowerCase().includes('jooble') || (job.source || '').toLowerCase().includes('jooble') || (job.url || '').includes('jooble');
             const isArbeit = (job.site || '').toLowerCase().includes('arbeitnow') || (job.source || '').toLowerCase().includes('arbeitnow');
 
             return (
@@ -2782,14 +2771,12 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
                         'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md border',
                         isInternal
                           ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                          : isJooble
-                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
                           : isArbeit
                           ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
                           : 'bg-slate-700/50 text-slate-300 border-white/10'
                       )}
                     >
-                      {isInternal ? 'Mitra LOXER' : isJooble ? 'Jooble ID' : isArbeit ? 'Arbeitnow' : job.site || 'Aggregator'}
+                      {isInternal ? 'Mitra LOXER' : isArbeit ? 'Arbeitnow' : job.site || 'Aggregator'}
                     </span>
                   </div>
 
@@ -2989,9 +2976,7 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
     const start = performance.now();
     try {
       let url = `/api/jobs?provider=${provider.id}`;
-      if (provider.id === 'jooble') {
-        url = `/api/integrations/jooble?keywords=staff&location=Indonesia`;
-      } else if (provider.id === 'internal') {
+      if (provider.id === 'internal') {
         url = `/api/jobs?provider=internal`;
       } else if (provider.id === 'arbeitnow') {
         url = `/api/jobs?provider=arbeitnow`;
@@ -3041,7 +3026,7 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
           <h2 className="mt-2 text-2xl font-black text-white">Kelola semua sumber lowongan dari satu tempat</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-400">
             Halaman ini dipakai untuk memantau koneksi API, mencatat endpoint proxy LOXER, dan menyiapkan provider seperti
-            Jooble Indonesia, Mitra LOXER, Careerjet, dan Arbeitnow.
+            Mitra LOXER, Careerjet, dan Arbeitnow.
           </p>
         </div>
 
@@ -3160,15 +3145,12 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
         <p className="text-sm font-semibold text-white">Checklist Operasional Integrasi</p>
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className="rounded-lg border border-white/10 bg-slate-800/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Jooble & Mitra LOXER</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Mitra Internal LOXER</p>
             <p className="mt-2 text-sm text-slate-300">
-              1. <strong>Jooble Indonesia:</strong> Endpoint <code>/api/integrations/jooble</code> aktif dengan feed loker Indonesia.
+              1. <strong>Mitra LOXER:</strong> Mengambil postingan aktif langsung dari database employer terverifikasi.
             </p>
             <p className="mt-1 text-sm text-slate-300">
-              2. <strong>Mitra LOXER:</strong> Mengambil postingan aktif langsung dari database employer terverifikasi.
-            </p>
-            <p className="mt-1 text-sm text-slate-300">
-              3. Pasang <code>JOOBLE_API_KEY</code> di <code>.env</code> untuk beralih ke kunci produksi privat Anda kapan saja.
+              2. <strong>Sinkronisasi Real-time:</strong> Data terhubung langsung dengan sistem rekrutmen internal LOXER.
             </p>
           </div>
           <div className="rounded-lg border border-white/10 bg-slate-800/70 p-4">

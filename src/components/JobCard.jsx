@@ -134,13 +134,6 @@ function getProviderBadge(site) {
       icon: CheckCircle2,
     };
   }
-  if (normalized.includes('jooble')) {
-    return {
-      label: 'Jooble Indonesia',
-      badgeTheme: 'bg-sky-500/20 text-sky-300 border-sky-500/40 shadow-sky-500/20',
-      icon: Globe,
-    };
-  }
   if (normalized.includes('careerjet')) {
     return {
       label: 'Careerjet Regional',

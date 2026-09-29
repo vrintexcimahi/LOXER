@@ -59,7 +59,6 @@ const CORE_ITEMS: NavItem[] = [
   { href: '/admin/companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', icon: Building2 },
   { href: '/admin/logs', label: 'Audit Log', description: 'Lihat semua jejak aksi admin', icon: FileText },
   { href: '/admin/integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', icon: Link2 },
-  { href: '/admin/editor', label: 'CMS Homepage', description: 'Visual editor halaman utama LOXER', icon: Sparkles },
 ];
 
 const GOD_MODE_ITEMS: NavItem[] = [

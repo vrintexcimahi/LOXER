@@ -43,7 +43,6 @@ Wajib terisi:
 Opsional:
 
 - `CAREERJET_API_KEY`
-- `JOOBLE_API_KEY`
 - `RAPIDAPI_KEY`
 
 ## 4. Konfigurasi Project di Vercel
@@ -68,7 +67,7 @@ Setelah build selesai, buka domain preview/production lalu cek:
 - `/seeker/browse`
 - `/login`
 - `/admin/dashboard`
-- `/admin/editor`
+- `/admin/integrations`
 
 ## 6. Smoke Test Setelah Deploy
 

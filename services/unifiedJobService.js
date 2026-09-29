@@ -1,9 +1,8 @@
 /**
  * Unified Job Aggregator Service for LOXER
- * Integrates: Jooble (Indonesia), Careerjet (Regional), Arbeitnow (Public Feed), & Internal LOXER DB
+ * Integrates: Careerjet (Regional), Arbeitnow (Public Feed), & Internal LOXER DB
  */
 
-import { searchJoobleJobs } from './joobleService.js';
 import { searchArbeitnowJobs } from './arbeitnowService.js';
 import { searchJobs as searchCareerjetJobs, CareerjetProxyError } from './careerjetService.js';
 import { searchInternalJobs } from './internalJobService.js';
@@ -45,17 +44,6 @@ export async function searchUnifiedJobs(params = {}) {
     return response;
   }
 
-  if (provider === 'jooble') {
-    const result = await searchJoobleJobs({ keywords, location, page });
-    const response = {
-      jobs: result.jobs,
-      hits: result.hits,
-      pages: result.pages,
-      provider: 'jooble',
-    };
-    jobSearchCache.set(cacheKey, response);
-    return response;
-  }
 
   if (provider === 'arbeitnow') {
     const result = await searchArbeitnowJobs({ keywords, location, page });
@@ -104,16 +92,13 @@ export async function searchUnifiedJobs(params = {}) {
   }
 
   // 3. Default Aggregator Mode ('all')
-  // Concurrently fetch from internal DB + Jooble + Careerjet + Arbeitnow with Promise.allSettled
+  // Concurrently fetch from internal DB + Careerjet + Arbeitnow with Promise.allSettled
   // so slow or failing third-party providers do not stall or break healthy providers and internal listings.
   const settledResults = await Promise.allSettled([
     // A. Internal LOXER jobs (local DB)
     Promise.resolve().then(() => searchInternalJobs({ keywords, location, page })),
 
-    // B. Jooble (Indonesia Aggregator)
-    searchJoobleJobs({ keywords, location, page }),
-
-    // C. Careerjet (only if configured)
+    // B. Careerjet (only if configured)
     process.env.CAREERJET_API_KEY
       ? searchCareerjetJobs({
           keywords,
@@ -127,21 +112,19 @@ export async function searchUnifiedJobs(params = {}) {
         })
       : Promise.resolve({ jobs: [], hits: 0, pages: 0 }),
 
-    // D. Arbeitnow (Live Public Feed - 100% Real data)
+    // C. Arbeitnow (Live Public Feed - 100% Real data)
     searchArbeitnowJobs({ keywords, location, page }),
   ]);
 
-  const [internalRes, joobleRes, careerjetRes, arbeitnowRes] = settledResults;
+  const [internalRes, careerjetRes, arbeitnowRes] = settledResults;
 
   const internalResult = internalRes.status === 'fulfilled' && internalRes.value ? internalRes.value : { jobs: [], hits: 0, pages: 0 };
-  const joobleResult = joobleRes.status === 'fulfilled' && joobleRes.value ? joobleRes.value : { jobs: [], hits: 0, pages: 0 };
   const careerjetResult = careerjetRes.status === 'fulfilled' && careerjetRes.value ? careerjetRes.value : { jobs: [], hits: 0, pages: 0 };
   const arbeitnowResult = arbeitnowRes.status === 'fulfilled' && arbeitnowRes.value ? arbeitnowRes.value : { jobs: [], hits: 0, pages: 0 };
 
-  // Combine: Internal (verified) first, then Jooble, then Careerjet, then Arbeitnow
+  // Combine: Internal (verified) first, then Careerjet, then Arbeitnow
   const combinedJobs = [
     ...(internalResult.jobs || []),
-    ...(joobleResult.jobs || []),
     ...(careerjetResult.jobs || []),
     ...(arbeitnowResult.jobs || []),
   ];
@@ -160,7 +143,6 @@ export async function searchUnifiedJobs(params = {}) {
 
   const totalHits =
     (internalResult.hits || 0) +
-    (joobleResult.hits || 0) +
     (careerjetResult.hits || 0) +
     (arbeitnowResult.hits || 0);
 
@@ -169,7 +151,6 @@ export async function searchUnifiedJobs(params = {}) {
     hits: totalHits,
     pages: Math.max(
       internalResult.pages || 0,
-      joobleResult.pages || 0,
       careerjetResult.pages || 0,
       arbeitnowResult.pages || 0,
       1

@@ -1,17 +1,7 @@
 import { searchUnifiedJobs } from '../services/unifiedJobService.js';
-import { searchJoobleJobs } from '../services/joobleService.js';
 
 async function test() {
-  console.log('--- 1. Testing Jooble Service (No Key) ---');
-  const jooble = await searchJoobleJobs({ keywords: 'staff', location: 'Indonesia' });
-  console.log('Jooble jobs count:', jooble.jobs.length, 'isSampleFeed:', jooble.isSampleFeed);
-  if (jooble.jobs.length === 0) {
-    console.log('✅ PASS: Jooble correctly returns 0 jobs without key (zero dummy jobs).');
-  } else {
-    console.error('❌ FAIL: Jooble returned dummy jobs!');
-  }
-
-  console.log('\n--- 2. Testing Unified Aggregator (Real Data Only) ---');
+  console.log('--- 1. Testing Unified Aggregator (Real Data Only) ---');
   const unified = await searchUnifiedJobs({ provider: 'all' });
   console.log('Unified total hits:', unified.hits, 'Returned jobs count:', unified.jobs.length);
   

@@ -3,7 +3,6 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createClient } from '@supabase/supabase-js';
 import { searchUnifiedJobs } from './services/unifiedJobService.js';
-import { searchJoobleJobs } from './services/joobleService.js';
 import { buildApplicationStatusNotification } from './services/applicationStatusNotification.js';
 import { createLocalDbMiddleware } from './server/localApiHandler.js';
 import { getPublicIp, apiRateLimiter } from './services/resilienceService.js';
@@ -75,9 +74,6 @@ function createApiJobsMiddleware(env: Record<string, string>) {
   if (env.CAREERJET_API_KEY) {
     process.env.CAREERJET_API_KEY = env.CAREERJET_API_KEY;
   }
-  if (env.JOOBLE_API_KEY) {
-    process.env.JOOBLE_API_KEY = env.JOOBLE_API_KEY;
-  }
   if (env.RAPIDAPI_KEY) {
     process.env.RAPIDAPI_KEY = env.RAPIDAPI_KEY;
   }
@@ -144,69 +140,8 @@ function createApiJobsMiddleware(env: Record<string, string>) {
   };
 }
 
-function createJoobleApiMiddleware(env: Record<string, string>) {
-  if (env.JOOBLE_API_KEY) process.env.JOOBLE_API_KEY = env.JOOBLE_API_KEY;
-
-  return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
-    if (!req.url || !req.url.startsWith('/api/integrations/jooble')) {
-      next();
-      return;
-    }
-
-    const response = attachJsonHelpers(res);
-
-    if (req.method && req.method !== 'POST' && req.method !== 'GET') {
-      response.status(405).json({ message: 'Method tidak didukung. Gunakan GET atau POST.' });
-      return;
-    }
-
-    try {
-      let params: Record<string, unknown> = {};
-      if (req.method === 'POST') {
-        const bodyChunks: Buffer[] = [];
-        for await (const chunk of req) {
-          bodyChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        const rawBody = Buffer.concat(bodyChunks).toString('utf8');
-        try {
-          params = rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {};
-        } catch {
-          params = {};
-        }
-      } else {
-        const requestUrl = new URL(req.url, 'http://localhost');
-        params = Object.fromEntries(requestUrl.searchParams.entries());
-      }
-
-      const keywords = typeof params.keywords === 'string' ? params.keywords : typeof params.q === 'string' ? params.q : '';
-      const location = typeof params.location === 'string' ? params.location : 'Indonesia';
-      const page = Number(params.page || 1);
-      const salary = Number(params.salary || 0);
-
-      const result = await searchJoobleJobs({
-        keywords,
-        location,
-        page,
-        salary,
-      });
-
-      response.status(200).json({
-        totalCount: result.hits,
-        jobs: result.jobs,
-        pages: result.pages,
-        isSampleFeed: result.isSampleFeed,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Gagal memproses request Jooble API';
-      response.status(500).json({ message });
-    }
-  };
-}
-
-
 function createIntegrationsStatusMiddleware(env: Record<string, string>) {
   if (env.CAREERJET_API_KEY) process.env.CAREERJET_API_KEY = env.CAREERJET_API_KEY;
-  if (env.JOOBLE_API_KEY) process.env.JOOBLE_API_KEY = env.JOOBLE_API_KEY;
   if (env.RAPIDAPI_KEY) process.env.RAPIDAPI_KEY = env.RAPIDAPI_KEY;
 
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
@@ -235,17 +170,6 @@ function createIntegrationsStatusMiddleware(env: Record<string, string>) {
           docsUrl: '#',
           mode: 'database-native',
           note: 'Lowongan kerja terverifikasi langsung dari employer yang terdaftar di LOXER.',
-        },
-        {
-          id: 'jooble',
-          label: 'Jooble API (Indonesia)',
-          configured: Boolean(process.env.JOOBLE_API_KEY),
-          endpoint: '/api/integrations/jooble',
-          docsUrl: 'https://jooble.org/api/about',
-          mode: 'server-proxy',
-          note: process.env.JOOBLE_API_KEY
-            ? 'Terhubung dengan live Jooble API key (100% data riil).'
-            : 'Perlu JOOBLE_API_KEY di environment server untuk mengaktifkan live feed.',
         },
         {
           id: 'careerjet',
@@ -861,7 +785,6 @@ function createAuthCapabilitiesMiddleware(env: Record<string, string>) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiJobsMiddleware = createApiJobsMiddleware(env);
-  const joobleApiMiddleware = createJoobleApiMiddleware(env);
   const integrationsStatusMiddleware = createIntegrationsStatusMiddleware(env);
   const adminUsersMiddleware = createAdminUsersMiddleware(env);
   const ensureDefaultAdminMiddleware = createEnsureDefaultAdminMiddleware(env);
@@ -890,7 +813,6 @@ export default defineConfig(({ mode }) => {
         configureServer(server) {
           server.middlewares.use(localDbMiddleware);
           server.middlewares.use(apiJobsMiddleware);
-          server.middlewares.use(joobleApiMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
           server.middlewares.use(adminUsersMiddleware);
           server.middlewares.use(ensureDefaultAdminMiddleware);
@@ -901,7 +823,6 @@ export default defineConfig(({ mode }) => {
         configurePreviewServer(server) {
           server.middlewares.use(localDbMiddleware);
           server.middlewares.use(apiJobsMiddleware);
-          server.middlewares.use(joobleApiMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
           server.middlewares.use(adminUsersMiddleware);
           server.middlewares.use(ensureDefaultAdminMiddleware);

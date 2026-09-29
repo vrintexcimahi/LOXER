@@ -2,7 +2,6 @@ import { Briefcase, Globe2, MapPin, Search } from 'lucide-react';
 
 export const PROVIDER_OPTIONS = [
   { value: 'all', label: '🌐 Semua Sumber (Aggregator)' },
-  { value: 'jooble', label: '🇮🇩 Jooble (Loker Indonesia)' },
   { value: 'internal', label: '⭐ Mitra Internal LOXER' },
   { value: 'careerjet', label: '⚡ Careerjet Regional' },
   { value: 'arbeitnow', label: '🌍 Arbeitnow (Remote / Global)' },

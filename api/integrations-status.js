@@ -13,15 +13,6 @@ function buildIntegrations() {
       note: 'Butuh API key privat dan whitelist server IP publik.',
     },
     {
-      id: 'jooble',
-      label: 'Jooble API',
-      configured: Boolean(process.env.JOOBLE_API_KEY),
-      endpoint: '/api/integrations/jooble',
-      docsUrl: 'https://jooble.org/api/about',
-      mode: 'server-proxy',
-      note: 'Cocok untuk lowongan Indonesia, API key didapat via email.',
-    },
-    {
       id: 'arbeitnow',
       label: 'Arbeitnow API',
       configured: true,

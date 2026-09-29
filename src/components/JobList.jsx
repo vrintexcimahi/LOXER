@@ -21,7 +21,6 @@ function normalizeLocationOptions(payload) {
 
 const PROVIDER_TAGS = [
   { id: 'all', label: '🌐 Semua Sumber' },
-  { id: 'jooble', label: '🇮🇩 Jooble ID' },
   { id: 'internal', label: '⭐ Mitra LOXER' },
   { id: 'careerjet', label: '⚡ Careerjet' },
   { id: 'arbeitnow', label: '🌍 Arbeitnow' },

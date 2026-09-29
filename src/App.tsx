@@ -30,7 +30,6 @@ const FeatureFlags = lazy(() => import('./pages/admin/FeatureFlags'));
 const ModerationQueue = lazy(() => import('./pages/admin/ModerationQueue'));
 const BroadcastSystem = lazy(() => import('./pages/admin/BroadcastSystem'));
 const SecurityCenter = lazy(() => import('./pages/admin/SecurityCenter'));
-const AdminEditor = lazy(() => import('./pages/admin/AdminEditor'));
 const LogMonitoring = lazy(() => import('./pages/admin/LogMonitoring'));
 const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const DeveloperWorkbench = lazy(() => import('./pages/admin/DeveloperWorkbench'));
@@ -204,13 +203,17 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/moderation': <ModerationQueue />,
       };
       
+      if (path === '/admin/editor') {
+        window.location.href = '/admin/dashboard';
+        return null;
+      }
+
       const superPages: Record<string, JSX.Element> = {
         '/admin/logs': <AdminDashboard tab="logs" />,
         '/admin/analytics': <AdvancedAnalytics />,
         '/admin/flags': <FeatureFlags />,
         '/admin/broadcast': <BroadcastSystem />,
         '/admin/security': <SecurityCenter />,
-        '/admin/editor': <AdminEditor />,
         '/admin/monitoring': <LogMonitoring />,
         '/admin/backup': <DatabaseBackup />,
         '/admin/dev-workbench': <DeveloperWorkbench />,

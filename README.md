@@ -51,14 +51,6 @@ Status repo saat ini:
 - `lint`: pass tanpa error
 - `build`: pass
 
-## CMS Homepage
-
-- Editor admin: `/admin/editor`
-- Homepage publik: `/`
-- Fallback: jika data CMS belum ada, app akan pakai komponen `Landing`
-
-Editor homepage sekarang khusus `admin`, bukan employer.
-
 ## Setup Database
 
 Jalankan migration Supabase yang ada di folder:

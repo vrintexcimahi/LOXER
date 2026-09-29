@@ -23,7 +23,7 @@ async function parseProxyPayload(response) {
 }
 
 /**
- * Unified job search supporting Jooble, Careerjet, Arbeitnow, and Internal LOXER DB
+ * Unified job search supporting Careerjet, Arbeitnow, and Internal LOXER DB
  */
 export async function fetchUnifiedJobs(params = {}) {
   const query = buildProxyQuery({

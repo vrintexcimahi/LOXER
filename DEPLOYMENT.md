@@ -44,7 +44,6 @@ Wajib:
 Opsional:
 
 - `CAREERJET_API_KEY`
-- `JOOBLE_API_KEY`
 - `RAPIDAPI_KEY`
 
 Rekomendasi:
@@ -94,7 +93,7 @@ Route berikut sudah disiapkan di folder `api/`:
 1. Buka `/`
 2. Buka `/seeker/browse`
 3. Login admin lalu buka `/admin/dashboard`
-4. Buka `/admin/editor`
+4. Buka `/admin/integrations`
 5. Uji update status pelamar di dashboard employer
 6. Pastikan audit log masuk
 7. Pastikan notifikasi pelamar masuk
@@ -102,5 +101,4 @@ Route berikut sudah disiapkan di folder `api/`:
 ## Risiko Yang Masih Perlu Dipantau
 
 - chunk `vendor-charts` masih besar karena `recharts`
-- chunk `vendor-puck` besar, tapi sekarang hanya relevan untuk editor admin
 - observability production seperti error tracking dan alerting belum ditambahkan

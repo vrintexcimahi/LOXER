@@ -5,7 +5,6 @@ async function run() {
   const endpoints = [
     { name: 'Integrations Status', path: '/api/integrations-status' },
     { name: 'Internal Provider Jobs', path: '/api/jobs?provider=internal' },
-    { name: 'Jooble Proxy Feed', path: '/api/integrations/jooble?keywords=staff&location=Indonesia' },
     { name: 'Arbeitnow Public Feed', path: '/api/jobs?provider=arbeitnow' },
     { name: 'Unified (All) Feed', path: '/api/jobs?provider=all&keywords=developer&location=Indonesia' },
     { name: 'Careerjet Unconfigured Check', path: '/api/jobs?provider=careerjet', expectedStatus: 500 },
@@ -41,8 +40,6 @@ async function run() {
         data.integrations?.forEach(p => {
           console.log(`   - ${p.label} (${p.id}): configured=${p.configured}, mode=${p.mode}, endpoint=${p.endpoint}`);
         });
-      } else if (ep.path.includes('jooble')) {
-        console.log(`✅ [${ep.name}] Status ${res.status} (${latency}ms) - Total Hits: ${data.totalCount}, Jobs: ${data.jobs?.length}, isSampleFeed: ${data.isSampleFeed} (Dummy data removed)`);
       } else {
         const count = Array.isArray(data.jobs) ? data.jobs.length : (data.totalCount || 0);
         console.log(`✅ [${ep.name}] Status ${res.status} (${latency}ms) - Jobs returned: ${count}`);

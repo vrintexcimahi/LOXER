@@ -1,5 +1,3 @@
-import type { Data } from '@measured/puck';
-
 export type HeroSectionProps = {
   badge: string;
   title: string;
@@ -32,7 +30,10 @@ export type CtaBannerProps = {
   backgroundColor: string;
 };
 
-export type HomepageData = Data;
+export type HomepageData = {
+  root?: { props?: Record<string, any> };
+  content: Array<{ type: string; props: Record<string, any> }>;
+};
 
 export const defaultHomepageData: HomepageData = {
   root: { props: {} },
@@ -66,12 +67,12 @@ export const defaultHomepageData: HomepageData = {
     {
       type: 'CtaBanner',
       props: {
-        title: 'Siap go live dengan halaman versimu?',
-        subtitle: 'Buka /admin/editor, ubah teks, klik Publish, lalu halaman publik langsung ikut berubah.',
-        primaryButtonText: 'Buka Editor',
-        primaryButtonHref: '/admin/editor',
-        secondaryButtonText: 'Lihat Dashboard',
-        secondaryButtonHref: '/employer/dashboard',
+        title: 'Siap bergabung dengan ekosistem LOXER?',
+        subtitle: 'Temukan karir impian Anda atau rekrut talenta terbaik di seluruh Indonesia dengan mudah.',
+        primaryButtonText: 'Cari Lowongan',
+        primaryButtonHref: '/seeker/browse',
+        secondaryButtonText: 'Pasang Loker',
+        secondaryButtonHref: '/employer/post-job',
         backgroundColor: '#0b3a5b',
       },
     },

@@ -113,7 +113,7 @@ export default function Browse() {
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
               {isFreelancer
                 ? 'Temukan proyek lepas (freelance), micro-gigs, dan jasa profesional terbaik dari talent terverifikasi LOXER.'
-                : 'Pencarian terintegrasi dari Jooble Indonesia, mitra resmi terverifikasi LOXER, Careerjet, dan feed publik Arbeitnow langsung dari satu pintu.'}
+                : 'Pencarian terintegrasi dari mitra resmi terverifikasi LOXER, Careerjet, dan feed publik Arbeitnow langsung dari satu pintu.'}
             </p>
 
             {/* Quick Actions */}
@@ -136,7 +136,6 @@ export default function Browse() {
             {/* Provider stat pills */}
             <div className="pt-1 flex flex-wrap gap-2">
               {[
-                { label: 'Jooble Indonesia', color: 'text-sky-400 bg-sky-500/10 border-sky-500/20' },
                 { label: 'Mitra LOXER', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
                 { label: 'Careerjet', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
                 { label: 'Arbeitnow Global', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
