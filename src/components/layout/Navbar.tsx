@@ -20,15 +20,22 @@ const userPresenceGroups = [
     key: 'seeker',
     label: 'Seeker',
     description: 'Pencari Kerja',
-    minOnline: 1567,
-    maxOnline: 48524,
+    minOnline: 750,
+    maxOnline: 16500,
   },
   {
     key: 'employer',
     label: 'Employer',
     description: 'Perusahaan',
-    minOnline: 524,
-    maxOnline: 12524,
+    minOnline: 250,
+    maxOnline: 3500,
+  },
+  {
+    key: 'freelancer',
+    label: 'Freelancer',
+    description: 'Penyedia Jasa',
+    minOnline: 150,
+    maxOnline: 1750,
   },
 ];
 
@@ -48,10 +55,10 @@ function getStepSize(current: number, min: number, max: number) {
   const range = max - min;
   const progress = range === 0 ? 0 : (current - min) / range;
 
-  if (progress < 0.2) return Math.max(18, Math.round(range * 0.018));
-  if (progress < 0.5) return Math.max(22, Math.round(range * 0.014));
-  if (progress < 0.8) return Math.max(16, Math.round(range * 0.01));
-  return Math.max(10, Math.round(range * 0.006));
+  if (progress < 0.2) return Math.max(6, Math.round(range * 0.018));
+  if (progress < 0.5) return Math.max(8, Math.round(range * 0.014));
+  if (progress < 0.8) return Math.max(6, Math.round(range * 0.01));
+  return Math.max(4, Math.round(range * 0.006));
 }
 
 function getNextOnlineUsers(current: number, min: number, max: number) {
