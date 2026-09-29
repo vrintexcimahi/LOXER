@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check, ShieldCheck, Sparkles, Key, Briefcase } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check, ShieldCheck, Sparkles, Key, Briefcase, Wrench } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { UserRole } from '../../lib/types';
 import BrandText from '../../components/ui/BrandText';
@@ -579,16 +579,16 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
                 onClick={() => setRole('freelancer')}
                 className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-3.5 sm:p-4 transition-all duration-200 ${
                   role === 'freelancer'
-                    ? 'border-sky-500 bg-sky-50 shadow-md shadow-sky-500/10 dark:bg-sky-950/40 dark:border-sky-400'
-                    : 'border-sky-100 bg-white hover:border-sky-200 dark:bg-slate-900/60 dark:border-white/10'
+                    ? 'border-amber-500 bg-amber-50 shadow-md shadow-amber-500/10 dark:bg-amber-950/40 dark:border-amber-400'
+                    : 'border-sky-100 bg-white hover:border-amber-200 dark:bg-slate-900/60 dark:border-white/10'
                 }`}
               >
-                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${role === 'freelancer' ? 'gradient-cta' : 'bg-sky-100 dark:bg-slate-800'}`}>
-                  <Briefcase className={`w-4 h-4 sm:w-5 sm:h-5 ${role === 'freelancer' ? 'text-white' : 'text-sky-400'}`} />
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${role === 'freelancer' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30' : 'bg-amber-100 dark:bg-slate-800'}`}>
+                  <Wrench className={`w-4 h-4 sm:w-5 sm:h-5 ${role === 'freelancer' ? 'text-white' : 'text-amber-500'}`} />
                 </div>
                 <div className="text-center">
-                  <p className={`font-semibold text-xs ${role === 'freelancer' ? 'text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300'}`}>Freelancer</p>
-                  <p className="text-slate-400 text-[10px]">(Mandiri)</p>
+                  <p className={`font-semibold text-xs ${role === 'freelancer' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-600 dark:text-slate-300'}`}>Jasa</p>
+                  <p className="text-slate-400 text-[10px]">(Penyedia Jasa Mandiri)</p>
                 </div>
               </button>
 

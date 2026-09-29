@@ -57,11 +57,14 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
   const isFreelancer =
     typeof window !== 'undefined' &&
     (new URLSearchParams(window.location.search).get('preview_role') === 'freelancer' ||
+      new URLSearchParams(window.location.search).get('preview_role') === 'jasa' ||
       new URLSearchParams(window.location.search).get('category') === 'freelance' ||
+      new URLSearchParams(window.location.search).get('category') === 'jasa' ||
+      userMeta?.role === 'freelancer' ||
       window.location.pathname.includes('freelance') ||
       currentPath.includes('freelance'));
 
-  const roleBadgeLabel = isFreelancer ? 'Freelancer & Jasa' : 'Pencari Kerja';
+  const roleBadgeLabel = isFreelancer ? 'Jasa' : 'Pencari Kerja';
   const roleBadgeClass = isFreelancer
     ? 'bg-amber-500/20 border border-amber-400/40 text-amber-300 shadow-sm shadow-amber-500/20'
     : 'bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 shadow-sm shadow-cyan-500/20';
@@ -70,7 +73,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
     if (isFreelancer) {
       return [
         { label: 'Home', icon: Home, href: '/seeker/dashboard?preview_role=freelancer' },
-        { label: 'Proyek', icon: Search, href: '/seeker/browse?category=freelance&preview_role=freelancer' },
+        { label: 'Order', icon: Search, href: '/seeker/browse?category=jasa&preview_role=freelancer' },
         { label: 'Jasa Saya', icon: Sparkles, href: '/seeker/marketplace?preview_role=freelancer', isCenterAction: true },
         { label: 'Tawaran', icon: FileText, href: '/seeker/applications?preview_role=freelancer' },
         { label: 'Profil', icon: User, href: '/seeker/profile?preview_role=freelancer' },

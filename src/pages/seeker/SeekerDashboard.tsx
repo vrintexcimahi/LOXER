@@ -76,8 +76,8 @@ export default function SeekerDashboard() {
     return (
       <SeekerLayout currentPath="/seeker/dashboard">
         <div className="animate-pulse space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-sky-100 rounded-2xl" />)}
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+            {[...Array(4)].map((_, i) => <div key={i} className="h-20 sm:h-28 bg-sky-100 rounded-2xl" />)}
           </div>
         </div>
       </SeekerLayout>
@@ -86,15 +86,17 @@ export default function SeekerDashboard() {
 
   return (
     <SeekerLayout currentPath="/seeker/dashboard">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* 1 Baris 4 Grid: Stats Cards */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-6">
         {stats.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-2xl border border-sky-100 p-4 card-hover shadow-sm">
-            <div className={`w-10 h-10 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center mb-3 shadow-md`}>
-              <Icon className="w-5 h-5 text-white" />
+          <div key={label} className="bg-white rounded-2xl border border-sky-100 p-2.5 sm:p-4 card-hover shadow-sm flex flex-col justify-between">
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center mb-2 sm:mb-3 shadow-md shrink-0`}>
+              <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <div className="text-2xl font-black text-slate-800">{value}</div>
-            <div className="text-slate-500 text-xs mt-0.5">{label}</div>
+            <div>
+              <div className="text-lg sm:text-2xl font-black text-slate-800 leading-tight">{value}</div>
+              <div className="text-slate-500 text-[10px] sm:text-xs mt-0.5 truncate" title={label}>{label}</div>
+            </div>
           </div>
         ))}
       </div>

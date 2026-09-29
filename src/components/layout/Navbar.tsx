@@ -32,8 +32,8 @@ const userPresenceGroups = [
   },
   {
     key: 'freelancer',
-    label: 'Freelancer',
-    description: 'Penyedia Jasa',
+    label: 'Jasa',
+    description: 'Penyedia Jasa Mandiri',
     minOnline: 150,
     maxOnline: 1750,
   },
@@ -255,7 +255,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               />
             </a>
 
-            {/* 3. Freelancer / Jasa */}
+            {/* 3. Jasa Mandiri */}
             <a
               href="/talents?availability=freelance"
               className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
@@ -263,7 +263,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               }`}
             >
               <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Freelancer/Jasa</span>
+              <span>Jasa</span>
               <span
                 className={`absolute -bottom-1 left-0 h-0.5 bg-amber-400 transition-all duration-300 ${
                   isFreelancerActive ? 'w-full' : 'w-0 group-hover:w-full'
@@ -508,7 +508,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
                 >
                   <Zap className="w-4 h-4" />
                 </div>
-                <span className="text-[11px] font-medium leading-tight">Freelancer/Jasa</span>
+                <span className="text-[11px] font-medium leading-tight">Jasa</span>
               </a>
             </div>
 
