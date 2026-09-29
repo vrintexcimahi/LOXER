@@ -73,7 +73,8 @@ export async function searchArbeitnowJobs(params = {}) {
         const loc = location.toLowerCase();
         rawJobs = rawJobs.filter((job) =>
           (job.location || '').toLowerCase().includes(loc) ||
-          (loc.includes('remote') && job.remote)
+          (loc.includes('remote') && job.remote) ||
+          (loc.includes('indonesia') && job.remote)
         );
       }
 
