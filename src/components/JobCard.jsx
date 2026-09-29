@@ -30,30 +30,90 @@ function stripHtml(value) {
   return (value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function formatMoney(value, currencyCode = 'IDR') {
-  if (!Number.isFinite(value)) return null;
+function formatRupiah(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return null;
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
-    currency: currencyCode,
+    currency: 'IDR',
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(num);
+}
+
+function normalizeSalaryAmount(rawAmount, currencyCode = 'IDR') {
+  if (rawAmount === null || rawAmount === undefined || rawAmount === '') return null;
+  const num = Number(rawAmount);
+  if (!Number.isFinite(num) || num <= 0) return null;
+
+  const code = (currencyCode || 'IDR').toUpperCase();
+  // Standardize foreign currency to IDR for Indonesian local market
+  if (code === 'USD' || code === '$') {
+    if (num < 100000) {
+      return num * 16000;
+    }
+  } else if (code === 'EUR' || code === '€') {
+    if (num < 100000) {
+      return num * 17500;
+    }
+  }
+  return num;
 }
 
 function formatSalary(job) {
-  const min = Number(job.salary_min);
-  const max = Number(job.salary_max);
+  const minRaw = job.salary_min;
+  const maxRaw = job.salary_max;
+
+  const min = normalizeSalaryAmount(minRaw, job.salary_currency_code);
+  const max = normalizeSalaryAmount(maxRaw, job.salary_currency_code);
   const salaryLabel = SALARY_TYPE_LABELS[job.salary_type] || '';
 
-  if (Number.isFinite(min) && Number.isFinite(max)) {
-    return `${formatMoney(min, job.salary_currency_code)} - ${formatMoney(max, job.salary_currency_code)} ${salaryLabel}`.trim();
+  if (min && max) {
+    return `${formatRupiah(min)} - ${formatRupiah(max)}${salaryLabel ? ' ' + salaryLabel : ''}`.trim();
   }
-  if (Number.isFinite(min)) {
-    return `${formatMoney(min, job.salary_currency_code)} ${salaryLabel}`.trim();
+  if (min) {
+    return `Mulai ${formatRupiah(min)}${salaryLabel ? ' ' + salaryLabel : ''}`.trim();
   }
-  if (job.salary) {
-    return `${job.salary} ${salaryLabel}`.trim();
+  if (max) {
+    return `s/d ${formatRupiah(max)}${salaryLabel ? ' ' + salaryLabel : ''}`.trim();
   }
-  return 'Gaji tidak dicantumkan';
+
+  // Handle textual salary field
+  if (job.salary && typeof job.salary === 'string') {
+    const raw = job.salary.trim();
+    const lower = raw.toLowerCase();
+
+    // Check if salary text is placeholder, zero, or unstated
+    if (
+      lower === '0' ||
+      lower.includes('us$0') ||
+      lower.includes('$0') ||
+      lower.includes('rp 0') ||
+      lower.includes('rp0') ||
+      lower === 'gaji tidak dicantumkan' ||
+      lower === 'null' ||
+      lower === 'undefined' ||
+      lower === '-'
+    ) {
+      return 'Kompetitif / Sesuai Pengalaman';
+    }
+
+    // Clean any foreign currency symbol or zero fragments
+    let cleaned = raw
+      .replace(/US\$\s*0(\.00)?/gi, '')
+      .replace(/\$\s*0(\.00)?/g, '')
+      .replace(/USD/gi, 'Rp')
+      .replace(/\$/g, 'Rp ')
+      .trim();
+
+    if (!cleaned || cleaned === '-' || cleaned === 'Rp 0' || cleaned === 'Rp') {
+      return 'Kompetitif / Sesuai Pengalaman';
+    }
+
+    return `${cleaned}${salaryLabel ? ' ' + salaryLabel : ''}`.trim();
+  }
+
+  return 'Kompetitif / Sesuai Pengalaman';
 }
 
 function formatPublishedDate(value) {

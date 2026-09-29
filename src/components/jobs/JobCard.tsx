@@ -28,16 +28,18 @@ const jobTypeLabels: Record<string, string> = {
   internship: 'Magang',
 };
 
-function formatSalary(min: number, max: number) {
+function formatSalary(min?: number | null, max?: number | null) {
+  const numMin = Number(min) || 0;
+  const numMax = Number(max) || 0;
   const fmt = (n: number) => {
     if (n >= 1000000) return `${(n / 1000000).toFixed(0)}jt`;
     if (n >= 1000) return `${(n / 1000).toFixed(0)}rb`;
-    return n.toString();
+    return n.toLocaleString('id-ID');
   };
-  if (!min && !max) return 'Nego';
-  if (min && max) return `Rp ${fmt(min)} - ${fmt(max)}`;
-  if (min) return `Rp ${fmt(min)}+`;
-  return `s/d Rp ${fmt(max)}`;
+  if (numMin <= 0 && numMax <= 0) return 'Kompetitif';
+  if (numMin > 0 && numMax > 0) return `Rp ${fmt(numMin)} - ${fmt(numMax)}`;
+  if (numMin > 0) return `Mulai Rp ${fmt(numMin)}`;
+  return `s/d Rp ${fmt(numMax)}`;
 }
 
 export default function JobCard({ job, appliedJobIds = [], onApplied, onClick }: JobCardProps) {

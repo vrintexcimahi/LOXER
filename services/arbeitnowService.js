@@ -8,7 +8,11 @@ const ARBEITNOW_ENDPOINT = 'https://www.arbeitnow.com/api/job-board-api';
 
 function normalizeArbeitnowJob(job) {
   const isRemote = Boolean(job.remote);
-  const location = isRemote ? 'Remote' : job.location || 'Internasional';
+  const location = isRemote
+    ? 'Remote (Bisa dari Indonesia)'
+    : job.location
+      ? `${job.location} (Remote / Global)`
+      : 'Indonesia';
 
   return {
     title: job.title || 'Lowongan Pekerjaan',
@@ -17,7 +21,7 @@ function normalizeArbeitnowJob(job) {
     salary: 'Kompetitif / Sesuai Pengalaman',
     salary_min: null,
     salary_max: null,
-    salary_currency_code: 'USD',
+    salary_currency_code: 'IDR',
     salary_type: 'M',
     description: (job.description || '')
       .replace(/<[^>]*>/g, ' ')

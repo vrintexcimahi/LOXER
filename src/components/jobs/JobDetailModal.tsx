@@ -35,18 +35,37 @@ const JOB_TYPE_LABELS: Record<string, string> = {
   internship: 'Magang (Internship)',
 };
 
-function formatSalary(min?: number, max?: number, fallbackText?: string) {
-  if (fallbackText && fallbackText !== 'Gaji tidak dicantumkan') return fallbackText;
+function formatSalary(min?: number | null, max?: number | null, fallbackText?: string) {
+  if (fallbackText && typeof fallbackText === 'string') {
+    const trimmed = fallbackText.trim().toLowerCase();
+    if (
+      trimmed === '0' ||
+      trimmed === 'gaji tidak dicantumkan' ||
+      trimmed.includes('us$0') ||
+      trimmed.includes('$0') ||
+      trimmed.includes('rp 0') ||
+      trimmed.includes('rp0') ||
+      trimmed === 'null' ||
+      trimmed === 'undefined'
+    ) {
+      // Fall through to numeric or default
+    } else {
+      return fallbackText.replace(/US\$/gi, 'Rp ').replace(/\$/g, 'Rp ');
+    }
+  }
   const numMin = Number(min) || 0;
   const numMax = Number(max) || 0;
-  if (!numMin && !numMax) return 'Gaji Nego / Kompetitif';
+  if (numMin <= 0 && numMax <= 0) return 'Kompetitif / Sesuai Pengalaman';
   const fmt = (n: number) => {
-    if (n >= 1000000) return `${(n / 1000000).toFixed(0)} Juta`;
+    if (n >= 1000000) {
+      const millions = n / 1000000;
+      return millions % 1 === 0 ? `${millions} Juta` : `${millions.toFixed(1)} Juta`;
+    }
     if (n >= 1000) return `${(n / 1000).toFixed(0)} Ribu`;
     return n.toLocaleString('id-ID');
   };
-  if (numMin && numMax) return `Rp ${fmt(numMin)} - Rp ${fmt(numMax)} / bulan`;
-  if (numMin) return `Mulai Rp ${fmt(numMin)} / bulan`;
+  if (numMin > 0 && numMax > 0) return `Rp ${fmt(numMin)} - Rp ${fmt(numMax)} / bulan`;
+  if (numMin > 0) return `Mulai Rp ${fmt(numMin)} / bulan`;
   return `s/d Rp ${fmt(numMax)} / bulan`;
 }
 

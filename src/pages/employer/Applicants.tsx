@@ -73,10 +73,12 @@ const DATE_FILTER_OPTIONS: { value: 'all' | '7d' | '30d' | 'this_month'; label: 
 ];
 
 function formatSalary(min: number, max: number) {
+  const numMin = Number(min) || 0;
+  const numMax = Number(max) || 0;
   const fmt = (n: number) => `${Math.round(n / 1000000)}jt`;
-  if (!min && !max) return 'Nego';
-  if (min && max) return `Rp ${fmt(min)} - ${fmt(max)}`;
-  return min ? `Rp ${fmt(min)}+` : '';
+  if (numMin <= 0 && numMax <= 0) return 'Nego / Kompetitif';
+  if (numMin > 0 && numMax > 0) return `Rp ${fmt(numMin)} - ${fmt(numMax)}`;
+  return numMin > 0 ? `Rp ${fmt(numMin)}+` : '';
 }
 
 export default function Applicants() {

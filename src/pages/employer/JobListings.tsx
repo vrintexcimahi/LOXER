@@ -29,10 +29,12 @@ const JOB_TYPE_LABELS: Record<string, string> = {
 };
 
 function formatSalary(min: number, max: number) {
+  const numMin = Number(min) || 0;
+  const numMax = Number(max) || 0;
   const fmt = (n: number) => (n >= 1000000 ? `${(n / 1000000).toFixed(0)}jt` : `${(n / 1000).toFixed(0)}rb`);
-  if (!min && !max) return 'Nego';
-  if (min && max) return `Rp ${fmt(min)} - ${fmt(max)}`;
-  return min ? `Rp ${fmt(min)}+` : `s/d Rp ${fmt(max)}`;
+  if (numMin <= 0 && numMax <= 0) return 'Nego / Kompetitif';
+  if (numMin > 0 && numMax > 0) return `Rp ${fmt(numMin)} - ${fmt(numMax)}`;
+  return numMin > 0 ? `Rp ${fmt(numMin)}+` : `s/d Rp ${fmt(numMax)}`;
 }
 
 export default function JobListings() {
