@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kebijakan Privasi - LOXER</title>
+  <meta name="description" content="Kebijakan Privasi LOXER - Platform Rekrutmen Terpercaya Indonesia. Perlindungan data pribadi pengguna sesuai UU PDP dan standar Google Play Store.">
+  <link rel="icon" type="image/png" href="/branding/icon32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-primary: #0284c7;
+      --accent-hover: #0369a1;
+      --accent-glow: rgba(2, 132, 199, 0.25);
+      --badge-bg: rgba(56, 189, 248, 0.12);
+      --badge-text: #38bdf8;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.7;
+      min-height: 100vh;
+      padding: 0;
+      margin: 0;
+    }
+    .header-nav {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 1rem 1.5rem;
+    }
+    .nav-container {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.025em;
+    }
+    .brand-logo img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
+    .brand-tag {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .back-btn {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.2s;
+    }
+    .back-btn:hover {
+      color: var(--badge-text);
+    }
+    .container {
+      max-width: 960px;
+      margin: 2.5rem auto;
+      padding: 0 1.5rem 4rem;
+    }
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.15) 0%, rgba(15, 23, 42, 0) 100%);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      margin-bottom: 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-banner::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-title {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(to right, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-meta {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+    }
+    .hero-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .content-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+    }
+    h2:first-of-type {
+      margin-top: 0;
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-top: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: #cbd5e1;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    ul, ol {
+      color: #cbd5e1;
+      padding-left: 1.5rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.95rem;
+    }
+    li {
+      margin-bottom: 0.5rem;
+    }
+    strong {
+      color: #f1f5f9;
+    }
+    .info-box {
+      background: rgba(2, 132, 199, 0.1);
+      border-left: 4px solid var(--accent-primary);
+      padding: 1.25rem;
+      border-radius: 0 10px 10px 0;
+      margin: 1.5rem 0;
+      font-size: 0.925rem;
+      color: #e0f2fe;
+    }
+    .footer-section {
+      text-align: center;
+      padding: 2.5rem 0;
+      border-top: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover {
+      color: var(--badge-text);
+    }
+    @media (max-width: 640px) {
+      .content-card {
+        padding: 1.5rem;
+      }
+      .hero-title {
+        font-size: 1.75rem;
+      }
+      .hero-banner {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header-nav">
+    <div class="nav-container">
+      <a href="/" class="brand-logo">
+        <img src="/branding/icon128.png" alt="LOXER Logo">
+        <span>LOXER</span>
+        <span class="brand-tag">Privacy Policy</span>
+      </a>
+      <a href="/" class="back-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Kembali ke Beranda
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="hero-banner">
+      <h1 class="hero-title">Kebijakan Privasi</h1>
+      <div class="hero-meta">
+        <span><strong>Entitas:</strong> LOXER Indonesia (PT Vrintex Karya Mandiri)</span>
+        <span><strong>Versi:</strong> 1.2 (Pembaruan September 2026)</span>
+        <span><strong>Kepatuhan:</strong> UU PDP No. 27/2022 & Google Play Policy</span>
+      </div>
+    </div>
+
+    <div class="content-card">
+      <h2>1. Pendahuluan</h2>
+      <p>
+        Selamat datang di <strong>LOXER</strong> (layanan web dan aplikasi seluler yang dapat diakses di <a href="https://loxer.web.id" style="color:#38bdf8; text-decoration:none;">https://loxer.web.id</a> dan aplikasi resmi Google Play Store ID <code>id.web.loxer.app</code>). Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan informasi pribadi pengguna kami, baik pencari kerja maupun perusahaan pemberi kerja.
+      </p>
+      <p>
+        Kebijakan Privasi ini menjelaskan bagaimana kami mengumpulkan, menggunakan, menyimpan, memproses, dan melindungi data pribadi Anda sesuai dengan ketentuan <strong>Undang-Undang Pelindungan Data Pribadi (UU PDP No. 27 Tahun 2022)</strong> serta <strong>Google Play Developer Distribution Agreement & Data Safety Requirements</strong>.
+      </p>
+
+      <h2>2. Data Pribadi yang Kami Kumpulkan</h2>
+      <p>Dalam menyediakan ekosistem rekrutmen kerja 1-klik, LOXER mengumpulkan kategori data berikut:</p>
+      <ul>
+        <li><strong>Informasi Identitas & Akun:</strong> Nama lengkap, alamat email aktif, nomor telepon/WhatsApp, foto profil, dan kredensial autentikasi.</li>
+        <li><strong>Data Portofolio & Profesional:</strong> Riwayat pekerjaan, pendidikan, keahlian teknis (skills), resume/CV digital, portofolio proyek, sertifikasi, serta preferensi gaji dan lokasi kerja.</li>
+        <li><strong>Riwayat Lamaran & Komunikasi:</strong> Status lamaran pekerjaan, korespondensi dengan perekrut/perusahaan, dan catatan wawancara kerja.</li>
+        <li><strong>Informasi Perangkat & Akses Teknis:</strong> Alamat IP, identifier perangkat Android (Android ID untuk keperluan TWA), jenis peramban (browser), sistem operasi, cookies sesi, dan cache PWA.</li>
+      </ul>
+
+      <div class="info-box">
+        <strong>Pemberitahuan Khusus:</strong> LOXER tidak pernah meminta data finansial sensitif seperti nomor kartu kredit, PIN rekening bank, maupun data pribadi non-relevan lainnya sebagai syarat melamar pekerjaan.
+      </div>
+
+      <h2>3. Tujuan Pemrosesan Data</h2>
+      <p>Data pribadi yang dikumpulkan digunakan secara eksklusif untuk tujuan sah berikut:</p>
+      <ol>
+        <li>Menghubungkan pencari kerja dengan lowongan kerja terverifikasi dan perusahaan mitra di seluruh Indonesia.</li>
+        <li>Memfasilitasi sistem pelamaran kerja instan (1-click application) tanpa perlu upload berkas berulang kali.</li>
+        <li>Memberikan notifikasi status rekrutmen melalui email, aplikasi seluler, dan saluran terenkripsi lainnya.</li>
+        <li>Mencegah penipuan lowongan kerja fiktif (scam protection) dan menjamin keaslian identitas perusahaan & pelamar.</li>
+        <li>Meningkatkan performa, keandalan, dan responsivitas aplikasi melalui analitik agregat anonim.</li>
+      </ol>
+
+      <h2>4. Integrasi Pihak Ketiga & Keamanan Transmisi</h2>
+      <p>Untuk operasional sistem berkecepatan tinggi, LOXER mengintegrasikan layanan tepercaya berikut dengan transmisi data terenkripsi HTTPS / TLS 1.3:</p>
+      <ul>
+        <li><strong>Google Identity Services (OAuth 2.0):</strong> Digunakan untuk masuk akun (Single Sign-On) yang cepat dan aman.</li>
+        <li><strong>Google Play Services / Android TWA:</strong> Untuk menyediakan pengalaman aplikasi seluler native yang mulus melalui Digital Asset Links.</li>
+        <li><strong>Penyimpanan Lokal Terenkripsi (Encrypted SQLite / IndexedDB):</strong> Untuk cache profil luring (offline capability) yang hanya dapat diakses oleh perangkat resmi Anda.</li>
+        <li><strong>Layanan Agregator Lowongan Terverifikasi:</strong> Untuk menyinkronkan ketersediaan lowongan kerja dari mitra rekrutmen resmi.</li>
+      </ul>
+
+      <h2>5. Retensi dan Keamanan Data</h2>
+      <p>
+        Data Anda disimpan di infrastruktur server yang aman dengan firewall berlapis, enkripsi saat diam (encryption-at-rest), dan enkripsi dalam perjalanan (encryption-in-transit). Kami menyimpan data Anda selama akun Anda aktif atau selama diperlukan untuk memenuhi kewajiban hukum yang berlaku di Republik Indonesia.
+      </p>
+
+      <h2>6. Hak Pengguna & Penghapusan Akun (Data Safety)</h2>
+      <p>Sesuai regulasi UU PDP dan Kebijakan Google Play Data Safety, setiap pengguna memiliki hak mutlak untuk:</p>
+      <ul>
+        <li>Mengakses, memeriksa, dan memperbarui informasi data profil pribadi kapan saja.</li>
+        <li>Mengunduh salinan data pribadi yang tersimpan di platform LOXER.</li>
+        <li>Mencabut persetujuan pemrosesan data tertentu.</li>
+        <li><strong>Menghapus Akun dan Seluruh Data Terkait:</strong> Anda dapat mengajukan permohonan penghapusan akun secara instan tanpa perlu masuk ke dalam aplikasi melalui tautan publik: <a href="/delete-account.html" style="color:#38bdf8; font-weight:600;">Halaman Penghapusan Akun LOXER</a>. Seluruh permohonan akan diproses maksimal dalam 14 hari kerja.</li>
+      </ul>
+
+      <h2>7. Perubahan Kebijakan Privasi</h2>
+      <p>
+        Kami berhak memperbarui Kebijakan Privasi ini dari waktu ke waktu agar selaras dengan evolusi produk atau perubahan regulasi hukum. Pemberitahuan mengenai perubahan signifikan akan kami sampaikan melalui aplikasi atau notifikasi email sebelum perubahan berlaku efektif.
+      </p>
+
+      <h2>8. Kontak Data Protection Officer (DPO)</h2>
+      <p>Jika Anda memiliki pertanyaan, klarifikasi, atau kekhawatiran terkait privasi data Anda, silakan hubungi tim Pelindungan Data kami:</p>
+      <ul>
+        <li><strong>Email Resmi:</strong> <a href="mailto:support@loxer.web.id" style="color:#38bdf8;">support@loxer.web.id</a> atau <a href="mailto:support@vrintex.id" style="color:#38bdf8;">support@vrintex.id</a></li>
+        <li><strong>Alamat Kantor:</strong> Cimahi Techno Park / Vrintex Office, Kota Cimahi, Jawa Barat, Indonesia.</li>
+        <li><strong>Jam Layanan:</strong> Senin - Jumat (09:00 - 17:00 WIB)</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer class="footer-section">
+    <div class="footer-links">
+      <a href="/">Beranda</a>
+      <a href="/privacy.html">Kebijakan Privasi</a>
+      <a href="/delete-account.html">Penghapusan Akun</a>
+      <a href="mailto:support@loxer.web.id">Bantuan</a>
+    </div>
+    <p>&copy; 2026 LOXER Indonesia. Hak Cipta Dilindungi Undang-Undang.</p>
+  </footer>
+</body>
+</html>

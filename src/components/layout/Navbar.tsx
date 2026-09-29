@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck, Download, Sparkles } from 'lucide-react';
+import { Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck, Download, Briefcase, Users, Zap, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
@@ -81,6 +81,38 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [currentPath, setCurrentPath] = useState(() =>
+    typeof window !== 'undefined' ? window.location.pathname : '/'
+  );
+  const [currentSearch, setCurrentSearch] = useState(() =>
+    typeof window !== 'undefined' ? window.location.search : ''
+  );
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname);
+      setCurrentSearch(window.location.search);
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
+
+  const isIklanLokerActive =
+    (currentPath === '/browse' || currentPath === '/seeker/browse') &&
+    !currentSearch.includes('category=freelance');
+
+  const isPelamarKerjaActive =
+    (currentPath === '/talents' || currentPath === '/pelamar' || currentPath === '/pelamar-kerja') &&
+    (currentSearch.includes('availability=fulltime') || currentSearch.includes('type=pelamar'));
+
+  const isFreelancerActive =
+    ((currentPath === '/talents' || currentPath === '/freelance' || currentPath === '/jasa') &&
+      (currentSearch.includes('availability=freelance') || currentSearch.includes('type=freelance'))) ||
+    currentSearch.includes('category=freelance');
+
+  const isMarketplaceActive =
+    currentPath === '/marketplace' || currentPath === '/products';
   const [onlineUsersByGroup, setOnlineUsersByGroup] = useState<Record<string, number>>(() =>
     Object.fromEntries(
       userPresenceGroups.map((group) => [
@@ -183,26 +215,71 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           </a>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
-            <a href="/#features" className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group">
-              Features
-              <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
+          <div className="hidden md:flex items-center gap-5 lg:gap-7">
+            {/* 1. Iklan Loker */}
+            <a
+              href="/browse"
+              className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
+                isIklanLokerActive ? 'text-cyan-400 font-semibold' : 'text-slate-300 hover:text-cyan-400'
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Iklan Loker</span>
+              <span
+                className={`absolute -bottom-1 left-0 h-0.5 bg-cyan-400 transition-all duration-300 ${
+                  isIklanLokerActive ? 'w-full' : 'w-0 group-hover:w-full'
+                }`}
+              />
             </a>
-            <a href="/#how-it-works" className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group">
-              How It Works
-              <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
+
+            {/* 2. Pelamar Kerja */}
+            <a
+              href="/talents?availability=fulltime"
+              className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
+                isPelamarKerjaActive ? 'text-cyan-400 font-semibold' : 'text-slate-300 hover:text-cyan-400'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Pelamar Kerja</span>
+              <span
+                className={`absolute -bottom-1 left-0 h-0.5 bg-cyan-400 transition-all duration-300 ${
+                  isPelamarKerjaActive ? 'w-full' : 'w-0 group-hover:w-full'
+                }`}
+              />
             </a>
-            {(!user || userMeta?.role === 'seeker') && (
-              <a href="/seeker/browse" className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group">
-                Browse Jobs
-                <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
-              </a>
-            )}
-            <a href="/talents" className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              Marketplace Talent
-              <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
+
+            {/* 3. Freelancer / Jasa */}
+            <a
+              href="/talents?availability=freelance"
+              className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
+                isFreelancerActive ? 'text-amber-400 font-semibold' : 'text-slate-300 hover:text-amber-400'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Freelancer/Jasa</span>
+              <span
+                className={`absolute -bottom-1 left-0 h-0.5 bg-amber-400 transition-all duration-300 ${
+                  isFreelancerActive ? 'w-full' : 'w-0 group-hover:w-full'
+                }`}
+              />
             </a>
+
+            {/* 4. Marketplace (Produk Digital / Sekon / Lainnya) */}
+            <a
+              href="/marketplace"
+              className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
+                isMarketplaceActive ? 'text-cyan-400 font-semibold' : 'text-slate-300 hover:text-cyan-400'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Marketplace</span>
+              <span
+                className={`absolute -bottom-1 left-0 h-0.5 bg-cyan-400 transition-all duration-300 ${
+                  isMarketplaceActive ? 'w-full' : 'w-0 group-hover:w-full'
+                }`}
+              />
+            </a>
+
             {!user && (
               <button
                 type="button"
@@ -210,7 +287,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
                 className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group"
               >
                 Untuk Perusahaan
-                <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
               </button>
             )}
 
@@ -227,7 +304,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           </div>
 
           {!user ? (
-            <div className="hidden lg:flex items-center gap-2">
+            <div className="hidden xl:flex items-center gap-2">
               {userPresence.map((group) => (
                 <div
                   key={group.key}
@@ -369,12 +446,48 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               ))}
             </div>
           ) : null}
-          <a href="/#features" className="text-slate-300 hover:text-white text-sm font-medium">Features</a>
-          <a href="/#how-it-works" className="text-slate-300 hover:text-white text-sm font-medium">How It Works</a>
-          <a href="/browse" className="text-slate-300 hover:text-white text-sm font-medium">Browse Jobs</a>
-          <a href="/talents" className="text-cyan-300 hover:text-cyan-200 text-sm font-semibold flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" />
-            Marketplace Talent
+          <a
+            href="/browse"
+            onClick={() => setMobileOpen(false)}
+            className={`text-sm font-medium flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+              isIklanLokerActive ? 'bg-cyan-500/15 text-cyan-300 font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Briefcase className="w-4 h-4 text-cyan-400" />
+            <span>Iklan Loker</span>
+          </a>
+
+          <a
+            href="/talents?availability=fulltime"
+            onClick={() => setMobileOpen(false)}
+            className={`text-sm font-medium flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+              isPelamarKerjaActive ? 'bg-cyan-500/15 text-cyan-300 font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Users className="w-4 h-4 text-cyan-400" />
+            <span>Pelamar Kerja</span>
+          </a>
+
+          <a
+            href="/talents?availability=freelance"
+            onClick={() => setMobileOpen(false)}
+            className={`text-sm font-medium flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+              isFreelancerActive ? 'bg-amber-500/15 text-amber-300 font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span>Freelancer/Jasa</span>
+          </a>
+
+          <a
+            href="/marketplace"
+            onClick={() => setMobileOpen(false)}
+            className={`text-sm font-medium flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+              isMarketplaceActive ? 'bg-cyan-500/15 text-cyan-300 font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <ShoppingBag className="w-4 h-4 text-cyan-400" />
+            <span>Marketplace</span>
           </a>
           {canInstall && !isInstalled && (
             <button

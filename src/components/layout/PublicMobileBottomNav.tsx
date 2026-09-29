@@ -1,4 +1,4 @@
-import { Home, Search, Sparkles, User, Briefcase } from 'lucide-react';
+import { Home, Search, ShoppingBag, User, Briefcase } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 
 interface PublicMobileBottomNavProps {
@@ -27,16 +27,16 @@ export default function PublicMobileBottomNav({
       active: currentPath === '/',
     },
     {
-      label: 'Lowongan',
+      label: 'Iklan Loker',
       icon: Search,
       href: '/browse',
       active: currentPath.startsWith('/browse'),
     },
     {
-      label: 'Talent',
-      icon: Sparkles,
-      href: '/talents',
-      active: currentPath.startsWith('/talents'),
+      label: 'Marketplace',
+      icon: ShoppingBag,
+      href: '/marketplace',
+      active: currentPath.startsWith('/marketplace'),
       isCenterAction: true,
     },
     {

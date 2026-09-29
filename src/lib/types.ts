@@ -226,3 +226,55 @@ export interface DirectJobOffer {
   companies?: Company;
   job_listings?: Pick<JobListing, 'id' | 'title' | 'category' | 'salary_min' | 'salary_max'>;
 }
+
+export type ProductCategory = 'digital' | 'second' | 'other';
+export type ProductCondition = 'Baru' | 'Sekon (Second)' | 'Digital';
+export type ProductPriceType = 'fixed' | 'nego';
+export type ProductStatus = 'available' | 'sold' | 'reserved';
+
+export interface MarketplaceProduct {
+  id: string;
+  user_id: string;
+  seller_name: string;
+  seller_role: UserRole | string;
+  seller_verified: boolean;
+  seller_avatar?: string;
+  seller_whatsapp: string;
+  seller_city: string;
+  title: string;
+  category: ProductCategory;
+  sub_category?: string;
+  condition: ProductCondition;
+  price: number;
+  price_type: ProductPriceType;
+  images: string[];
+  description: string;
+  stock: number;
+  status: ProductStatus;
+  digital_download_url?: string;
+  views_count: number;
+  likes_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarketplaceTransaction {
+  id: string;
+  product_id: string;
+  product_title: string;
+  product_price: number;
+  product_image?: string;
+  buyer_id: string;
+  buyer_name: string;
+  buyer_whatsapp: string;
+  seller_id: string;
+  seller_name: string;
+  seller_whatsapp: string;
+  offer_price: number;
+  notes?: string;
+  payment_method: 'escrow_loxer' | 'cod' | 'transfer' | 'whatsapp';
+  status: 'pending' | 'agreed' | 'completed' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+}
+

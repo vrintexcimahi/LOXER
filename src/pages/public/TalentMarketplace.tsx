@@ -6,7 +6,8 @@ import {
   ArrowRight,
   RefreshCw,
   PlusCircle,
-  ShieldCheck
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
@@ -30,15 +31,77 @@ const CATEGORIES = [
 
 export default function TalentMarketplace() {
   const { user } = useAuth();
+  const parseAvailabilityFromUrl = () => {
+    if (typeof window === 'undefined') return 'all';
+    const params = new URLSearchParams(window.location.search);
+    const avail = params.get('availability');
+    if (avail && ['all', 'fulltime', 'freelance', 'parttime', 'remote'].includes(avail.toLowerCase())) {
+      return avail.toLowerCase();
+    }
+    const type = params.get('type') || params.get('tab');
+    if (type === 'pelamar' || type === 'pelamar-kerja' || type === 'fulltime') return 'fulltime';
+    if (type === 'freelance' || type === 'freelancer' || type === 'jasa') return 'freelance';
+    return 'all';
+  };
+
   const [talents, setTalents] = useState<TalentMarketplacePost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Semua');
-  const [selectedAvailability, setSelectedAvailability] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('q') || '';
+  });
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    if (typeof window === 'undefined') return 'Semua';
+    const cat = new URLSearchParams(window.location.search).get('category');
+    return cat && CATEGORIES.includes(cat) ? cat : 'Semua';
+  });
+  const [selectedAvailability, setSelectedAvailability] = useState<string>(parseAvailabilityFromUrl);
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedTalent, setSelectedTalent] = useState<TalentMarketplacePost | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null);
   const [authInitialRole, setAuthInitialRole] = useState<UserRole>('seeker');
+
+  useEffect(() => {
+    const handleUrlChange = () => {
+      setSelectedAvailability(parseAvailabilityFromUrl());
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('q');
+      if (q !== null) setSearchQuery(q);
+      const cat = params.get('category');
+      if (cat && CATEGORIES.includes(cat)) setSelectedCategory(cat);
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
+
+  const heroContent = useMemo(() => {
+    if (selectedAvailability === 'fulltime') {
+      return {
+        badge: 'Bursa Pelamar Kerja & Talent Terverifikasi',
+        title: 'Temukan Pelamar Kerja Siap Rekrut Langsung',
+        highlight: 'Karir Purna Waktu (Fulltime)',
+        desc: 'Jelajahi portofolio, biodata, dan keahlian pelamar kerja aktif yang siap bergabung secara profesional di perusahaan Anda.',
+        icon: Users,
+      };
+    }
+    if (selectedAvailability === 'freelance') {
+      return {
+        badge: 'Katalog Freelancer & Penyedia Jasa Profesional',
+        title: 'Temukan Freelancer & Solusi Jasa Terbaik',
+        highlight: 'Proyek & Layanan Lepas',
+        desc: 'Kolaborasi fleksibel bersama freelancer dan penyedia jasa lepas profesional untuk kebutuhan proyek, gig freelance, dan solusi bisnis Anda.',
+        icon: Zap,
+      };
+    }
+    return {
+      badge: 'Marketplace Pencari Kerja & Reverse Hiring',
+      title: 'Temukan Talent Siap Kerja &',
+      highlight: 'Tawarkan Pekerjaan Langsung',
+      desc: 'Jelajahi portofolio, biodata, dan keahlian pencari kerja terverifikasi. Perusahaan dapat langsung menawarkan posisi kerja resmi dengan proteksi transaksi dan kontrak kerja terintegrasi di platform LOXER.',
+      icon: Sparkles,
+    };
+  }, [selectedAvailability]);
 
   const fetchTalents = async () => {
     setLoading(true);
@@ -144,20 +207,19 @@ export default function TalentMarketplace() {
 
           <div className="relative z-10 max-w-3xl space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Marketplace Pencari Kerja & Reverse Hiring</span>
+              <heroContent.icon className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{heroContent.badge}</span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              Temukan Talent Siap Kerja &amp;{' '}
+              {heroContent.title}{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
-                Tawarkan Pekerjaan Langsung
+                {heroContent.highlight}
               </span>
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              Jelajahi portofolio, biodata, dan keahlian pencari kerja terverifikasi.
-              Perusahaan dapat langsung menawarkan posisi kerja resmi dengan proteksi transaksi dan kontrak kerja terintegrasi di platform LOXER.
+              {heroContent.desc}
             </p>
 
             {/* Quick Actions & Seeker Promo */}
@@ -198,12 +260,25 @@ export default function TalentMarketplace() {
             <div className="flex items-center gap-2">
               <select
                 value={selectedAvailability}
-                onChange={(e) => setSelectedAvailability(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedAvailability(val);
+                  const params = new URLSearchParams(window.location.search);
+                  if (val === 'all') {
+                    params.delete('availability');
+                    params.delete('type');
+                    params.delete('tab');
+                  } else {
+                    params.set('availability', val);
+                  }
+                  const newSearch = params.toString() ? `?${params.toString()}` : '';
+                  window.history.pushState({}, '', `${window.location.pathname}${newSearch}`);
+                }}
                 className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400"
               >
-                <option value="all">Semua Tipe Kerja</option>
-                <option value="fulltime">Fulltime</option>
-                <option value="freelance">Freelance</option>
+                <option value="all">Semua Tipe Kerja (Marketplace)</option>
+                <option value="fulltime">Pelamar Kerja (Fulltime)</option>
+                <option value="freelance">Freelancer / Jasa</option>
                 <option value="parttime">Part-time</option>
                 <option value="remote">Remote</option>
               </select>

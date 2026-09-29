@@ -35,6 +35,7 @@ const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const DeveloperWorkbench = lazy(() => import('./pages/admin/DeveloperWorkbench'));
 const TalentMarketplace = lazy(() => import('./pages/public/TalentMarketplace'));
 const SeekerMarketplace = lazy(() => import('./pages/seeker/SeekerMarketplace'));
+const ProductMarketplace = lazy(() => import('./pages/public/ProductMarketplace'));
 
 type AuthMode = 'login' | 'register' | null;
 
@@ -176,7 +177,8 @@ VITE_SUPABASE_ANON_KEY=...`}
     if (path === '/seeker/applications') return isRoleAuthorized('seeker') ? <Applications /> : null;
     if (path === '/seeker/profile') return isRoleAuthorized('seeker') ? <SeekerProfile /> : null;
     if (path === '/seeker/marketplace') return isRoleAuthorized('seeker') ? <SeekerMarketplace /> : null;
-    if (path === '/talents' || path === '/marketplace' || path === '/employer/talents') return <TalentMarketplace />;
+    if (path === '/marketplace' || path === '/products') return <ProductMarketplace />;
+    if (path === '/talents' || path === '/employer/talents' || path === '/pelamar' || path === '/pelamar-kerja' || path === '/freelance' || path === '/jasa') return <TalentMarketplace />;
     if (path === '/employer/dashboard') return isRoleAuthorized('employer') ? <EmployerDashboard /> : null;
     if (path === '/employer/jobs') return isRoleAuthorized('employer') ? <JobListings /> : null;
     if (path === '/employer/jobs/new' || (path.startsWith('/employer/jobs/') && path.endsWith('/edit'))) return isRoleAuthorized('employer') ? <PostJob /> : null;

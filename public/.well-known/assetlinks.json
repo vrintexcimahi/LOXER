@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "id.web.loxer.app",
+      "sha256_cert_fingerprints": [
+        "48:EF:37:DD:0B:E8:08:C5:3E:70:AD:7E:12:00:F8:58:72:D2:DA:93:02:D3:E2:B0:64:75:36:0A:D4:F1:A0:BF"
+      ]
+    }
+  }
+]
