@@ -391,7 +391,7 @@ export default function ProductMarketplace() {
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setSelectedCategory(tab.id as any)}
+                  onClick={() => setSelectedCategory(tab.id as 'all' | ProductCategory)}
                   className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                     active
                       ? 'bg-gradient-to-r from-cyan-500 to-sky-500 text-slate-950 shadow-lg shadow-cyan-500/25 scale-102'
@@ -459,7 +459,7 @@ export default function ProductMarketplace() {
             <div className="md:col-span-3">
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as 'newest' | 'price_asc' | 'price_desc' | 'popular')}
                 className="w-full px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400"
               >
                 <option value="newest">Terbaru Ditayangkan</option>
@@ -816,7 +816,7 @@ export default function ProductMarketplace() {
                   <label className="block text-slate-300 font-semibold mb-1">Tipe Penawaran</label>
                   <select
                     value={formPriceType}
-                    onChange={(e) => setFormPriceType(e.target.value as any)}
+                    onChange={(e) => setFormPriceType(e.target.value as 'fixed' | 'nego')}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-950 text-white focus:outline-none focus:border-cyan-400"
                   >
                     <option value="nego">Bisa Nego Santai</option>

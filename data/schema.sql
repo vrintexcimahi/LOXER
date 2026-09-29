@@ -417,3 +417,19 @@ CREATE INDEX IF NOT EXISTS idx_talent_posts_published ON talent_marketplace_post
 CREATE INDEX IF NOT EXISTS idx_direct_offers_seeker ON direct_job_offers(seeker_id);
 CREATE INDEX IF NOT EXISTS idx_direct_offers_employer ON direct_job_offers(employer_id);
 
+-- 26. Facebook Scraped Posts History
+CREATE TABLE IF NOT EXISTS fb_scraped_posts (
+  id TEXT PRIMARY KEY,
+  post_url TEXT UNIQUE,
+  author_name TEXT,
+  category TEXT,
+  confidence_score INTEGER,
+  raw_caption TEXT,
+  image_paths TEXT,
+  ai_payload TEXT,
+  status TEXT DEFAULT 'processed',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_fb_scraped_url ON fb_scraped_posts(post_url);
+CREATE INDEX IF NOT EXISTS idx_fb_scraped_category ON fb_scraped_posts(category);
+
