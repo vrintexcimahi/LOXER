@@ -117,92 +117,100 @@ export default function EmployerDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* 1 Baris 2 Grid: Pelamar Terbaru & Lowongan Aktif */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
         {/* Recent Applications */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-sky-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="font-bold text-slate-800">Pelamar Terbaru</h2>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200" title="Sinkronisasi otomatis aktif">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live
-              </span>
-            </div>
-            <a href="/employer/applicants" className="text-sky-500 text-xs font-medium hover:text-sky-700 flex items-center gap-1">
-              Lihat Semua <ArrowRight className="w-3 h-3" />
-            </a>
-          </div>
-          {recentApps.length === 0 ? (
-            <div className="text-center py-10">
-              <div className="w-16 h-16 bg-sky-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <Users className="w-8 h-8 text-sky-300" />
+        <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-3.5 sm:p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-1 mb-3">
+              <div className="flex items-center gap-1.5 truncate">
+                <h2 className="font-bold text-slate-800 text-xs sm:text-sm truncate">Pelamar Terbaru</h2>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200" title="Sinkronisasi otomatis aktif">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live
+                </span>
               </div>
-              <p className="text-slate-500 text-sm font-medium">Belum ada pelamar</p>
-              {!company ? (
-                <p className="text-slate-400 text-xs mt-1">Lengkapi data perusahaan terlebih dahulu</p>
-              ) : (
-                <a href="/employer/jobs/new" className="inline-flex items-center gap-1.5 mt-3 gradient-cta text-white rounded-xl px-4 py-2 text-xs font-semibold">
-                  <PlusCircle className="w-3.5 h-3.5" /> Pasang Lowongan Baru
-                </a>
-              )}
+              <a href="/employer/applicants" className="text-sky-500 text-[10px] sm:text-xs font-semibold hover:text-sky-700 flex items-center gap-0.5 shrink-0">
+                <span className="hidden sm:inline">Lihat </span>Semua <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              </a>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {recentApps.map((app) => {
-                const seeker = app.seeker_profiles;
-                const job = app.job_listings;
-                return (
-                  <div key={app.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-sky-50 transition-colors group cursor-pointer border border-transparent hover:border-sky-100">
-                    <div className="w-9 h-9 gradient-cta rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                      {(seeker?.full_name || '?')[0].toUpperCase()}
+            {recentApps.length === 0 ? (
+              <div className="text-center py-4 sm:py-6 flex flex-col items-center justify-center">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-sky-50 rounded-xl flex items-center justify-center mb-2">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400" />
+                </div>
+                <p className="text-slate-700 text-xs sm:text-sm font-bold">Belum ada pelamar</p>
+                {!company ? (
+                  <p className="text-slate-400 text-[10px] sm:text-xs mt-0.5 leading-tight line-clamp-1">Lengkapi data perusahaan</p>
+                ) : (
+                  <a href="/employer/jobs/new" className="inline-flex items-center justify-center gap-1 mt-2.5 gradient-cta text-white rounded-xl px-3 py-1.5 text-[10px] sm:text-xs font-bold shadow-sm hover:brightness-110 active:scale-95 transition">
+                    <PlusCircle className="w-3 h-3" /> Pasang Lowongan Baru
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentApps.slice(0, 5).map((app) => {
+                  const seeker = app.seeker_profiles;
+                  const job = app.job_listings;
+                  return (
+                    <div key={app.id} className="flex items-center gap-2 p-2 rounded-xl hover:bg-sky-50 transition-colors group cursor-pointer border border-transparent hover:border-sky-100">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 gradient-cta rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                        {(seeker?.full_name || '?')[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-800 text-[11px] sm:text-xs font-bold truncate">{seeker?.full_name || 'Pelamar'}</p>
+                        <p className="text-slate-400 text-[9px] sm:text-[10px] truncate">{job?.title}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <ApplicationStatusBadge status={app.status} compact />
+                        <Eye className="w-3.5 h-3.5 text-slate-300 group-hover:text-sky-500 transition-colors hidden sm:block" />
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-slate-800 text-sm font-semibold truncate">{seeker?.full_name || 'Pelamar'}</p>
-                      <p className="text-slate-400 text-xs truncate">{job?.title}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ApplicationStatusBadge status={app.status} />
-                      <Eye className="w-4 h-4 text-slate-300 group-hover:text-sky-500 transition-colors" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Active Job Listings */}
-        <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-slate-800">Lowongan Aktif</h2>
-            <a href="/employer/jobs" className="text-sky-500 text-xs font-medium hover:text-sky-700 flex items-center gap-1">
-              Lihat Semua <ArrowRight className="w-3 h-3" />
-            </a>
-          </div>
-          {jobs.filter(j => j.status === 'active').length === 0 ? (
-            <div className="text-center py-8">
-              <Briefcase className="w-8 h-8 text-sky-200 mx-auto mb-2" />
-              <p className="text-slate-400 text-xs">Belum ada lowongan aktif</p>
-              <a href="/employer/jobs/new" className="inline-flex items-center gap-1 mt-3 text-sky-500 text-xs font-semibold hover:text-sky-700">
-                <PlusCircle className="w-3.5 h-3.5" /> Buat lowongan
+        <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-3.5 sm:p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-1 mb-3">
+              <h2 className="font-bold text-slate-800 text-xs sm:text-sm truncate">Lowongan Aktif</h2>
+              <a href="/employer/jobs" className="text-sky-500 text-[10px] sm:text-xs font-semibold hover:text-sky-700 flex items-center gap-0.5 shrink-0">
+                <span className="hidden sm:inline">Lihat </span>Semua <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               </a>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {jobs.filter(j => j.status === 'active').slice(0, 5).map((job) => (
-                <div key={job.id} className="p-3 rounded-xl border border-sky-50 hover:border-sky-200 hover:bg-sky-50 transition-all group cursor-pointer">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-slate-800 text-xs font-semibold truncate group-hover:text-sky-600 transition-colors">{job.title}</p>
-                      <p className="text-slate-400 text-[10px] mt-0.5">{job.location_city} · {job.job_type}</p>
-                    </div>
-                    <span className="badge bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] flex-shrink-0">Aktif</span>
-                  </div>
-                  <p className="text-sky-600 text-[10px] font-medium mt-1">Kuota: {job.quota}</p>
+            {jobs.filter(j => j.status === 'active').length === 0 ? (
+              <div className="text-center py-4 sm:py-6 flex flex-col items-center justify-center">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-sky-50 rounded-xl flex items-center justify-center mb-2">
+                  <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400" />
                 </div>
-              ))}
-            </div>
-          )}
+                <p className="text-slate-700 text-xs sm:text-sm font-bold">Belum ada lowongan aktif</p>
+                <p className="text-slate-400 text-[10px] sm:text-xs mt-0.5 leading-tight line-clamp-1">Mulai pasang lowongan kerja</p>
+                <a href="/employer/jobs/new" className="inline-flex items-center justify-center gap-1 mt-2.5 gradient-cta text-white rounded-xl px-3 py-1.5 text-[10px] sm:text-xs font-bold shadow-sm hover:brightness-110 active:scale-95 transition">
+                  <PlusCircle className="w-3 h-3" /> Buat Lowongan
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {jobs.filter(j => j.status === 'active').slice(0, 5).map((job) => (
+                  <div key={job.id} className="p-2 sm:p-2.5 rounded-xl border border-sky-50 hover:border-sky-200 hover:bg-sky-50 transition-all group cursor-pointer">
+                    <div className="flex items-start justify-between gap-1.5">
+                      <div className="min-w-0">
+                        <p className="text-slate-800 text-[11px] sm:text-xs font-bold truncate group-hover:text-sky-600 transition-colors">{job.title}</p>
+                        <p className="text-slate-400 text-[9px] sm:text-[10px] truncate">{job.location_city} · {job.job_type}</p>
+                      </div>
+                      <span className="badge bg-emerald-100 text-emerald-700 border-emerald-200 text-[9px] px-1.5 py-0.2 flex-shrink-0">Aktif</span>
+                    </div>
+                    <p className="text-sky-600 text-[9px] sm:text-[10px] font-medium mt-0.5">Kuota: {job.quota}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </EmployerLayout>
