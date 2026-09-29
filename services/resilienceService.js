@@ -390,3 +390,4 @@ export class SlidingWindowRateLimiter {
 }
 
 export const apiRateLimiter = new SlidingWindowRateLimiter(60, 60 * 1000);
+export const dbRateLimiter = new SlidingWindowRateLimiter(600, 60 * 1000);

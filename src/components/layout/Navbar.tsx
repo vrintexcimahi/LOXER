@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, User, LogOut, Settings, ShieldCheck, Download, Briefcase, Users, Zap, ShoppingBag } from 'lucide-react';
+import { Menu, X, ChevronDown, ChevronRight, User, LogOut, Settings, ShieldCheck, Download, Briefcase, Users, Zap, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
@@ -442,49 +442,111 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               ))}
             </div>
           ) : null}
-          <a
-            href="/browse"
-            onClick={() => setMobileOpen(false)}
-            className={`text-sm font-medium flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
-              isIklanLokerActive ? 'bg-cyan-500/15 text-cyan-300 font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Briefcase className="w-4 h-4 text-cyan-400" />
-            <span>Iklan Loker</span>
-          </a>
+          {/* Menu Data Tampilan (1 Baris 3 Grid) & Marketplace */}
+          <div className="flex flex-col gap-2.5">
+            <div className="grid grid-cols-3 gap-2">
+              {/* 1. Iklan Loker */}
+              <a
+                href="/browse"
+                onClick={() => setMobileOpen(false)}
+                className={`group flex flex-col items-center justify-center py-2.5 px-1.5 rounded-xl border transition-all duration-200 active:scale-95 text-center ${
+                  isIklanLokerActive
+                    ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 font-semibold shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+                    : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-cyan-500/30'
+                }`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110 ${
+                    isIklanLokerActive
+                      ? 'bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/40'
+                      : 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20'
+                  }`}
+                >
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-medium leading-tight">Iklan Loker</span>
+              </a>
 
-          <a
-            href="/talents?availability=fulltime"
-            onClick={() => setMobileOpen(false)}
-            className={`text-sm font-medium flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
-              isPelamarKerjaActive ? 'bg-cyan-500/15 text-cyan-300 font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Users className="w-4 h-4 text-cyan-400" />
-            <span>Pelamar Kerja</span>
-          </a>
+              {/* 2. Pelamar Kerja */}
+              <a
+                href="/talents?availability=fulltime"
+                onClick={() => setMobileOpen(false)}
+                className={`group flex flex-col items-center justify-center py-2.5 px-1.5 rounded-xl border transition-all duration-200 active:scale-95 text-center ${
+                  isPelamarKerjaActive
+                    ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 font-semibold shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+                    : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-cyan-500/30'
+                }`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110 ${
+                    isPelamarKerjaActive
+                      ? 'bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/40'
+                      : 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-medium leading-tight">Pelamar Kerja</span>
+              </a>
 
-          <a
-            href="/talents?availability=freelance"
-            onClick={() => setMobileOpen(false)}
-            className={`text-sm font-medium flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
-              isFreelancerActive ? 'bg-amber-500/15 text-amber-300 font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span>Freelancer/Jasa</span>
-          </a>
+              {/* 3. Freelancer / Jasa */}
+              <a
+                href="/talents?availability=freelance"
+                onClick={() => setMobileOpen(false)}
+                className={`group flex flex-col items-center justify-center py-2.5 px-1.5 rounded-xl border transition-all duration-200 active:scale-95 text-center ${
+                  isFreelancerActive
+                    ? 'bg-amber-500/20 border-amber-400/60 text-amber-300 font-semibold shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                    : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-amber-500/30'
+                }`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110 ${
+                    isFreelancerActive
+                      ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/40'
+                      : 'bg-amber-500/15 text-amber-400 border border-amber-400/20'
+                  }`}
+                >
+                  <Zap className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-medium leading-tight">Freelancer/Jasa</span>
+              </a>
+            </div>
 
-          <a
-            href="/marketplace"
-            onClick={() => setMobileOpen(false)}
-            className={`text-sm font-medium flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
-              isMarketplaceActive ? 'bg-cyan-500/15 text-cyan-300 font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4 text-cyan-400" />
-            <span>Marketplace</span>
-          </a>
+            {/* 4. Marketplace Card */}
+            <a
+              href="/marketplace"
+              onClick={() => setMobileOpen(false)}
+              className={`group relative overflow-hidden flex items-center justify-between p-2.5 px-3 rounded-xl border transition-all duration-200 active:scale-[0.98] ${
+                isMarketplaceActive
+                  ? 'bg-gradient-to-r from-cyan-500/25 via-sky-500/20 to-cyan-500/10 border-cyan-400/60 text-cyan-200 shadow-md shadow-cyan-950/40'
+                  : 'bg-gradient-to-r from-white/[0.04] to-cyan-500/[0.03] border-white/10 text-slate-300 hover:text-white hover:border-cyan-500/30 hover:bg-white/[0.08]'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
+                    isMarketplaceActive
+                      ? 'bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/40'
+                      : 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20'
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-white tracking-tight">Marketplace</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                      PRODUK & JASA
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                    Jual beli produk digital, fisik & kebutuhan kerja
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+            </a>
+          </div>
           {canInstall && !isInstalled && (
             <button
               type="button"

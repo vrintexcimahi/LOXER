@@ -12,12 +12,10 @@ import {
   ListChecks,
   Megaphone,
   Shield,
-  Sparkles,
   Users,
   Terminal,
   Database,
   Smartphone,
-  Layers,
   Menu,
   LogOut,
 } from 'lucide-react';

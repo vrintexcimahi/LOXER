@@ -11,7 +11,7 @@ import {
 } from './localDb.js';
 import crypto from 'node:crypto';
 import { buildApplicationStatusNotification } from '../services/applicationStatusNotification.js';
-import { apiRateLimiter } from '../services/resilienceService.js';
+import { apiRateLimiter, dbRateLimiter } from '../services/resilienceService.js';
 
 
 
@@ -685,13 +685,23 @@ const ALLOWED_DB_TABLES = new Set([
 ]);
 
 async function handleDbQuery(req, res) {
-  // Sliding window rate limiter: 60 req/min per client IP
+  // Sliding window rate limiter: 600 req/min for DB queries; authenticated user/admin sessions are exempted
   const clientIp = getClientIp(req) || '127.0.0.1';
-  const rateCheck = apiRateLimiter.check(clientIp);
+  const token = parseBearerToken(req);
+  let isPrivileged = false;
+  if (token) {
+    const decoded = verifyToken(token);
+    if (decoded) isPrivileged = true;
+  }
+
+  const rateCheck = isPrivileged
+    ? { allowed: true, remaining: 9999, resetMs: 0, retryAfterSec: 0 }
+    : dbRateLimiter.check(clientIp);
+
   if (!rateCheck.allowed) {
     return sendJson(res, 429, {
       error: {
-        message: 'Terlalu banyak permintaan basis data. Batas 60 request per menit tercapai. Silakan coba sesaat lagi.',
+        message: 'Terlalu banyak permintaan basis data. Batas 600 request per menit tercapai. Silakan coba sesaat lagi.',
         code: 'RATE_LIMIT_EXCEEDED',
         retry_after: rateCheck.retryAfterSec,
       },

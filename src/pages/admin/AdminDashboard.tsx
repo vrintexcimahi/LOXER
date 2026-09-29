@@ -23,7 +23,6 @@ import {
   Shield,
   ShieldCheck,
   ShieldX,
-  Sparkles,
   UserCheck,
   Users,
   X,
@@ -276,7 +275,9 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
     return menuItems.find((item) => item.href === pathname)?.href || menuItems.find((item) => item.key === activeTab)?.href || menuItems[0]?.href;
   }, [activeTab, menuItems]);
 
-  const showToast = (type: ToastType, message: string) => setToast({ type, message });
+  const showToast = useCallback((type: ToastType, message: string) => {
+    setToast({ type, message });
+  }, []);
   const handleSignOut = async () => {
     closeMobile();
     await signOut();
@@ -1754,6 +1755,11 @@ function AdminJobs({
     });
   }, [jobs, search, categoryFilter]);
 
+  const onToastRef = useRef(onToast);
+  useEffect(() => {
+    onToastRef.current = onToast;
+  }, [onToast]);
+
   useEffect(() => {
     const fetchJobs = async () => {
       if (!supabase) return;
@@ -1774,7 +1780,7 @@ function AdminJobs({
 
       const { data, count, error } = await query.range(from, to);
       if (error) {
-        onToast('error', `Gagal memuat lowongan: ${error.message}`);
+        onToastRef.current('error', `Gagal memuat lowongan: ${error.message}`);
         setLoading(false);
         return;
       }
@@ -1785,7 +1791,7 @@ function AdminJobs({
     };
 
     fetchJobs();
-  }, [page, statusFilter, typeFilter, onToast]);
+  }, [page, statusFilter, typeFilter]);
 
   async function toggleJobStatus(job: JobListing) {
     if (!supabase) return;
