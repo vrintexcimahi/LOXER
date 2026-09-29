@@ -193,9 +193,9 @@ VITE_SUPABASE_ANON_KEY=...`}
 
       const adminPages: Record<string, JSX.Element> = {
         '/admin/dashboard': <AdminDashboard tab="overview" />,
-        '/admin/user-data': <AdminDashboard tab="user-data" />,
-        '/admin/devices': <AdminDashboard tab="devices" />,
         '/admin/users': <AdminDashboard tab="users" />,
+        '/admin/user-data': <AdminDashboard tab="users" subTab="intelligence" />,
+        '/admin/devices': <AdminDashboard tab="users" subTab="devices" />,
         '/admin/jobs': <AdminDashboard tab="jobs" />,
         '/admin/applications': <AdminDashboard tab="applications" />,
         '/admin/companies': <AdminDashboard tab="companies" />,

@@ -174,8 +174,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
     },
     subFeatures: [
       { label: 'Overview Monitoring', path: '/admin/dashboard', icon: '📊', description: 'Statistik ekosistem real-time, aktivitas transaksi, & status node' },
-      { label: 'Pusat Data User', path: '/admin/user-data', icon: '👥', description: 'Manajemen akun, ganti role, reset password, & status ban' },
-      { label: 'Manajemen Device PWA', path: '/admin/devices', icon: '📱', description: 'Monitoring perangkat terhubung, log akses, & push token' },
+      { label: 'Manajemen Users', path: '/admin/users', icon: '👥', description: 'Manajemen akun, role, device intelligence, & registry perangkat' },
       { label: 'Moderasi Konten', path: '/admin/moderation', icon: '🛡️', description: 'Review lowongan mencurigakan & moderasi profil publik' },
       { label: 'Integrasi API Lowongan', path: '/admin/integrations', icon: '🔌', description: 'Status koneksi provider lowongan mitra & publik' },
       { label: 'Advanced Analytics', path: '/admin/analytics', icon: '📈', description: 'Metrik retensi pengguna, funnel lamaran, & statistik' },
@@ -183,9 +182,8 @@ const ROLE_CONFIGS: RoleConfig[] = [
       { label: 'Audit Log Monitoring', path: '/admin/monitoring', icon: '📋', description: 'Log realtime HTTP request, autentikasi, & error tracing' },
     ],
     testChecklist: [
-      { title: 'Uji Manajemen Pengguna', desc: 'Buka pusat data user dan verifikasi role tiap pengguna', targetPath: '/admin/user-data' },
+      { title: 'Uji Manajemen Users', desc: 'Buka pusat kendali user, role, device intelligence, dan audit sesi', targetPath: '/admin/users' },
       { title: 'Validasi Integrasi API', desc: 'Periksa status provider lowongan dan endpoint live', targetPath: '/admin/integrations' },
-      { title: 'Audit Perangkat Aktif', desc: 'Periksa session token dan device footprint yang terdaftar', targetPath: '/admin/devices' },
       { title: 'Database Health Check', desc: 'Cek status ukuran database dan tabel utama platform', targetPath: '/admin/backup' },
     ],
   },

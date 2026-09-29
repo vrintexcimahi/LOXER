@@ -51,9 +51,7 @@ function classNames(...values: Array<string | false | null | undefined>) {
 
 const CORE_ITEMS: NavItem[] = [
   { href: '/admin/dashboard', label: 'Dashboard Admin', description: 'Pantau statistik dan kesehatan platform', icon: Home },
-  { href: '/admin/user-data', label: 'Data Pengguna', description: 'Device intelligence & kapabilitas pengguna', icon: Layers },
-  { href: '/admin/devices', label: 'Perangkat', description: 'Registry device & revoke akses', icon: Smartphone },
-  { href: '/admin/users', label: 'Manajemen Users', description: 'Kelola role, suspend, dan detail akun', icon: Users },
+  { href: '/admin/users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', icon: Users },
   { href: '/admin/jobs', label: 'Manajemen Jobs', description: 'Atur seluruh lowongan yang tayang', icon: Briefcase },
   { href: '/admin/applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', icon: ListChecks },
   { href: '/admin/companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', icon: Building2 },
@@ -92,7 +90,9 @@ function SidebarSection({
     <div className="space-y-1">
       <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-500">{title}</p>
       {items.map((item) => {
-        const active = pathname === item.href;
+        const active =
+          pathname === item.href ||
+          (item.href === '/admin/users' && (pathname === '/admin/user-data' || pathname === '/admin/devices'));
         const Icon = item.icon;
         return (
           <a

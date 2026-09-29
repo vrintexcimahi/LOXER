@@ -77,6 +77,7 @@ type ToastType = 'success' | 'error' | 'info';
 
 interface AdminDashboardProps {
   tab?: AdminTab;
+  subTab?: 'accounts' | 'intelligence' | 'devices';
 }
 
 interface ToastState {
@@ -214,7 +215,7 @@ function Pagination({
   );
 }
 
-export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps) {
+export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashboardProps) {
   const { user, userMeta, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>(tab);
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -233,9 +234,7 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
   const menuItems: AdminMenuItem[] = useMemo(
     () => [
       { key: 'overview', label: 'Dashboard Admin', description: 'Pantau statistik dan kesehatan platform', href: '/admin/dashboard', icon: Home },
-      { key: 'user-data', label: 'Data Pengguna', description: 'Device intelligence & kapabilitas pengguna', href: '/admin/user-data', icon: Layers },
-      { key: 'devices', label: 'Perangkat', description: 'Registry device & revoke akses', href: '/admin/devices', icon: Smartphone },
-      { key: 'users', label: 'Manajemen Users', description: 'Kelola role, suspend, dan detail akun', href: '/admin/users', icon: Users },
+      { key: 'users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', href: '/admin/users', icon: Users },
       { key: 'jobs', label: 'Manajemen Jobs', description: 'Atur seluruh lowongan yang tayang', href: '/admin/jobs', icon: Briefcase },
       { key: 'applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', href: '/admin/applications', icon: ListChecks },
       { key: 'companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', href: '/admin/companies', icon: Building2 },
@@ -302,21 +301,17 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
   const tabTitle =
     activeTab === 'overview'
       ? 'Dashboard Admin'
-      : activeTab === 'user-data'
-        ? 'Data Pengguna'
-        : activeTab === 'devices'
-          ? 'Perangkat'
-          : activeTab === 'users'
-            ? 'Manajemen Users'
-            : activeTab === 'jobs'
-              ? 'Manajemen Jobs'
-              : activeTab === 'applications'
-                ? 'Manajemen Lamaran'
-                : activeTab === 'companies'
-                  ? 'Manajemen Perusahaan'
-                  : activeTab === 'integrations'
-                    ? 'Integrasi API'
-                    : 'Audit Log';
+      : activeTab === 'users' || activeTab === 'user-data' || activeTab === 'devices'
+        ? 'Manajemen Users'
+        : activeTab === 'jobs'
+          ? 'Manajemen Jobs'
+          : activeTab === 'applications'
+            ? 'Manajemen Lamaran'
+            : activeTab === 'companies'
+              ? 'Manajemen Perusahaan'
+              : activeTab === 'integrations'
+                ? 'Integrasi API'
+                : 'Audit Log';
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -355,7 +350,14 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
           <div className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto p-3">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.href === window.location.pathname || item.key === activeTab;
+              const isActive =
+                item.href === window.location.pathname ||
+                item.key === activeTab ||
+                (item.key === 'users' &&
+                  (activeTab === 'user-data' ||
+                    activeTab === 'devices' ||
+                    window.location.pathname === '/admin/user-data' ||
+                    window.location.pathname === '/admin/devices'));
               return (
                 <a
                   key={item.key}
@@ -474,14 +476,13 @@ export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps
             {activeTab === 'overview' && (
               <AdminOverview adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
             )}
-            {activeTab === 'user-data' && (
-              <AdminUserDataCenter />
-            )}
-            {activeTab === 'devices' && (
-              <AdminDeviceManagement />
-            )}
-            {activeTab === 'users' && (
-              <AdminUsers adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
+            {(activeTab === 'users' || activeTab === 'user-data' || activeTab === 'devices') && (
+              <AdminUsersManagement
+                adminId={user.id}
+                adminEmail={adminEmail}
+                onToast={showToast}
+                initialSubTab={subTab || (activeTab === 'user-data' ? 'intelligence' : activeTab === 'devices' ? 'devices' : 'accounts')}
+              />
             )}
             {activeTab === 'jobs' && (
               <AdminJobs adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
@@ -1602,6 +1603,116 @@ function AdminUsers({
         </div>
       )}
     </section>
+  );
+}
+
+function AdminUsersManagement({
+  adminId,
+  adminEmail,
+  onToast,
+  initialSubTab = 'accounts',
+}: {
+  adminId: string;
+  adminEmail: string;
+  onToast: (type: ToastType, message: string) => void;
+  initialSubTab?: 'accounts' | 'intelligence' | 'devices';
+}) {
+  const [subTab, setSubTab] = useState<'accounts' | 'intelligence' | 'devices'>(() => {
+    if (initialSubTab) return initialSubTab;
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('subTab') || urlParams.get('tab');
+    if (tabParam === 'intelligence' || tabParam === 'user-data') return 'intelligence';
+    if (tabParam === 'devices' || tabParam === 'perangkat') return 'devices';
+    if (window.location.pathname === '/admin/user-data') return 'intelligence';
+    if (window.location.pathname === '/admin/devices') return 'devices';
+    return 'accounts';
+  });
+
+  const handleSubTabChange = (newTab: 'accounts' | 'intelligence' | 'devices') => {
+    setSubTab(newTab);
+    const targetUrl =
+      newTab === 'accounts'
+        ? '/admin/users'
+        : newTab === 'intelligence'
+        ? '/admin/users?subTab=intelligence'
+        : '/admin/users?subTab=devices';
+    window.history.replaceState({}, '', targetUrl);
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Unified Header & SubTab Switcher */}
+      <div className="rounded-xl border border-white/10 bg-slate-900/90 backdrop-blur-md p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-xl shadow-black/20">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-rose-500/20 to-pink-500/20 text-rose-400 border border-rose-500/30 shadow-inner shrink-0">
+            <Users className="h-5 w-5" />
+          </span>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Manajemen Users</h2>
+              <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-bold text-rose-300 border border-rose-500/30">
+                Pusat Kendali Pengguna
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-400 max-w-2xl leading-relaxed">
+              Manajemen akun terpadu: kelola hak akses role, suspensi, monitoring kapabilitas & device intelligence, serta audit keamanan sesi perangkat.
+            </p>
+          </div>
+        </div>
+
+        {/* Sub-tab Switcher Pills */}
+        <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-950/80 border border-white/10 shrink-0 overflow-x-auto max-w-full">
+          <button
+            type="button"
+            onClick={() => handleSubTabChange('accounts')}
+            className={classNames(
+              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+              subTab === 'accounts'
+                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/25 border border-rose-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+            )}
+          >
+            <Users className="h-4 w-4" />
+            <span>Akun & Role</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSubTabChange('intelligence')}
+            className={classNames(
+              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+              subTab === 'intelligence'
+                ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/25 border border-cyan-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+            )}
+          >
+            <Layers className="h-4 w-4" />
+            <span>Data & Device Intelligence</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSubTabChange('devices')}
+            className={classNames(
+              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+              subTab === 'devices'
+                ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 border border-indigo-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+            )}
+          >
+            <Smartphone className="h-4 w-4" />
+            <span>Registry Perangkat</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Active SubTab View */}
+      <div className="transition-all">
+        {subTab === 'accounts' && <AdminUsers adminId={adminId} adminEmail={adminEmail} onToast={onToast} />}
+        {subTab === 'intelligence' && <AdminUserDataCenter />}
+        {subTab === 'devices' && <AdminDeviceManagement />}
+      </div>
+    </div>
   );
 }
 

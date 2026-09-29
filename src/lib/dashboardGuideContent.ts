@@ -144,16 +144,16 @@ export const adminGuideContent: Record<string, DashboardGuideContent> = {
     ],
   },
   '/admin/users': {
-    summary: 'Menu ini dipakai untuk mengelola akun user, role, dan status akses agar kualitas data platform tetap terjaga.',
+    summary: 'Pusat kontrol terpadu untuk mengelola akun user, hak akses role, device intelligence, dan audit keamanan perangkat.',
     detailFunctions: [
-      'Melihat daftar seeker, employer, dan admin yang terdaftar.',
-      'Mengubah role atau status user sesuai kebutuhan operasional.',
-      'Membantu investigasi akun bermasalah atau akun yang perlu dibatasi.',
+      'Tab Akun & Role: Mengelola daftar seeker, employer, admin, ganti role, suspend, dan reset akun.',
+      'Tab Intelijen Device: Memantau kapabilitas perangkat pengguna, OS, browser, IP, status online, dan PWA.',
+      'Tab Registry Perangkat: Audit device ID terhubung dan mencabut (revoke) akses perangkat yang mencurigakan.',
     ],
     usageTips: [
-      'Gunakan pencarian dan filter untuk menemukan user tertentu lebih cepat.',
-      'Pastikan perubahan role dilakukan dengan pertimbangan yang tepat.',
-      'Cek histori atau audit terkait sebelum menghapus akun penting.',
+      'Gunakan sub-tab untuk berpindah antara manajemen hak akses, intelijen perangkat, dan audit sesi.',
+      'Periksa device footprint dan IP sebelum melakukan tindakan suspend akun mencurigakan.',
+      'Gunakan tombol Revoke pada registry perangkat untuk mengamankan akun dari pembajakan sesi.',
     ],
   },
   '/admin/jobs': {
