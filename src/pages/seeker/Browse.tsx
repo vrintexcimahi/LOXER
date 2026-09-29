@@ -76,7 +76,9 @@ export default function Browse() {
   const isFreelancer =
     typeof window !== 'undefined' &&
     (window.location.search.includes('category=freelance') ||
+      window.location.search.includes('category=jasa') ||
       window.location.search.includes('preview_role=freelancer') ||
+      window.location.search.includes('preview_role=jasa') ||
       window.location.search.includes('role=freelancer'));
 
   return (
@@ -98,21 +100,21 @@ export default function Browse() {
               <Sparkles className="w-3.5 h-3.5 text-sky-400" />
               <span>
                 {isFreelancer
-                  ? 'Katalog Jasa & Lowongan Remote LOXER'
+                  ? 'Bursa Layanan Jasa Mandiri & Panggilan LOXER'
                   : 'LOXER Unified Job Hub — Pusat Lowongan Indonesia & Global'}
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              {isFreelancer ? 'Katalog Jasa &' : 'Cari Lowongan Kerja'}{' '}
+              {isFreelancer ? 'Katalog Layanan Jasa &' : 'Cari Lowongan Kerja'}{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-teal-400">
-                {isFreelancer ? 'Proyek Freelance' : 'Indonesia & Global'}
+                {isFreelancer ? 'Penyedia Jasa Mandiri' : 'Indonesia & Global'}
               </span>
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
               {isFreelancer
-                ? 'Temukan proyek lepas (freelance), micro-gigs, dan jasa profesional terbaik dari talent terverifikasi LOXER.'
+                ? 'Temukan penyedia jasa mandiri profesional: jasa pijat & refleksi, bengkel motor/mobil, servis komputer & elektronik, pertukangan, kebersihan, dan lainnya.'
                 : 'Pencarian terintegrasi dari mitra resmi terverifikasi LOXER, Careerjet, dan feed publik Arbeitnow langsung dari satu pintu.'}
             </p>
 

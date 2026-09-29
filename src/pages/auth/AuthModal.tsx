@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check, ShieldCheck, Sparkles, Key, Briefcase, Wrench } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check, ShieldCheck, Sparkles, Key, Wrench } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { UserRole } from '../../lib/types';
 import BrandText from '../../components/ui/BrandText';

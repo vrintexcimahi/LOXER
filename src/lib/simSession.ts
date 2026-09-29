@@ -34,7 +34,7 @@ export const SIM_ROLE_USERS: Record<SimRole, SimRoleInfo> = {
   },
   freelancer: {
     id: 'freelancer',
-    label: 'Arifin Ahmad (Freelancer)',
+    label: 'Arifin Ahmad (Penyedia Jasa)',
     email: 'arifin.ahmad@example.com',
     password: 'seeker123',
     defaultPath: '/seeker/marketplace',

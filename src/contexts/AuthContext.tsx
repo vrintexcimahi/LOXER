@@ -269,8 +269,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   ? 'Super Admin (Preview)'
                   : previewRole === 'employer'
                   ? 'HRD PT Maju (Preview)'
-                  : previewRole === 'freelancer'
-                  ? 'Freelancer Expert (Preview)'
+                  : previewRole === 'freelancer' || previewRole === 'jasa'
+                  ? 'Penyedia Jasa Mandiri (Preview)'
                   : 'Budi Santoso (Preview)',
             },
             aud: 'authenticated',

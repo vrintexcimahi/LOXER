@@ -43,16 +43,16 @@ export default function SeekerMarketplace() {
 
   // Form State
   const [headline, setHeadline] = useState('');
-  const [category, setCategory] = useState('Teknologi & IT');
-  const [availability, setAvailability] = useState<AvailabilityStatus>('fulltime');
+  const [category, setCategory] = useState('Servis Elektronik & Komputer');
+  const [availability, setAvailability] = useState<AvailabilityStatus>('freelance');
   const [experienceYears, setExperienceYears] = useState(1);
   const [expectedSalary, setExpectedSalary] = useState('');
-  const [rateType, setRateType] = useState<RateType>('monthly');
+  const [rateType, setRateType] = useState<RateType>('project');
   const [domicileCity, setDomicileCity] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [resumeUrl, setResumeUrl] = useState('');
-  const [badge, setBadge] = useState('SIAP KERJA');
+  const [badge, setBadge] = useState('SIAP PANGGILAN');
   const [bio, setBio] = useState('');
   const [skillsList, setSkillsList] = useState<string[]>([]);
   const [newSkillInput, setNewSkillInput] = useState('');
@@ -111,11 +111,11 @@ export default function SeekerMarketplace() {
           setSkillsList(parsedSkills);
         } else {
           // Defaults from Seeker Profile
-          setHeadline(p.full_name ? `${p.full_name} - Siap Kerja` : 'Profesional Siap Kerja');
+          setHeadline(p.full_name ? `${p.full_name} — Penyedia Jasa Mandiri` : 'Penyedia Jasa Mandiri');
           setDomicileCity(p.domicile_city || 'Jakarta');
           setWhatsappNumber(p.phone || '');
-          setBio(p.about || 'Saya siap memberikan kontribusi terbaik dengan dedikasi tinggi.');
-          setSkillsList(['Komunikasi', 'Kerja Tim']);
+          setBio(p.about || 'Penyedia jasa mandiri profesional, siap melayani panggilan maupun di tempat dengan hasil terbaik dan terpercaya.');
+          setSkillsList(['Layanan Panggilan', 'Keahlian Teruji']);
         }
 
         // 3. Fetch Direct Job Offers Received
@@ -143,7 +143,7 @@ export default function SeekerMarketplace() {
   // Auto-fill from seeker_profiles and seeker_skills
   const handleAutoFillFromProfile = async () => {
     if (!profile) return;
-    setHeadline(`${profile.full_name} — Profesional Siap Kerja`);
+    setHeadline(`${profile.full_name} — Penyedia Jasa Mandiri`);
     setDomicileCity(profile.domicile_city || '');
     setWhatsappNumber(profile.phone || '');
     if (profile.about) setBio(profile.about);
@@ -354,10 +354,10 @@ export default function SeekerMarketplace() {
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4">
                 <div>
                   <h3 className="text-base font-bold text-white">
-                    Pengaturan Kartu Marketplace
+                    Pengaturan Kartu Jasa Mandiri
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Informasi ini akan tampil pada katalog pencari kerja publik LOXER.
+                    Informasi ini akan tampil pada katalog bursa jasa &amp; penyedia jasa mandiri publik LOXER.
                   </p>
                 </div>
                 <button
@@ -379,21 +379,21 @@ export default function SeekerMarketplace() {
               {savedSuccess && (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 shrink-0" />
-                  Biodata dan penawaran kerja Anda berhasil diperbarui di marketplace publik!
+                  Biodata dan penawaran jasa mandiri Anda berhasil diperbarui di marketplace publik!
                 </div>
               )}
 
               {/* Headline */}
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  Headline / Posisi yang Ditawarkan *
+                  Judul Layanan / Keahlian Jasa Mandiri *
                 </label>
                 <input
                   type="text"
                   required
                   value={headline}
                   onChange={(e) => setHeadline(e.target.value)}
-                  placeholder="Contoh: Senior Frontend Developer (React, Next.js)"
+                  placeholder="Contoh: Service Komputer &amp; Laptop Panggilan, Bengkel Motor, Terapis Pijat Refleksi, dll"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-800/80 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                 />
               </div>
@@ -402,35 +402,41 @@ export default function SeekerMarketplace() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                    Kategori Keahlian *
+                    Kategori Keahlian Jasa *
                   </label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-800 text-sm text-white focus:outline-none focus:border-cyan-400"
                   >
-                    <option value="Teknologi & IT">Teknologi &amp; IT</option>
-                    <option value="Desain & Kreatif">Desain &amp; Kreatif</option>
-                    <option value="Pemasaran & Digital">Pemasaran &amp; Digital</option>
-                    <option value="Admin & Operasional">Admin &amp; Operasional</option>
-                    <option value="F&B & Hospitality">F&amp;B &amp; Hospitality</option>
-                    <option value="Logistik & Gudang">Logistik &amp; Gudang</option>
+                    <option value="Servis Elektronik & Komputer">Servis Elektronik &amp; Komputer (Laptop, AC, HP)</option>
+                    <option value="Bengkel & Otomotif">Bengkel &amp; Otomotif (Motor, Mobil, Tambal Ban)</option>
+                    <option value="Pijat, Refleksi & Terapi Kesehatan">Pijat, Refleksi &amp; Terapi Kesehatan</option>
+                    <option value="Kebersihan & Cleaning Service">Kebersihan &amp; Cleaning Service</option>
+                    <option value="Pertukangan & Renovasi Bangunan">Pertukangan &amp; Renovasi Bangunan</option>
+                    <option value="Salon, Barbershop & Perawatan">Salon, Barbershop &amp; Perawatan</option>
+                    <option value="Pengantaran, Logistik & Angkut Barang">Pengantaran, Logistik &amp; Angkut Barang</option>
+                    <option value="Les Privat & Kursus Mandiri">Les Privat &amp; Kursus Mandiri</option>
+                    <option value="Fotografi & Multimedia">Fotografi &amp; Multimedia</option>
+                    <option value="Desain, Percetakan & Sablon">Desain, Percetakan &amp; Sablon</option>
+                    <option value="Teknologi & IT Mandiri">Teknologi &amp; IT Mandiri</option>
+                    <option value="Jasa Rumah Tangga & Lainnya">Jasa Rumah Tangga &amp; Lainnya</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                    Ketersediaan / Tipe Kerja *
+                    Ketersediaan / Metode Layanan *
                   </label>
                   <select
                     value={availability}
                     onChange={(e) => setAvailability(e.target.value as AvailabilityStatus)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-800 text-sm text-white focus:outline-none focus:border-cyan-400"
                   >
-                    <option value="fulltime">Fulltime (Purna Waktu)</option>
-                    <option value="freelance">Freelance (Lepas / Proyek)</option>
-                    <option value="parttime">Part-time (Paruh Waktu)</option>
-                    <option value="remote">Remote (Jarak Jauh)</option>
+                    <option value="freelance">Layanan Panggilan (On-Call / Datang ke Lokasi)</option>
+                    <option value="fulltime">Di Tempat / Bengkel / Workshop Sendiri</option>
+                    <option value="parttime">Fleksibel (Panggilan &amp; Di Tempat)</option>
+                    <option value="remote">Borongan / Per Proyek / Per Hari</option>
                   </select>
                 </div>
               </div>
@@ -439,7 +445,7 @@ export default function SeekerMarketplace() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                    Ekspektasi Tarif / Gaji (Rp) *
+                    Ekspektasi Tarif Jasa / Biaya Layanan (Rp) *
                   </label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -449,7 +455,7 @@ export default function SeekerMarketplace() {
                         required
                         value={expectedSalary}
                         onChange={(e) => setExpectedSalary(e.target.value)}
-                        placeholder="Contoh: 7500000"
+                        placeholder="Contoh: 150000"
                         className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-800/80 text-sm text-white focus:outline-none focus:border-cyan-400"
                       />
                     </div>
@@ -458,9 +464,9 @@ export default function SeekerMarketplace() {
                       onChange={(e) => setRateType(e.target.value as RateType)}
                       className="px-3 py-2.5 rounded-xl border border-white/10 bg-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-cyan-400"
                     >
-                      <option value="monthly">/ Bulan</option>
+                      <option value="project">/ Order / Kunjungan</option>
                       <option value="hourly">/ Jam</option>
-                      <option value="project">/ Proyek</option>
+                      <option value="monthly">/ Hari / Borongan</option>
                     </select>
                   </div>
                 </div>
@@ -558,17 +564,17 @@ export default function SeekerMarketplace() {
               {/* Badge Selection */}
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  Badge Status Kartu
+                  Badge Status Layanan
                 </label>
-                <div className="flex gap-2">
-                  {['SIAP KERJA', 'FREELANCER', 'TOP TALENT'].map((b) => (
+                <div className="flex flex-wrap gap-2">
+                  {['SIAP PANGGILAN', 'BENGKEL / TEMPAT', 'TERSEDIA', 'REKOMENDASI'].map((b) => (
                     <button
                       key={b}
                       type="button"
                       onClick={() => setBadge(b)}
                       className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
                         badge === b
-                          ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-md'
+                          ? 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-md'
                           : 'border-white/10 bg-slate-800 text-slate-400 hover:text-white'
                       }`}
                     >
@@ -581,7 +587,7 @@ export default function SeekerMarketplace() {
               {/* Skills Input */}
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  Keahlian &amp; Tag Spesialisasi
+                  Layanan &amp; Spesialisasi Khusus (Tag)
                 </label>
                 <div className="flex gap-2 mb-2">
                   <input
@@ -594,7 +600,7 @@ export default function SeekerMarketplace() {
                         handleAddSkill();
                       }
                     }}
-                    placeholder="Ketik keahlian (contoh: Next.js) lalu Enter"
+                    placeholder="Ketik layanan (contoh: Pijat Refleksi, Ganti Oli, Service AC, Pasang SSD) lalu Enter"
                     className="flex-1 px-3.5 py-2 rounded-xl border border-white/10 bg-slate-800 text-xs text-white focus:outline-none focus:border-cyan-400"
                   />
                   <button
@@ -627,14 +633,14 @@ export default function SeekerMarketplace() {
               {/* Bio / Description */}
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                  Deskripsi Lengkap &amp; Nilai Tambah Anda (Bio) *
+                  Deskripsi Lengkap Layanan Jasa Anda *
                 </label>
                 <textarea
                   required
                   rows={4}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Ceritakan pengalaman, keahlian unggulan, serta apa yang bisa Anda tawarkan kepada calon perusahaan/klien..."
+                  placeholder="Jelaskan pengalaman kerja, jenis layanan yang dilayani (misal: jasa panggilan ke rumah/kantor, punya bengkel sendiri), area jangkauan kota, peralatan kerja yang dibawa, dan garansi kerja..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-800/80 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 resize-none"
                 />
               </div>

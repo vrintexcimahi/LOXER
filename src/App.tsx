@@ -78,7 +78,7 @@ function Router() {
     ? 'admin'
     : previewRole === 'employer'
     ? 'employer'
-    : previewRole === 'seeker' || previewRole === 'freelancer'
+    : previewRole === 'seeker' || previewRole === 'freelancer' || previewRole === 'jasa'
     ? 'seeker'
     : isDefaultAdminAccount
     ? 'admin'
@@ -105,7 +105,7 @@ function Router() {
     if (previewRole === 'admin') return '/admin/dashboard';
     if (previewRole === 'employer') return '/employer/dashboard';
     if (previewRole === 'seeker') return '/seeker/dashboard';
-    if (previewRole === 'freelancer') return '/browse?category=freelance';
+    if (previewRole === 'freelancer' || previewRole === 'jasa') return '/seeker/marketplace';
     if (!user || !effectiveRole) return '/';
     if (effectiveRole === 'admin' || effectiveRole === 'superadmin') return '/admin/dashboard';
     return effectiveRole === 'employer' ? '/employer/dashboard' : '/seeker/dashboard';
@@ -165,7 +165,7 @@ VITE_SUPABASE_ANON_KEY=...`}
 
   const isRoleAuthorized = (role: 'seeker' | 'employer' | 'admin' | 'superadmin') => {
     if (previewRole === role) return true;
-    if (previewRole === 'freelancer' && role === 'seeker') return true;
+    if ((previewRole === 'freelancer' || previewRole === 'jasa') && role === 'seeker') return true;
     if (role === 'admin' && (isDefaultAdminAccount || isGodModeUnlocked || effectiveRole === 'superadmin' || effectiveRole === 'admin')) return true;
     if (role === 'superadmin' && (isDefaultAdminAccount || isGodModeUnlocked || effectiveRole === 'superadmin')) return true;
     return Boolean(user && effectiveRole === role);

@@ -9,10 +9,10 @@ interface TalentCardProps {
 }
 
 const AVAILABILITY_LABELS: Record<string, string> = {
-  fulltime: 'Purna Waktu',
-  freelance: 'Lepas / Proyek',
-  parttime: 'Paruh Waktu',
-  remote: 'Jarak Jauh',
+  fulltime: 'Di Tempat / Bengkel',
+  freelance: 'Layanan Panggilan',
+  parttime: 'Fleksibel',
+  remote: 'Borongan / Panggilan',
 };
 
 export default function TalentCard({ talent, onSelect, onOfferJob, featured = false }: TalentCardProps) {
@@ -32,9 +32,9 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
   const photoUrl = talent.photo_url || talent.seeker_profiles?.photo_url;
 
   const badgeTheme =
-    talent.badge === 'TOP TALENT'
+    talent.badge === 'TOP TALENT' || talent.badge === 'REKOMENDASI'
       ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-rose-500/20'
-      : talent.badge === 'FREELANCER'
+      : talent.badge === 'SIAP PANGGILAN' || talent.badge === 'BENGKEL / TEMPAT' || talent.badge === 'FREELANCER' || talent.badge === 'JASA'
         ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-amber-500/20'
         : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-cyan-500/20';
 
@@ -42,7 +42,7 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
     talent.rate_type === 'hourly'
       ? '/ jam'
       : talent.rate_type === 'project'
-        ? '/ proyek'
+        ? '/ order'
         : '/ bln';
 
   return (

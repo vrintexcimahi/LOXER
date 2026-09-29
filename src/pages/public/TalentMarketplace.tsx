@@ -21,12 +21,18 @@ import { useAuth } from '../../contexts/useAuth';
 
 const CATEGORIES = [
   'Semua',
-  'Teknologi & IT',
-  'Desain & Kreatif',
-  'Pemasaran & Digital',
-  'Admin & Operasional',
-  'F&B & Hospitality',
-  'Logistik & Gudang',
+  'Servis Elektronik & Komputer',
+  'Bengkel & Otomotif',
+  'Pijat, Refleksi & Terapi Kesehatan',
+  'Kebersihan & Cleaning Service',
+  'Pertukangan & Renovasi Bangunan',
+  'Salon, Barbershop & Perawatan',
+  'Pengantaran, Logistik & Angkut Barang',
+  'Les Privat & Kursus Mandiri',
+  'Fotografi & Multimedia',
+  'Desain, Percetakan & Sablon',
+  'Teknologi & IT Mandiri',
+  'Jasa Rumah Tangga & Lainnya',
 ];
 
 export default function TalentMarketplace() {
@@ -87,10 +93,10 @@ export default function TalentMarketplace() {
     }
     if (selectedAvailability === 'freelance') {
       return {
-        badge: 'Katalog Freelancer & Penyedia Jasa Profesional',
-        title: 'Temukan Freelancer & Solusi Jasa Terbaik',
-        highlight: 'Proyek & Layanan Lepas',
-        desc: 'Kolaborasi fleksibel bersama freelancer dan penyedia jasa lepas profesional untuk kebutuhan proyek, gig freelance, dan solusi bisnis Anda.',
+        badge: 'Bursa Penyedia Jasa Mandiri & Layanan Panggilan',
+        title: 'Temukan Penyedia Jasa Mandiri Terpercaya',
+        highlight: 'Layanan Panggilan & Di Tempat',
+        desc: 'Pesan jasa pijat & refleksi, bengkel motor/mobil, servis komputer & elektronik, pertukangan, kebersihan, dan aneka keahlian jasa mandiri profesional.',
         icon: Zap,
       };
     }
@@ -276,11 +282,11 @@ export default function TalentMarketplace() {
                 }}
                 className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400"
               >
-                <option value="all">Semua Tipe Kerja (Marketplace)</option>
+                <option value="all">Semua Kategori (Marketplace)</option>
                 <option value="fulltime">Pelamar Kerja (Fulltime)</option>
-                <option value="freelance">Freelancer / Jasa</option>
+                <option value="freelance">Jasa (Penyedia Jasa Mandiri)</option>
                 <option value="parttime">Part-time</option>
-                <option value="remote">Remote</option>
+                <option value="remote">Layanan Panggilan / Remote</option>
               </select>
 
               {/* City Filter */}

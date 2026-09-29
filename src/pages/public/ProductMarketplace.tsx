@@ -333,7 +333,7 @@ export default function ProductMarketplace() {
             </h1>
 
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-3xl">
-              Platform jual-beli dan transaksi resmi untuk seluruh member LOXER — pencari kerja, freelancer, maupun perusahaan. Temukan source code, template, lisensi, laptop sekon, hingga perlengkapan kantor dengan transaksi aman via WhatsApp langsung atau jaminan platform.
+              Platform jual-beli dan transaksi resmi untuk seluruh member LOXER — pencari kerja, penyedia jasa mandiri, maupun perusahaan. Temukan peralatan kerja, laptop/komputer sekon, alat bengkel, hingga perlengkapan usaha dengan transaksi aman via WhatsApp langsung atau jaminan platform.
             </p>
 
             {/* Action buttons */}
