@@ -162,7 +162,7 @@ export default function GodModeLayout({ title, description, children }: GodModeL
   const isAdmin = Boolean(user && (userMeta?.role === 'admin' || isDefaultAdminAccount));
   const assistantGuides = useMemo(
     () =>
-      [...CORE_ITEMS, ...GOD_MODE_ITEMS, ...systemToolsItems].flatMap((item) => {
+      [...CORE_ITEMS, ...systemToolsItems].flatMap((item) => {
         const guide = adminGuideContent[item.href];
         if (!guide) return [];
 
@@ -227,12 +227,11 @@ export default function GodModeLayout({ title, description, children }: GodModeL
 
           <div className="dashboard-sidebar-scroll min-h-0 flex-1 space-y-6 overflow-y-auto px-3 py-4">
             {!isCollapsed && <SidebarSection title="Core Admin" items={CORE_ITEMS} pathname={pathname} closeMobile={closeMobile} />}
-            {!isCollapsed && <SidebarSection title="God Mode" items={GOD_MODE_ITEMS} pathname={pathname} closeMobile={closeMobile} />}
             {!isCollapsed && <SidebarSection title="System Tools" items={systemToolsItems} pathname={pathname} closeMobile={closeMobile} />}
 
             {isCollapsed && (
               <div className="space-y-2">
-                {[...CORE_ITEMS, ...GOD_MODE_ITEMS, ...systemToolsItems].map((item) => {
+                {[...CORE_ITEMS, ...systemToolsItems].map((item) => {
                   const active = pathname === item.href;
                   const Icon = item.icon;
                   return (
