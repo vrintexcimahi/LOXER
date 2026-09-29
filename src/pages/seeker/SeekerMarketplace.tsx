@@ -311,24 +311,6 @@ export default function SeekerMarketplace() {
   return (
     <SeekerLayout currentPath="/seeker/marketplace">
       <div className="space-y-6">
-        {/* Header Hero */}
-        <div className="relative overflow-hidden rounded-3xl border border-cyan-500/30 bg-gradient-to-r from-slate-900 via-indigo-950/80 to-cyan-950/70 p-6 sm:p-8 shadow-xl">
-          <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-cyan-400 opacity-15 blur-3xl" />
-          <div className="relative z-10 space-y-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-              <Sparkles className="w-3.5 h-3.5" />
-              Fitur Baru: Reverse Hiring &amp; Talent Showcase
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">
-              Marketplace Pencari Kerja Saya
-            </h1>
-            <p className="text-sm text-slate-300 max-w-2xl">
-              Publikasikan biodata, tarif, dan portofolio Anda ke katalog publik LOXER.
-              Perusahaan &amp; klien dapat menemukan Anda langsung, menghubungi via WhatsApp, atau memberikan tawaran kerja resmi!
-            </p>
-          </div>
-        </div>
-
         {/* Tab Switcher */}
         <div className="flex border-b border-white/10 gap-4">
           <button

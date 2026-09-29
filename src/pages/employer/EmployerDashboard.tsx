@@ -84,7 +84,6 @@ export default function EmployerDashboard() {
     return (
       <EmployerLayout currentPath="/employer/dashboard">
         <div className="animate-pulse space-y-6">
-          <div className="h-32 bg-sky-100 rounded-2xl" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-sky-100 rounded-2xl" />)}
           </div>
@@ -95,30 +94,6 @@ export default function EmployerDashboard() {
 
   return (
     <EmployerLayout currentPath="/employer/dashboard">
-      {/* Welcome Banner */}
-      <div className="relative gradient-card-employer border border-emerald-500/30 shadow-xl shadow-emerald-950/30 rounded-3xl overflow-hidden mb-6 p-6 sm:p-8">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-300 rounded-full opacity-15 blur-3xl -translate-y-1/3 translate-x-1/3" />
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-white text-xl font-black">
-              {company ? `Halo, ${company.name}! 🚀` : 'Selamat Datang di Portal Perusahaan!'}
-            </h1>
-            <p className="text-emerald-100 text-sm mt-1 font-medium">
-              {company ? `${activeJobs} lowongan aktif · ${totalApps} pelamar` : 'Lengkapi profil perusahaan Anda untuk memulai rekrutmen'}
-            </p>
-          </div>
-          {!company ? (
-            <a href="/employer/company" className="bg-white text-emerald-800 rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-emerald-50 transition-colors whitespace-nowrap shadow-md shadow-emerald-950/20 active-press">
-              Lengkapi Profil Perusahaan
-            </a>
-          ) : (
-            <a href="/employer/jobs/new" className="bg-white text-emerald-800 rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-emerald-50 transition-colors whitespace-nowrap flex items-center gap-2 shadow-md shadow-emerald-950/20 active-press">
-              <PlusCircle className="w-4 h-4" /> Pasang Lowongan
-            </a>
-          )}
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[

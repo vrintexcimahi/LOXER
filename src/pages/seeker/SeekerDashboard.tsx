@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Briefcase, TrendingUp, Clock, CheckCircle, ArrowRight, MapPin, Bell } from 'lucide-react';
+import { Briefcase, TrendingUp, Clock, CheckCircle, ArrowRight, Bell } from 'lucide-react';
 import SeekerLayout from '../../components/layout/SeekerLayout';
 import { useAuth } from '../../contexts/useAuth';
 import { supabase } from '../../lib/supabase';
@@ -76,7 +76,6 @@ export default function SeekerDashboard() {
     return (
       <SeekerLayout currentPath="/seeker/dashboard">
         <div className="animate-pulse space-y-6">
-          <div className="h-40 bg-sky-100 rounded-2xl" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-sky-100 rounded-2xl" />)}
           </div>
@@ -87,31 +86,6 @@ export default function SeekerDashboard() {
 
   return (
     <SeekerLayout currentPath="/seeker/dashboard">
-      {/* Profile Banner */}
-      <div className="relative gradient-card rounded-3xl overflow-hidden mb-6 p-6 sm:p-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-400 rounded-full opacity-10 blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="w-16 h-16 gradient-badge rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-xl flex-shrink-0">
-            {(profile?.full_name || user?.email || '?')[0].toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-white text-xl font-black truncate">
-              Halo, {profile?.full_name || 'Pencari Kerja'}! 👋
-            </h1>
-            {profile?.domicile_city && (
-              <p className="text-cyan-200 text-sm flex items-center gap-1 mt-1">
-                <MapPin className="w-3.5 h-3.5" /> {profile.domicile_city}
-              </p>
-            )}
-            {!profile?.about && (
-              <a href="/seeker/profile" className="inline-flex items-center gap-1 mt-2 text-xs text-white/70 hover:text-white bg-white/10 rounded-full px-3 py-1 transition-colors">
-                Lengkapi profil untuk meningkatkan peluang <ArrowRight className="w-3 h-3" />
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {stats.map(({ label, value, icon: Icon, color }) => (
