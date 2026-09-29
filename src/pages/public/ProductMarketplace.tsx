@@ -512,15 +512,15 @@ export default function ProductMarketplace() {
                     key={prod.id}
                     className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80 hover:border-cyan-500/40 hover:bg-slate-900 shadow-xl shadow-black/40 transition-all duration-300 hover:-translate-y-1"
                   >
-                    {/* Image Thumbnail */}
-                    <div className="relative aspect-video w-full overflow-hidden bg-slate-800">
+                    {/* Image Thumbnail - Ratio 1:1 Penuh */}
+                    <div className="relative aspect-square w-full overflow-hidden bg-slate-800">
                       <img
                         src={prod.images[0] || PRESET_IMAGES[0].url}
                         alt={prod.title}
                         className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent pointer-events-none" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
 
                       {/* Condition Badge */}
                       <div className="absolute top-3 left-3 flex items-center gap-1.5">
@@ -621,12 +621,12 @@ export default function ProductMarketplace() {
               <X className="w-5 h-5" />
             </button>
 
-            {/* Modal Image */}
-            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-800">
+            {/* Modal Image - Ratio 1:1 Penuh */}
+            <div className="relative aspect-square max-h-[380px] w-full rounded-2xl overflow-hidden bg-slate-800 mx-auto">
               <img
                 src={selectedProduct.images[0] || PRESET_IMAGES[0].url}
                 alt={selectedProduct.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover object-center"
               />
               <div className="absolute top-3 left-3 flex gap-2">
                 <span className="px-3 py-1 rounded-xl text-xs font-black uppercase bg-cyan-500 text-slate-950 shadow-md">
