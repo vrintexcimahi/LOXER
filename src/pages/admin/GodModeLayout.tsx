@@ -1,17 +1,13 @@
 import { useMemo, type ReactNode } from 'react';
 import {
   AlertTriangle,
-  BarChart3,
   Briefcase,
   Building2,
   ChevronLeft,
   FileText,
-  Flag,
   Home,
   Link2,
   ListChecks,
-  Megaphone,
-  Shield,
   Users,
   Terminal,
   Database,
@@ -55,14 +51,6 @@ const CORE_ITEMS: NavItem[] = [
   { href: '/admin/companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', icon: Building2 },
   { href: '/admin/logs', label: 'Audit Log', description: 'Lihat semua jejak aksi admin', icon: FileText },
   { href: '/admin/integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', icon: Link2 },
-];
-
-const GOD_MODE_ITEMS: NavItem[] = [
-  { href: '/admin/analytics', label: 'Advanced Analytics', description: 'Funnel, health score, dan snapshot', icon: BarChart3 },
-  { href: '/admin/flags', label: 'Feature Flags', description: 'Toggle fitur tanpa redeploy', icon: Flag },
-  { href: '/admin/moderation', label: 'Moderation Queue', description: 'Review konten, scoring, dan eskalasi', icon: AlertTriangle },
-  { href: '/admin/broadcast', label: 'Broadcast System', description: 'Kirim notifikasi ke segmen user', icon: Megaphone },
-  { href: '/admin/security', label: 'Security Center', description: 'IP block, session, dan alert keamanan', icon: Shield },
 ];
 
 const MOBILE_NAV_ITEMS: { href: string; label: string; icon: typeof Home }[] = [
