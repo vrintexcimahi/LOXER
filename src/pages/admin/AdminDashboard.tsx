@@ -218,7 +218,13 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
   const effectiveRole = user ? normalizeRoleByEmail(user.email || userMeta?.email, userMeta?.role || 'seeker') : null;
   const adminEmail = normalizeComparableEmail(userMeta?.email || user?.email) || userMeta?.email || user?.email || '';
 
-  useEffect(() => setActiveTab(tab), [tab]);
+  useEffect(() => {
+    if (tab === 'logs') {
+      window.location.replace('/admin/monitoring?tab=audit');
+      return;
+    }
+    setActiveTab(tab);
+  }, [tab]);
 
   useEffect(() => {
     if (!toast) return;
@@ -233,7 +239,6 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
       { key: 'jobs', label: 'Manajemen Jobs', description: 'Atur seluruh lowongan yang tayang', href: '/admin/jobs', icon: Briefcase },
       { key: 'applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', href: '/admin/applications', icon: ListChecks },
       { key: 'companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', href: '/admin/companies', icon: Building2 },
-      ...(effectiveRole === 'superadmin' ? [{ key: 'logs', label: 'Audit Log', description: 'Lihat semua jejak aksi admin', href: '/admin/logs', icon: FileText }] : []),
       { key: 'integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', href: '/admin/integrations', icon: Link2 },
       ...(effectiveRole === 'superadmin' ? [
         { key: 'monitoring', label: 'Log & Monitoring', description: 'Real-time live tail & error tracker', href: '/admin/monitoring', icon: Terminal },

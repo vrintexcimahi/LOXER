@@ -12,7 +12,7 @@ type ApplicationWithJob = Application & { job_listings?: JobWithCompany | null }
 
 export default function SeekerDashboard() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<SeekerProfile | null>(null);
+  const [, setProfile] = useState<SeekerProfile | null>(null);
   const [applications, setApplications] = useState<ApplicationWithJob[]>([]);
   const [allApplicationStats, setAllApplicationStats] = useState<Pick<Application, 'id' | 'status'>[]>([]);
   const [recentJobs, setRecentJobs] = useState<JobWithCompany[]>([]);

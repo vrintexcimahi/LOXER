@@ -23,8 +23,10 @@ import {
   Sliders,
   Database,
   Archive,
+  FileText,
 } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
+import AuditLogsSection from '../../components/admin/AuditLogsSection';
 import {
   useSystemLogs,
   logger,
@@ -63,7 +65,49 @@ const LEVEL_COLORS: Record<LogLevel, { badge: string; text: string; dot: string;
   },
 };
 
-export default function LogMonitoring() {
+interface LogMonitoringProps {
+  initialTab?: 'system' | 'audit';
+}
+
+export default function LogMonitoring({ initialTab }: LogMonitoringProps = {}) {
+  const [activeTab, setActiveTab] = useState<'system' | 'audit'>(() => {
+    if (initialTab) return initialTab;
+    const tabParam = new URLSearchParams(window.location.search).get('tab');
+    if (tabParam === 'audit') return 'audit';
+    if (window.location.pathname === '/admin/logs') return 'audit';
+    return 'system';
+  });
+
+  const handleTabChange = (newTab: 'system' | 'audit') => {
+    setActiveTab(newTab);
+    const url = new URL(window.location.href);
+    if (newTab === 'audit') {
+      url.searchParams.set('tab', 'audit');
+    } else {
+      url.searchParams.delete('tab');
+    }
+    window.history.replaceState(null, '', url.pathname + url.search);
+  };
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const tabParam = new URLSearchParams(window.location.search).get('tab');
+      if (tabParam === 'audit' || window.location.pathname === '/admin/logs') {
+        setActiveTab('audit');
+      } else {
+        setActiveTab('system');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   const { logs, unresolvedErrorCount, clearLogs, resolveLog, resolveAllErrors } = useSystemLogs();
 
   // Filters & Controls
@@ -259,12 +303,64 @@ export default function LogMonitoring() {
 
   return (
     <GodModeLayout
-      title="Log & Monitoring System"
-      description="Live tail console, interceptor error global real-time, diagnostik, dan payload inspector."
+      title={activeTab === 'audit' ? 'Audit Log Aktivitas Admin' : 'Log & Monitoring System'}
+      description={
+        activeTab === 'audit'
+          ? 'Riwayat lengkap rekaman jejak audit aksi administrator, perubahan data, dan investigasi keamanan platform.'
+          : 'Live tail console, interceptor error global real-time, diagnostik, dan payload inspector.'
+      }
     >
       <div className="space-y-4 sm:space-y-6">
-        {/* KPI & Summary Bar */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
+        {/* Navigation Tabs: Live Tail vs Audit Log */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-1.5 rounded-2xl bg-slate-900/90 border border-white/10 backdrop-blur-xl shadow-lg">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-800/80">
+            <button
+              type="button"
+              onClick={() => handleTabChange('system')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'system'
+                  ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/10'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              <Terminal className="w-4 h-4 text-cyan-400" />
+              <span>Live Tail &amp; System Log</span>
+              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                {logs.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleTabChange('audit')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'audit'
+                  ? 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 border border-purple-500/40 shadow-sm shadow-purple-500/10'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-purple-400" />
+              <span>Audit Log Aktivitas Admin</span>
+              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                Database
+              </span>
+            </button>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 pr-3">
+            <span className={`w-2 h-2 rounded-full ${activeTab === 'system' ? 'bg-cyan-400 animate-ping' : 'bg-purple-400'}`} />
+            <span className="text-[11px] text-slate-400">
+              {activeTab === 'system' ? 'Real-time Console Stream' : 'Database Security Audit Trail'}
+            </span>
+          </div>
+        </div>
+
+        {activeTab === 'audit' ? (
+          <AuditLogsSection />
+        ) : (
+          <>
+            {/* KPI & Summary Bar */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
           <div className="rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-xl p-4 sm:p-5 shadow-lg hover:border-cyan-500/30 transition-all flex flex-col justify-between">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -874,6 +970,8 @@ export default function LogMonitoring() {
               </div>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </GodModeLayout>

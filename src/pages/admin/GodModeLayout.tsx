@@ -4,7 +4,6 @@ import {
   Briefcase,
   Building2,
   ChevronLeft,
-  FileText,
   Home,
   Link2,
   ListChecks,
@@ -49,7 +48,6 @@ const CORE_ITEMS: NavItem[] = [
   { href: '/admin/jobs', label: 'Manajemen Jobs', description: 'Atur seluruh lowongan yang tayang', icon: Briefcase },
   { href: '/admin/applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', icon: ListChecks },
   { href: '/admin/companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', icon: Building2 },
-  { href: '/admin/logs', label: 'Audit Log', description: 'Lihat semua jejak aksi admin', icon: FileText },
   { href: '/admin/integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', icon: Link2 },
 ];
 
@@ -78,7 +76,8 @@ function SidebarSection({
       {items.map((item) => {
         const active =
           pathname === item.href ||
-          (item.href === '/admin/users' && (pathname === '/admin/user-data' || pathname === '/admin/devices'));
+          (item.href === '/admin/users' && (pathname === '/admin/user-data' || pathname === '/admin/devices')) ||
+          (item.href === '/admin/monitoring' && (pathname === '/admin/monitoring' || pathname === '/admin/logs'));
         const Icon = item.icon;
         return (
           <a
