@@ -280,17 +280,6 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               />
             </a>
 
-            {!user && (
-              <button
-                type="button"
-                onClick={() => onRegister?.('employer')}
-                className="text-slate-300 hover:text-cyan-400 text-sm font-medium transition-colors duration-200 relative group"
-              >
-                Untuk Perusahaan
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
-              </button>
-            )}
-
             {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin') && (
               <a
                 href="/admin/dashboard"
