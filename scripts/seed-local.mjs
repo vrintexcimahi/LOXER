@@ -113,8 +113,9 @@ export async function seedDatabase() {
     console.log(`ℹ️ Employer demo sudah ada: ${employerEmail}`);
   }
 
-  // 3. Seed Demo Job Listings
-  if (companyId) {
+  // 3. Seed Demo Job Listings (Hanya jika flag --demo disertakan)
+  const isDemoEnabled = process.argv.includes('--demo');
+  if (isDemoEnabled && companyId) {
     const existingJobs = queryOne('SELECT count(*) as c FROM job_listings WHERE company_id = ?', [companyId]);
     if (!existingJobs || existingJobs.c === 0) {
       const jobs = [
@@ -377,9 +378,9 @@ export async function seedDatabase() {
     }
   }
 
-  // 10. Seed Talent Marketplace Posts (Pencari Kerja & Jasa)
+  // 10. Seed Talent Marketplace Posts (Hanya jika flag --demo disertakan)
   const existingTalents = queryOne('SELECT count(*) as c FROM talent_marketplace_posts');
-  if (!existingTalents || existingTalents.c === 0) {
+  if (isDemoEnabled && (!existingTalents || existingTalents.c === 0)) {
     const demoTalents = [
       {
         fullName: 'Arifin Ahmad',
