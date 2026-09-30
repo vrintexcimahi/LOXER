@@ -715,9 +715,70 @@ async function handleDbQuery(req, res) {
     return sendJson(res, 400, { error: { message: 'Tabel tidak valid atau tidak terdaftar.' } });
   }
 
-  // Security Guard: direct mutation on users table is strictly forbidden via generic query endpoint
-  if (table === 'users' && (action === 'insert' || action === 'update' || action === 'delete' || action === 'upsert')) {
+  const isMutation = action === 'insert' || action === 'update' || action === 'delete' || action === 'upsert';
+
+  // Security Guard 1: direct mutation on users table is strictly forbidden via generic query endpoint
+  if (table === 'users' && isMutation) {
     return sendJson(res, 403, { error: { message: 'Operasi modifikasi tabel users tidak diizinkan melalui endpoint ini.' } });
+  }
+
+  // Security Guard 2: audit_logs are immutable; update and delete are strictly forbidden
+  if (table === 'audit_logs' && (action === 'update' || action === 'delete')) {
+    return sendJson(res, 403, { error: { message: 'Catatan audit log bersifat permanen dan tidak dapat diubah atau dihapus.' } });
+  }
+
+  // Security Guard 3: administrative tables (ip_blocks, admin_sessions, feature_flags) require admin/superadmin token for mutations
+  if ((table === 'ip_blocks' || table === 'admin_sessions' || table === 'feature_flags') && isMutation) {
+    let callerRole = null;
+    if (token) {
+      const decoded = verifyToken(token);
+      const callerId = decoded?.sub || decoded?.userId;
+      if (callerId) {
+        const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
+        callerRole = callerMeta?.role;
+      }
+    }
+    if (callerRole !== 'admin' && callerRole !== 'superadmin') {
+      return sendJson(res, 403, { error: { message: 'Akses ditolak: Operasi ini memerlukan wewenang administrator.' } });
+    }
+  }
+
+  // Security Guard 4: users_meta privilege escalation protection
+  if (table === 'users_meta' && isMutation) {
+    let callerRole = null;
+    let callerUserId = null;
+    if (token) {
+      const decoded = verifyToken(token);
+      callerUserId = decoded?.sub || decoded?.userId;
+      if (callerUserId) {
+        const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerUserId]);
+        callerRole = callerMeta?.role;
+      }
+    }
+
+    const isAdminCaller = callerRole === 'admin' || callerRole === 'superadmin';
+
+    if (!callerUserId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk memodifikasi metadata pengguna.' } });
+    }
+
+    if (!isAdminCaller) {
+      if (action === 'delete' || action === 'insert') {
+        return sendJson(res, 403, { error: { message: 'Hanya administrator yang diizinkan mengelola akun pengguna.' } });
+      }
+
+      const payloadData = Array.isArray(data) ? data : [data];
+      for (const item of payloadData) {
+        if (item && ('role' in item || 'is_banned' in item)) {
+          return sendJson(res, 403, { error: { message: 'Perubahan role atau status suspend hanya dapat dilakukan oleh administrator.' } });
+        }
+      }
+
+      const idFilter = filters.find((f) => f.column === 'id' && f.op === 'eq');
+      if (idFilter && idFilter.value !== callerUserId) {
+        return sendJson(res, 403, { error: { message: 'Anda hanya dapat memperbarui metadata akun Anda sendiri.' } });
+      }
+    }
   }
 
   try {
@@ -858,37 +919,67 @@ async function handleDbQuery(req, res) {
 
     if (action === 'upsert') {
       const record = Array.isArray(data) ? data[0] : data;
-      const conflictKey = onConflict || 'id';
-      const conflictValue = record[conflictKey];
+      const rawConflict = onConflict || 'id';
+      const conflictKeys = String(rawConflict).split(',').map((k) => k.trim()).filter(Boolean);
 
-      const existing = conflictValue ? queryOne(`SELECT * FROM "${table}" WHERE "${conflictKey}" = ?`, [conflictValue]) : null;
+      // Security: Validate conflict keys against identifier injection
+      if (conflictKeys.length === 0 || conflictKeys.some((k) => !/^[a-zA-Z0-9_]+$/.test(k))) {
+        return sendJson(res, 400, { error: { message: 'Kolom onConflict tidak valid.' } });
+      }
+
+      const conflictWhere = conflictKeys.map((k) => `"${k}" = ?`).join(' AND ');
+      const conflictValues = conflictKeys.map((k) => record[k]);
+      const hasAllConflictValues = conflictValues.every((v) => v !== undefined && v !== null);
+
+      const existing = hasAllConflictValues
+        ? queryOne(`SELECT * FROM "${table}" WHERE ${conflictWhere}`, conflictValues)
+        : null;
 
       if (existing) {
         const setPairs = [];
         const setValues = [];
         for (const [k, v] of Object.entries(record)) {
-          if (k === conflictKey) continue;
+          if (!/^[a-zA-Z0-9_]+$/.test(k)) continue;
+          if (conflictKeys.includes(k)) continue;
           setPairs.push(`"${k}" = ?`);
           setValues.push(v !== null && typeof v === 'object' ? JSON.stringify(v) : v);
         }
+        if (table === 'seeker_profiles' || table === 'companies' || table === 'job_listings' || table === 'applications' || table === 'pages') {
+          if (!record.updated_at) {
+            setPairs.push('"updated_at" = ?');
+            setValues.push(new Date().toISOString());
+          }
+        }
         if (setPairs.length > 0) {
-          const sql = `UPDATE "${table}" SET ${setPairs.join(', ')} WHERE "${conflictKey}" = ?`;
-          execute(sql, [...setValues, conflictValue]);
+          const sql = `UPDATE "${table}" SET ${setPairs.join(', ')} WHERE ${conflictWhere}`;
+          execute(sql, [...setValues, ...conflictValues]);
         }
       } else {
         const row = { ...record };
         if (!row.id) row.id = crypto.randomUUID();
-        if (!row.created_at) row.created_at = new Date().toISOString();
+        const tablesWithoutCreatedAt = new Set(['applications', 'pages', 'feature_flags', 'admin_sessions']);
+        if (!row.created_at && !tablesWithoutCreatedAt.has(table)) {
+          row.created_at = new Date().toISOString();
+        }
+        if (table === 'applications' && !row.applied_at) {
+          row.applied_at = new Date().toISOString();
+        }
+        if (!row.updated_at && (table === 'seeker_profiles' || table === 'companies' || table === 'job_listings' || table === 'applications' || table === 'pages' || table === 'feature_flags' || table === 'user_devices' || table === 'user_preferences')) {
+          row.updated_at = new Date().toISOString();
+        }
 
-        const keys = Object.keys(row);
+        const keys = Object.keys(row).filter((k) => /^[a-zA-Z0-9_]+$/.test(k));
         const placeholders = keys.map(() => '?').join(', ');
         const values = keys.map((k) => (row[k] !== null && typeof row[k] === 'object' ? JSON.stringify(row[k]) : row[k]));
 
-        const sql = `INSERT INTO "${table}" (${keys.map((k) => `"${k}"`).join(', ')}) VALUES (${placeholders})`;
+        const sql = `INSERT OR REPLACE INTO "${table}" (${keys.map((k) => `"${k}"`).join(', ')}) VALUES (${placeholders})`;
         execute(sql, values);
       }
 
-      const resRow = queryOne(`SELECT * FROM "${table}" WHERE "${conflictKey}" = ?`, [conflictValue || record.id]);
+      const resRow = hasAllConflictValues
+        ? queryOne(`SELECT * FROM "${table}" WHERE ${conflictWhere}`, conflictValues)
+        : (record.id ? queryOne(`SELECT * FROM "${table}" WHERE id = ?`, [record.id]) : null);
+
       return sendJson(res, 200, { data: enrichRowRelations(table, resRow), error: null });
     }
 

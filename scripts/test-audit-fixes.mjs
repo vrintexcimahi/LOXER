@@ -1,6 +1,16 @@
 import { createServer } from 'vite';
 import { getLocalDb, queryOne, queryAll, execute } from '../server/localDb.js';
 
+let failureCount = 0;
+function assert(condition, message) {
+  if (!condition) {
+    console.error(`❌ FAIL: ${message}`);
+    failureCount++;
+  } else {
+    console.log(`✅ OK: ${message}`);
+  }
+}
+
 async function testAuditFixes() {
   console.log('--- Testing Audit & Bug Fixes ---');
   const port = Number(process.env.TEST_PORT_AUDIT || 3332);
@@ -24,7 +34,7 @@ async function testAuditFixes() {
     });
     const loginData = await loginRes.json();
     const adminToken = loginData.data?.session?.access_token;
-    if (!adminToken) throw new Error('Admin login failed');
+    assert(Boolean(adminToken), '1. Admin login successful');
 
     // 2. Test handleAdminAuditLog: admin_id should be properly set (not null/undefined)
     const auditRes = await fetch(`${baseUrl}/api/admin-audit-log`, {
@@ -41,13 +51,22 @@ async function testAuditFixes() {
       }),
     });
     const auditJson = await auditRes.json();
-    console.log('1. Audit Log API response:', auditJson.ok ? 'OK' : 'FAIL');
+    assert(auditJson.ok, '2. Audit Log API response successful');
 
     const lastAudit = queryOne("SELECT * FROM audit_logs WHERE action = 'test_audit_fix' ORDER BY created_at DESC LIMIT 1");
-    console.log('1.1 Audit Log admin_id check:', lastAudit?.admin_id ? `OK (admin_id: ${lastAudit.admin_id})` : 'FAIL');
+    assert(Boolean(lastAudit?.admin_id), `2.1 Audit Log admin_id check (admin_id: ${lastAudit?.admin_id})`);
 
-    // 3. Test handleApplicationStatusNotification: should insert into notifications with is_read column without crashing
-    const app = queryOne('SELECT id FROM applications LIMIT 1');
+    // 3. Test handleApplicationStatusNotification
+    let app = queryOne('SELECT id FROM applications LIMIT 1');
+    if (!app) {
+      // Seed a temporary application if none exists
+      const j = queryOne('SELECT id FROM job_listings LIMIT 1');
+      const s = queryOne('SELECT id FROM seeker_profiles LIMIT 1');
+      if (j && s) {
+        execute("INSERT OR IGNORE INTO applications (id, job_id, seeker_id, status) VALUES ('app_seed_temp', ?, ?, 'applied')", [j.id, s.id]);
+        app = { id: 'app_seed_temp' };
+      }
+    }
     if (app) {
       const notifRes = await fetch(`${baseUrl}/api/application-status-notification`, {
         method: 'POST',
@@ -61,15 +80,13 @@ async function testAuditFixes() {
         }),
       });
       const notifJson = await notifRes.json();
-      console.log('2. Application Status Notification API:', notifJson.ok ? 'OK' : 'FAIL');
+      assert(notifJson.ok, '3. Application Status Notification API responds OK');
 
       const notif = queryOne("SELECT * FROM notifications WHERE type = 'application_update' ORDER BY created_at DESC LIMIT 1");
-      console.log('2.1 Notification created successfully in DB:', notif ? `OK (is_read: ${notif.is_read}, title: ${notif.title})` : 'FAIL');
-    } else {
-      console.log('2. Skipped: No applications in DB to notify');
+      assert(Boolean(notif), `3.1 Notification persisted with is_read=${notif?.is_read}`);
     }
 
-    // 4. Test empty update in handleDbQuery (should not produce SQL error)
+    // 4. Test empty update in handleDbQuery (graceful fallback)
     const emptyUpdateRes = await fetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -81,9 +98,9 @@ async function testAuditFixes() {
       }),
     });
     const emptyUpdateData = await emptyUpdateRes.json();
-    console.log('3. Empty Update Graceful Handling:', emptyUpdateRes.ok && !emptyUpdateData.error ? 'OK' : 'FAIL');
+    assert(emptyUpdateRes.ok && !emptyUpdateData.error, '4. Empty update gracefully handled without SQL syntax error');
 
-    // 5. Test moderation_queue query and column support (reason, ai_score, ai_flags)
+    // 5. Test moderation_queue query
     const modRes = await fetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -93,7 +110,7 @@ async function testAuditFixes() {
       }),
     });
     const modData = await modRes.json();
-    console.log('4. Moderation Queue Query & Schema check:', modRes.ok && !modData.error ? 'OK' : 'FAIL');
+    assert(modRes.ok && !modData.error, '5. Moderation Queue query & columns check');
 
     // 6. Test analytics_snapshots table
     const snapRes = await fetch(`${baseUrl}/api/local/db/query`, {
@@ -105,42 +122,22 @@ async function testAuditFixes() {
       }),
     });
     const snapData = await snapRes.json();
-    console.log('5. Analytics Snapshots Query & Table check:', snapRes.ok && !snapData.error ? 'OK' : 'FAIL');
+    assert(snapRes.ok && !snapData.error, '6. Analytics Snapshots query check');
 
-    // 7. Test applications enrichment with interview_invitations
-    const appQueryRes = await fetch(`${baseUrl}/api/local/db/query`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        table: 'applications',
-        action: 'select',
-      }),
-    });
-    const appQueryData = await appQueryRes.json();
-    const hasApps = Array.isArray(appQueryData.data) && appQueryData.data.length > 0;
-    const invEnriched = hasApps && 'interview_invitations' in appQueryData.data[0];
-    console.log('6. Applications enrichment with interview_invitations:', invEnriched ? 'OK' : 'FAIL');
-
-    // 8. Test auto-generate daily analytics snapshot endpoint
+    // 7. Test auto-generate daily analytics snapshot endpoint
     const snapGenRes = await fetch(`${baseUrl}/api/admin/analytics-snapshot/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
     const snapGenData = await snapGenRes.json();
-    console.log(
-      '7. Generate Daily Analytics Snapshot API:',
-      snapGenRes.ok && snapGenData.success && snapGenData.snapshot?.snapshot_date ? 'OK' : 'FAIL'
-    );
+    assert(snapGenRes.ok && snapGenData.success && Boolean(snapGenData.snapshot?.snapshot_date), '7. Generate Daily Analytics Snapshot API');
 
-    // 9. Test audit logs stats endpoint
+    // 8. Test audit logs stats endpoint
     const statsRes = await fetch(`${baseUrl}/api/admin/audit-logs/stats`);
     const statsData = await statsRes.json();
-    console.log(
-      '8. Audit Logs Stats API:',
-      statsRes.ok && typeof statsData.total === 'number' ? 'OK' : 'FAIL'
-    );
+    assert(statsRes.ok && typeof statsData.total === 'number', '8. Audit Logs Stats API');
 
-    // 10. Test internal job query with company relation
+    // 9. Test internal job query with company relation
     const anyJob = queryOne("SELECT id FROM job_listings WHERE status = 'active' LIMIT 1");
     if (anyJob) {
       const jobRes = await fetch(`${baseUrl}/api/local/db/query`, {
@@ -154,13 +151,14 @@ async function testAuditFixes() {
       });
       const jobData = await jobRes.json();
       const jobObj = Array.isArray(jobData.data) ? jobData.data[0] : jobData.data;
-      console.log('9. Job Detail Query with Company Enrichment:', jobObj?.companies?.name ? 'OK' : 'FAIL');
+      assert(Boolean(jobObj?.companies?.name), '9. Job Detail query with company relation enrichment');
     }
 
-    // 11. Test Seeker application submission
+    // 10. Test Seeker application submission
     const seeker = queryOne("SELECT id, user_id FROM seeker_profiles LIMIT 1");
+    let testAppId = null;
     if (seeker && anyJob) {
-      // Clean up previous test run application to avoid UNIQUE constraint violation
+      testAppId = 'test_app_' + Date.now();
       execute("DELETE FROM applications WHERE job_id = ? AND seeker_id = ?", [anyJob.id, seeker.id]);
 
       const applyRes = await fetch(`${baseUrl}/api/local/db/query`, {
@@ -170,7 +168,7 @@ async function testAuditFixes() {
           table: 'applications',
           action: 'insert',
           data: {
-            id: 'test_app_' + Date.now(),
+            id: testAppId,
             job_id: anyJob.id,
             seeker_id: seeker.id,
             status: 'applied',
@@ -178,21 +176,37 @@ async function testAuditFixes() {
         }),
       });
       const applyData = await applyRes.json();
-      if (applyData.error) {
-        console.error('Apply error detail:', applyData.error);
-      }
-      console.log('10. Seeker Application Submission for Internal Job:', applyRes.ok && !applyData.error ? 'OK' : 'FAIL');
+      assert(applyRes.ok && !applyData.error, '10. Seeker Application Submission for internal job');
+
+      // Create an interview invitation for this application to test enrichment
+      execute("INSERT OR REPLACE INTO interview_invitations (id, application_id, scheduled_at, location_or_link, notes) VALUES (?, ?, datetime('now'), 'HQ Office', 'First round')",
+        ['inv_' + testAppId, testAppId]
+      );
     }
+
+    // 11. Test applications enrichment with interview_invitations
+    const appQueryRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'applications',
+        action: 'select',
+      }),
+    });
+    const appQueryData = await appQueryRes.json();
+    const hasApps = Array.isArray(appQueryData.data) && appQueryData.data.length > 0;
+    const invEnriched = hasApps && 'interview_invitations' in appQueryData.data[0];
+    assert(invEnriched, '11. Applications enrichment with interview_invitations');
 
     // 12. Test users_meta role constraints (freelancer & superadmin)
     const testUserId = 'test_usr_' + Date.now();
     execute("INSERT INTO users (id, email, password_hash, created_at) VALUES (?, 'free_test@example.com', 'pwd_hash', datetime('now'))", [testUserId]);
     execute("INSERT INTO users_meta (id, email, role, created_at) VALUES (?, 'free_test@example.com', 'freelancer', datetime('now'))", [testUserId]);
     const freeMeta = queryOne("SELECT role FROM users_meta WHERE id = ?", [testUserId]);
-    console.log('11. Freelancer & Superadmin Role Check in users_meta:', freeMeta?.role === 'freelancer' ? 'OK' : 'FAIL');
+    assert(freeMeta?.role === 'freelancer', '12. Freelancer Role in users_meta supported');
     execute("UPDATE users_meta SET role = 'superadmin' WHERE id = ?", [testUserId]);
     const superMeta = queryOne("SELECT role FROM users_meta WHERE id = ?", [testUserId]);
-    console.log('11.1 Superadmin Role Update in users_meta:', superMeta?.role === 'superadmin' ? 'OK' : 'FAIL');
+    assert(superMeta?.role === 'superadmin', '12.1 Superadmin Role update in users_meta supported');
     execute("DELETE FROM users_meta WHERE id = ?", [testUserId]);
     execute("DELETE FROM users WHERE id = ?", [testUserId]);
 
@@ -201,24 +215,23 @@ async function testAuditFixes() {
     if (anyApp) {
       execute("UPDATE applications SET status = 'expired' WHERE id = ?", [anyApp.id]);
       const expApp = queryOne("SELECT status FROM applications WHERE id = ?", [anyApp.id]);
-      console.log('12. Applications status expired support:', expApp?.status === 'expired' ? 'OK' : 'FAIL');
+      assert(expApp?.status === 'expired', '13. Applications status expired check constraint');
       execute("UPDATE applications SET status = ? WHERE id = ?", [anyApp.status, anyApp.id]);
     }
 
     // 14. Test talent_marketplace_posts bio and availability columns
-    const anySeeker = queryOne("SELECT id, user_id FROM seeker_profiles LIMIT 1");
-    if (anySeeker) {
+    if (seeker) {
       const testPostId = 'test_post_' + Date.now();
       execute(
         "INSERT INTO talent_marketplace_posts (id, seeker_id, user_id, headline, bio, availability) VALUES (?, ?, ?, 'Fullstack Dev', 'Test Bio Summary', 'freelance')",
-        [testPostId, anySeeker.id, anySeeker.user_id]
+        [testPostId, seeker.id, seeker.user_id]
       );
       const postRow = queryOne("SELECT bio, availability FROM talent_marketplace_posts WHERE id = ?", [testPostId]);
-      console.log('13. Talent Marketplace bio & availability columns:', postRow?.bio === 'Test Bio Summary' && postRow?.availability === 'freelance' ? 'OK' : 'FAIL');
+      assert(postRow?.bio === 'Test Bio Summary' && postRow?.availability === 'freelance', '14. Talent Marketplace bio & availability columns');
       execute("DELETE FROM talent_marketplace_posts WHERE id = ?", [testPostId]);
     }
 
-    // 15. Test /api/local/db/query security (users table protection & no password_hash leak)
+    // 15. Security: Direct mutation on users table blocked with 403 & password_hash stripped
     const usersInsertRes = await fetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -228,7 +241,7 @@ async function testAuditFixes() {
         data: { id: 'hacked', email: 'hack@bad.com', password_hash: 'evil' },
       }),
     });
-    console.log('14. Security: Direct mutation on users table blocked with 403:', usersInsertRes.status === 403 ? 'OK' : 'FAIL');
+    assert(usersInsertRes.status === 403, '15. Security: Direct mutation on users table blocked with 403');
 
     const usersSelectRes = await fetch(`${baseUrl}/api/local/db/query`, {
       method: 'POST',
@@ -240,9 +253,68 @@ async function testAuditFixes() {
     });
     const usersSelectData = await usersSelectRes.json();
     const hasLeakedHash = Array.isArray(usersSelectData.data) && usersSelectData.data.some((u) => 'password_hash' in u);
-    console.log('14.1 Security: password_hash stripped from users query:', !hasLeakedHash ? 'OK' : 'FAIL');
+    assert(!hasLeakedHash, '15.1 Security: password_hash stripped from users query');
 
-    // 16. Test /api/admin/applications/void-stale and audit_logs logging
+    // 16. Security (F-001): users_meta privilege escalation guard
+    const unauthMetaRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'users_meta',
+        action: 'update',
+        data: { role: 'superadmin' },
+        filters: [{ column: 'id', op: 'eq', value: 'victim_id' }],
+      }),
+    });
+    assert(unauthMetaRes.status === 401, '16. Security (F-001): Unauthenticated mutation on users_meta blocked with 401');
+
+    // Security (F-001): audit_logs update/delete blocked with 403
+    const auditDeleteRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'audit_logs',
+        action: 'delete',
+        filters: [{ column: 'id', op: 'neq', value: 'x' }],
+      }),
+    });
+    assert(auditDeleteRes.status === 403, '16.1 Security (F-001): Direct delete on audit_logs blocked with 403');
+
+    // 17. Security & Compatibility (F-002): Safe upsert and identifier injection protection
+    const injectionUpsertRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'companies',
+        action: 'upsert',
+        onConflict: 'id" OR 1=1 --',
+        data: { id: 'safe_id', name: 'Safe Company' },
+      }),
+    });
+    assert(injectionUpsertRes.status === 400, '17. Security (F-002): SQL injection via onConflict blocked with 400');
+
+    // Safe upsert on applications (without created_at crash)
+    const testAppUpsertId = 'upsert_app_' + Date.now();
+    const appUpsertRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'applications',
+        action: 'upsert',
+        onConflict: 'id',
+        data: {
+          id: testAppUpsertId,
+          job_id: anyJob?.id || 'job_default',
+          seeker_id: seeker?.id || 'seeker_default',
+          status: 'applied',
+        },
+      }),
+    });
+    const appUpsertData = await appUpsertRes.json();
+    assert(appUpsertRes.ok && !appUpsertData.error, '17.1 Schema (F-002): Safe upsert on applications table without created_at crash');
+    execute("DELETE FROM applications WHERE id = ?", [testAppUpsertId]);
+
+    // 18. Auto-Void Stale Applications dry-run API
     const voidRes = await fetch(`${baseUrl}/api/admin/applications/void-stale`, {
       method: 'POST',
       headers: {
@@ -255,14 +327,14 @@ async function testAuditFixes() {
       }),
     });
     const voidData = await voidRes.json();
-    console.log('15. Auto-Void Stale Applications dry-run API:', voidRes.ok && voidData.ok ? 'OK' : 'FAIL');
+    assert(voidRes.ok && voidData.ok, '18. Auto-Void Stale Applications dry-run API');
 
-    // 16. Test SQL Indexes and Parametric Search Booster
+    // 19. Test SQL Indexes and Parametric Search Booster
     const indexes = queryAll("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='job_listings'");
     const hasTitleIdx = indexes.some((idx) => idx.name === 'idx_job_listings_title');
-    console.log('16. Search Booster SQLite Indexes created:', hasTitleIdx ? 'OK' : 'FAIL');
+    assert(hasTitleIdx, '19. Search Booster SQLite Indexes created');
 
-    // 17. Test Reverse-Hiring Direct Offer Notification Insertion
+    // 20. Test Reverse-Hiring Direct Offer Notification Persistence
     const testNotifId = 'test_offer_notif_' + Date.now();
     execute(
       `INSERT INTO notifications (id, user_id, title, message, type, is_read, metadata, created_at)
@@ -279,17 +351,21 @@ async function testAuditFixes() {
       ]
     );
     const createdOfferNotif = queryOne('SELECT * FROM notifications WHERE id = ?', [testNotifId]);
-    console.log('17. Realtime reverse-hiring offer notification persistence:', createdOfferNotif?.type === 'direct_offer' ? 'OK' : 'FAIL');
+    assert(createdOfferNotif?.type === 'direct_offer', '20. Realtime reverse-hiring offer notification persistence');
     execute('DELETE FROM notifications WHERE id = ?', [testNotifId]);
 
-    // 18. Test CSV Export Helper logic with UTF-8 BOM & Excel escaping
+    // 21. Test CSV Export Helper logic with UTF-8 BOM & Excel escaping
     const testHeaders = ['ID', 'Action', 'Detail'];
     const testRows = [['1', 'ban_user', 'User "Alice" banned for spam']];
     const sanitize = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
     const csvOutput = '\uFEFF' + [testHeaders.map(sanitize).join(','), ...testRows.map((r) => r.map(sanitize).join(','))].join('\r\n');
-    console.log('18. Security audit logs CSV format generation & UTF-8 BOM:', csvOutput.startsWith('\uFEFF') && csvOutput.includes('""Alice""') ? 'OK' : 'FAIL');
+    assert(csvOutput.startsWith('\uFEFF') && csvOutput.includes('""Alice""'), '21. Security audit logs CSV format generation & UTF-8 BOM');
 
-    console.log('All audit fix tests passed with flying colors!');
+    if (failureCount > 0) {
+      throw new Error(`${failureCount} test assertion(s) failed!`);
+    }
+
+    console.log('🎉 All audit fix tests passed with flying colors (0 failures)!');
   } finally {
     await server.close();
     console.log('Test Vite server closed.');
@@ -297,6 +373,6 @@ async function testAuditFixes() {
 }
 
 testAuditFixes().then(() => { process.exit(0); }).catch((err) => {
-  console.error('Audit fix test failed:', err);
+  console.error('Audit fix test run failed:', err);
   process.exit(1);
 });
