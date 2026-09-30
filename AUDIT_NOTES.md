@@ -925,3 +925,60 @@
    - Di `SecurityCenter.tsx`, tombol *Ekspor CSV* mengekspor riwayat Activity Alerts (`audit_logs`), IP Block List, dan Admin Sessions secara dinamis dengan penanganan UTF-8 BOM dan escaping tanda kutip ganda.
    - Di `LogMonitoring.tsx`, modal Retensi & Arsip menyediakan pemilih format unduhan antara `.csv` (Excel-friendly) dan `.json` (Raw payload) sebelum database dibersihkan.
    - Diverifikasi melalui Test 16, 17, dan 18 di `scripts/test-audit-fixes.mjs`.
+
+---
+
+## [2026-10-01] Audit & Bug Fix Run — Ultra Max +++++
+- Branch: audit/otonom-ultra-max-plus-20261001 | Base: 11a5e83 | Commit awal: adfb14c | Commit akhir: d55ba0f | Baseline tag: audit-baseline-20261001
+- Mode/parameter run: MODE=audit+fix, TARGET=seluruh repo, FOKUS=security, schemas, RBAC, UX, test-suites, INSTALL_DEPENDENCY_BARU=false, PUSH_KE_REMOTE=false
+- Scope run ini: Seluruh repositori (Backend localApiHandler, Serverless API, Frontend Auth & Puck, Database Schema, Test Suites)
+
+### Baseline & metrik (sebelum → sesudah)
+| Metrik | Baseline | Akhir |
+|---|---|---|
+| Test (pass/fail/skip) | 17 pass / 1 fail / 0 skip | 26 pass / 0 fail / 0 skip (21/21 in test-audit-fixes, 5/5 in test-local-api) |
+| Coverage | Integration endpoint smoke test | 26 assertion points end-to-end |
+| Lint errors / warnings | 2 errors / 1 warning | 0 errors / 0 warnings |
+| Type check errors | 0 | 0 |
+| Build status & durasi | PASS (6.93s) | PASS (6.44s) |
+| Vuln dependency (C/H/M/L) | 0/13/7/3 (23 total) | 0/13/7/3 (23 total, locked by INSTALL_DEPENDENCY_BARU=false) |
+| LOC Berubah | - | +270 / -92 across 12 files |
+
+### Peta arsitektur ringkas
+- Entry points: Vite dev server with custom middlewares (createAuthCapabilitiesMiddleware, handleDbQuery), Serverless production endpoints in /api/, SPA React Router with role guards.
+- Trust boundaries: /api/local/db/query (Local SQLite gateway), /api/admin/* (Vercel Serverless production endpoints), Client-side storage (localStorage tokens).
+- Aset sensitif: data/loxer.db, users_meta (roles, ban status), audit_logs (security activity history), admin_sessions.
+
+### Area yang sudah diaudit (Peta Cakupan)
+| Modul | Tier | Kedalaman | Kategori | Catatan |
+|---|---|---|---|---|
+| server/localApiHandler.js & localDb.js | 1 | D3 | 1, 2, 5, 8 | Fixed privilege escalation, SQL injection, schema mismatch |
+| api/admin/* & api/integrations-status.js | 1 | D3 | 1, 2, 5 | Fixed superadmin 403 lockouts, added internal provider |
+| src/pages/auth/AuthModal.tsx | 1 | D3 | 5, 6 | Fixed freelancer redirect path |
+| src/components/puck/ & src/pages/public/ | 2 | D2 | 6, 7 | Fixed ESLint violations |
+| src/App.tsx | 1 | D2 | 2, 6 | Added audit-log route aliases |
+| scripts/test-audit-fixes.mjs | 1 | D3 | 2, 5 | Added fail-stop assertions, fixed execution order |
+| data/schema.sql & migrations | 1 | D3 | 2, 5 | Verified SQLite schemas, table whitelist, index boosters |
+
+### Bug ditemukan & diperbaiki
+- [Critical] F-001: Privilege escalation and tampering on users_meta and audit_logs via /api/local/db/query — Root cause: unauthenticated clients could mutate users_meta.role to superadmin and delete audit_logs — Fix: 4-tier server-side guards enforcing authentication, role elevation blocking, audit log immutability, and admin requirements for security tables — Commit: adfb14c — Bukti: E4 — Verifikasi: V4 (assert 16 & 16.1) — [security fix]
+- [High] F-002: SQL Injection & crash on action === 'upsert' in handleDbQuery — Root cause: unescaped onConflict and column identifiers interpolated into SQL query; schema mismatch on applications lacking created_at — Fix: alphanumeric regex sanitization, composite conflict key support, and conditional timestamp mapping — Commit: adfb14c — Bukti: E4 — Verifikasi: V4 (assert 17 & 17.1) — [security fix]
+- [High] F-003: Superadmin 403 lockout on production cloud endpoints — Root cause: strict equality check callerMeta.role !== 'admin' rejected superadmin — Fix: updated RBAC checks to accept both admin and superadmin across 5 endpoints — Commit: c91bdbc — Bukti: E3 — Verifikasi: V3
+- [Medium] F-004: Missing internal provider on production api/integrations-status.js — Root cause: cloud status endpoint omitted local Mitra LOXER internal jobs provider — Fix: added internal provider entry matching vite.config.ts — Commit: c91bdbc — Bukti: E3 — Verifikasi: V3
+- [Medium] F-005: Incorrect freelancer redirect in AuthModal.tsx — Root cause: newly registered freelancer accounts were sent to /seeker/dashboard — Fix: routed freelancer (Jasa) to /seeker/marketplace — Commit: d55ba0f — Bukti: E3 — Verifikasi: V3
+- [Medium] F-006: Test suite false-green assertion void — Root cause: test-audit-fixes.mjs printed FAIL without assertions or non-zero exit codes — Fix: rewritten with node:assert, fail-stop exit code 1, and 21 comprehensive test assertions — Commit: adfb14c — Bukti: E4 — Verifikasi: V4
+- [Low] F-007: ESLint type safety & hook dependency violations — Root cause: Record<string, any> in homepageData.ts and missing dependency in ProductMarketplace.tsx — Fix: replaced with Record<string, unknown> and wrapped loadData in useCallback — Commit: d55ba0f — Bukti: E4 — Verifikasi: V4
+- [Low] F-008: Missing alias routes for Security Audit Logs — Root cause: navigating to /admin/audit-logs or /admin/audit-log rendered 404 — Fix: added alias route definitions in App.tsx — Commit: d55ba0f — Bukti: E3 — Verifikasi: V3
+
+### Keputusan teknis & asumsi (Kelas 2)
+- Immutabilitas tabel audit_logs: DELETE pada tabel audit_logs diblokir secara permanen di gateway /api/local/db/query dengan HTTP 403 Forbidden untuk menjamin jejak audit kepatuhan keamanan.
+- Whitelist kolom aman onConflict dan payload: Validasi regex /^[a-zA-Z0-9_]+$/ diterapkan pada semua nama kolom SQLite untuk mencegah injeksi SQL struktural.
+- Penanganan skema applications: Tabel applications tidak memiliki kolom created_at (hanya applied_at), sehingga logic upsert mengecualikan created_at secara dinamis.
+
+### Risk register
+- Ketergantungan SQLite pada disk lokal: Lingkungan stateless serverless (Vercel) membutuhkan Supabase Cloud atau persistent volume jika berpindah dari local mode.
+- Audit dependencies npm: 23 kerentanan yang ada pada baseline sengaja tidak di-fix secara agresif untuk menghindari breaking change tanpa test e2e menyeluruh (sesuai constraint INSTALL_DEPENDENCY_BARU=false).
+
+### Perlu diperhatikan agent berikutnya
+- Branch audit/otonom-ultra-max-plus-20261001 berdiri di atas commit 11a5e83 dengan 3 commit perbaikan yang siap di-review dan di-merge.
+- File data/loxer.db dan scratch_admin_integrations.txt sengaja tidak disentuh atau di-commit untuk menjaga integritas data lokal pengguna.
