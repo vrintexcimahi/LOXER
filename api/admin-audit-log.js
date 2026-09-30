@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (callerMeta?.role !== 'admin') {
+  if (callerMeta?.role !== 'admin' && callerMeta?.role !== 'superadmin') {
     res.status(403).json({ message: 'Forbidden' });
     return;
   }

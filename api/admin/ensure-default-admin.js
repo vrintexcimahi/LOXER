@@ -57,7 +57,7 @@ export default async function handler(req, res) {
   const payload = {
     id: signedInUser.id,
     email: signedInUser.email || defaultAdminEmail,
-    role: 'admin',
+    role: 'superadmin',
   };
 
   const { data: upserted, error: upsertError } = await adminClient

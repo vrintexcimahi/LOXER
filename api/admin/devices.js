@@ -18,7 +18,7 @@ async function verifyAdmin(adminClient, token) {
     .maybeSingle();
 
   if (callerMetaError) return { error: { status: 500, message: callerMetaError.message } };
-  if (callerMeta?.role !== 'admin') return { error: { status: 403, message: 'Forbidden' } };
+  if (callerMeta?.role !== 'admin' && callerMeta?.role !== 'superadmin') return { error: { status: 403, message: 'Forbidden' } };
 
   return { ok: true };
 }

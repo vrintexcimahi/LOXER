@@ -4,6 +4,15 @@ import { getPublicIp } from '../services/resilienceService.js';
 function buildIntegrations() {
   return [
     {
+      id: 'internal',
+      label: 'Mitra Internal LOXER',
+      configured: true,
+      endpoint: '/api/jobs?provider=internal',
+      docsUrl: '#',
+      mode: 'database-native',
+      note: 'Lowongan kerja terverifikasi langsung dari employer yang terdaftar di LOXER.',
+    },
+    {
       id: 'careerjet',
       label: 'Careerjet Job Search API',
       configured: Boolean(process.env.CAREERJET_API_KEY),
