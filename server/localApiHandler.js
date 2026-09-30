@@ -8,7 +8,11 @@ import {
   generateToken,
   verifyToken,
   recordDailyAnalyticsSnapshot,
+  createDatabaseSnapshot,
+  listDatabaseSnapshots,
+  getSnapshotFilePath,
 } from './localDb.js';
+import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { buildApplicationStatusNotification } from '../services/applicationStatusNotification.js';
 import { apiRateLimiter, dbRateLimiter } from '../services/resilienceService.js';
@@ -1857,6 +1861,18 @@ async function handleAdminDeviceRevoke(req, res) {
 }
 
 async function handleGenerateAnalyticsSnapshot(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
+    return sendJson(res, 403, { message: 'Akses khusus administrator' });
+  }
+
   try {
     const snapshot = recordDailyAnalyticsSnapshot();
     return sendJson(res, 200, { success: true, snapshot });
@@ -1866,6 +1882,18 @@ async function handleGenerateAnalyticsSnapshot(req, res) {
 }
 
 async function handleAuditLogsStats(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
+    return sendJson(res, 403, { message: 'Akses khusus administrator' });
+  }
+
   try {
     const countRow = queryOne('SELECT count(*) as c FROM audit_logs');
     const oldestRow = queryOne('SELECT created_at FROM audit_logs ORDER BY created_at ASC LIMIT 1');
@@ -1881,8 +1909,15 @@ async function handleAuditLogsStats(req, res) {
 }
 
 async function handleAuditLogsArchive(req, res) {
-  const caller = verifyAdminCaller(req);
-  if (!caller.allowed) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const callerMeta = queryOne('SELECT role, email FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
     return sendJson(res, 403, { message: 'Akses khusus administrator' });
   }
 
@@ -1915,8 +1950,8 @@ async function handleAuditLogsArchive(req, res) {
       'INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         crypto.randomUUID(),
-        caller.callerId || null,
-        caller.callerMeta?.email || '',
+        callerId,
+        callerMeta.email || '',
         'archive_audit_logs',
         'system',
         'audit_logs',
@@ -2021,6 +2056,15 @@ export function createLocalDbMiddleware(env = {}) {
       }
       if (url.startsWith('/api/admin/applications/void-stale') && req.method === 'POST') {
         return handleVoidStaleApplications(req, res);
+      }
+      if (url.startsWith('/api/admin/backups/snapshots') && req.method === 'GET') {
+        return handleAdminListSnapshots(req, res);
+      }
+      if (url.startsWith('/api/admin/backups/create-snapshot') && req.method === 'POST') {
+        return handleAdminCreateSnapshot(req, res);
+      }
+      if (url.startsWith('/api/admin/backups/download-snapshot') && req.method === 'GET') {
+        return handleAdminDownloadSnapshot(req, res);
       }
     }
 

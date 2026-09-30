@@ -2,7 +2,7 @@
 // LOXER Admin - Log & Monitoring System (Live Tail & Error Tracker)
 // ==============================================================================
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Terminal,
   Search,
@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
 import AuditLogsSection from '../../components/admin/AuditLogsSection';
+import { useAuth } from '../../contexts/useAuth';
 import {
   useSystemLogs,
   logger,
@@ -129,9 +130,14 @@ export default function LogMonitoring({ initialTab }: LogMonitoringProps = {}) {
   const [retentionStats, setRetentionStats] = useState<{ total: number; oldestDate: string | null; newestDate: string | null } | null>(null);
   const [retentionFeedback, setRetentionFeedback] = useState<string | null>(null);
 
-  const fetchRetentionStats = async () => {
+  const { session } = useAuth();
+  const authToken = session?.access_token || (typeof window !== 'undefined' ? localStorage.getItem('loxer_local_auth_token') : null);
+
+  const fetchRetentionStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/audit-logs/stats');
+      const res = await fetch('/api/admin/audit-logs/stats', {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setRetentionStats(data);
@@ -139,14 +145,14 @@ export default function LogMonitoring({ initialTab }: LogMonitoringProps = {}) {
     } catch {
       // ignore
     }
-  };
+  }, [authToken]);
 
   useEffect(() => {
     if (showRetentionModal) {
       void fetchRetentionStats();
       setRetentionFeedback(null);
     }
-  }, [showRetentionModal]);
+  }, [showRetentionModal, fetchRetentionStats]);
 
   const handleExecuteRetention = async () => {
     setRetentionLoading(true);
@@ -154,7 +160,10 @@ export default function LogMonitoring({ initialTab }: LogMonitoringProps = {}) {
     try {
       const res = await fetch('/api/admin/audit-logs/archive', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify({
           retentionDays,
           purgeOnly: !downloadArchiveFirst,

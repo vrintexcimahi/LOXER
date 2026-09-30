@@ -4,6 +4,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import GodModeLayout from './GodModeLayout';
 import { supabase } from '../../lib/supabase';
 import { formatDayLabel } from '../../lib/adminUtils';
+import { useAuth } from '../../contexts/useAuth';
 
 interface Snapshot {
   id?: string;
@@ -108,6 +109,7 @@ function HealthRing({ score }: { score: number }) {
 }
 
 export default function AdvancedAnalytics() {
+  const { session } = useAuth();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [history, setHistory] = useState<MiniChartPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,10 +213,14 @@ export default function AdvancedAnalytics() {
   async function handleGenerateSnapshot() {
     setGeneratingSnapshot(true);
     setSnapshotFeedback(null);
+    const token = session?.access_token || (typeof window !== 'undefined' ? localStorage.getItem('loxer_local_auth_token') : null);
     try {
       const res = await fetch('/api/admin/analytics-snapshot/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
       if (res.ok) {
         setSnapshotFeedback('Snapshot hari ini berhasil disinkronkan.');
