@@ -2041,6 +2041,7 @@ function AdminApplications({
   adminEmail: string;
   onToast: (type: ToastType, message: string) => void;
 }) {
+  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [total, setTotal] = useState(0);
@@ -2180,7 +2181,7 @@ function AdminApplications({
 
     setVoidLoading(true);
     try {
-      const token = localStorage.getItem('loxer_local_auth_token') || '';
+      const token = session?.access_token || localStorage.getItem('loxer_local_auth_token') || '';
       const resp = await fetch('/api/admin/applications/void-stale', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

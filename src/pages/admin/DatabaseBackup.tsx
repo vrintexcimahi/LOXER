@@ -23,6 +23,7 @@ import {
   Bot,
 } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
+import { useAuth } from '../../contexts/useAuth';
 import {
   fetchDatabaseStats,
   generateBackupPackage,
@@ -38,6 +39,11 @@ import {
 } from '../../lib/backupService';
 
 export default function DatabaseBackup() {
+  const { session } = useAuth();
+  const getAuthToken = useCallback(() => {
+    return session?.access_token || (typeof window !== 'undefined' ? localStorage.getItem('loxer_local_auth_token') : null) || '';
+  }, [session]);
+
   // DB Stats
   const [loading, setLoading] = useState(true);
   const [tables, setTables] = useState<TableEntityInfo[]>([]);
@@ -79,7 +85,7 @@ export default function DatabaseBackup() {
   const loadSnapshots = useCallback(async () => {
     setLoadingSnapshots(true);
     try {
-      const token = localStorage.getItem('loxer_local_auth_token') || '';
+      const token = getAuthToken();
       const res = await fetch('/api/admin/backups/snapshots', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -92,12 +98,12 @@ export default function DatabaseBackup() {
     } finally {
       setLoadingSnapshots(false);
     }
-  }, []);
+  }, [getAuthToken]);
 
   const handleCreateSnapshot = async () => {
     setCreatingSnapshot(true);
     try {
-      const token = localStorage.getItem('loxer_local_auth_token') || '';
+      const token = getAuthToken();
       const res = await fetch('/api/admin/backups/create-snapshot', {
         method: 'POST',
         headers: {
@@ -121,7 +127,7 @@ export default function DatabaseBackup() {
   };
 
   const handleDownloadSnapshot = (filename: string) => {
-    const token = localStorage.getItem('loxer_local_auth_token') || '';
+    const token = getAuthToken();
     fetch(`/api/admin/backups/download-snapshot?file=${encodeURIComponent(filename)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })

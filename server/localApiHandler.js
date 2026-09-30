@@ -689,23 +689,31 @@ const ALLOWED_DB_TABLES = new Set([
 ]);
 
 async function handleDbQuery(req, res) {
-  // Sliding window rate limiter: 600 req/min for DB queries; authenticated user/admin sessions are exempted
+  // Sliding window rate limiter: 600 req/min per IP/user; admins/superadmins are exempted
   const clientIp = getClientIp(req) || '127.0.0.1';
   const token = parseBearerToken(req);
-  let isPrivileged = false;
+  let callerId = null;
+  let isAdminOrSuper = false;
   if (token) {
     const decoded = verifyToken(token);
-    if (decoded) isPrivileged = true;
+    if (decoded) {
+      callerId = decoded.sub || decoded.userId;
+      const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
+      if (callerMeta?.role === 'admin' || callerMeta?.role === 'superadmin') {
+        isAdminOrSuper = true;
+      }
+    }
   }
 
-  const rateCheck = isPrivileged
+  const rateKey = callerId ? `user:${callerId}` : clientIp;
+  const rateCheck = isAdminOrSuper
     ? { allowed: true, remaining: 9999, resetMs: 0, retryAfterSec: 0 }
-    : dbRateLimiter.check(clientIp);
+    : dbRateLimiter.check(rateKey);
 
   if (!rateCheck.allowed) {
     return sendJson(res, 429, {
       error: {
-        message: 'Terlalu banyak permintaan basis data. Batas 600 request per menit tercapai. Silakan coba sesaat lagi.',
+        message: 'Terlalu banyak permintaan basis data. Batas kuota request tercapai. Silakan coba sesaat lagi.',
         code: 'RATE_LIMIT_EXCEEDED',
         retry_after: rateCheck.retryAfterSec,
       },

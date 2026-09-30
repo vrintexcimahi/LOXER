@@ -101,7 +101,8 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
           else if (paramEmail === 'arifin.ahmad@example.com') setPassword('seeker123');
         }
 
-        if (paramAuto === '1' || paramAuto === 'true') {
+        const allowDemoAuto = !import.meta.env.PROD || import.meta.env.VITE_ENABLE_DEMO_AUTO === 'true';
+        if (allowDemoAuto && (paramAuto === '1' || paramAuto === 'true')) {
           const timer = setTimeout(() => {
             const form = document.getElementById('auth-modal-form') as HTMLFormElement | null;
             if (form) form.requestSubmit();

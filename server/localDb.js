@@ -13,6 +13,9 @@ const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 const SCHEMA_FILE = path.join(DATA_DIR, 'schema.sql');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'loxer-local-jwt-secret-key-2026';
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.warn('[SECURITY WARNING] Running in production without a custom JWT_SECRET! Using insecure default fallback.');
+}
 const JWT_EXPIRES_DAYS = 7;
 
 let dbInstance = null;

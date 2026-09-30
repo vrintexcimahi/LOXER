@@ -16,14 +16,22 @@ export function useAdminEasterEgg({
   const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
     try {
       if (typeof window === 'undefined') return false;
+      const isProduction = Boolean(import.meta.env.PROD);
+      const allowUrlBypass = !isProduction || import.meta.env.VITE_ENABLE_ADMIN_EASTER_EGG === 'true';
+
       const params = new URLSearchParams(window.location.search);
       const hash = window.location.hash || '';
-      return (
+
+      const urlUnlocked = allowUrlBypass && (
         params.get('role') === 'admin' ||
         params.get('preview_role') === 'admin' ||
         params.get('dev') === 'admin' ||
         params.get('mode') === 'god' ||
-        hash.includes('admin') ||
+        hash.includes('admin')
+      );
+
+      return (
+        Boolean(urlUnlocked) ||
         sessionStorage.getItem('loxer_admin_unlocked') === 'true' ||
         sessionStorage.getItem('app_admin_unlocked') === 'true'
       );
