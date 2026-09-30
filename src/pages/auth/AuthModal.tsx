@@ -306,7 +306,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
     setSuccess(`Berhasil ${mode === 'login' ? 'masuk' : 'mendaftar'} dengan Google. Mengalihkan...`);
 
     const nextPath = mode === 'register' && role
-      ? (role === 'employer' ? '/employer/dashboard' : '/seeker/dashboard')
+      ? (role === 'employer' ? '/employer/dashboard' : role === 'freelancer' ? '/seeker/marketplace' : '/seeker/dashboard')
       : await resolveNextPath(selectedEmail);
     setTimeout(() => {
       onClose();
@@ -410,7 +410,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
           setOtpChannel(authCapabilities.emailOtpEnabled ? 'email' : 'sms');
           setSuccess('Akun berhasil dibuat. Pilih pengiriman OTP untuk verifikasi akun.');
         } else {
-          const nextPath = role === 'employer' ? '/employer/dashboard' : '/seeker/dashboard';
+          const nextPath = role === 'employer' ? '/employer/dashboard' : role === 'freelancer' ? '/seeker/marketplace' : '/seeker/dashboard';
           setSuccess('Akun berhasil dibuat. Mengalihkan...');
           setTimeout(() => {
             onClose();

@@ -210,6 +210,8 @@ VITE_SUPABASE_ANON_KEY=...`}
 
       const superPages: Record<string, JSX.Element> = {
         '/admin/logs': <LogMonitoring initialTab="audit" />,
+        '/admin/audit-logs': <LogMonitoring initialTab="audit" />,
+        '/admin/audit-log': <LogMonitoring initialTab="audit" />,
         '/admin/analytics': <AdvancedAnalytics />,
         '/admin/flags': <FeatureFlags />,
         '/admin/broadcast': <BroadcastSystem />,

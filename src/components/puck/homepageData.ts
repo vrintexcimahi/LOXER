@@ -31,8 +31,8 @@ export type CtaBannerProps = {
 };
 
 export type HomepageData = {
-  root?: { props?: Record<string, any> };
-  content: Array<{ type: string; props: Record<string, any> }>;
+  root?: { props?: Record<string, unknown> };
+  content: Array<{ type: string; props: Record<string, unknown> }>;
 };
 
 export const defaultHomepageData: HomepageData = {

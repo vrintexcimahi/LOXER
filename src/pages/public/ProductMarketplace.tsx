@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ShoppingBag,
   Search,
@@ -93,7 +93,7 @@ export default function ProductMarketplace() {
   const [offerBuyerName, setOfferBuyerName] = useState('');
   const [offerBuyerWa, setOfferBuyerWa] = useState('');
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const prods = await fetchMarketplaceProducts();
@@ -107,11 +107,11 @@ export default function ProductMarketplace() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     void loadData();
-  }, [user]);
+  }, [loadData]);
 
   const showToast = (msg: string) => {
     setSuccessToast(msg);
