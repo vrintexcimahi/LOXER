@@ -238,16 +238,25 @@ export default function JobDetailModal({
         setAppliedDate(new Date().toISOString());
         onApplied?.(jobId);
       } else {
-        // Fallback to offline queue on connection or DB error
-        queueApplicationOffline({
-          jobId,
-          jobTitle: job?.title || 'Lowongan Kerja',
-          companyName: job?.companies?.name || 'Mitra LOXER',
-          seekerId: profileId,
-        });
-        setJustApplied(true);
-        setAlreadyApplied(true);
-        onApplied?.(jobId);
+        const errStr = String((error as { message?: string })?.message || '');
+        const isDuplicate = errStr.includes('UNIQUE') || errStr.includes('duplicate') || (error as { code?: string })?.code === '23505';
+
+        if (isDuplicate) {
+          setJustApplied(true);
+          setAlreadyApplied(true);
+          onApplied?.(jobId);
+        } else {
+          // Fallback to offline queue on connection or DB error
+          queueApplicationOffline({
+            jobId,
+            jobTitle: job?.title || 'Lowongan Kerja',
+            companyName: job?.companies?.name || 'Mitra LOXER',
+            seekerId: profileId,
+          });
+          setJustApplied(true);
+          setAlreadyApplied(true);
+          onApplied?.(jobId);
+        }
       }
     } catch {
       queueApplicationOffline({

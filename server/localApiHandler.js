@@ -48,12 +48,13 @@ function resetLoginRateLimit(ip, email) {
 }
 
 // Self-clean setiap 30 menit agar Map tidak menggelembung
-setInterval(() => {
+const loginCleanTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of LOGIN_ATTEMPTS.entries()) {
     if (now - entry.firstAt > LOGIN_WINDOW_MS) LOGIN_ATTEMPTS.delete(key);
   }
 }, 30 * 60 * 1000);
+if (loginCleanTimer && loginCleanTimer.unref) loginCleanTimer.unref();
 
 function parseBearerToken(req) {
   const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
@@ -1165,58 +1166,78 @@ async function handleAdminAuditLog(req, res) {
 }
 
 async function handleApplicationStatusNotification(req, res) {
-  const token = parseBearerToken(req);
-  if (!token) return sendJson(res, 401, { message: 'Unauthorized' });
+  try {
+    const token = parseBearerToken(req);
+    if (!token) return sendJson(res, 401, { message: 'Unauthorized' });
 
-  const tokenPayload = verifyToken(token);
-  const callerId = tokenPayload?.sub || tokenPayload?.userId;
-  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized' });
+    const tokenPayload = verifyToken(token);
+    const callerId = tokenPayload?.sub || tokenPayload?.userId;
+    if (!callerId) return sendJson(res, 401, { message: 'Unauthorized' });
 
-  const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
-  if (!callerMeta || !['admin', 'employer', 'superadmin'].includes(callerMeta.role)) {
-    return sendJson(res, 403, { message: 'Forbidden' });
+    const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
+    if (!callerMeta || !['admin', 'employer', 'superadmin'].includes(callerMeta.role)) {
+      return sendJson(res, 403, { message: 'Forbidden' });
+    }
+
+    const body = await parseJsonBody(req);
+    const applicationId = body.applicationId || '';
+    const status = body.status || '';
+    if (!applicationId || !status) {
+      return sendJson(res, 400, { message: 'applicationId dan status wajib diisi.' });
+    }
+
+    const app = queryOne('SELECT * FROM applications WHERE id = ?', [applicationId]);
+    if (!app) return sendJson(res, 404, { message: 'Aplikasi tidak ditemukan.' });
+
+    const job = queryOne('SELECT * FROM job_listings WHERE id = ?', [app.job_id]);
+    const seeker = queryOne('SELECT * FROM seeker_profiles WHERE id = ?', [app.seeker_id]);
+    if (!job || !seeker) return sendJson(res, 404, { message: 'Data lowongan/seeker tidak ditemukan.' });
+
+    // Authorization check for employer: employer must own the job or be company member
+    if (callerMeta.role === 'employer') {
+      const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [job.company_id, callerId]);
+      const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [job.company_id, callerId]);
+      if (!company && !member) {
+        return sendJson(res, 403, { message: 'Akses ditolak: Anda bukan pemilik lowongan ini.' });
+      }
+    }
+
+    const notification = buildApplicationStatusNotification(status, job.title || 'lowongan ini');
+    if (!notification) return sendJson(res, 200, { ok: true, skipped: true });
+
+    // Verify recipient user exists in users table to prevent FK constraint failure
+    const targetUser = queryOne('SELECT id FROM users WHERE id = ?', [seeker.user_id]);
+    if (!targetUser) {
+      return sendJson(res, 400, { message: 'Akun user pencari kerja tidak valid.' });
+    }
+
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const metadataStr = JSON.stringify({
+      application_id: app.id,
+      job_id: job.id,
+      status,
+    });
+
+    execute(
+      'INSERT INTO notifications (id, user_id, type, title, message, metadata, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        seeker.user_id,
+        'application_update',
+        notification.title,
+        notification.message,
+        metadataStr,
+        0,
+        createdAt,
+      ]
+    );
+
+    return sendJson(res, 200, { ok: true });
+  } catch (err) {
+    console.error('[handleApplicationStatusNotification error]', err);
+    return sendJson(res, 500, { ok: false, message: err.message || 'Internal server error' });
   }
-
-  const body = await parseJsonBody(req);
-  const applicationId = body.applicationId || '';
-  const status = body.status || '';
-  if (!applicationId || !status) {
-    return sendJson(res, 400, { message: 'applicationId dan status wajib diisi.' });
-  }
-
-  const app = queryOne('SELECT * FROM applications WHERE id = ?', [applicationId]);
-  if (!app) return sendJson(res, 404, { message: 'Aplikasi tidak ditemukan.' });
-
-  const job = queryOne('SELECT * FROM job_listings WHERE id = ?', [app.job_id]);
-  const seeker = queryOne('SELECT * FROM seeker_profiles WHERE id = ?', [app.seeker_id]);
-  if (!job || !seeker) return sendJson(res, 404, { message: 'Data lowongan/seeker tidak ditemukan.' });
-
-  const notification = buildApplicationStatusNotification(status, job.title || 'lowongan ini');
-  if (!notification) return sendJson(res, 200, { ok: true, skipped: true });
-
-  const id = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
-  const metadataStr = JSON.stringify({
-    application_id: app.id,
-    job_id: job.id,
-    status,
-  });
-
-  execute(
-    'INSERT INTO notifications (id, user_id, type, title, message, metadata, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [
-      id,
-      seeker.user_id,
-      'application_update',
-      notification.title,
-      notification.message,
-      metadataStr,
-      0,
-      createdAt,
-    ]
-  );
-
-  return sendJson(res, 200, { ok: true });
 }
 
 // ---------------------------------------------------------------------------

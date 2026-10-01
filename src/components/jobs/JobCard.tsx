@@ -89,15 +89,23 @@ export default function JobCard({ job, appliedJobIds = [], onApplied, onClick }:
         setJustApplied(true);
         onApplied?.();
       } else {
-        // Fallback into offline queue on insert error
-        queueApplicationOffline({
-          jobId: job.id,
-          jobTitle: job.title,
-          companyName: job.companies?.name,
-          seekerId: profileId,
-        });
-        setJustApplied(true);
-        onApplied?.();
+        const errStr = String((error as { message?: string })?.message || '');
+        const isDuplicate = errStr.includes('UNIQUE') || errStr.includes('duplicate') || (error as { code?: string })?.code === '23505';
+
+        if (isDuplicate) {
+          setJustApplied(true);
+          onApplied?.();
+        } else {
+          // Fallback into offline queue on insert error
+          queueApplicationOffline({
+            jobId: job.id,
+            jobTitle: job.title,
+            companyName: job.companies?.name,
+            seekerId: profileId,
+          });
+          setJustApplied(true);
+          onApplied?.();
+        }
       }
     } catch {
       queueApplicationOffline({

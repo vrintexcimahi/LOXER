@@ -134,10 +134,39 @@ export function getLocalDb() {
         CREATE INDEX IF NOT EXISTS idx_job_listings_created_at ON job_listings(created_at);
         CREATE INDEX IF NOT EXISTS idx_talent_posts_headline ON talent_marketplace_posts(headline);
         CREATE INDEX IF NOT EXISTS idx_talent_posts_category ON talent_marketplace_posts(category);
-
       `);
     } catch {
       // ignore
+    }
+
+    // Auto-heal missing parent user references for orphan profiles to satisfy FK constraints
+    try {
+      dbInstance.exec(`
+        INSERT OR IGNORE INTO users (id, email, password_hash, created_at)
+        SELECT DISTINCT user_id, user_id || '@loxer.local', 'stub_hash_placeholder', datetime('now')
+        FROM seeker_profiles
+        WHERE user_id NOT IN (SELECT id FROM users);
+
+        INSERT OR IGNORE INTO users_meta (id, email, role, created_at, is_banned)
+        SELECT DISTINCT user_id, user_id || '@loxer.local', 'seeker', datetime('now'), 0
+        FROM seeker_profiles
+        WHERE user_id NOT IN (SELECT id FROM users_meta);
+
+        INSERT OR IGNORE INTO users (id, email, password_hash, created_at)
+        SELECT DISTINCT user_id, user_id || '@loxer.local', 'stub_hash_placeholder', datetime('now')
+        FROM companies
+        WHERE user_id NOT IN (SELECT id FROM users);
+
+        INSERT OR IGNORE INTO users_meta (id, email, role, created_at, is_banned)
+        SELECT DISTINCT user_id, user_id || '@loxer.local', 'employer', datetime('now'), 0
+        FROM companies
+        WHERE user_id NOT IN (SELECT id FROM users_meta);
+
+        DELETE FROM talent_marketplace_posts
+        WHERE seeker_id NOT IN (SELECT id FROM seeker_profiles);
+      `);
+    } catch (e) {
+      console.warn('[localDb] orphan user repair notice:', e.message);
     }
 
     // Auto-record today's analytics snapshot on initialization

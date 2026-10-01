@@ -326,26 +326,28 @@ export default function Applicants() {
     setBulkLoading(true);
 
     try {
-      for (const appId of selectedIds) {
-        await supabase
-          .from('applications')
-          .update({ status, updated_at: new Date().toISOString() })
-          .eq('id', appId);
+      await supabase
+        .from('applications')
+        .update({ status, updated_at: new Date().toISOString() })
+        .in('id', selectedIds);
 
-        if (session?.access_token) {
-          try {
-            await fetch('/api/application-status-notification', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({ applicationId: appId, status }),
-            });
-          } catch {
-            // ignore notification failure
-          }
-        }
+      if (session?.access_token) {
+        await Promise.all(
+          selectedIds.map(async (appId) => {
+            try {
+              await fetch('/api/application-status-notification', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ applicationId: appId, status }),
+              });
+            } catch {
+              // ignore notification failure
+            }
+          })
+        );
       }
 
       setApplicants((prev) =>

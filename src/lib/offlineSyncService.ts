@@ -130,7 +130,10 @@ export async function syncQueuedApplications(
         status: 'applied',
       });
 
-      if (!error) {
+      const errStr = String((error as { message?: string })?.message || '');
+      const isDuplicate = errStr.includes('UNIQUE') || errStr.includes('duplicate') || (error as { code?: string })?.code === '23505';
+
+      if (!error || isDuplicate) {
         removeQueuedApplication(item.jobId, item.seekerId);
         synced++;
       } else {

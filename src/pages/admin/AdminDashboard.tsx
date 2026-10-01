@@ -1757,6 +1757,7 @@ function AdminJobs({
   }, [onToast]);
 
   useEffect(() => {
+    let active = true;
     const fetchJobs = async () => {
       if (!supabase) return;
       setLoading(true);
@@ -1775,6 +1776,7 @@ function AdminJobs({
       if (typeFilter !== 'all') query = query.eq('job_type', typeFilter);
 
       const { data, count, error } = await query.range(from, to);
+      if (!active) return;
       if (error) {
         onToastRef.current('error', `Gagal memuat lowongan: ${error.message}`);
         setLoading(false);
@@ -1787,6 +1789,9 @@ function AdminJobs({
     };
 
     fetchJobs();
+    return () => {
+      active = false;
+    };
   }, [page, statusFilter, typeFilter]);
 
   async function toggleJobStatus(job: JobListing) {
@@ -2073,7 +2078,13 @@ function AdminApplications({
     });
   }, [rows, search]);
 
+  const onToastRef = useRef(onToast);
   useEffect(() => {
+    onToastRef.current = onToast;
+  }, [onToast]);
+
+  useEffect(() => {
+    let active = true;
     const fetchRows = async () => {
       if (!supabase) return;
       setLoading(true);
@@ -2092,8 +2103,9 @@ function AdminApplications({
       if (dateTo) query = query.lte('applied_at', `${dateTo}T23:59:59`);
 
       const { data, count, error } = await query.range(from, to);
+      if (!active) return;
       if (error) {
-        onToast('error', `Gagal memuat lamaran: ${error.message}`);
+        onToastRef.current('error', `Gagal memuat lamaran: ${error.message}`);
         setLoading(false);
         return;
       }
@@ -2102,16 +2114,19 @@ function AdminApplications({
       setLoading(false);
     };
     fetchRows();
-  }, [page, statusFilter, dateFrom, dateTo, onToast]);
+    return () => {
+      active = false;
+    };
+  }, [page, statusFilter, dateFrom, dateTo]);
 
   async function forceUpdateStatus(row: Record<string, unknown>) {
     if (!supabase) return;
     const current = String(row.status || 'applied') as ApplicationStatus;
     const next = window.prompt(
-      'Status baru (applied/reviewed/shortlisted/interview_scheduled/hired/rejected)',
+      'Status baru (applied/reviewed/shortlisted/interview_scheduled/hired/rejected/expired)',
       current
     ) as ApplicationStatus | null;
-    if (!next || !['applied', 'reviewed', 'shortlisted', 'interview_scheduled', 'hired', 'rejected'].includes(next)) return;
+    if (!next || !['applied', 'reviewed', 'shortlisted', 'interview_scheduled', 'hired', 'rejected', 'expired'].includes(next)) return;
 
     const { error } = await supabase
       .from('applications')
@@ -2248,6 +2263,7 @@ function AdminApplications({
             <option value="interview_scheduled">Interview</option>
             <option value="hired">Hired</option>
             <option value="rejected">Rejected</option>
+            <option value="expired">Expired (Kadaluarsa)</option>
           </select>
           <input
             type="date"
@@ -2379,7 +2395,13 @@ function AdminCompanies({
     });
   }, [rows, search, verifiedFilter]);
 
+  const onToastRef = useRef(onToast);
   useEffect(() => {
+    onToastRef.current = onToast;
+  }, [onToast]);
+
+  useEffect(() => {
+    let active = true;
     const fetchRows = async () => {
       if (!supabase) return;
       setLoading(true);
@@ -2392,8 +2414,9 @@ function AdminCompanies({
         .order('created_at', { ascending: false })
         .range(from, to);
 
+      if (!active) return;
       if (error) {
-        onToast('error', `Gagal memuat perusahaan: ${error.message}`);
+        onToastRef.current('error', `Gagal memuat perusahaan: ${error.message}`);
         setLoading(false);
         return;
       }
@@ -2410,6 +2433,8 @@ function AdminCompanies({
           ? supabase.from('job_listings').select('company_id, status').in('company_id', companyIds)
           : Promise.resolve({ data: [], error: null } as { data: Array<{ company_id: string; status: string }>; error: null }),
       ]);
+
+      if (!active) return;
 
       const ownerMap = new Map((ownerRes.data || []).map((owner) => [owner.id, owner.email]));
       const activeMap = new Map<string, number>();
@@ -2429,7 +2454,10 @@ function AdminCompanies({
     };
 
     fetchRows();
-  }, [page, onToast]);
+    return () => {
+      active = false;
+    };
+  }, [page]);
 
   async function toggleVerify(company: Company & { owner_email?: string }) {
     if (!supabase) return;

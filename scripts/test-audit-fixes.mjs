@@ -57,13 +57,13 @@ async function testAuditFixes() {
     assert(Boolean(lastAudit?.admin_id), `2.1 Audit Log admin_id check (admin_id: ${lastAudit?.admin_id})`);
 
     // 3. Test handleApplicationStatusNotification
-    let app = queryOne('SELECT id FROM applications LIMIT 1');
+    let app = queryOne('SELECT a.id FROM applications a JOIN job_listings j ON a.job_id = j.id JOIN seeker_profiles s ON a.seeker_id = s.id JOIN users u ON s.user_id = u.id LIMIT 1');
     if (!app) {
       // Seed a temporary application if none exists
       const j = queryOne('SELECT id FROM job_listings LIMIT 1');
-      const s = queryOne('SELECT id FROM seeker_profiles LIMIT 1');
+      const s = queryOne('SELECT s.id FROM seeker_profiles s JOIN users u ON s.user_id = u.id LIMIT 1');
       if (j && s) {
-        execute("INSERT OR IGNORE INTO applications (id, job_id, seeker_id, status) VALUES ('app_seed_temp', ?, ?, 'applied')", [j.id, s.id]);
+        execute("INSERT OR REPLACE INTO applications (id, job_id, seeker_id, status) VALUES ('app_seed_temp', ?, ?, 'applied')", [j.id, s.id]);
         app = { id: 'app_seed_temp' };
       }
     }
@@ -124,16 +124,32 @@ async function testAuditFixes() {
     const snapData = await snapRes.json();
     assert(snapRes.ok && !snapData.error, '6. Analytics Snapshots query check');
 
-    // 7. Test auto-generate daily analytics snapshot endpoint
-    const snapGenRes = await fetch(`${baseUrl}/api/admin/analytics-snapshot/generate`, {
+    // 7. Test auto-generate daily analytics snapshot endpoint (auth required)
+    const snapGenUnauthRes = await fetch(`${baseUrl}/api/admin/analytics-snapshot/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+    });
+    assert(snapGenUnauthRes.status === 401, '7.0 Generate Daily Analytics Snapshot blocks unauthenticated request (401)');
+
+    const snapGenRes = await fetch(`${baseUrl}/api/admin/analytics-snapshot/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
     });
     const snapGenData = await snapGenRes.json();
     assert(snapGenRes.ok && snapGenData.success && Boolean(snapGenData.snapshot?.snapshot_date), '7. Generate Daily Analytics Snapshot API');
 
-    // 8. Test audit logs stats endpoint
-    const statsRes = await fetch(`${baseUrl}/api/admin/audit-logs/stats`);
+    // 8. Test audit logs stats endpoint (auth required)
+    const statsUnauthRes = await fetch(`${baseUrl}/api/admin/audit-logs/stats`);
+    assert(statsUnauthRes.status === 401, '8.0 Audit Logs Stats blocks unauthenticated request (401)');
+
+    const statsRes = await fetch(`${baseUrl}/api/admin/audit-logs/stats`, {
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+      },
+    });
     const statsData = await statsRes.json();
     assert(statsRes.ok && typeof statsData.total === 'number', '8. Audit Logs Stats API');
 
@@ -360,6 +376,67 @@ async function testAuditFixes() {
     const sanitize = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
     const csvOutput = '\uFEFF' + [testHeaders.map(sanitize).join(','), ...testRows.map((r) => r.map(sanitize).join(','))].join('\r\n');
     assert(csvOutput.startsWith('\uFEFF') && csvOutput.includes('""Alice""'), '21. Security audit logs CSV format generation & UTF-8 BOM');
+
+    // 22. Test IDOR Authorization on Application Status Notification (Employer cannot update another company's applicant)
+    const empLoginRes = await fetch(`${baseUrl}/api/local/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'employer@demo.com',
+        password: 'employer123',
+      }),
+    });
+    const empLoginData = await empLoginRes.json();
+    const empToken = empLoginData.data?.session?.access_token;
+    if (empToken) {
+      let foreignJob = queryOne("SELECT j.id, a.id as app_id FROM job_listings j JOIN applications a ON a.job_id = j.id WHERE j.company_id NOT IN (SELECT id FROM companies WHERE user_id = '7c807010-51b6-4659-841f-5679746c14d3') LIMIT 1");
+      let foreignAppId = foreignJob?.app_id;
+      let seededForeign = false;
+
+      if (!foreignAppId) {
+        const dummyCompId = 'comp_foreign_' + Date.now();
+        const dummyJobId = 'job_foreign_' + Date.now();
+        foreignAppId = 'app_foreign_' + Date.now();
+        const dummyUser = queryOne("SELECT id FROM users WHERE id != '7c807010-51b6-4659-841f-5679746c14d3' LIMIT 1");
+        const foreignUserId = dummyUser?.id || 'usr_foreign_mock';
+        execute("INSERT OR IGNORE INTO companies (id, user_id, name) VALUES (?, ?, 'Foreign Corp')", [dummyCompId, foreignUserId]);
+        execute("INSERT OR IGNORE INTO job_listings (id, company_id, title) VALUES (?, ?, 'Foreign Job')", [dummyJobId, dummyCompId]);
+        const testSeeker = queryOne("SELECT id FROM seeker_profiles LIMIT 1");
+        if (testSeeker) {
+          execute("INSERT OR REPLACE INTO applications (id, job_id, seeker_id, status) VALUES (?, ?, ?, 'applied')", [foreignAppId, dummyJobId, testSeeker.id]);
+          seededForeign = true;
+        }
+      }
+
+      if (foreignAppId) {
+        const idorRes = await fetch(`${baseUrl}/api/application-status-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${empToken}`,
+          },
+          body: JSON.stringify({
+            applicationId: foreignAppId,
+            status: 'interview_scheduled',
+          }),
+        });
+        assert(idorRes.status === 403, '22. Security: Employer cross-company status notification blocked with 403 (IDOR Guard)');
+
+        if (seededForeign) {
+          execute("DELETE FROM applications WHERE id = ?", [foreignAppId]);
+        }
+      }
+    }
+
+    // 23. Test Database Foreign Key Integrity (Zero Violations)
+    const fkErrors = queryAll('PRAGMA foreign_key_check');
+    assert(fkErrors.length === 0, `23. Database PRAGMA foreign_key_check passes with 0 violations (${fkErrors.length} found)`);
+
+    // 24. Test Database Snapshot Path Traversal Protection
+    const traversalRes = await fetch(`${baseUrl}/api/admin/backups/download-snapshot?file=../../package.json`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    assert(traversalRes.status === 404, '24. Security: Snapshot download path traversal attempt blocked with 404');
 
     if (failureCount > 0) {
       throw new Error(`${failureCount} test assertion(s) failed!`);
