@@ -19,6 +19,7 @@ import {
   Sparkles,
   AlertCircle,
   RefreshCw,
+  RotateCcw,
   X,
   Bot,
 } from 'lucide-react';
@@ -71,6 +72,7 @@ export default function DatabaseBackup() {
   // Snapshot (.db) state
   const [snapshots, setSnapshots] = useState<Array<{ filename: string; sizeBytes: number; createdAt: string }>>([]);
   const [loadingSnapshots, setLoadingSnapshots] = useState(false);
+  const [restoringSnapshot, setRestoringSnapshot] = useState<string | null>(null);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
 
   // Toasts / Feedback
@@ -149,6 +151,39 @@ export default function DatabaseBackup() {
       .catch(() => {
         showToast('error', 'Gagal mengunduh berkas snapshot.');
       });
+  };
+
+  const handleRestoreSnapshot = async (filename: string) => {
+    const ok = window.confirm(
+      `PERINGATAN: Memulihkan snapshot "${filename}" akan menimpa seluruh basis data aktif LOXER saat ini. Apakah Anda yakin ingin melanjutkan proses restorasi?`
+    );
+    if (!ok) return;
+
+    setRestoringSnapshot(filename);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/backups/restore-snapshot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ filename }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showToast('success', data.message || `Basis data berhasil dipulihkan dari ${filename}!`);
+        await loadStats();
+        await loadSnapshots();
+      } else {
+        showToast('error', data.message || 'Gagal memulihkan snapshot database.');
+      }
+    } catch {
+      showToast('error', 'Terjadi kesalahan jaringan saat memulihkan snapshot.');
+    } finally {
+      setRestoringSnapshot(null);
+    }
   };
 
   const loadStats = useCallback(async () => {
@@ -716,14 +751,27 @@ export default function DatabaseBackup() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadSnapshot(s.filename)}
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 text-xs font-medium transition cursor-pointer"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Unduh .db</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadSnapshot(s.filename)}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 text-xs font-medium transition cursor-pointer"
+                              title="Unduh berkas .db"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Unduh</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRestoreSnapshot(s.filename)}
+                              disabled={restoringSnapshot === s.filename}
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-xs font-medium transition cursor-pointer disabled:opacity-50"
+                              title="Pulihkan database dari snapshot ini"
+                            >
+                              <RotateCcw className={`w-3.5 h-3.5 ${restoringSnapshot === s.filename ? 'animate-spin' : ''}`} />
+                              <span>{restoringSnapshot === s.filename ? 'Memulihkan...' : 'Pulihkan'}</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

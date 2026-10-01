@@ -11,11 +11,12 @@ import {
   createDatabaseSnapshot,
   listDatabaseSnapshots,
   getSnapshotFilePath,
+  restoreDatabaseSnapshot,
 } from './localDb.js';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { buildApplicationStatusNotification } from '../services/applicationStatusNotification.js';
-import { apiRateLimiter, dbRateLimiter } from '../services/resilienceService.js';
+import { apiRateLimiter, dbRateLimiter, jobSearchCache, SlidingWindowRateLimiter } from '../services/resilienceService.js';
 
 
 
@@ -55,6 +56,18 @@ const loginCleanTimer = setInterval(() => {
   }
 }, 30 * 60 * 1000);
 if (loginCleanTimer && loginCleanTimer.unref) loginCleanTimer.unref();
+
+const googleAuthRateLimiter = new SlidingWindowRateLimiter(30, 60 * 1000);
+
+const APPLICATION_STATUS_TRANSITIONS = {
+  applied: new Set(['reviewed', 'shortlisted', 'rejected', 'expired']),
+  reviewed: new Set(['shortlisted', 'interview_scheduled', 'rejected', 'expired']),
+  shortlisted: new Set(['interview_scheduled', 'hired', 'rejected', 'expired']),
+  interview_scheduled: new Set(['hired', 'rejected', 'expired']),
+  rejected: new Set(['reviewed', 'shortlisted']), // can be reconsidered, cannot jump directly to hired
+  expired: new Set(['applied', 'reviewed']),
+  hired: new Set(['rejected']), // can only be cancelled
+};
 
 function parseBearerToken(req) {
   const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
@@ -282,6 +295,18 @@ async function handleGetUser(req, res) {
 }
 
 async function handleGoogleAuth(req, res) {
+  const clientIp = getClientIp(req) || '127.0.0.1';
+  const rateCheck = googleAuthRateLimiter.check(clientIp);
+  if (!rateCheck.allowed) {
+    return sendJson(res, 429, {
+      error: {
+        message: 'Terlalu banyak percobaan autentikasi Google. Batas 30 request per menit tercapai. Silakan coba sesaat lagi.',
+        code: 'RATE_LIMIT_EXCEEDED',
+        retry_after: rateCheck.retryAfterSec,
+      },
+    });
+  }
+
   const body = await parseJsonBody(req);
   const email = String(body.email || '').trim().toLowerCase();
   const fullName = String(body.fullName || body.name || '').trim();
@@ -695,12 +720,14 @@ async function handleDbQuery(req, res) {
   const token = parseBearerToken(req);
   let callerId = null;
   let isAdminOrSuper = false;
+  let callerRole = null;
   if (token) {
     const decoded = verifyToken(token);
     if (decoded) {
       callerId = decoded.sub || decoded.userId;
       const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
-      if (callerMeta?.role === 'admin' || callerMeta?.role === 'superadmin') {
+      callerRole = callerMeta?.role || null;
+      if (callerRole === 'admin' || callerRole === 'superadmin') {
         isAdminOrSuper = true;
       }
     }
@@ -794,6 +821,105 @@ async function handleDbQuery(req, res) {
     }
   }
 
+  // Security Guard 5: job_listings IDOR protection for employers
+  if (table === 'job_listings' && isMutation) {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk memodifikasi lowongan kerja.' } });
+    }
+
+    if (!isAdminOrSuper) {
+      if (callerRole !== 'employer') {
+        return sendJson(res, 403, { error: { message: 'Akses ditolak: Hanya employer atau administrator yang dapat mengelola lowongan kerja.' } });
+      }
+
+      if (action === 'insert' || action === 'upsert') {
+        const records = Array.isArray(data) ? data : [data];
+        for (const item of records) {
+          if (!item?.company_id) {
+            return sendJson(res, 400, { error: { message: 'company_id wajib diisi untuk data lowongan kerja.' } });
+          }
+          const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [item.company_id, callerId]);
+          const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [item.company_id, callerId]);
+          if (!company && !member) {
+            return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat membuat lowongan untuk perusahaan Anda sendiri (IDOR guard).' } });
+          }
+        }
+      }
+
+      if (action === 'update' || action === 'delete') {
+        const { whereSql, params } = buildWhereClause(filters);
+        if (!whereSql) {
+          return sendJson(res, 400, { error: { message: 'Operasi modifikasi lowongan tanpa filter tidak diizinkan.' } });
+        }
+        const targetedJobs = queryAll(`SELECT id, company_id FROM job_listings ${whereSql}`, params);
+        for (const targetJob of targetedJobs) {
+          if (targetJob.company_id) {
+            const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [targetJob.company_id, callerId]);
+            const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [targetJob.company_id, callerId]);
+            if (!company && !member) {
+              return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak memiliki wewenang atas lowongan perusahaan lain (IDOR guard).' } });
+            }
+          }
+        }
+
+        if (action === 'update' && data?.company_id) {
+          const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [data.company_id, callerId]);
+          const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [data.company_id, callerId]);
+          if (!company && !member) {
+            return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak dapat memindahkan lowongan ke perusahaan lain.' } });
+          }
+        }
+      }
+    }
+  }
+
+  // Security Guard 6: applications FSM transition & IDOR protection
+  if (table === 'applications' && action === 'update') {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk memperbarui lamaran.' } });
+    }
+
+    const { whereSql, params } = buildWhereClause(filters);
+    if (!whereSql) {
+      return sendJson(res, 400, { error: { message: 'Operasi update lamaran tanpa filter tidak diizinkan.' } });
+    }
+
+    const targetedApps = queryAll(`SELECT id, status, job_id, seeker_id FROM applications ${whereSql}`, params);
+
+    // FSM status transition validation
+    if (data && data.status && !isAdminOrSuper) {
+      const nextStatus = data.status;
+      for (const targetApp of targetedApps) {
+        const currentStatus = targetApp.status;
+        if (currentStatus !== nextStatus) {
+          const allowedTransitions = APPLICATION_STATUS_TRANSITIONS[currentStatus];
+          if (!allowedTransitions || !allowedTransitions.has(nextStatus)) {
+            return sendJson(res, 400, {
+              error: {
+                message: `Transisi status dari '${currentStatus}' ke '${nextStatus}' tidak diizinkan oleh sistem seleksi.`,
+                code: 'INVALID_STATUS_TRANSITION',
+              },
+            });
+          }
+        }
+      }
+    }
+
+    // Employer IDOR guard on applications
+    if (!isAdminOrSuper && callerRole === 'employer') {
+      for (const targetApp of targetedApps) {
+        const job = queryOne('SELECT company_id FROM job_listings WHERE id = ?', [targetApp.job_id]);
+        if (job?.company_id) {
+          const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [job.company_id, callerId]);
+          const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [job.company_id, callerId]);
+          if (!company && !member) {
+            return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda bukan pemilik lowongan dari lamaran ini (IDOR guard).' } });
+          }
+        }
+      }
+    }
+  }
+
   try {
     if (action === 'select') {
       const { whereSql, params } = buildWhereClause(filters);
@@ -876,6 +1002,7 @@ async function handleDbQuery(req, res) {
         insertedRows.push(enrichRowRelations(table, inserted));
       }
 
+      if (table === 'job_listings') jobSearchCache.clear();
       const result = Array.isArray(data) ? insertedRows : insertedRows[0];
       return sendJson(res, 200, { data: result, error: null });
     }
@@ -914,6 +1041,7 @@ async function handleDbQuery(req, res) {
       const updateSql = `UPDATE "${table}" SET ${setPairs.join(', ')} ${whereSql}`;
       execute(updateSql, [...setValues, ...params]);
 
+      if (table === 'job_listings') jobSearchCache.clear();
       const updatedRows = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
       return sendJson(res, 200, { data: enrichRowsRelations(table, updatedRows), error: null });
     }
@@ -927,6 +1055,7 @@ async function handleDbQuery(req, res) {
       const toDelete = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
       execute(`DELETE FROM "${table}" ${whereSql}`, params);
 
+      if (table === 'job_listings') jobSearchCache.clear();
       return sendJson(res, 200, { data: toDelete, error: null });
     }
 
@@ -989,6 +1118,7 @@ async function handleDbQuery(req, res) {
         execute(sql, values);
       }
 
+      if (table === 'job_listings') jobSearchCache.clear();
       const resRow = hasAllConflictValues
         ? queryOne(`SELECT * FROM "${table}" WHERE ${conflictWhere}`, conflictValues)
         : (record.id ? queryOne(`SELECT * FROM "${table}" WHERE id = ?`, [record.id]) : null);
@@ -2095,6 +2225,9 @@ export function createLocalDbMiddleware(env = {}) {
       if (url.startsWith('/api/admin/backups/download-snapshot') && req.method === 'GET') {
         return handleAdminDownloadSnapshot(req, res);
       }
+      if (url.startsWith('/api/admin/backups/restore-snapshot') && req.method === 'POST') {
+        return handleAdminRestoreSnapshot(req, res);
+      }
     }
 
     next();
@@ -2280,4 +2413,51 @@ async function handleAdminDownloadSnapshot(req, res) {
 
   const stream = fs.createReadStream(fullPath);
   stream.pipe(res);
+}
+
+async function handleAdminRestoreSnapshot(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const callerMeta = queryOne('SELECT role, email FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
+    return sendJson(res, 403, { message: 'Forbidden' });
+  }
+
+  const body = await parseJsonBody(req);
+  const filename = body.filename || '';
+  if (!filename) {
+    return sendJson(res, 400, { message: 'Nama berkas snapshot wajib diisi.' });
+  }
+
+  try {
+    const result = restoreDatabaseSnapshot(filename);
+
+    try {
+      execute(
+        `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          callerId,
+          callerMeta?.email || '',
+          'restore_database_snapshot',
+          'database',
+          filename,
+          JSON.stringify({ restoredFile: filename }),
+          new Date().toISOString(),
+        ]
+      );
+    } catch {
+      // audit log non-blocking
+    }
+
+    return sendJson(res, 200, { ok: true, message: `Basis data berhasil dipulihkan dari snapshot ${filename}.`, result });
+  } catch (err) {
+    return sendJson(res, 500, { message: err.message || 'Gagal memulihkan database dari snapshot.' });
+  }
 }

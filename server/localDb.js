@@ -176,11 +176,17 @@ export function getLocalDb() {
       // Ignore initial recording error if tables not yet populated
     }
 
-    // Schedule background periodic snapshot check (every 1 hour)
+    // Schedule background periodic snapshot check & retention maintenance (every 1 hour)
     if (typeof setInterval !== 'undefined') {
       const timer = setInterval(() => {
         try {
           recordDailyAnalyticsSnapshot();
+        } catch {
+          // ignore
+        }
+        try {
+          purgeOldAuditLogs(90);
+          purgeOldActivityLogs(60);
         } catch {
           // ignore
         }
@@ -495,3 +501,57 @@ export function getSnapshotFilePath(filename) {
   if (!fs.existsSync(full)) return null;
   return full;
 }
+
+export function restoreDatabaseSnapshot(filename) {
+  const fullPath = getSnapshotFilePath(filename);
+  if (!fullPath) {
+    throw new Error('Berkas snapshot tidak valid atau tidak ditemukan.');
+  }
+
+  // Close active DatabaseSync connection if open
+  if (dbInstance) {
+    try {
+      dbInstance.close();
+    } catch {
+      // ignore
+    }
+    dbInstance = null;
+  }
+
+  // Remove active WAL and SHM files to avoid conflict
+  const walPath = `${DB_FILE}-wal`;
+  const shmPath = `${DB_FILE}-shm`;
+  if (fs.existsSync(walPath)) {
+    try { fs.unlinkSync(walPath); } catch {}
+  }
+  if (fs.existsSync(shmPath)) {
+    try { fs.unlinkSync(shmPath); } catch {}
+  }
+
+  // Copy snapshot over active database
+  fs.copyFileSync(fullPath, DB_FILE);
+
+  // Re-open and verify database
+  const db = getLocalDb();
+  const check = db.prepare('PRAGMA integrity_check').get();
+  if (check && check.integrity_check !== 'ok') {
+    throw new Error(`Integritas basis data gagal: ${check.integrity_check}`);
+  }
+
+  return { ok: true, filename };
+}
+
+export function purgeOldAuditLogs(maxDays = 90) {
+  const db = getLocalDb();
+  const cutoff = new Date(Date.now() - maxDays * 24 * 60 * 60 * 1000).toISOString();
+  const res = db.prepare('DELETE FROM audit_logs WHERE created_at < ?').run(cutoff);
+  return res.changes;
+}
+
+export function purgeOldActivityLogs(maxDays = 60) {
+  const db = getLocalDb();
+  const cutoff = new Date(Date.now() - maxDays * 24 * 60 * 60 * 1000).toISOString();
+  const res = db.prepare('DELETE FROM user_activity_logs WHERE created_at < ?').run(cutoff);
+  return res.changes;
+}
+

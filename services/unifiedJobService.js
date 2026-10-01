@@ -14,6 +14,7 @@ export async function searchUnifiedJobs(params = {}) {
     keywords = '',
     location = '',
     page = 1,
+    limit = null,
     sort = 'date',
     contract_type = '',
     work_hours = '',
@@ -146,15 +147,28 @@ export async function searchUnifiedJobs(params = {}) {
     (careerjetResult.hits || 0) +
     (arbeitnowResult.hits || 0);
 
+  const numLimit = limit ? Math.max(1, Number(limit)) : null;
+  const numPage = Math.max(1, Number(page) || 1);
+  const totalJobs = uniqueJobs.length;
+  const totalPages = numLimit
+    ? Math.max(1, Math.ceil(totalJobs / numLimit))
+    : Math.max(
+        internalResult.pages || 0,
+        careerjetResult.pages || 0,
+        arbeitnowResult.pages || 0,
+        1
+      );
+
+  const pagedJobs = numLimit
+    ? uniqueJobs.slice((numPage - 1) * numLimit, numPage * numLimit)
+    : uniqueJobs;
+
   const finalResponse = {
-    jobs: uniqueJobs,
+    jobs: pagedJobs,
     hits: totalHits,
-    pages: Math.max(
-      internalResult.pages || 0,
-      careerjetResult.pages || 0,
-      arbeitnowResult.pages || 0,
-      1
-    ),
+    pages: totalPages,
+    page: numPage,
+    limit: numLimit || totalJobs,
     provider: 'all',
   };
 

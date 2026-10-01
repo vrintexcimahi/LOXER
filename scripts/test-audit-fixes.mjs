@@ -438,6 +438,100 @@ async function testAuditFixes() {
     });
     assert(traversalRes.status === 404, '24. Security: Snapshot download path traversal attempt blocked with 404');
 
+    // 25. Test Employer Job Mutation IDOR Guard (Saran 1)
+    if (empToken) {
+      const foreignJob = queryOne("SELECT id, company_id FROM job_listings WHERE company_id NOT IN (SELECT id FROM companies WHERE user_id = '7c807010-51b6-4659-841f-5679746c14d3') LIMIT 1");
+      if (foreignJob) {
+        const idorJobRes = await fetch(`${baseUrl}/api/local/db/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${empToken}`,
+          },
+          body: JSON.stringify({
+            table: 'job_listings',
+            action: 'update',
+            data: { status: 'closed' },
+            filters: [{ column: 'id', op: 'eq', value: foreignJob.id }],
+          }),
+        });
+        assert(idorJobRes.status === 403, '25. Security: Employer updating foreign company job listing blocked with 403 (IDOR Guard)');
+      } else {
+        assert(true, '25. Security: Employer updating foreign company job listing blocked with 403 (skipped: no foreign job)');
+      }
+    }
+
+    // 26. Test Application Status FSM Transition Guard (Saran 4)
+    if (empToken) {
+      const empComp = queryOne("SELECT id FROM companies WHERE user_id = '7c807010-51b6-4659-841f-5679746c14d3' LIMIT 1");
+      if (empComp) {
+        const empJob = queryOne("SELECT id FROM job_listings WHERE company_id = ? LIMIT 1", [empComp.id]);
+        if (empJob) {
+          const testAppId = 'app_fsm_test_' + Date.now();
+          const seeker = queryOne("SELECT id FROM seeker_profiles LIMIT 1");
+          if (seeker) {
+            execute("INSERT OR REPLACE INTO applications (id, job_id, seeker_id, status) VALUES (?, ?, ?, 'rejected')", [testAppId, empJob.id, seeker.id]);
+
+            // Try illegal transition: rejected -> hired
+            const fsmRes = await fetch(`${baseUrl}/api/local/db/query`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${empToken}`,
+              },
+              body: JSON.stringify({
+                table: 'applications',
+                action: 'update',
+                data: { status: 'hired' },
+                filters: [{ column: 'id', op: 'eq', value: testAppId }],
+              }),
+            });
+            assert(fsmRes.status === 400, '26. FSM: Illegal application status transition (rejected -> hired) blocked with 400');
+            execute("DELETE FROM applications WHERE id = ?", [testAppId]);
+          }
+        }
+      }
+    }
+
+    // 27. Test Job Search Pagination with limit (Saran 6)
+    const pagedJobsRes = await fetch(`${baseUrl}/api/jobs?limit=2&page=1`);
+    const pagedJobsData = await pagedJobsRes.json();
+    assert(pagedJobsRes.status === 200 && Array.isArray(pagedJobsData.jobs) && pagedJobsData.jobs.length <= 2, '27. Performance: Unified Jobs endpoint supports server-side limit and pagination');
+
+    // 28. Test Admin Snapshot Creation & Restore Cycle (Saran 3)
+    const createSnapRes = await fetch(`${baseUrl}/api/admin/backups/create-snapshot`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({ label: 'test-restore' }),
+    });
+    const backupSnapData = await createSnapRes.json();
+    assert(createSnapRes.status === 200 && backupSnapData.ok && backupSnapData.snapshot?.filename, '28. Backup: Admin creates database snapshot');
+
+    if (backupSnapData.snapshot?.filename) {
+      // 29. Test Unauthorized / Non-admin restore blocked
+      const unauthRestore = await fetch(`${baseUrl}/api/admin/backups/restore-snapshot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: backupSnapData.snapshot.filename }),
+      });
+      assert(unauthRestore.status === 401, '29. Security: Unauthenticated restore-snapshot blocked with 401');
+
+      // 30. Test Admin Snapshot Restore
+      const restoreRes = await fetch(`${baseUrl}/api/admin/backups/restore-snapshot`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify({ filename: backupSnapData.snapshot.filename }),
+      });
+      const restoreData = await restoreRes.json();
+      assert(restoreRes.status === 200 && restoreData.ok, '30. Backup: Admin database snapshot restore successfully verified');
+    }
+
     if (failureCount > 0) {
       throw new Error(`${failureCount} test assertion(s) failed!`);
     }

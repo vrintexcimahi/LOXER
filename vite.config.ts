@@ -114,6 +114,7 @@ function createApiJobsMiddleware(env: Record<string, string>) {
         keywords: query.keywords || query.q || '',
         location: query.location || '',
         page: Number(query.page || '1') || 1,
+        limit: query.limit ? Number(query.limit) : null,
         sort: query.sort || 'date',
         contract_type: query.contract_type || '',
         work_hours: query.work_hours || '',
@@ -805,6 +806,24 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: configuredPort,
       strictPort: true,
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') || id.includes('node_modules/victory-vendor')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('node_modules/lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+              return 'vendor-react';
+            }
+          },
+        },
+      },
+      chunkSizeWarningLimit: 650,
     },
     plugins: [
       react(),

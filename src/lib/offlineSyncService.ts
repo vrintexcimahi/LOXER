@@ -21,13 +21,52 @@ export function getQueuedApplications(seekerId?: string): QueuedApplication[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     const list: QueuedApplication[] = Array.isArray(parsed) ? parsed : [];
-    if (seekerId) {
-      return list.filter((item) => item.seekerId === seekerId);
+
+    // Auto-deduplicate queue to ensure high data integrity
+    const seen = new Set<string>();
+    const deduplicated: QueuedApplication[] = [];
+    for (const item of list) {
+      if (!item || !item.jobId || !item.seekerId) continue;
+      const key = `${item.jobId}::${item.seekerId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduplicated.push(item);
+      }
     }
-    return list;
+
+    if (deduplicated.length !== list.length) {
+      try {
+        localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(deduplicated));
+      } catch {
+        // ignore
+      }
+    }
+
+    if (seekerId) {
+      return deduplicated.filter((item) => item.seekerId === seekerId);
+    }
+    return deduplicated;
   } catch {
     return [];
   }
+}
+
+export function pruneStaleQueueItems(confirmedJobIds: string[], seekerId: string): QueuedApplication[] {
+  if (typeof window === 'undefined' || !seekerId || !Array.isArray(confirmedJobIds) || confirmedJobIds.length === 0) {
+    return getQueuedApplications();
+  }
+  const current = getQueuedApplications();
+  const confirmedSet = new Set(confirmedJobIds);
+  const filtered = current.filter((item) => !(item.seekerId === seekerId && confirmedSet.has(item.jobId)));
+  if (filtered.length !== current.length) {
+    try {
+      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('loxer:offline-queue-changed', { detail: filtered }));
+    } catch {
+      // ignore
+    }
+  }
+  return filtered;
 }
 
 export function queueApplicationOffline(

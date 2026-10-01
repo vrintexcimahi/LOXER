@@ -74,6 +74,7 @@ export default async function handler(req, res) {
       keywords: req.query?.keywords || '',
       location: req.query?.location || '',
       page: Number(req.query?.page || '1') || 1,
+      limit: req.query?.limit ? Number(req.query.limit) : null,
       sort: req.query?.sort || 'date',
       contract_type: req.query?.contract_type || '',
       work_hours: req.query?.work_hours || '',

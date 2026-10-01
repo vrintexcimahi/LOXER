@@ -37,3 +37,5 @@ android-release/
 data/browser-fb-profile/
 public/uploads/fb_scraped/
 !public/uploads/fb_scraped/sample_cv_azqy.png
+data/backups/
+

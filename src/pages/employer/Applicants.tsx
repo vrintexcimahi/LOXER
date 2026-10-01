@@ -23,6 +23,7 @@ import ApplicationStatusBadge from '../../components/ui/ApplicationStatusBadge';
 import { supabase } from '../../lib/supabase';
 import { broadcastSync } from '../../lib/realtimeSync';
 import { useAuth } from '../../contexts/useAuth';
+import { isAllowedStatusTransition } from '../../lib/constants';
 import {
   Application,
   ApplicationStatus,
@@ -216,6 +217,12 @@ export default function Applicants() {
   async function updateStatus(appId: string, status: ApplicationStatus) {
     if (!supabase) return;
 
+    const currentItem = applicants.find((item) => item.application.id === appId);
+    if (currentItem && !isAllowedStatusTransition(currentItem.application.status, status)) {
+      alert(`Transisi status dari '${currentItem.application.status}' ke '${status}' tidak diizinkan oleh sistem seleksi.`);
+      return;
+    }
+
     setUpdatingId(appId);
     await supabase.from('applications').update({ status, updated_at: new Date().toISOString() }).eq('id', appId);
 
@@ -323,17 +330,29 @@ export default function Applicants() {
 
   async function handleBulkStatusChange(status: ApplicationStatus) {
     if (!supabase || selectedIds.length === 0) return;
+
+    // Validate status transitions using formal FSM
+    const eligibleIds = selectedIds.filter((id) => {
+      const item = applicants.find((a) => a.application.id === id);
+      return !item || isAllowedStatusTransition(item.application.status, status);
+    });
+
+    if (eligibleIds.length === 0) {
+      alert(`Tidak ada lamaran terpilih yang memenuhi syarat untuk transisi status ke '${status}'.`);
+      return;
+    }
+
     setBulkLoading(true);
 
     try {
       await supabase
         .from('applications')
         .update({ status, updated_at: new Date().toISOString() })
-        .in('id', selectedIds);
+        .in('id', eligibleIds);
 
       if (session?.access_token) {
         await Promise.all(
-          selectedIds.map(async (appId) => {
+          eligibleIds.map(async (appId) => {
             try {
               await fetch('/api/application-status-notification', {
                 method: 'POST',
@@ -352,20 +371,20 @@ export default function Applicants() {
 
       setApplicants((prev) =>
         prev.map((item) =>
-          selectedIds.includes(item.application.id)
+          eligibleIds.includes(item.application.id)
             ? { ...item, application: { ...item.application, status } }
             : item
         )
       );
 
-      if (selectedApplicant && selectedIds.includes(selectedApplicant.application.id)) {
+      if (selectedApplicant && eligibleIds.includes(selectedApplicant.application.id)) {
         setSelectedApplicant((prev) =>
           prev ? { ...prev, application: { ...prev.application, status } } : null
         );
       }
 
       setSelectedIds([]);
-      broadcastSync('application', { appIds: selectedIds, status });
+      broadcastSync('application', { appIds: eligibleIds, status });
     } finally {
       setBulkLoading(false);
     }
