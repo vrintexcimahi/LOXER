@@ -198,14 +198,14 @@ export default function GodModeLayout({ title, description, children }: GodModeL
       <div className="flex min-h-screen">
         <aside
           className={classNames(
-            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-[300px] flex-col overflow-hidden border-r border-rose-500/20 gradient-sidebar-admin backdrop-blur transition-transform lg:static',
+            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-[300px] flex-col overflow-hidden border-r border-cyan-500/20 gradient-sidebar backdrop-blur transition-transform lg:static',
             isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
             isCollapsed ? 'lg:w-[112px]' : 'lg:w-[300px]'
           )}
         >
-          <div className="flex items-center gap-3 border-b border-rose-500/20 px-4 py-4">
+          <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4">
             <a href="/admin/dashboard" className="flex items-center justify-center shrink-0">
-              <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-rose-500/30" />
+              <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-cyan-500/30" />
             </a>
             {!isCollapsed && (
               <div>
@@ -268,7 +268,7 @@ export default function GodModeLayout({ title, description, children }: GodModeL
         </aside>
 
         <div className="flex min-h-screen flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-rose-500/20 gradient-sidebar-admin backdrop-blur-md">
+          <header className="sticky top-0 z-30 border-b border-white/10 gradient-sidebar backdrop-blur-md">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 sm:py-4 lg:px-6">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <button
@@ -279,7 +279,7 @@ export default function GodModeLayout({ title, description, children }: GodModeL
                   <Menu className="h-5 w-5" />
                 </button>
                 <div className="flex items-center gap-2 lg:hidden shrink-0">
-                  <img src="/branding/icon64.png" alt="LOXER Logo" className="w-7 h-7 rounded-lg shadow-md shadow-rose-500/30 shrink-0" />
+                  <img src="/branding/icon64.png" alt="LOXER Logo" className="w-7 h-7 rounded-lg shadow-md shadow-cyan-500/30 shrink-0" />
                   <BrandText className="text-base font-black" />
                   <span className="whitespace-nowrap rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20 shrink-0">
                     Super Admin

@@ -325,14 +325,14 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
 
         <aside
           className={classNames(
-            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-64 flex-col overflow-hidden border-r border-rose-500/20 gradient-sidebar-admin transition-all duration-300',
+            'fixed inset-y-0 left-0 z-40 flex min-h-0 w-64 flex-col overflow-hidden border-r border-cyan-500/20 gradient-sidebar transition-all duration-300',
             isMobileOpen ? 'translate-x-0' : '-translate-x-full',
             isCollapsed ? 'lg:w-20' : 'lg:w-64',
             'lg:translate-x-0'
           )}
         >
-          <div className={classNames('flex h-16 items-center border-b border-rose-500/20', isCollapsed ? 'justify-center px-3' : 'gap-2 px-5')}>
-            <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-rose-500/30" />
+          <div className={classNames('flex h-16 items-center border-b border-white/10', isCollapsed ? 'justify-center px-3' : 'gap-2 px-5')}>
+            <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-cyan-500/30" />
             <BrandText className={classNames('text-lg font-black', isCollapsed ? 'lg:hidden' : '')} />
             {!isCollapsed && (
               <span className="ml-auto rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20">
@@ -364,7 +364,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                   className={classNames(
                     'group mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
                     isActive
-                      ? 'border border-rose-500/40 bg-rose-500/15 text-white shadow-lg shadow-rose-500/15'
+                      ? 'border border-cyan-400/30 bg-cyan-500/10 text-white shadow-lg shadow-cyan-500/10'
                       : 'border border-transparent text-slate-300 hover:border-white/10 hover:bg-slate-900/80 hover:text-white',
                     isCollapsed ? 'lg:justify-center lg:px-2' : ''
                   )}
@@ -372,7 +372,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                   <Icon
                     className={classNames(
                       'h-5 w-5 shrink-0 transition-colors',
-                      isActive ? 'text-rose-400' : 'text-slate-400 group-hover:text-slate-200'
+                      isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'
                     )}
                     strokeWidth={1.8}
                   />
@@ -410,7 +410,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
         </aside>
 
         <div className={classNames('flex min-w-0 w-full flex-col transition-all duration-300', isCollapsed ? 'lg:pl-20' : 'lg:pl-64')}>
-          <header className="sticky top-0 z-30 border-b border-rose-500/20 gradient-sidebar-admin px-3 sm:px-4 py-3 backdrop-blur md:px-6 pt-safe">
+          <header className="sticky top-0 z-30 border-b border-white/10 gradient-sidebar px-3 sm:px-4 py-3 backdrop-blur md:px-6 pt-safe">
             <div className="flex items-center justify-between gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <button
@@ -421,7 +421,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                     }
                     toggleMobile();
                   }}
-                  className="rounded-lg border border-rose-500/20 bg-slate-950/40 p-2 text-slate-100 transition hover:bg-rose-500/10 hover:text-rose-200 active-press shrink-0"
+                  className="rounded-lg border border-white/10 bg-slate-950/40 p-2 text-slate-100 transition hover:bg-white/10 hover:text-cyan-200 active-press shrink-0"
                   aria-label={isCollapsed ? 'Open sidebar' : 'Close sidebar'}
                   title={isCollapsed ? 'Open sidebar' : 'Close sidebar'}
                 >
@@ -433,14 +433,14 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                   </span>
                 </button>
                 <div className="flex items-center gap-1.5 lg:hidden shrink-0">
-                  <img src="/branding/icon64.png" alt="LOXER Logo" className="w-6 h-6 rounded-lg shadow-md shadow-rose-500/30 shrink-0" />
+                  <img src="/branding/icon64.png" alt="LOXER Logo" className="w-6 h-6 rounded-lg shadow-md shadow-cyan-500/30 shrink-0" />
                   <BrandText className="text-base font-black shrink-0" />
                   <span className="whitespace-nowrap rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20 shrink-0">
                     {effectiveRole === 'superadmin' ? 'Super Admin' : 'Admin'}
                   </span>
                 </div>
                 <div className="min-w-0 hidden md:block">
-                  <p className="text-xs uppercase tracking-wider text-rose-300 truncate">Admin / {tabTitle}</p>
+                  <p className="text-xs uppercase tracking-wider text-cyan-300 truncate">Admin / {tabTitle}</p>
                   <p className="text-sm font-semibold text-slate-100 truncate hidden sm:block">Pusat kendali data dan monitoring LOXER</p>
                 </div>
               </div>
@@ -452,7 +452,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                 </span>
                 <NotificationBell variant="dark" compact />
                 <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-slate-950/35 px-3 py-1.5 lg:flex">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500/20 text-xs font-bold text-rose-300">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-500/20 text-xs font-bold text-cyan-300">
                     {(adminEmail || 'A')[0].toUpperCase()}
                   </div>
                   <p className="max-w-[180px] truncate text-xs text-slate-200">{adminEmail}</p>
@@ -519,7 +519,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                       className={classNames(
                         'flex items-center justify-center px-3 py-1 rounded-full transition-all duration-200',
                         active
-                          ? 'bg-rose-500/20 text-rose-300 shadow-sm shadow-rose-500/20'
+                          ? 'bg-cyan-500/20 text-cyan-300 shadow-sm border border-cyan-500/30'
                           : 'text-slate-400 hover:text-slate-200'
                       )}
                     >
@@ -528,7 +528,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                     <span
                       className={classNames(
                         'text-[10px] tracking-tight mt-0.5 truncate max-w-[58px]',
-                        active ? 'text-rose-300 font-bold' : 'text-slate-400 font-medium'
+                        active ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'
                       )}
                     >
                       {item.label}
@@ -546,7 +546,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                   className={classNames(
                     'flex items-center justify-center px-3 py-1 rounded-full transition-all duration-200',
                     isMobileOpen
-                      ? 'bg-rose-500/20 text-rose-300 shadow-sm shadow-rose-500/20'
+                      ? 'bg-cyan-500/20 text-cyan-300 shadow-sm border border-cyan-500/30'
                       : 'text-slate-400 hover:text-slate-200'
                   )}
                 >
@@ -555,7 +555,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                 <span
                   className={classNames(
                     'text-[10px] tracking-tight mt-0.5',
-                    isMobileOpen ? 'text-rose-300 font-bold' : 'text-slate-400 font-medium'
+                    isMobileOpen ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'
                   )}
                 >
                   Menu
@@ -834,15 +834,15 @@ function AdminOverview({
   }, [period, adminId, adminEmail, onToast]);
 
   const statCards = [
-    { label: 'Total User', value: stats.totalUsers, today: stats.newUsersToday, Icon: Users, color: 'text-rose-400' },
-    { label: 'Seeker', value: stats.totalSeekers, today: stats.newUsersToday, Icon: UserCheck, color: 'text-rose-400' },
-    { label: 'Employer (Perusahaan)', value: stats.totalEmployers, today: stats.newUsersToday, Icon: Building2, color: 'text-rose-400' },
-    { label: 'Total Lowongan', value: stats.totalJobs, today: stats.newJobsToday, Icon: Briefcase, color: 'text-rose-400' },
-    { label: 'Lowongan Aktif', value: stats.activeJobs, today: stats.newJobsToday, Icon: CheckCircle2, color: 'text-rose-400' },
-    { label: 'Total Lamaran', value: stats.totalApplications, today: stats.newApplicationsToday, Icon: FileText, color: 'text-rose-400' },
-    { label: 'Total Perusahaan', value: stats.totalCompanies, today: 0, Icon: Building, color: 'text-rose-400' },
-    { label: 'Perusahaan Verified', value: stats.verifiedCompanies, today: 0, Icon: BadgeCheck, color: 'text-rose-400' },
-    { label: 'Lamaran Menunggu', value: stats.pendingApplications, today: 0, Icon: Clock, color: 'text-rose-400' },
+    { label: 'Total User', value: stats.totalUsers, today: stats.newUsersToday, Icon: Users, color: 'text-sky-400' },
+    { label: 'Seeker', value: stats.totalSeekers, today: stats.newUsersToday, Icon: UserCheck, color: 'text-cyan-400' },
+    { label: 'Employer (Perusahaan)', value: stats.totalEmployers, today: stats.newUsersToday, Icon: Building2, color: 'text-teal-400' },
+    { label: 'Total Lowongan', value: stats.totalJobs, today: stats.newJobsToday, Icon: Briefcase, color: 'text-sky-400' },
+    { label: 'Lowongan Aktif', value: stats.activeJobs, today: stats.newJobsToday, Icon: CheckCircle2, color: 'text-emerald-400' },
+    { label: 'Total Lamaran', value: stats.totalApplications, today: stats.newApplicationsToday, Icon: FileText, color: 'text-cyan-400' },
+    { label: 'Total Perusahaan', value: stats.totalCompanies, today: 0, Icon: Building, color: 'text-sky-400' },
+    { label: 'Perusahaan Verified', value: stats.verifiedCompanies, today: 0, Icon: BadgeCheck, color: 'text-emerald-400' },
+    { label: 'Lamaran Menunggu', value: stats.pendingApplications, today: 0, Icon: Clock, color: 'text-amber-400' },
   ];
 
   return (
@@ -856,7 +856,7 @@ function AdminOverview({
               onClick={() => setPeriod(value as 7 | 30 | 90)}
               className={classNames(
                 'rounded-md px-3 py-1.5 transition-colors',
-                period === value ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30' : 'text-slate-400 hover:text-white'
+                period === value ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-slate-400 hover:text-white'
               )}
             >
               {value} hari
@@ -875,13 +875,13 @@ function AdminOverview({
           : statCards.map(({ label, value, today, Icon, color }) => (
               <div
                 key={label}
-                className="group relative overflow-hidden rounded-xl border border-rose-500/20 bg-slate-900/90 p-2.5 sm:p-4 hover:border-rose-500/40 hover:bg-slate-900 transition-all shadow-md shadow-slate-950/40 flex flex-col justify-between"
+                className="group relative overflow-hidden rounded-xl border border-sky-500/20 bg-slate-900/90 p-2.5 sm:p-4 hover:border-sky-500/40 hover:bg-slate-900 transition-all shadow-md shadow-slate-950/40 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between gap-1 mb-1 sm:mb-2">
                   <span className="text-[10px] sm:text-xs font-semibold text-slate-300 truncate" title={label}>
                     {label}
                   </span>
-                  <div className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/20 shrink-0">
+                  <div className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-sky-500/10 border border-sky-500/20 shrink-0">
                     <Icon className={classNames('h-3 w-3 sm:h-4 sm:w-4', color)} />
                   </div>
                 </div>
@@ -889,7 +889,7 @@ function AdminOverview({
                   <p className="text-base sm:text-2xl lg:text-3xl font-bold text-white tracking-tight">
                     {value.toLocaleString('id-ID')}
                   </p>
-                  <p className="mt-0.5 sm:mt-1 text-[9px] sm:text-xs text-rose-300/70 truncate">
+                  <p className="mt-0.5 sm:mt-1 text-[9px] sm:text-xs text-sky-300/70 truncate">
                     +{today.toLocaleString('id-ID')} hari ini
                   </p>
                 </div>

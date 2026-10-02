@@ -97,10 +97,10 @@ export default function EmployerDashboard() {
       {/* 1 Baris 4 Grid: Stats Cards */}
       <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-6">
         {[
-          { label: 'Lowongan Aktif', value: activeJobs, icon: Briefcase, color: 'from-emerald-500 to-teal-400', trend: null },
-          { label: 'Total Pelamar', value: totalApps, icon: Users, color: 'from-teal-500 to-emerald-400', trend: null },
-          { label: 'Jadwal Interview', value: interviews, icon: Calendar, color: 'from-amber-500 to-emerald-400', trend: null },
-          { label: 'Diterima Kerja', value: hired, icon: CheckCircle, color: 'from-emerald-600 to-teal-500', trend: null },
+          { label: 'Lowongan Aktif', value: activeJobs, icon: Briefcase, color: 'from-sky-500 to-cyan-400', trend: null },
+          { label: 'Total Pelamar', value: totalApps, icon: Users, color: 'from-sky-600 to-sky-400', trend: null },
+          { label: 'Jadwal Interview', value: interviews, icon: Calendar, color: 'from-cyan-500 to-teal-400', trend: null },
+          { label: 'Diterima Kerja', value: hired, icon: CheckCircle, color: 'from-emerald-500 to-emerald-400', trend: null },
         ].map(({ label, value, icon: Icon, color, trend }) => (
           <div key={label} className="bg-white rounded-2xl border border-sky-100 shadow-sm card-hover p-2.5 sm:p-4 flex flex-col justify-between">
             <div className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center mb-2 sm:mb-3 shadow-md shrink-0`}>

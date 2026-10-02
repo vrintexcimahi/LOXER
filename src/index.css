@@ -366,55 +366,56 @@ html.dark .badge {
 }
 
 /* ==========================================================================
-   Role-Specific Identities & Theme Styling (4 Roles)
+   Role-Specific Identities & Theme Styling (Restored to Original LOXER Design)
+   As per user direction: differentiator between roles is strictly the Role Tag Badge
    ========================================================================== */
 
-/* 1. Employer / Perusahaan (Emerald / Mint Green Identity) */
+/* 1. Employer / Perusahaan (Original LOXER Cyan/Navy Theme) */
 .gradient-sidebar-employer {
-  background: linear-gradient(180deg, #041f17 0%, #064e3b 55%, #022c22 100%) !important;
+  background: var(--gradient-sidebar) !important;
 }
 .gradient-cta-employer {
-  background: linear-gradient(90deg, #10b981, #059669) !important;
+  background: var(--gradient-cta) !important;
 }
 .gradient-card-employer {
-  background: linear-gradient(145deg, #064e3b 0%, #047857 50%, #059669 100%) !important;
+  background: var(--gradient-card) !important;
 }
 .sidebar-item-active-employer {
-  background: rgba(16, 185, 129, 0.18) !important;
-  border-left: 3px solid #10b981 !important;
-  color: #ecfdf5 !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-left: 3px solid #06B6D4 !important;
+  color: white !important;
 }
 
-/* 2. Freelancer / Jasa (Amber / Gold / Creative Warmth) */
+/* 2. Freelancer / Jasa (Original LOXER Cyan/Navy Theme) */
 .gradient-sidebar-freelancer {
-  background: linear-gradient(180deg, #1c1003 0%, #451a03 55%, #1e1305 100%) !important;
+  background: var(--gradient-sidebar) !important;
 }
 .gradient-cta-freelancer {
-  background: linear-gradient(90deg, #f59e0b, #d97706) !important;
+  background: var(--gradient-cta) !important;
 }
 .gradient-card-freelancer {
-  background: linear-gradient(145deg, #78350f 0%, #b45309 50%, #f59e0b 100%) !important;
+  background: var(--gradient-card) !important;
 }
 .sidebar-item-active-freelancer {
-  background: rgba(245, 158, 11, 0.18) !important;
-  border-left: 3px solid #f59e0b !important;
-  color: #fffbeb !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-left: 3px solid #06B6D4 !important;
+  color: white !important;
 }
 
-/* 3. Super Admin / God Mode (Rose / Crimson / Ruby Identity) */
+/* 3. Super Admin / God Mode (Original LOXER Cyan/Navy Theme) */
 .gradient-sidebar-admin {
-  background: linear-gradient(180deg, #190510 0%, #4c0519 55%, #16040d 100%) !important;
+  background: var(--gradient-sidebar) !important;
 }
 .gradient-cta-admin {
-  background: linear-gradient(90deg, #f43f5e, #e11d48) !important;
+  background: var(--gradient-cta) !important;
 }
 .gradient-card-admin {
-  background: linear-gradient(145deg, #881337 0%, #be123c 50%, #f43f5e 100%) !important;
+  background: var(--gradient-card) !important;
 }
 .sidebar-item-active-admin {
-  background: rgba(244, 63, 94, 0.18) !important;
-  border-left: 3px solid #f43f5e !important;
-  color: #fff1f2 !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-left: 3px solid #06B6D4 !important;
+  color: white !important;
 }
 
 
