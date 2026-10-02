@@ -1,8 +1,8 @@
 // ==============================================================================
-// LOXER Progressive Web App Service Worker (v1.4.0)
+// LOXER Progressive Web App Service Worker (v1.5.0)
 // ==============================================================================
 
-const CACHE_NAME = 'loxer-pwa-v1.4.0';
+const CACHE_NAME = 'loxer-pwa-v1.5.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -115,14 +115,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Helper: check if response is an invalid HTML fallback for a script or style asset
+  const isInvalidAssetResponse = (res) => {
+    if (!res || res.status !== 200) return true;
+    const cType = res.headers.get('content-type') || '';
+    if (url.pathname.match(/\.(js|mjs|css|json)$/i) && cType.includes('text/html')) {
+      return true;
+    }
+    return false;
+  };
+
   // Static Assets (CSS, JS, Fonts, Images): Cache-first with background network revalidation
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
+      if (cachedResponse && !isInvalidAssetResponse(cachedResponse)) {
         // Asynchronously update cache in the background for immutable assets
         fetch(request)
           .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
+            if (networkResponse && networkResponse.status === 200 && !isInvalidAssetResponse(networkResponse)) {
               const cloned = networkResponse.clone();
               caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
             }
@@ -133,7 +143,7 @@ self.addEventListener('fetch', (event) => {
 
       return fetch(request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && !isInvalidAssetResponse(networkResponse)) {
             const cloned = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
           }

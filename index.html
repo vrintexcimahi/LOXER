@@ -40,26 +40,53 @@
     <!-- Google Identity Services (GIS) for Native Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
-      // Global error listener for stale dynamic chunks or failed imports
+      function purgeLoxerCachesAndReload() {
+        try {
+          sessionStorage.clear();
+          var p = [];
+          if ('serviceWorker' in navigator) {
+            p.push(navigator.serviceWorker.getRegistrations().then(function(regs) {
+              return Promise.all(regs.map(function(r) { return r.unregister(); }));
+            }));
+          }
+          if ('caches' in window) {
+            p.push(caches.keys().then(function(names) {
+              return Promise.all(names.map(function(k) { return caches.delete(k); }));
+            }));
+          }
+          Promise.all(p).finally(function() {
+            var target = window.location.pathname + '?nocache=' + Date.now();
+            window.location.replace(target);
+          });
+          return;
+        } catch (e) {
+          window.location.reload();
+        }
+      }
+
+      // Global error listener for stale dynamic chunks or module load failures
       window.addEventListener('error', function(e) {
         var msg = (e && e.message) ? e.message.toLowerCase() : '';
         if (msg.indexOf('dynamically imported module') !== -1 ||
             msg.indexOf('failed to fetch dynamically imported module') !== -1 ||
             msg.indexOf('loading chunk') !== -1 ||
-            msg.indexOf('unexpected token') !== -1) {
+            msg.indexOf('unexpected token') !== -1 ||
+            msg.indexOf('forwardref') !== -1) {
           if (!sessionStorage.getItem('loxer_chunk_retry')) {
             sessionStorage.setItem('loxer_chunk_retry', Date.now().toString());
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function(regs) {
-                for (var i = 0; i < regs.length; i++) regs[i].unregister();
-              });
-            }
-            if ('caches' in window) {
-              caches.keys().then(function(keys) {
-                keys.forEach(function(k) { caches.delete(k); });
-              });
-            }
-            window.location.reload();
+            purgeLoxerCachesAndReload();
+          }
+        }
+      });
+
+      window.addEventListener('unhandledrejection', function(e) {
+        var reason = (e && e.reason) ? (e.reason.message || String(e.reason)).toLowerCase() : '';
+        if (reason.indexOf('dynamically imported module') !== -1 ||
+            reason.indexOf('failed to fetch') !== -1 ||
+            reason.indexOf('loading chunk') !== -1) {
+          if (!sessionStorage.getItem('loxer_chunk_retry')) {
+            sessionStorage.setItem('loxer_chunk_retry', Date.now().toString());
+            purgeLoxerCachesAndReload();
           }
         }
       });
@@ -84,41 +111,13 @@
           <div style="font-weight: 800; font-size: 20px; letter-spacing: -0.5px; margin-bottom: 4px; color: #ffffff;">LOXER</div>
           <div id="loading-status-text" style="font-size: 13px; color: #bae6fd;">Menyiapkan platform rekrutmen...</div>
           <div id="slow-recovery-box" style="display: none; margin-top: 18px;">
-            <button onclick="cleanReloadLoxer()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #e0f2fe; padding: 8px 18px; border-radius: 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+            <button onclick="purgeLoxerCachesAndReload()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #e0f2fe; padding: 8px 18px; border-radius: 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
               Muat Ulang Bersih
             </button>
           </div>
         </div>
       </div>
       <script>
-        function cleanReloadLoxer() {
-          try {
-            sessionStorage.clear();
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function(regs) {
-                var promises = [];
-                for (var i = 0; i < regs.length; i++) {
-                  promises.push(regs[i].unregister());
-                }
-                if ('caches' in window) {
-                  caches.keys().then(function(names) {
-                    for (var j = 0; j < names.length; j++) {
-                      caches.delete(names[j]);
-                    }
-                    window.location.href = window.location.pathname + '?nocache=' + Date.now();
-                  });
-                } else {
-                  window.location.href = window.location.pathname + '?nocache=' + Date.now();
-                }
-              });
-              return;
-            }
-          } catch (e) {
-            // fallback
-          }
-          window.location.reload();
-        }
-
         setTimeout(function() {
           var btn = document.getElementById('slow-recovery-box');
           if (btn) btn.style.display = 'block';
