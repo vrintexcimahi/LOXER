@@ -70,12 +70,15 @@ try {
   const delModDemoJob = db.prepare("DELETE FROM moderation_queue WHERE entity_id IN ('7923f80a-068e-443a-9817-0666a96e5d82', '917f1d72-d5fc-4790-a826-dd8fd1406b7f', 'e12ec6f2-d38a-4925-9f3e-a5f6a5afcf8d')").run();
   console.log(`- Tiket antrean moderasi dummy dibersihkan: ${delModTalent.changes + delModDemoJob.changes} baris`);
 
-  // 6. Clean fb_scraped_posts for test_azqy
-  const delScraped = db.prepare("DELETE FROM fb_scraped_posts WHERE post_url LIKE '%test_azqy%'").run();
+  // 6. Clean fb_scraped_posts for invalid or test post URLs
+  const delScraped = db.prepare("DELETE FROM fb_scraped_posts WHERE post_url LIKE '%test_azqy%' OR post_url NOT LIKE 'http%'").run();
   console.log(`- Histori fb_scraped_posts tes simulasi dibersihkan: ${delScraped.changes} baris`);
 
   db.exec('COMMIT;');
-  console.log('✅ [BERHASIL] Seluruh data dummy telah bersih dari database!');
+  db.exec('REINDEX;');
+  db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+  db.exec('VACUUM;');
+  console.log('✅ [BERHASIL] Seluruh data dummy telah bersih dari database dan basis data berhasil direindex!');
 } catch (err) {
   db.exec('ROLLBACK;');
   console.error('❌ [GAGAL] Gagal membersihkan data dummy:', err);
