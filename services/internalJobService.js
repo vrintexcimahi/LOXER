@@ -6,7 +6,7 @@
 import { queryAll, queryOne } from '../server/localDb.js';
 
 export function searchInternalJobs(params = {}) {
-  const { keywords = '', location = '', page = 1 } = params;
+  const { keywords = '', location = '', page = 1, limit = null } = params;
 
   try {
     const conditions = ["j.status = 'active'"];
@@ -58,7 +58,7 @@ export function searchInternalJobs(params = {}) {
     const countRow = queryOne(countSql, sqlParams);
     const totalHits = countRow ? countRow.total : 0;
 
-    const pageSize = 10;
+    const pageSize = limit ? Math.max(1, Number(limit)) : 10;
     const offset = Math.max(0, (page - 1) * pageSize);
 
     const querySql = `

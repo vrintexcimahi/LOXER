@@ -145,6 +145,7 @@ export class JobSearchCache {
       sort = '',
       contract_type = '',
       work_hours = '',
+      limit = '',
     } = params;
 
     const k = String(keywords || '').trim().toLowerCase();
@@ -155,8 +156,9 @@ export class JobSearchCache {
     const so = String(sort || '').trim().toLowerCase();
     const c = String(contract_type || '').trim().toLowerCase();
     const w = String(work_hours || '').trim().toLowerCase();
+    const lim = String(limit || '');
 
-    return `${prov}:${k}:${l}:${p}:${s}:${so}:${c}:${w}`;
+    return `${prov}:${k}:${l}:${p}:${s}:${so}:${c}:${w}:${lim}`;
   }
 
   get(key) {

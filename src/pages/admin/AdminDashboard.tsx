@@ -38,6 +38,7 @@ import {
   List,
   Trash2,
   Tag,
+  Sparkles,
 } from 'lucide-react';
 import {
   Area,
@@ -72,6 +73,7 @@ import { supabase } from '../../lib/supabase';
 import { AdminStats, AdminUserRow, ApplicationStatus, AuditLog, ChartDataPoint, Company, JobListing, UserRole } from '../../lib/types';
 import AdminUserDataCenter from './AdminUserDataCenter';
 import AdminDeviceManagement from './AdminDeviceManagement';
+import { fetchUnifiedJobs } from '../../services/careerjetService';
 
 type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations';
 type ToastType = 'success' | 'error' | 'info';
@@ -2369,9 +2371,31 @@ type CompanyWithStats = Company & {
   total_jobs?: number;
 };
 
-type JobAdWithCompany = JobListing & {
+type JobAdWithCompany = {
+  id: string;
+  title: string;
+  category?: string;
+  location_city?: string;
+  job_type?: JobType | string;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_text?: string;
+  description?: string;
+  requirements?: string;
+  benefits?: string;
+  quota?: number;
+  status: JobStatus | string;
+  created_at: string;
+  expires_at?: string;
+  updated_at?: string;
+  company_id?: string;
+  company_name?: string;
   companies?: Company | null;
   applicant_count?: number;
+  is_internal?: boolean;
+  site?: string;
+  source?: string;
+  external_url?: string;
 };
 
 const JOB_TYPE_DISPLAY: Record<string, string> = {
@@ -2382,10 +2406,10 @@ const JOB_TYPE_DISPLAY: Record<string, string> = {
   internship: 'Magang',
 };
 
-function formatAdSalary(min?: number | null, max?: number | null) {
+function formatAdSalary(min?: number | null, max?: number | null, fallbackText?: string) {
   const nMin = Number(min || 0);
   const nMax = Number(max || 0);
-  if (nMin <= 0 && nMax <= 0) return 'Kompetitif / Sesuai Pengalaman';
+  if (nMin <= 0 && nMax <= 0) return fallbackText || 'Kompetitif / Sesuai Pengalaman';
   if (nMin > 0 && nMax > 0) {
     return `Rp ${nMin.toLocaleString('id-ID')} - Rp ${nMax.toLocaleString('id-ID')}`;
   }
@@ -2419,15 +2443,18 @@ function AdminCompanies({
   const [search, setSearch] = useState('');
   const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified' | 'pending'>('all');
 
-  // Job Ads Catalog State
+  // Job Ads Catalog State (Synchronized with unified public portal stream)
   const [jobAds, setJobAds] = useState<JobAdWithCompany[]>([]);
   const [jobAdsLoading, setJobAdsLoading] = useState(false);
   const [adSearch, setAdSearch] = useState('');
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
+  const [adSourceFilter, setAdSourceFilter] = useState<'all' | 'internal' | 'external'>('all');
   const [adStatusFilter, setAdStatusFilter] = useState<'all' | 'active' | 'closed' | 'draft'>('all');
   const [adTypeFilter, setAdTypeFilter] = useState<'all' | JobType>('all');
   const [adCategoryFilter, setAdCategoryFilter] = useState('all');
   const [adViewMode, setAdViewMode] = useState<'grid' | 'table'>('grid');
+  const [adPage, setAdPage] = useState(1);
+  const AD_PAGE_SIZE = 18;
   const [previewJob, setPreviewJob] = useState<JobAdWithCompany | null>(null);
   const [adActionLoadingId, setAdActionLoadingId] = useState<string | null>(null);
 
@@ -2491,12 +2518,12 @@ function AdminCompanies({
     setLoading(false);
   }, [page]);
 
-  // Fetch Comprehensive Job Ads Catalog from all companies
+  // Fetch Comprehensive Job Ads Catalog from local DB & unified partner feed (100% sync with public portal)
   const fetchJobAds = useCallback(async () => {
     if (!supabase) return;
     setJobAdsLoading(true);
     try {
-      const [adsRes, appsRes] = await Promise.all([
+      const [adsRes, appsRes, unifiedPayload] = await Promise.all([
         supabase
           .from('job_listings')
           .select(
@@ -2504,6 +2531,10 @@ function AdminCompanies({
           )
           .order('created_at', { ascending: false }),
         supabase.from('applications').select('job_id'),
+        fetchUnifiedJobs({ provider: 'all', limit: 500 }).catch((err) => {
+          console.warn('[AdminCompanies] fetchUnifiedJobs fallback:', err);
+          return { jobs: [], hits: 0 };
+        }),
       ]);
 
       if (adsRes.error) {
@@ -2519,13 +2550,94 @@ function AdminCompanies({
         }
       });
 
-      const enriched: JobAdWithCompany[] = ((adsRes.data || []) as any[]).map((j) => ({
-        ...j,
-        companies: getFirstValue(j.companies) || null,
-        applicant_count: appCounts[j.id] || 0,
-      }));
+      // Internal jobs with DB linkage & management capabilities
+      const internalJobMap = new Map<string, JobAdWithCompany>();
+      const internalJobsList: JobAdWithCompany[] = ((adsRes.data || []) as any[]).map((j) => {
+        const comp = getFirstValue(j.companies) || null;
+        const mapped: JobAdWithCompany = {
+          ...j,
+          companies: comp,
+          company_name: comp?.name || 'Mitra LOXER',
+          applicant_count: appCounts[j.id] || 0,
+          is_internal: true,
+          site: 'LOXER Mitra',
+          source: 'LOXER Verified Employer',
+          external_url: `/seeker/browse?job_id=${j.id}`,
+        };
+        internalJobMap.set(j.id, mapped);
+        return mapped;
+      });
 
-      setJobAds(enriched);
+      // External / Partner feed jobs (Arbeitnow Global, etc.)
+      const unifiedJobs = Array.isArray(unifiedPayload?.jobs) ? unifiedPayload.jobs : [];
+      const externalJobsList: JobAdWithCompany[] = [];
+
+      unifiedJobs.forEach((uj: any, idx: number) => {
+        // Skip if already represented in internal jobs list
+        if (uj.is_internal && uj.job_id && internalJobMap.has(uj.job_id)) {
+          return;
+        }
+
+        const compName = uj.company || 'Perusahaan Global';
+        let inferredCategory = 'Teknologi & IT';
+        const titleLower = (uj.title || '').toLowerCase();
+        if (titleLower.includes('design') || titleLower.includes('ui/ux') || titleLower.includes('art') || titleLower.includes('grafis')) {
+          inferredCategory = 'Desain & Kreatif';
+        } else if (titleLower.includes('marketing') || titleLower.includes('seo') || titleLower.includes('sales') || titleLower.includes('growth') || titleLower.includes('pemasaran')) {
+          inferredCategory = 'Pemasaran & Digital';
+        } else if (titleLower.includes('hr') || titleLower.includes('recruiter') || titleLower.includes('people') || titleLower.includes('talent') || titleLower.includes('admin')) {
+          inferredCategory = 'Admin & Operasional';
+        } else if (titleLower.includes('manager') || titleLower.includes('lead') || titleLower.includes('director') || titleLower.includes('leiter')) {
+          inferredCategory = 'Manajemen & Bisnis';
+        } else if (titleLower.includes('engineer') || titleLower.includes('developer') || titleLower.includes('tech') || titleLower.includes('informatik') || titleLower.includes('software')) {
+          inferredCategory = 'Teknologi & IT';
+        } else {
+          inferredCategory = 'Umum';
+        }
+
+        const extCompId = `partner-${compName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+        const extJobId = uj.job_id || `ext-${idx}-${(uj.url || uj.title || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`;
+
+        const extJob: JobAdWithCompany = {
+          id: extJobId,
+          company_id: extCompId,
+          company_name: compName,
+          title: uj.title || 'Lowongan Pekerjaan',
+          category: inferredCategory,
+          location_city: uj.locations || 'Remote / Global',
+          job_type: 'full-time',
+          salary_min: uj.salary_min || null,
+          salary_max: uj.salary_max || null,
+          salary_text: uj.salary || 'Kompetitif / Sesuai Pengalaman',
+          description: uj.description || '',
+          requirements: 'Kualifikasi lengkap dan tata cara pendaftaran dapat dilihat langsung di tautan sumber resmi mitra.',
+          benefits: '',
+          quota: 0,
+          status: 'active',
+          created_at: uj.date || new Date().toISOString(),
+          companies: {
+            id: extCompId,
+            user_id: '',
+            name: compName,
+            city: uj.locations || 'Global',
+            verified: true,
+            created_at: uj.date || new Date().toISOString(),
+            updated_at: uj.date || new Date().toISOString(),
+            website: uj.url,
+          },
+          applicant_count: 0,
+          is_internal: false,
+          site: uj.site || 'Arbeitnow',
+          source: uj.source || 'Arbeitnow Global Feed',
+          external_url: uj.url,
+        };
+
+        externalJobsList.push(extJob);
+      });
+
+      // Internal verified jobs first, then all external partner jobs!
+      const combined = [...internalJobsList, ...externalJobsList];
+      setJobAds(combined);
     } catch (err: any) {
       onToastRef.current('error', `Terjadi kesalahan saat memuat iklan: ${err.message}`);
     } finally {
@@ -2585,6 +2697,10 @@ function AdminCompanies({
   // Toggle Job Ad Status (active / closed)
   async function toggleAdStatus(ad: JobAdWithCompany) {
     if (!supabase) return;
+    if (!ad.is_internal) {
+      onToast('info', 'Status lowongan dari mitra global disinkronkan langsung dari feed agregator.');
+      return;
+    }
     setAdActionLoadingId(ad.id);
     const nextStatus: JobStatus = ad.status === 'active' ? 'closed' : 'active';
     const { error } = await supabase.from('job_listings').update({ status: nextStatus }).eq('id', ad.id);
@@ -2613,7 +2729,11 @@ function AdminCompanies({
   // Delete Job Ad
   async function deleteAd(ad: JobAdWithCompany) {
     if (!supabase) return;
-    if (!window.confirm(`Hapus iklan lowongan "${ad.title}" dari perusahaan "${ad.companies?.name || 'Perusahaan'}"? Seluruh berkas pelamar pada iklan ini juga akan dihapus.`)) {
+    if (!ad.is_internal) {
+      onToast('info', 'Lowongan mitra global dikelola melalui konfigurasi sumber integrasi API.');
+      return;
+    }
+    if (!window.confirm(`Hapus iklan lowongan "${ad.title}" dari perusahaan "${ad.companies?.name || ad.company_name || 'Perusahaan'}"? Seluruh berkas pelamar pada iklan ini juga akan dihapus.`)) {
       return;
     }
     setAdActionLoadingId(ad.id);
@@ -2661,12 +2781,52 @@ function AdminCompanies({
     const totalAds = jobAds.length;
     const activeAds = jobAds.filter((j) => j.status === 'active').length;
     const closedAds = jobAds.filter((j) => j.status === 'closed').length;
+    const internalAds = jobAds.filter((j) => j.is_internal).length;
+    const externalAds = jobAds.filter((j) => !j.is_internal).length;
     const uniqueCompanies = new Set(jobAds.map((j) => j.company_id)).size;
     const totalApplicants = jobAds.reduce((sum, j) => sum + (j.applicant_count || 0), 0);
-    return { totalAds, activeAds, closedAds, uniqueCompanies, totalApplicants };
+    return { totalAds, activeAds, closedAds, internalAds, externalAds, uniqueCompanies, totalApplicants };
   }, [jobAds]);
 
-  // Filtered rows for Companies
+  // Company options for ads dropdown filter
+  const companyOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number; is_internal: boolean }>();
+    jobAds.forEach((j) => {
+      const cId = j.company_id || (j.companies?.name ? `partner-${j.companies.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : 'unknown');
+      const cName = j.companies?.name || j.company_name || 'Perusahaan';
+      const existing = map.get(cId);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(cId, {
+          id: cId,
+          name: cName,
+          count: 1,
+          is_internal: Boolean(j.is_internal),
+        });
+      }
+    });
+
+    // Also include any companies from `rows` (registered employers) even if no jobs yet
+    rows.forEach((r) => {
+      if (!map.has(r.id)) {
+        map.set(r.id, {
+          id: r.id,
+          name: r.name,
+          count: r.total_jobs || 0,
+          is_internal: true,
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.is_internal && !b.is_internal) return -1;
+      if (!a.is_internal && b.is_internal) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [jobAds, rows]);
+
+  // Filtered rows for Companies Directory
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return rows.filter((row) => {
@@ -2684,7 +2844,7 @@ function AdminCompanies({
   // Unique categories for Ads
   const adCategories = useMemo(() => {
     const unique = new Set(jobAds.map((j) => j.category).filter(Boolean));
-    return Array.from(unique);
+    return Array.from(unique).sort();
   }, [jobAds]);
 
   // Filtered Job Ads
@@ -2692,28 +2852,50 @@ function AdminCompanies({
     const q = adSearch.trim().toLowerCase();
     return jobAds.filter((job) => {
       const company = job.companies;
+      const compName = company?.name || job.company_name || '';
       const matchSearch =
         !q ||
         job.title.toLowerCase().includes(q) ||
         (job.category || '').toLowerCase().includes(q) ||
         (job.location_city || '').toLowerCase().includes(q) ||
-        (company?.name || '').toLowerCase().includes(q) ||
+        compName.toLowerCase().includes(q) ||
         (job.description || '').toLowerCase().includes(q);
+
+      const matchSource =
+        adSourceFilter === 'all' ||
+        (adSourceFilter === 'internal' && job.is_internal) ||
+        (adSourceFilter === 'external' && !job.is_internal);
 
       const matchCompany = selectedCompanyId === 'all' || job.company_id === selectedCompanyId;
       const matchStatus = adStatusFilter === 'all' || job.status === adStatusFilter;
       const matchType = adTypeFilter === 'all' || job.job_type === adTypeFilter;
       const matchCategory = adCategoryFilter === 'all' || job.category === adCategoryFilter;
 
-      return matchSearch && matchCompany && matchStatus && matchType && matchCategory;
+      return matchSearch && matchSource && matchCompany && matchStatus && matchType && matchCategory;
     });
-  }, [jobAds, adSearch, selectedCompanyId, adStatusFilter, adTypeFilter, adCategoryFilter]);
+  }, [jobAds, adSearch, adSourceFilter, selectedCompanyId, adStatusFilter, adTypeFilter, adCategoryFilter]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setAdPage(1);
+  }, [adSearch, adSourceFilter, selectedCompanyId, adStatusFilter, adTypeFilter, adCategoryFilter]);
+
+  const totalAdPages = Math.max(1, Math.ceil(filteredAds.length / AD_PAGE_SIZE));
+  const paginatedAds = useMemo(() => {
+    const start = (adPage - 1) * AD_PAGE_SIZE;
+    return filteredAds.slice(start, start + AD_PAGE_SIZE);
+  }, [filteredAds, adPage]);
 
   // Selected company object if filtered
   const filteredCompanyObj = useMemo(() => {
     if (selectedCompanyId === 'all') return null;
-    return rows.find((r) => r.id === selectedCompanyId) || jobAds.find((j) => j.company_id === selectedCompanyId)?.companies || null;
-  }, [selectedCompanyId, rows, jobAds]);
+    return (
+      rows.find((r) => r.id === selectedCompanyId) ||
+      companyOptions.find((c) => c.id === selectedCompanyId) ||
+      jobAds.find((j) => j.company_id === selectedCompanyId)?.companies ||
+      null
+    );
+  }, [selectedCompanyId, rows, companyOptions, jobAds]);
 
   return (
     <section className="space-y-5">
@@ -2986,21 +3168,79 @@ function AdminCompanies({
       {/* ========================================================================= */}
       {activeSubTab === 'ads' && (
         <div className="space-y-4 animate-fade-in">
-          {/* Ad Stats Bar */}
+          {/* Ad Stats Bar - Synchronized with public portal */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatMini title="Total Iklan Loker" value={adStats.totalAds} />
-            <div className="rounded-xl border border-emerald-500/20 bg-slate-900 p-4">
-              <p className="text-xs uppercase tracking-wide text-emerald-400 font-semibold">Iklan Aktif (Tayang)</p>
-              <p className="mt-1 text-2xl font-bold text-emerald-300">{adStats.activeAds.toLocaleString('id-ID')}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">Iklan Ditutup</p>
-              <p className="mt-1 text-2xl font-bold text-slate-300">{adStats.closedAds.toLocaleString('id-ID')}</p>
-            </div>
             <div className="rounded-xl border border-cyan-500/20 bg-slate-900 p-4">
-              <p className="text-xs uppercase tracking-wide text-cyan-400 font-semibold">Total Pelamar Masuk</p>
-              <p className="mt-1 text-2xl font-bold text-cyan-300">{adStats.totalApplicants.toLocaleString('id-ID')}</p>
+              <p className="text-xs uppercase tracking-wide text-cyan-400 font-semibold flex items-center gap-1.5">
+                <Megaphone className="w-3.5 h-3.5" /> Total Iklan Loker
+              </p>
+              <p className="mt-1 text-2xl font-bold text-white">{adStats.totalAds.toLocaleString('id-ID')}</p>
+              <p className="mt-1 text-[11px] text-slate-400">Tersinkronisasi portal publik</p>
             </div>
+
+            <div className="rounded-xl border border-emerald-500/20 bg-slate-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-emerald-400 font-semibold flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Iklan Aktif (Tayang)
+              </p>
+              <p className="mt-1 text-2xl font-bold text-emerald-300">{adStats.activeAds.toLocaleString('id-ID')}</p>
+              <p className="mt-1 text-[11px] text-slate-400">Siap dilamar kandidat</p>
+            </div>
+
+            <div className="rounded-xl border border-sky-500/20 bg-slate-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-sky-400 font-semibold flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" /> Mitra LOXER Internal
+              </p>
+              <p className="mt-1 text-2xl font-bold text-sky-300">{adStats.internalAds.toLocaleString('id-ID')}</p>
+              <p className="mt-1 text-[11px] text-slate-400">{adStats.totalApplicants} pelamar masuk</p>
+            </div>
+
+            <div className="rounded-xl border border-purple-500/20 bg-slate-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-purple-400 font-semibold flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5" /> Global Partner Feed
+              </p>
+              <p className="mt-1 text-2xl font-bold text-purple-300">{adStats.externalAds.toLocaleString('id-ID')}</p>
+              <p className="mt-1 text-[11px] text-slate-400">Arbeitnow Live API</p>
+            </div>
+          </div>
+
+          {/* Source Tabs Filter */}
+          <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-slate-900/60 border border-white/5">
+            <span className="text-xs text-slate-400 font-medium px-1">Sumber Lowongan:</span>
+            <button
+              onClick={() => setAdSourceFilter('all')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                adSourceFilter === 'all'
+                  ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                  : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+              }`}
+            >
+              <span>Semua Sumber</span>
+              <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">{adStats.totalAds}</span>
+            </button>
+
+            <button
+              onClick={() => setAdSourceFilter('internal')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                adSourceFilter === 'internal'
+                  ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                  : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+              }`}
+            >
+              <span>⭐ Mitra LOXER Internal</span>
+              <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">{adStats.internalAds}</span>
+            </button>
+
+            <button
+              onClick={() => setAdSourceFilter('external')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                adSourceFilter === 'external'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                  : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+              }`}
+            >
+              <span>🌍 Arbeitnow Global</span>
+              <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">{adStats.externalAds}</span>
+            </button>
           </div>
 
           {/* Active Company Filter Notification Banner */}
@@ -3035,16 +3275,16 @@ function AdminCompanies({
                 />
               </div>
 
-              {/* Company Selector Dropdown */}
+              {/* Company Selector Dropdown - Populated with all companies */}
               <select
                 value={selectedCompanyId}
                 onChange={(e) => setSelectedCompanyId(e.target.value)}
                 className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
               >
                 <option value="all">Semua Perusahaan ({jobAds.length} Loker)</option>
-                {rows.map((c) => (
+                {companyOptions.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.total_jobs || 0} loker)
+                    {c.is_internal ? '⭐ ' : ''}{c.name} ({c.count} loker)
                   </option>
                 ))}
               </select>
@@ -3061,7 +3301,6 @@ function AdminCompanies({
                 <option value="all">Semua Status Iklan</option>
                 <option value="active">Tayang (Aktif)</option>
                 <option value="closed">Ditutup</option>
-                <option value="draft">Draft</option>
               </select>
 
               {/* Job Type Filter */}
@@ -3073,8 +3312,8 @@ function AdminCompanies({
                 <option value="all">Semua Tipe Pekerjaan</option>
                 <option value="full-time">Full-time (Purna Waktu)</option>
                 <option value="part-time">Part-time (Paruh Waktu)</option>
-                <option value="freelance">Freelance (Lepas Waktu)</option>
                 <option value="contract">Kontrak</option>
+                <option value="freelance">Freelance (Lepas Waktu)</option>
                 <option value="internship">Magang</option>
               </select>
 
@@ -3105,13 +3344,16 @@ function AdminCompanies({
             <div className="rounded-2xl border border-white/10 bg-slate-900 p-12 text-center">
               <Megaphone className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-white">Tidak ada iklan loker yang ditemukan</h3>
-              <p className="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian atau reset filter perusahaan.</p>
-              {selectedCompanyId !== 'all' && (
+              <p className="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian atau reset filter perusahaan/sumber.</p>
+              {(selectedCompanyId !== 'all' || adSourceFilter !== 'all') && (
                 <button
-                  onClick={() => setSelectedCompanyId('all')}
+                  onClick={() => {
+                    setSelectedCompanyId('all');
+                    setAdSourceFilter('all');
+                  }}
                   className="mt-4 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition"
                 >
-                  Tampilkan Semua Perusahaan
+                  Tampilkan Semua Loker & Sumber
                 </button>
               )}
             </div>
@@ -3120,17 +3362,22 @@ function AdminCompanies({
             /* GRID VIEW: KATALOG VISUAL IKLAN LOKER (FLYER CARD)     */
             /* ======================================================= */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAds.map((job) => {
+              {paginatedAds.map((job) => {
                 const company = job.companies;
                 const isAktif = job.status === 'active';
                 const isActionLoading = adActionLoadingId === job.id;
+                const isInternal = Boolean(job.is_internal);
 
                 return (
                   <div
                     key={job.id}
-                    className="flex flex-col justify-between rounded-2xl border border-white/10 bg-slate-900/95 p-5 shadow-lg transition-all duration-200 hover:border-cyan-500/50 hover:shadow-cyan-500/10 group relative"
+                    className={`flex flex-col justify-between rounded-2xl border p-5 shadow-lg transition-all duration-200 group relative ${
+                      isInternal
+                        ? 'border-cyan-500/30 bg-slate-900/95 hover:border-cyan-400 hover:shadow-cyan-500/10'
+                        : 'border-white/10 bg-slate-900/90 hover:border-purple-500/50 hover:shadow-purple-500/10'
+                    }`}
                   >
-                    {/* Top: Company Header & Status */}
+                    {/* Top: Company Header & Source Status */}
                     <div>
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -3141,34 +3388,51 @@ function AdminCompanies({
                               className="w-10 h-10 rounded-xl border border-white/10 object-cover shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md shadow-cyan-500/20">
-                              {(company?.name || 'C')[0].toUpperCase()}
+                            <div
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md ${
+                                isInternal
+                                  ? 'bg-gradient-to-br from-sky-500 to-cyan-500 shadow-cyan-500/20'
+                                  : 'bg-gradient-to-br from-purple-600 to-indigo-600 shadow-purple-500/20'
+                              }`}
+                            >
+                              {((company?.name || job.company_name || 'C')[0]).toUpperCase()}
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-slate-300 truncate flex items-center gap-1">
-                              <span>{company?.name || 'Perusahaan'}</span>
+                            <p className="text-xs font-semibold text-slate-200 truncate flex items-center gap-1">
+                              <span>{company?.name || job.company_name || 'Perusahaan'}</span>
                               {company?.verified && (
                                 <BadgeCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" title="Verified Company" />
                               )}
                             </p>
                             <p className="text-[11px] text-slate-400 flex items-center gap-1 truncate">
                               <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
-                              <span>{job.location_city || company?.city || 'Indonesia'}</span>
+                              <span>{job.location_city || 'Indonesia'}</span>
                             </p>
                           </div>
                         </div>
 
-                        {/* Status Pill */}
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
-                            isAktif
-                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
-                              : 'bg-slate-800 border-white/10 text-slate-400'
-                          }`}
-                        >
-                          {isAktif ? '● Tayang' : 'Ditutup'}
-                        </span>
+                        {/* Source Tag & Status Pill */}
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          {isInternal ? (
+                            <span className="rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-cyan-500/20 border border-cyan-500/30 text-cyan-300">
+                              ⭐ MITRA LOXER
+                            </span>
+                          ) : (
+                            <span className="rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-purple-900/60 border border-purple-500/40 text-purple-300">
+                              ARBEITNOW GLOBAL
+                            </span>
+                          )}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[9px] font-bold border ${
+                              isAktif
+                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                                : 'bg-slate-800 border-white/10 text-slate-400'
+                            }`}
+                          >
+                            {isAktif ? '● Tayang' : 'Ditutup'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Job Title */}
@@ -3182,7 +3446,7 @@ function AdminCompanies({
                           {job.category || 'Umum'}
                         </span>
                         <span className="rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-300">
-                          {JOB_TYPE_DISPLAY[job.job_type] || job.job_type}
+                          {JOB_TYPE_DISPLAY[job.job_type || ''] || job.job_type || 'Full Time'}
                         </span>
                       </div>
 
@@ -3190,7 +3454,7 @@ function AdminCompanies({
                       <div className="rounded-xl border border-white/5 bg-slate-950/60 p-2.5 mb-3 flex items-center gap-2">
                         <Banknote className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span className="text-xs font-semibold text-emerald-300 truncate">
-                          {formatAdSalary(job.salary_min, job.salary_max)}
+                          {job.salary_text || formatAdSalary(job.salary_min, job.salary_max)}
                         </span>
                       </div>
 
@@ -3203,13 +3467,21 @@ function AdminCompanies({
 
                       {/* Key Indicators */}
                       <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-white/5 pt-2.5 mb-3">
-                        <span className="flex items-center gap-1 font-medium text-slate-300">
-                          <Users className="w-3.5 h-3.5 text-cyan-400" />
-                          <strong>{job.applicant_count || 0}</strong> Pelamar
-                        </span>
-                        {job.quota > 0 && (
-                          <span className="text-slate-400">Kuota: {job.quota}</span>
+                        {isInternal ? (
+                          <span className="flex items-center gap-1 font-medium text-slate-300">
+                            <Users className="w-3.5 h-3.5 text-cyan-400" />
+                            <strong>{job.applicant_count || 0}</strong> Pelamar
+                          </span>
+                        ) : (
+                          <span className="text-purple-300/90 font-medium flex items-center gap-1">
+                            <Globe className="w-3.5 h-3.5 text-purple-400" /> Partner Feed
+                          </span>
                         )}
+
+                        {job.quota && job.quota > 0 ? (
+                          <span className="text-slate-400">Kuota: {job.quota}</span>
+                        ) : null}
+
                         <span className="text-slate-500 text-[10px]">
                           {new Date(job.created_at).toLocaleDateString('id-ID')}
                         </span>
@@ -3226,37 +3498,52 @@ function AdminCompanies({
                         <span>Pratinjau Iklan</span>
                       </button>
 
-                      <button
-                        onClick={() => toggleAdStatus(job)}
-                        disabled={isActionLoading}
-                        className={`rounded-xl border py-1.5 px-2.5 text-xs font-semibold transition ${
-                          isAktif
-                            ? 'border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10'
-                            : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
-                        }`}
-                        title={isAktif ? 'Tutup lowongan' : 'Tayangkan lowongan'}
-                      >
-                        {isActionLoading ? '...' : isAktif ? 'Tutup' : 'Tayangkan'}
-                      </button>
+                      {isInternal ? (
+                        <>
+                          <button
+                            onClick={() => toggleAdStatus(job)}
+                            disabled={isActionLoading}
+                            className={`rounded-xl border py-1.5 px-2.5 text-xs font-semibold transition ${
+                              isAktif
+                                ? 'border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10'
+                                : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                            }`}
+                            title={isAktif ? 'Tutup lowongan' : 'Tayangkan lowongan'}
+                          >
+                            {isActionLoading ? '...' : isAktif ? 'Tutup' : 'Tayangkan'}
+                          </button>
 
-                      <a
-                        href={`/browse?search=${encodeURIComponent(job.title)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-xl border border-white/10 p-2 text-slate-400 hover:text-white hover:bg-white/5 transition"
-                        title="Buka lowongan di halaman publik"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
+                          <a
+                            href={`/seeker/browse?job_id=${job.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-xl border border-white/10 p-2 text-slate-400 hover:text-white hover:bg-white/5 transition"
+                            title="Buka lowongan di halaman publik"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
 
-                      <button
-                        onClick={() => deleteAd(job)}
-                        disabled={isActionLoading}
-                        className="rounded-xl border border-red-500/20 p-2 text-red-400 hover:bg-red-500/10 transition"
-                        title="Hapus iklan lowongan ini"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                          <button
+                            onClick={() => deleteAd(job)}
+                            disabled={isActionLoading}
+                            className="rounded-xl border border-red-500/20 p-2 text-red-400 hover:bg-red-500/10 transition"
+                            title="Hapus iklan lowongan ini"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <a
+                          href={job.external_url || `/browse?search=${encodeURIComponent(job.title)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-xl border border-purple-500/30 bg-purple-950/40 py-1.5 px-2.5 text-xs font-semibold text-purple-300 hover:bg-purple-900/50 hover:text-white transition"
+                          title="Kunjungi sumber resmi lowongan"
+                        >
+                          <span>Sumber / Lamar</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 );
@@ -3272,6 +3559,7 @@ function AdminCompanies({
                   <tr>
                     <th className="px-4 py-3 text-left">Perusahaan</th>
                     <th className="px-4 py-3 text-left">Judul Iklan Loker</th>
+                    <th className="px-4 py-3 text-left">Sumber</th>
                     <th className="px-4 py-3 text-left">Kategori & Tipe</th>
                     <th className="px-4 py-3 text-left">Lokasi</th>
                     <th className="px-4 py-3 text-left">Kisaran Gaji</th>
@@ -3282,9 +3570,11 @@ function AdminCompanies({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAds.map((job, idx) => {
+                  {paginatedAds.map((job, idx) => {
                     const company = job.companies;
                     const isAktif = job.status === 'active';
+                    const isInternal = Boolean(job.is_internal);
+
                     return (
                       <tr
                         key={job.id}
@@ -3301,12 +3591,16 @@ function AdminCompanies({
                                 className="w-7 h-7 rounded-lg border border-white/10 object-cover"
                               />
                             ) : (
-                              <div className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center font-bold text-xs text-white">
-                                {(company?.name || 'C')[0]}
+                              <div
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs text-white ${
+                                  isInternal ? 'bg-cyan-600' : 'bg-purple-600'
+                                }`}
+                              >
+                                {((company?.name || job.company_name || 'C')[0]).toUpperCase()}
                               </div>
                             )}
                             <span className="font-semibold text-white truncate max-w-[140px] text-xs">
-                              {company?.name || 'Perusahaan'}
+                              {company?.name || job.company_name || 'Perusahaan'}
                             </span>
                           </div>
                         </td>
@@ -3314,16 +3608,27 @@ function AdminCompanies({
                           {job.title}
                         </td>
                         <td className="px-4 py-3 text-xs">
+                          {isInternal ? (
+                            <span className="rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-bold">
+                              ⭐ Mitra LOXER
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 text-[10px] font-bold">
+                              🌍 Arbeitnow
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
                           <span className="text-sky-300">{job.category || 'Umum'}</span>
                           <span className="text-slate-500"> • </span>
-                          <span className="text-cyan-300">{JOB_TYPE_DISPLAY[job.job_type] || job.job_type}</span>
+                          <span className="text-cyan-300">{JOB_TYPE_DISPLAY[job.job_type || ''] || job.job_type}</span>
                         </td>
                         <td className="px-4 py-3 text-xs">{job.location_city || '-'}</td>
                         <td className="px-4 py-3 text-xs text-emerald-300 font-medium whitespace-nowrap">
-                          {formatAdSalary(job.salary_min, job.salary_max)}
+                          {job.salary_text || formatAdSalary(job.salary_min, job.salary_max)}
                         </td>
                         <td className="px-4 py-3 text-xs font-semibold text-cyan-300">
-                          {job.applicant_count || 0} orang
+                          {isInternal ? `${job.applicant_count || 0} orang` : 'Mitra Feed'}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -3347,18 +3652,32 @@ function AdminCompanies({
                             >
                               Detail
                             </button>
-                            <button
-                              onClick={() => toggleAdStatus(job)}
-                              className="rounded-md border border-white/10 px-2 py-1 text-slate-300 hover:bg-white/10 transition"
-                            >
-                              {isAktif ? 'Tutup' : 'Tayang'}
-                            </button>
-                            <button
-                              onClick={() => deleteAd(job)}
-                              className="rounded-md border border-red-500/20 px-2 py-1 text-red-300 hover:bg-red-500/10 transition"
-                            >
-                              Hapus
-                            </button>
+                            {isInternal ? (
+                              <>
+                                <button
+                                  onClick={() => toggleAdStatus(job)}
+                                  className="rounded-md border border-white/10 px-2 py-1 text-slate-300 hover:bg-white/10 transition"
+                                >
+                                  {isAktif ? 'Tutup' : 'Tayang'}
+                                </button>
+                                <button
+                                  onClick={() => deleteAd(job)}
+                                  className="rounded-md border border-red-500/20 px-2 py-1 text-red-300 hover:bg-red-500/10 transition"
+                                >
+                                  Hapus
+                                </button>
+                              </>
+                            ) : (
+                              <a
+                                href={job.external_url || '#'}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-md border border-purple-500/30 bg-purple-950/40 px-2 py-1 text-purple-300 hover:bg-purple-900/50 hover:text-white transition flex items-center gap-1"
+                              >
+                                <span>Lamar</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -3366,6 +3685,34 @@ function AdminCompanies({
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Bottom Pagination for Catalog */}
+          {filteredAds.length > AD_PAGE_SIZE && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-xs text-slate-300">
+              <div>
+                Menampilkan <strong className="text-white">{(adPage - 1) * AD_PAGE_SIZE + 1}</strong> - <strong className="text-white">{Math.min(filteredAds.length, adPage * AD_PAGE_SIZE)}</strong> dari <strong className="text-cyan-300">{filteredAds.length}</strong> iklan loker
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setAdPage((p) => Math.max(1, p - 1))}
+                  disabled={adPage <= 1}
+                  className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700 hover:text-white transition"
+                >
+                  Sebelumnya
+                </button>
+                <span className="px-2 font-medium text-slate-400">
+                  Halaman <span className="text-white font-bold">{adPage}</span> / {totalAdPages}
+                </span>
+                <button
+                  onClick={() => setAdPage((p) => Math.min(totalAdPages, p + 1))}
+                  disabled={adPage >= totalAdPages}
+                  className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700 hover:text-white transition"
+                >
+                  Selanjutnya
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -3394,21 +3741,27 @@ function AdminCompanies({
                   className="w-12 h-12 rounded-xl border border-white/20 object-cover"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-cyan-500/30">
-                  {(previewJob.companies?.name || 'C')[0].toUpperCase()}
+                <div
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md ${
+                    previewJob.is_internal
+                      ? 'bg-gradient-to-br from-sky-500 to-cyan-500 shadow-cyan-500/30'
+                      : 'bg-gradient-to-br from-purple-600 to-indigo-600 shadow-purple-500/30'
+                  }`}
+                >
+                  {((previewJob.companies?.name || previewJob.company_name || 'C')[0]).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-white font-bold text-base truncate">
-                    {previewJob.companies?.name || 'Perusahaan'}
+                    {previewJob.companies?.name || previewJob.company_name || 'Perusahaan'}
                   </h3>
                   {previewJob.companies?.verified && (
                     <BadgeCheck className="w-4 h-4 text-cyan-400 shrink-0" title="Verified Company" />
                   )}
                 </div>
                 <p className="text-xs text-slate-400">
-                  {previewJob.companies?.industry || 'Industri'} • {previewJob.companies?.city || 'Indonesia'}
+                  {previewJob.is_internal ? '⭐ Mitra Resmi Terverifikasi LOXER' : `🌍 Sumber: ${previewJob.site || 'Arbeitnow Global'}`} • {previewJob.location_city || 'Indonesia'}
                 </p>
                 {previewJob.companies?.website && (
                   <a
@@ -3425,7 +3778,7 @@ function AdminCompanies({
 
             {/* Job Title & Badges */}
             <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-bold border ${
                     previewJob.status === 'active'
@@ -3435,11 +3788,20 @@ function AdminCompanies({
                 >
                   {previewJob.status === 'active' ? '● Sedang Tayang' : 'Ditutup'}
                 </span>
+                {previewJob.is_internal ? (
+                  <span className="rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-xs font-semibold text-cyan-300">
+                    Mitra LOXER
+                  </span>
+                ) : (
+                  <span className="rounded-lg bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 text-xs font-semibold text-purple-300">
+                    Arbeitnow Feed
+                  </span>
+                )}
                 <span className="rounded-lg bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 text-xs font-semibold text-sky-300">
                   {previewJob.category || 'Umum'}
                 </span>
                 <span className="rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-xs font-semibold text-cyan-300">
-                  {JOB_TYPE_DISPLAY[previewJob.job_type] || previewJob.job_type}
+                  {JOB_TYPE_DISPLAY[previewJob.job_type || ''] || previewJob.job_type || 'Full Time'}
                 </span>
               </div>
               <h2 className="text-xl font-bold text-white leading-tight">{previewJob.title}</h2>
@@ -3453,7 +3815,7 @@ function AdminCompanies({
                   <span>Kisaran Gaji</span>
                 </p>
                 <p className="font-bold text-emerald-300 text-sm">
-                  {formatAdSalary(previewJob.salary_min, previewJob.salary_max)}
+                  {previewJob.salary_text || formatAdSalary(previewJob.salary_min, previewJob.salary_max)}
                 </p>
               </div>
 
@@ -3473,8 +3835,14 @@ function AdminCompanies({
                   <span>Pelamar / Kuota</span>
                 </p>
                 <p className="font-semibold text-white">
-                  <strong className="text-cyan-300">{previewJob.applicant_count || 0}</strong> Pelamar
-                  {previewJob.quota > 0 ? ` (Kuota: ${previewJob.quota})` : ''}
+                  {previewJob.is_internal ? (
+                    <>
+                      <strong className="text-cyan-300">{previewJob.applicant_count || 0}</strong> Pelamar
+                      {previewJob.quota && previewJob.quota > 0 ? ` (Kuota: ${previewJob.quota})` : ''}
+                    </>
+                  ) : (
+                    <span className="text-purple-300">Global Direct Apply</span>
+                  )}
                 </p>
               </div>
             </div>
@@ -3529,33 +3897,59 @@ function AdminCompanies({
 
             {/* Modal Actions */}
             <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-white/10 pt-4">
-              <button
-                onClick={() => toggleAdStatus(previewJob)}
-                className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
-                  previewJob.status === 'active'
-                    ? 'border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10'
-                    : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
-                }`}
-              >
-                {previewJob.status === 'active' ? 'Tutup Iklan' : 'Aktifkan Iklan'}
-              </button>
+              {previewJob.is_internal ? (
+                <>
+                  <button
+                    onClick={() => toggleAdStatus(previewJob)}
+                    className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
+                      previewJob.status === 'active'
+                        ? 'border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10'
+                        : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                    }`}
+                  >
+                    {previewJob.status === 'active' ? 'Tutup Iklan' : 'Aktifkan Iklan'}
+                  </button>
 
-              <a
-                href={`/browse?search=${encodeURIComponent(previewJob.title)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Buka di Portal Publik</span>
-              </a>
+                  <a
+                    href={`/seeker/browse?job_id=${previewJob.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Buka di Portal Publik</span>
+                  </a>
 
-              <button
-                onClick={() => deleteAd(previewJob)}
-                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/20 transition"
-              >
-                Hapus Iklan
-              </button>
+                  <button
+                    onClick={() => deleteAd(previewJob)}
+                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/20 transition"
+                  >
+                    Hapus Iklan
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a
+                    href={previewJob.external_url || 'https://www.arbeitnow.com'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-purple-600/30 hover:brightness-110 transition"
+                  >
+                    <span>Lamar di Sumber Resmi ({previewJob.site || 'Arbeitnow'})</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+
+                  <a
+                    href={`/browse?search=${encodeURIComponent(previewJob.title)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Cari di Portal Publik</span>
+                  </a>
+                </>
+              )}
 
               <button
                 onClick={() => setPreviewJob(null)}

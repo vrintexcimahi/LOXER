@@ -110,7 +110,7 @@ export async function searchUnifiedJobs(params = {}) {
   // so slow or failing third-party providers do not stall or break healthy providers and internal listings.
   const settledResults = await Promise.allSettled([
     // A. Internal LOXER jobs (local DB)
-    Promise.resolve().then(() => searchInternalJobs({ keywords, location, page })),
+    Promise.resolve().then(() => searchInternalJobs({ keywords, location, page, limit: limit ? Number(limit) : 100 })),
 
     // B. Careerjet (only if configured)
     process.env.CAREERJET_API_KEY
