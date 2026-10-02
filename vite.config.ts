@@ -651,6 +651,43 @@ function createAdminAuditLogMiddleware(env: Record<string, string>) {
   };
 }
 
+function createSmartJobExtractMiddleware(env: Record<string, string>) {
+  return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    if (!req.url || !req.url.startsWith('/api/admin/smart-job-extract')) {
+      next();
+      return;
+    }
+
+    const response = attachJsonHelpers(res);
+    if (req.method !== 'POST') {
+      response.status(405).json({ message: 'Method tidak didukung' });
+      return;
+    }
+
+    try {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      const rawBody = Buffer.concat(chunks).toString('utf8');
+      const body = rawBody ? JSON.parse(rawBody) as { imageBase64?: string; postUrl?: string; postText?: string } : {};
+
+      const { extractSmartJobAd } = await import('./services/smartJobExtractorService.js');
+      const job = await extractSmartJobAd({
+        imageBase64: body.imageBase64,
+        postUrl: body.postUrl,
+        postText: body.postText,
+      });
+
+      response.status(200).json({ ok: true, job });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal mengekstrak iklan loker';
+      response.status(500).json({ message });
+    }
+  };
+}
+
+
 const DEV_ROLE_CAPABILITIES = {
   seeker: { canApply: true, canBrowse: true, canPostJob: false, canReviewApplicants: false, canOfferServices: false, canAccessAdmin: false, canAccessGodMode: false },
   employer: { canApply: false, canBrowse: true, canPostJob: true, canReviewApplicants: true, canOfferServices: false, canAccessAdmin: false, canAccessGodMode: false },
@@ -803,6 +840,7 @@ export default defineConfig(({ mode }) => {
   const applicationStatusNotificationMiddleware = createApplicationStatusNotificationMiddleware(env);
   const adminAuditLogMiddleware = createAdminAuditLogMiddleware(env);
   const authCapabilitiesMiddleware = createAuthCapabilitiesMiddleware(env);
+  const smartJobExtractMiddleware = createSmartJobExtractMiddleware(env);
   const localDbMiddleware = createLocalDbMiddleware(env);
 
   const configuredPort = Number(process.env.PORT || env.PORT || 3035);
@@ -850,6 +888,7 @@ export default defineConfig(({ mode }) => {
             next();
           });
           server.middlewares.use(localDbMiddleware);
+          server.middlewares.use(smartJobExtractMiddleware);
           server.middlewares.use(apiJobsMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
           server.middlewares.use(adminUsersMiddleware);
@@ -883,6 +922,7 @@ export default defineConfig(({ mode }) => {
             next();
           });
           server.middlewares.use(localDbMiddleware);
+          server.middlewares.use(smartJobExtractMiddleware);
           server.middlewares.use(apiJobsMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
           server.middlewares.use(adminUsersMiddleware);

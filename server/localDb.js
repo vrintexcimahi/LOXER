@@ -125,6 +125,21 @@ export function getLocalDb() {
     } catch {
       // Column already exists
     }
+    try {
+      dbInstance.exec('ALTER TABLE job_listings ADD COLUMN benefits TEXT;');
+    } catch {
+      // Column already exists
+    }
+    try {
+      dbInstance.exec('ALTER TABLE job_listings ADD COLUMN application_url TEXT;');
+    } catch {
+      // Column already exists
+    }
+    try {
+      dbInstance.exec('ALTER TABLE job_listings ADD COLUMN poster_url TEXT;');
+    } catch {
+      // Column already exists
+    }
 
     // Role check constraint migration for users_meta (adds 'superadmin' and 'freelancer')
     try {

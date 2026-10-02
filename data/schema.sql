@@ -120,6 +120,10 @@ CREATE TABLE IF NOT EXISTS job_listings (
   requirements TEXT NOT NULL DEFAULT '',
   quota INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'closed')),
+  expires_at TEXT,
+  benefits TEXT,
+  application_url TEXT,
+  poster_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE

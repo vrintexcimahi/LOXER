@@ -39,6 +39,13 @@ import {
   Trash2,
   Tag,
   Sparkles,
+  Upload,
+  Image as ImageIcon,
+  ArrowRight,
+  Bot,
+  Zap,
+  RotateCcw,
+  Check,
 } from 'lucide-react';
 import {
   Area,
@@ -70,7 +77,7 @@ import { formatDayLabel, formatRelativeTime, logAdminAction, toISODateOnly } fro
 import { adminGuideContent } from '../../lib/dashboardGuideContent';
 import { isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
 import { supabase } from '../../lib/supabase';
-import { AdminStats, AdminUserRow, ApplicationStatus, AuditLog, ChartDataPoint, Company, JobListing, UserRole } from '../../lib/types';
+import { AdminStats, AdminUserRow, ApplicationStatus, AuditLog, ChartDataPoint, Company, JobListing, JobType, UserRole } from '../../lib/types';
 import AdminUserDataCenter from './AdminUserDataCenter';
 import AdminDeviceManagement from './AdminDeviceManagement';
 import { fetchUnifiedJobs } from '../../services/careerjetService';
@@ -2417,6 +2424,851 @@ function formatAdSalary(min?: number | null, max?: number | null, fallbackText?:
   return `Hingga Rp ${nMax.toLocaleString('id-ID')}`;
 }
 
+const SMART_JOB_CATEGORIES = [
+  'Teknologi & IT',
+  'Pemasaran & Digital',
+  'Keuangan & Akuntansi',
+  'Desain & Kreatif',
+  'Penjualan / Sales',
+  'Operasional & Logistik',
+  'SDM & HRD',
+  'Hukum & Legal',
+  'Layanan Pelanggan (CS)',
+  'Manajemen Produk',
+  'Teknik & Rekayasa',
+  'Analisis Data',
+  'F&B & Hospitality',
+  'Pendidikan & Pelatihan',
+  'Kesehatan & Medis',
+];
+
+const SMART_JOB_TYPES: { value: JobType; label: string }[] = [
+  { value: 'full-time', label: 'Purna Waktu (Full Time)' },
+  { value: 'part-time', label: 'Paruh Waktu (Part Time)' },
+  { value: 'contract', label: 'Kontrak' },
+  { value: 'freelance', label: 'Lepas Waktu (Freelance)' },
+  { value: 'internship', label: 'Magang (Internship)' },
+];
+
+function SmartAddJobSection({
+  adminId,
+  adminEmail,
+  onToast,
+  onJobCreated,
+}: {
+  adminId: string;
+  adminEmail: string;
+  onToast: (type: ToastType, message: string) => void;
+  onJobCreated: () => void;
+}) {
+  const [inputMode, setInputMode] = useState<'poster' | 'link'>('poster');
+  const [posterBase64, setPosterBase64] = useState<string>('');
+  const [posterFileName, setPosterFileName] = useState<string>('');
+  const [postUrl, setPostUrl] = useState<string>('');
+  const [postText, setPostText] = useState<string>('');
+  const [isExtracting, setIsExtracting] = useState<boolean>(false);
+  const [extractStep, setExtractStep] = useState<number>(0);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    company_name: '',
+    category: 'Teknik & Rekayasa',
+    location_city: 'Kabupaten Bandung',
+    job_type: 'full-time' as JobType,
+    salary_min: 0,
+    salary_max: 0,
+    description: '',
+    requirements: '',
+    benefits: '',
+    quota: 1,
+    application_url: '',
+    contact_phone: '',
+    ai_notes: '',
+    confidence_score: 95,
+  });
+
+  const [hasExtracted, setHasExtracted] = useState<boolean>(false);
+  const [isPublishing, setIsPublishing] = useState<boolean>(false);
+  const [showOriginalPoster, setShowOriginalPoster] = useState<boolean>(true);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleLoadSampleStaffinc = async () => {
+    try {
+      setIsExtracting(true);
+      setExtractError(null);
+      setExtractStep(1);
+      const res = await fetch('/samples/staffinc-poster.png');
+      const blob = await res.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        setPosterBase64(base64data);
+        setPosterFileName('staffinc-poster-sample.png');
+        setPostUrl('https://loker.staffinc.co/lJTDZ');
+        setPostText('Lowongan Kerja Technician Staffinc Kab. Bandung. Seluruh proses rekrutmen gratis tidak dipungut biaya.');
+        setIsExtracting(false);
+        setExtractStep(0);
+        onToast('info', 'Poster contoh Staffinc berhasil dimuat. Silakan klik tombol Ekstrak AI.');
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      setIsExtracting(false);
+      setExtractStep(0);
+      onToast('error', 'Gagal memuat file contoh poster.');
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      onToast('error', 'Harap pilih berkas gambar (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPosterBase64(reader.result as string);
+      setPosterFileName(file.name);
+      setExtractError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      onToast('error', 'Harap drop berkas gambar poster loker.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPosterBase64(reader.result as string);
+      setPosterFileName(file.name);
+      setExtractError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSmartExtract = async () => {
+    if (!posterBase64 && !postUrl.trim() && !postText.trim()) {
+      onToast('error', 'Harap upload gambar poster atau isi link postingan FB / teks caption.');
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractError(null);
+    setExtractStep(1);
+
+    try {
+      const stepTimer1 = setTimeout(() => setExtractStep(2), 1200);
+      const stepTimer2 = setTimeout(() => setExtractStep(3), 3200);
+
+      const { data: sessionData } = await (supabase ? supabase.auth.getSession() : { data: { session: null } });
+      const token = sessionData?.session?.access_token || '';
+
+      const resp = await fetch('/api/admin/smart-job-extract', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          imageBase64: posterBase64,
+          postUrl: postUrl.trim(),
+          postText: postText.trim(),
+        }),
+      });
+
+      clearTimeout(stepTimer1);
+      clearTimeout(stepTimer2);
+
+      if (!resp.ok) {
+        const errJson = await resp.json().catch(() => ({}));
+        throw new Error(errJson.message || `HTTP ${resp.status} dari 9Router Gemini 3.8`);
+      }
+
+      const resData = await resp.json();
+      const job = resData.job;
+      if (!job) throw new Error('Data loker tidak ditemukan dalam respon AI.');
+
+      setFormData({
+        title: job.title || '',
+        company_name: job.company_name || '',
+        category: job.category || 'Teknik & Rekayasa',
+        location_city: job.location_city || 'Kabupaten Bandung',
+        job_type: (job.job_type as JobType) || 'full-time',
+        salary_min: Number(job.salary_min) || 0,
+        salary_max: Number(job.salary_max) || 0,
+        description: job.description || '',
+        requirements: job.requirements || '',
+        benefits: job.benefits || '',
+        quota: Number(job.quota) || 1,
+        application_url: job.application_url || postUrl || '',
+        contact_phone: job.contact_phone || '',
+        ai_notes: job.ai_notes || '',
+        confidence_score: job.confidence_score || 95,
+      });
+
+      setHasExtracted(true);
+      setIsExtracting(false);
+      setExtractStep(0);
+      onToast('success', `✨ AI Gemini 3.8 berhasil mengekstrak: "${job.title}" oleh ${job.company_name}`);
+
+      setTimeout(() => {
+        document.getElementById('smart-job-review-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    } catch (err: any) {
+      setIsExtracting(false);
+      setExtractStep(0);
+      setExtractError(err.message || 'Gagal mengekstrak data');
+      onToast('error', `Ekstraksi gagal: ${err.message || 'Terjadi kesalahan'}`);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!formData.title.trim()) {
+      onToast('error', 'Judul posisi lowongan wajib diisi.');
+      return;
+    }
+    if (!formData.company_name.trim()) {
+      onToast('error', 'Nama perusahaan wajib diisi.');
+      return;
+    }
+
+    setIsPublishing(true);
+
+    try {
+      const { data: sessionData } = await (supabase ? supabase.auth.getSession() : { data: { session: null } });
+      const token = sessionData?.session?.access_token || '';
+
+      const resp = await fetch('/api/admin/publish-smart-job', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          ...formData,
+          poster_url: posterBase64 || '',
+        }),
+      });
+
+      if (!resp.ok) {
+        const errJson = await resp.json().catch(() => ({}));
+        throw new Error(errJson.message || `Gagal publikasi (HTTP ${resp.status})`);
+      }
+
+      setIsPublishing(false);
+      onToast('success', `🚀 Iklan loker "${formData.title}" resmi tayang di portal LOXER!`);
+      onJobCreated();
+    } catch (err: any) {
+      setIsPublishing(false);
+      onToast('error', `Gagal menerbitkan loker: ${err.message}`);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Top Banner: AI Smart Add Engine */}
+      <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950/40 p-6 shadow-xl backdrop-blur-md">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 -mb-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
+              <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" />
+              <span>Smart Add Iklan Loker • 9Router Gemini 3.8</span>
+              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-200">
+                OCR Multimodal
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+              <span>Buat Iklan Loker Instan dari Poster & Postingan Facebook</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+              Upload flyer poster loker atau tempel tautan postingan FB. Agen AI Gemini 3.8 membaca visual secara mendalam, mengekstrak kualifikasi, gaji, dan syarat kerja, lalu secara otomatis menyesuaikannya ke dalam struktur standar portal LOXER.
+            </p>
+          </div>
+
+          <button
+            onClick={handleLoadSampleStaffinc}
+            disabled={isExtracting}
+            className="flex items-center gap-2 self-start md:self-center whitespace-nowrap rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-300 transition-all shadow-sm shadow-amber-500/10 hover:scale-[1.02] active:scale-[0.98]"
+            title="Klik untuk mencoba otomatis dengan contoh poster Staffinc Technician"
+          >
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span>⚡ Muat Contoh Poster Staffinc</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Input Source Selector Card */}
+      <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5 backdrop-blur-md shadow-lg space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-white/10">
+          <div>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Upload className="w-4 h-4 text-cyan-400" />
+              <span>Langkah 1: Masukkan Sumber Informasi Loker</span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">Pilih metode input yang paling praktis: upload file gambar poster atau masukkan tautan link FB</p>
+          </div>
+
+          <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/80 p-1">
+            <button
+              onClick={() => setInputMode('poster')}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                inputMode === 'poster'
+                  ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Upload Poster / Flyer</span>
+            </button>
+            <button
+              onClick={() => setInputMode('link')}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                inputMode === 'link'
+                  ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              <span>Link Facebook / Teks</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mode: Poster Image Upload */}
+        {inputMode === 'poster' && (
+          <div className="space-y-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            {!posterBase64 ? (
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className="group cursor-pointer rounded-2xl border-2 border-dashed border-cyan-500/30 hover:border-cyan-400/80 bg-slate-950/50 hover:bg-cyan-950/10 p-8 text-center transition-all duration-300"
+              >
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <h4 className="mt-4 text-sm font-semibold text-white">
+                  Tarik & lepas poster loker ke sini, atau <span className="text-cyan-400 underline underline-offset-2">pilih dari perangkat</span>
+                </h4>
+                <p className="mt-1 text-xs text-slate-400">
+                  Mendukung format PNG, JPG, JPEG, atau WEBP (Maks 10MB). AI Vision akan membaca seluruh teks flyer secara presisi.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-cyan-500/30 bg-slate-950/80 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="h-16 w-16 overflow-hidden rounded-xl border border-cyan-500/30 bg-black/40 flex-shrink-0">
+                    <img src={posterBase64} alt="Poster loker" className="h-full w-full object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white truncate max-w-xs sm:max-w-md">
+                      {posterFileName || 'Poster Loker Terunggah'}
+                    </p>
+                    <p className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> Berkas gambar siap dianalisis oleh Gemini 3.8 Flash
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700 transition"
+                  >
+                    Ganti Gambar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPosterBase64('');
+                      setPosterFileName('');
+                    }}
+                    className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Mode: Link FB or Text Caption */}
+        {inputMode === 'link' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Link Postingan Facebook / Tautan Karir Web
+              </label>
+              <div className="relative">
+                <Globe className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
+                <input
+                  type="url"
+                  value={postUrl}
+                  onChange={(e) => setPostUrl(e.target.value)}
+                  placeholder="Contoh: https://facebook.com/groups/lokercimahi/posts/123456... atau https://loker.staffinc.co/..."
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/80 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Teks Caption Postingan FB / Keterangan Tambahan (Opsional)
+              </label>
+              <textarea
+                value={postText}
+                onChange={(e) => setPostText(e.target.value)}
+                rows={3}
+                placeholder="Tempel teks caption postingan Facebook atau deskripsi syarat loker di sini jika ada..."
+                className="w-full rounded-xl border border-white/10 bg-slate-950/80 p-3 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Action Button: Trigger AI Extraction */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-xs text-slate-400">
+            {isExtracting ? (
+              <div className="flex items-center gap-2 text-cyan-300">
+                <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                <span>
+                  {extractStep === 1 && 'Fase 1/3: Menghubungi 9Router AI Gateway...'}
+                  {extractStep === 2 && 'Fase 2/3: Menjalankan OCR visual & ekstraksi multimodal poster...'}
+                  {extractStep === 3 && 'Fase 3/3: Menyesuaikan struktur standar portal LOXER...'}
+                  {extractStep === 0 && 'Sedang memproses...'}
+                </span>
+              </div>
+            ) : extractError ? (
+              <span className="text-red-400 font-medium flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4" /> {extractError}
+              </span>
+            ) : (
+              <span>Tekan tombol di samping untuk mengekstrak dan menyesuaikan konten secara otomatis.</span>
+            )}
+          </div>
+
+          <button
+            onClick={handleSmartExtract}
+            disabled={isExtracting || (!posterBase64 && !postUrl.trim() && !postText.trim())}
+            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-6 py-3 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            {isExtracting ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Mengekstrak dengan Gemini 3.8...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span>Mulai Ekstraksi AI dengan Gemini 3.8</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Review Form & Live LOXER Flyer Preview */}
+      {hasExtracted && (
+        <div id="smart-job-review-section" className="space-y-5 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                <Check className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Langkah 2: Review & Finalisasi Iklan Loker</span>
+                  <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                    Akurasi {formData.confidence_score}%
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Data telah disesuaikan dengan struktur LOXER. Anda dapat mengedit setiap field di bawah ini sebelum menerbitkannya.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowOriginalPoster(!showOriginalPoster)}
+              className="text-xs text-cyan-300 hover:text-white underline underline-offset-2 flex items-center gap-1 self-start sm:self-center"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>{showOriginalPoster ? 'Sembunyikan Gambar Asli' : 'Bandingkan dengan Poster Asli'}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column: Form Editor (7 cols) */}
+            <div className="lg:col-span-7 space-y-4 rounded-2xl border border-white/10 bg-slate-900/90 p-5 shadow-xl backdrop-blur-md">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+                  <FileText className="w-4 h-4" /> Formulir Data Iklan LOXER
+                </h4>
+                <span className="text-[11px] text-slate-400">Semua perubahan langsung ter-update di live preview</span>
+              </div>
+
+              {/* Title & Company */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Judul Posisi Lowongan <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Contoh: Technician Maintenance"
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Nama Perusahaan / Usaha <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.company_name}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                    placeholder="Contoh: Staffinc"
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Category & City */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Kategori Loker
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  >
+                    {SMART_JOB_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Kota / Wilayah Penempatan
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location_city}
+                    onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
+                    placeholder="Contoh: Kabupaten Bandung"
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              {/* Job Type & Quota */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Tipe Pekerjaan
+                  </label>
+                  <select
+                    value={formData.job_type}
+                    onChange={(e) => setFormData({ ...formData, job_type: e.target.value as JobType })}
+                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  >
+                    {SMART_JOB_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Estimasi Kuota (Orang)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={formData.quota}
+                    onChange={(e) => setFormData({ ...formData, quota: Math.max(1, parseInt(e.target.value || '1', 10)) })}
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              {/* Salary Min & Max */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Gaji Minimal (Rp) <span className="text-[10px] text-slate-400 font-normal">(0 = Dirahasiakan)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step={100000}
+                    value={formData.salary_min}
+                    onChange={(e) => setFormData({ ...formData, salary_min: Math.max(0, parseInt(e.target.value || '0', 10)) })}
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Gaji Maksimal (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    step={100000}
+                    value={formData.salary_max}
+                    onChange={(e) => setFormData({ ...formData, salary_max: Math.max(0, parseInt(e.target.value || '0', 10)) })}
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              {/* Apply URL & Contact Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Link Pendaftaran Online
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.application_url}
+                    onChange={(e) => setFormData({ ...formData, application_url: e.target.value })}
+                    placeholder="https://loker.staffinc.co/..."
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Nomor WhatsApp / Kontak HRD
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.contact_phone}
+                    onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
+                    placeholder="+62 8111..."
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3.5 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Deskripsi Pekerjaan (LOXER Tone)
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={4}
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/80 p-3 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 leading-relaxed"
+                />
+              </div>
+
+              {/* Requirements */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Kualifikasi & Persyaratan (Poin-poin)
+                </label>
+                <textarea
+                  value={formData.requirements}
+                  onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                  rows={4}
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/80 p-3 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 leading-relaxed font-mono text-[11px]"
+                />
+              </div>
+
+              {/* Benefits */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Benefit & Fasilitas yang Ditawarkan
+                </label>
+                <textarea
+                  value={formData.benefits}
+                  onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+                  rows={3}
+                  placeholder="BPJS Kesehatan, THR, dsb..."
+                  className="w-full rounded-xl border border-white/10 bg-slate-950/80 p-3 text-xs text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 leading-relaxed"
+                />
+              </div>
+
+              {/* AI Insight Box */}
+              {formData.ai_notes && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-start gap-2.5">
+                  <Bot className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold">Catatan Analisis AI Gemini 3.8:</span>
+                    <p className="text-[11px] text-amber-200/90 leading-relaxed">{formData.ai_notes}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Live LOXER Flyer Card Preview (5 cols) */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="rounded-2xl border border-cyan-500/30 bg-slate-900/90 p-5 shadow-2xl backdrop-blur-md sticky top-6 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5" /> Live Card Preview di LOXER
+                  </h4>
+                  <span className="rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold">
+                    Siap Tayang
+                  </span>
+                </div>
+
+                {/* The Live Render Card */}
+                <div className="relative overflow-hidden rounded-2xl border border-cyan-500/40 bg-gradient-to-b from-slate-900 to-slate-950 p-5 shadow-xl hover:border-cyan-400 transition-all duration-300 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-base font-black text-white shadow-md shadow-cyan-500/20">
+                        {formData.company_name.slice(0, 2).toUpperCase() || 'LX'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs font-bold text-white">
+                            {formData.company_name || 'Nama Perusahaan'}
+                          </h4>
+                          <BadgeCheck className="w-3.5 h-3.5 text-cyan-400" />
+                        </div>
+                        <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-cyan-400" />
+                          <span>{formData.location_city || 'Lokasi Kerja'}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="rounded-full bg-cyan-500/20 border border-cyan-500/30 px-2.5 py-0.5 text-[10px] font-bold text-cyan-300">
+                      ⭐ Mitra LOXER
+                    </span>
+                  </div>
+
+                  {/* Title & Tags */}
+                  <div>
+                    <h3 className="text-base font-bold text-white hover:text-cyan-300 transition">
+                      {formData.title || 'Judul Posisi Lowongan'}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      <span className="rounded-md bg-slate-800 border border-white/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
+                        {formData.category}
+                      </span>
+                      <span className="rounded-md bg-slate-800 border border-white/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-300">
+                        {JOB_TYPE_DISPLAY[formData.job_type] || formData.job_type}
+                      </span>
+                      <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                        {formatAdSalary(formData.salary_min, formData.salary_max)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Description snippet */}
+                  <p className="text-xs text-slate-300 line-clamp-3 leading-relaxed">
+                    {formData.description || 'Deskripsi pekerjaan akan tampil di sini...'}
+                  </p>
+
+                  {/* Requirements Snippet */}
+                  {formData.requirements && (
+                    <div className="rounded-xl border border-white/5 bg-slate-950/60 p-3 space-y-1.5">
+                      <p className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" /> Kualifikasi Utama:
+                      </p>
+                      <p className="text-[11px] text-slate-400 font-mono whitespace-pre-line line-clamp-4">
+                        {formData.requirements}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Benefits Snippet */}
+                  {formData.benefits && (
+                    <div className="rounded-xl border border-white/5 bg-slate-950/60 p-2.5 text-[11px] text-emerald-300">
+                      <strong className="text-white">Benefit: </strong>
+                      <span className="whitespace-pre-line">{formData.benefits}</span>
+                    </div>
+                  )}
+
+                  {/* Apply Actions */}
+                  <div className="pt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="flex-1 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 py-2 text-center text-xs font-bold text-white shadow-md shadow-cyan-500/20"
+                    >
+                      Lamar Sekarang
+                    </button>
+                    {formData.application_url && (
+                      <a
+                        href={formData.application_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-xl border border-white/10 bg-slate-800 p-2 text-slate-300 hover:text-white"
+                        title="Buka link pendaftaran"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Original Flyer Image Preview */}
+                {posterBase64 && showOriginalPoster && (
+                  <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                    <p className="text-[11px] font-bold text-slate-400 flex items-center justify-between">
+                      <span>Gambar Poster Asli (Input Visual):</span>
+                      <span className="text-[10px] text-cyan-400 font-mono">OCR Visual Active</span>
+                    </p>
+                    <div className="max-h-72 overflow-y-auto rounded-lg border border-white/10 bg-black/50">
+                      <img src={posterBase64} alt="Flyer Asli" className="w-full object-contain" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Final Publish CTA */}
+                <button
+                  onClick={handlePublish}
+                  disabled={isPublishing}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 py-3 text-xs font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {isPublishing ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Mempublikasikan ke Portal LOXER...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                      <span>🚀 Publikasikan Iklan ke LOXER Sekarang</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminCompanies({
   adminId,
   adminEmail,
@@ -2426,10 +3278,11 @@ function AdminCompanies({
   adminEmail: string;
   onToast: (type: ToastType, message: string) => void;
 }) {
-  // Sub-tab selection: 'companies' = Daftar Perusahaan, 'ads' = Katalog Iklan Loker
-  const [activeSubTab, setActiveSubTab] = useState<'companies' | 'ads'>(() => {
+  // Sub-tab selection: 'companies' = Daftar Perusahaan, 'ads' = Katalog Iklan Loker, 'smart-add' = Smart Add Iklan (AI)
+  const [activeSubTab, setActiveSubTab] = useState<'companies' | 'ads' | 'smart-add'>(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
+      if (p.get('view') === 'smart-add' || p.get('sub') === 'smart-add') return 'smart-add';
       if (p.get('view') === 'iklan' || p.get('sub') === 'iklan') return 'ads';
     }
     return 'companies';
@@ -2937,6 +3790,27 @@ function AdminCompanies({
               }`}
             >
               {jobAds.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('smart-add')}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+              activeSubTab === 'smart-add'
+                ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-md shadow-emerald-500/25 ring-1 ring-white/20'
+                : 'text-amber-400 hover:text-white hover:bg-white/5 border border-amber-500/30 bg-amber-500/10'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>Smart Add Iklan</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase ${
+                activeSubTab === 'smart-add'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+              }`}
+            >
+              Gemini 3.8
             </span>
           </button>
         </div>
@@ -3716,6 +4590,22 @@ function AdminCompanies({
             </div>
           )}
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUB-TAB 3: SMART ADD IKLAN (GEMINI 3.8 AI VISION & POST STRUCTURING)     */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'smart-add' && (
+        <SmartAddJobSection
+          adminId={adminId}
+          adminEmail={adminEmail}
+          onToast={onToast}
+          onJobCreated={() => {
+            fetchJobAds();
+            fetchCompanies();
+            setActiveSubTab('ads');
+          }}
+        />
       )}
 
       {/* ========================================================================= */}

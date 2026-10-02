@@ -2469,6 +2469,12 @@ export function createLocalDbMiddleware(env = {}) {
       if (url.startsWith('/api/employer/jobs/extend') && req.method === 'POST') {
         return handleExtendJobListing(req, res);
       }
+      if (url.startsWith('/api/admin/smart-job-extract') && req.method === 'POST') {
+        return handleAdminSmartJobExtract(req, res);
+      }
+      if (url.startsWith('/api/admin/publish-smart-job') && req.method === 'POST') {
+        return handleAdminPublishSmartJob(req, res);
+      }
     }
 
     next();
@@ -2756,3 +2762,182 @@ async function handleExtendJobListing(req, res) {
   const updatedJob = queryOne('SELECT id, title, expires_at, status FROM job_listings WHERE id = ?', [jobId]);
   return sendJson(res, 200, { ok: true, extended: true, job: updatedJob });
 }
+
+// ---------------------------------------------------------------------------
+// Admin Smart Job Extract Handler (Gemini 3.8 AI OCR & Structuring)
+// ---------------------------------------------------------------------------
+async function handleAdminSmartJobExtract(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized: Sesi admin tidak ditemukan.' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized: Token tidak valid.' });
+
+  const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
+    return sendJson(res, 403, { message: 'Forbidden: Hanya Admin atau Superadmin yang diizinkan.' });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const { imageBase64, postUrl, postText } = body;
+
+    if (!imageBase64 && !postUrl && !postText) {
+      return sendJson(res, 400, { message: 'Harap sertakan poster loker atau link postingan FB / teks lowongan.' });
+    }
+
+    const { extractSmartJobAd } = await import('../services/smartJobExtractorService.js');
+    const job = await extractSmartJobAd({ imageBase64, postUrl, postText });
+    return sendJson(res, 200, { ok: true, job });
+  } catch (err) {
+    console.error('[handleAdminSmartJobExtract Error]:', err);
+    return sendJson(res, 500, { message: err.message || 'Gagal mengekstrak iklan loker' });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Admin Publish Smart Job Handler
+// ---------------------------------------------------------------------------
+async function handleAdminPublishSmartJob(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized: Sesi admin tidak ditemukan.' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized: Token tidak valid.' });
+
+  const callerMeta = queryOne('SELECT role, email FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
+    return sendJson(res, 403, { message: 'Forbidden: Hanya Admin atau Superadmin yang diizinkan.' });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const {
+      title,
+      company_name,
+      category,
+      location_city,
+      job_type,
+      salary_min,
+      salary_max,
+      description,
+      requirements,
+      benefits,
+      quota,
+      application_url,
+      poster_url,
+      contact_phone,
+    } = body;
+
+    if (!title || !company_name) {
+      return sendJson(res, 400, { message: 'Judul posisi dan nama perusahaan wajib diisi.' });
+    }
+
+    const cleanCompName = String(company_name).trim();
+    let company = queryOne('SELECT id, name FROM companies WHERE LOWER(name) = LOWER(?)', [cleanCompName]);
+
+    const now = new Date().toISOString();
+
+    if (!company) {
+      const companyId = crypto.randomUUID();
+      execute(
+        `INSERT INTO companies (id, user_id, name, industry, city, description, website, verified, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+        [
+          companyId,
+          callerId,
+          cleanCompName,
+          category || 'Teknik & Rekayasa',
+          location_city || 'Bandung / Cimahi',
+          `Perusahaan mitra LOXER: ${cleanCompName}`,
+          application_url?.startsWith('http') ? application_url : '',
+          now,
+          now,
+        ]
+      );
+      company = { id: companyId, name: cleanCompName };
+    }
+
+    const jobId = crypto.randomUUID();
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+    const expiresAt = expiryDate.toISOString();
+
+    let finalRequirements = (requirements || '').trim();
+    if (benefits && !finalRequirements.toLowerCase().includes('benefit')) {
+      finalRequirements += `\n\nBenefit & Fasilitas:\n${benefits}`;
+    }
+    if (contact_phone && !finalRequirements.includes(contact_phone)) {
+      finalRequirements += `\n\nKontak Rekruter: ${contact_phone}`;
+    }
+    if (application_url && !finalRequirements.includes(application_url)) {
+      finalRequirements += `\n\nLink Pendaftaran: ${application_url}`;
+    }
+
+    execute(
+      `INSERT INTO job_listings (
+        id, company_id, title, category, location_city, job_type,
+        salary_min, salary_max, description, requirements, benefits,
+        application_url, poster_url, quota, status, expires_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
+      [
+        jobId,
+        company.id,
+        String(title).trim(),
+        category || 'Teknik & Rekayasa',
+        location_city || 'Bandung / Cimahi',
+        job_type || 'full-time',
+        parseInt(salary_min || '0', 10) || 0,
+        parseInt(salary_max || '0', 10) || 0,
+        description || '',
+        finalRequirements,
+        benefits || '',
+        application_url || '',
+        poster_url || '',
+        parseInt(quota || '1', 10) || 1,
+        expiresAt,
+        now,
+        now,
+      ]
+    );
+
+    try {
+      execute(
+        `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
+         VALUES (?, ?, ?, 'smart_add_job_ai', 'job_listings', ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          callerId,
+          callerMeta?.email || '',
+          jobId,
+          JSON.stringify({ title, company_name: cleanCompName, model: 'ag/gemini-3.8-flash-high' }),
+          now,
+        ]
+      );
+    } catch {
+      // non-blocking
+    }
+
+    try {
+      if (jobSearchCache && typeof jobSearchCache.clear === 'function') {
+        jobSearchCache.clear();
+      }
+    } catch {
+      // non-blocking
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      message: 'Iklan lowongan kerja berhasil dipublikasikan ke LOXER!',
+      job_id: jobId,
+      company_id: company.id,
+    });
+  } catch (err) {
+    console.error('[handleAdminPublishSmartJob Error]:', err);
+    return sendJson(res, 500, { message: err.message || 'Gagal mempublikasikan iklan loker' });
+  }
+}
+
+
