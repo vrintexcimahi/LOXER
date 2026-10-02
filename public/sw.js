@@ -1,8 +1,8 @@
 // ==============================================================================
-// LOXER Progressive Web App Service Worker (v1.3.1)
+// LOXER Progressive Web App Service Worker (v1.4.0)
 // ==============================================================================
 
-const CACHE_NAME = 'loxer-pwa-v1.3.1';
+const CACHE_NAME = 'loxer-pwa-v1.4.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -26,7 +26,8 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  // Don't skipWaiting immediately without user consent to prevent state loss
+  // Skip waiting so new SW activates immediately after install
+  self.skipWaiting();
 });
 
 // Activate: Clean up older caches and claim clients
