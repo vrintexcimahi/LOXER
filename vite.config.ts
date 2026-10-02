@@ -687,6 +687,42 @@ function createSmartJobExtractMiddleware(env: Record<string, string>) {
   };
 }
 
+function createSmartCvExtractMiddleware(env: Record<string, string>) {
+  return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    if (!req.url || !req.url.startsWith('/api/admin/smart-cv-extract')) {
+      next();
+      return;
+    }
+
+    const response = attachJsonHelpers(res);
+    if (req.method !== 'POST') {
+      response.status(405).json({ message: 'Method tidak didukung' });
+      return;
+    }
+
+    try {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      const rawBody = Buffer.concat(chunks).toString('utf8');
+      const body = rawBody ? JSON.parse(rawBody) as { imageBase64?: string; cvText?: string; fileName?: string } : {};
+
+      const { extractSmartCv } = await import('./services/smartCvExtractorService.js');
+      const cv = await extractSmartCv({
+        imageBase64: body.imageBase64,
+        cvText: body.cvText,
+        fileName: body.fileName,
+      });
+
+      response.status(200).json({ ok: true, cv });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal mengekstrak biodata CV';
+      response.status(500).json({ message });
+    }
+  };
+}
+
 
 const DEV_ROLE_CAPABILITIES = {
   seeker: { canApply: true, canBrowse: true, canPostJob: false, canReviewApplicants: false, canOfferServices: false, canAccessAdmin: false, canAccessGodMode: false },
@@ -841,6 +877,7 @@ export default defineConfig(({ mode }) => {
   const adminAuditLogMiddleware = createAdminAuditLogMiddleware(env);
   const authCapabilitiesMiddleware = createAuthCapabilitiesMiddleware(env);
   const smartJobExtractMiddleware = createSmartJobExtractMiddleware(env);
+  const smartCvExtractMiddleware = createSmartCvExtractMiddleware(env);
   const localDbMiddleware = createLocalDbMiddleware(env);
 
   const configuredPort = Number(process.env.PORT || env.PORT || 3035);
@@ -889,6 +926,7 @@ export default defineConfig(({ mode }) => {
           });
           server.middlewares.use(localDbMiddleware);
           server.middlewares.use(smartJobExtractMiddleware);
+          server.middlewares.use(smartCvExtractMiddleware);
           server.middlewares.use(apiJobsMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
           server.middlewares.use(adminUsersMiddleware);
@@ -923,6 +961,7 @@ export default defineConfig(({ mode }) => {
           });
           server.middlewares.use(localDbMiddleware);
           server.middlewares.use(smartJobExtractMiddleware);
+          server.middlewares.use(smartCvExtractMiddleware);
           server.middlewares.use(apiJobsMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
           server.middlewares.use(adminUsersMiddleware);

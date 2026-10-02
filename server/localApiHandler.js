@@ -2475,6 +2475,12 @@ export function createLocalDbMiddleware(env = {}) {
       if (url.startsWith('/api/admin/publish-smart-job') && req.method === 'POST') {
         return handleAdminPublishSmartJob(req, res);
       }
+      if (url.startsWith('/api/admin/smart-cv-extract') && req.method === 'POST') {
+        return handleAdminSmartCvExtract(req, res);
+      }
+      if (url.startsWith('/api/admin/publish-smart-cv') && req.method === 'POST') {
+        return handleAdminPublishSmartCv(req, res);
+      }
     }
 
     next();
@@ -2939,5 +2945,165 @@ async function handleAdminPublishSmartJob(req, res) {
     return sendJson(res, 500, { message: err.message || 'Gagal mempublikasikan iklan loker' });
   }
 }
+
+// ---------------------------------------------------------------------------
+// Admin Smart CV Extract Handler (Gemini 3.8 AI Multimodal CV Parser)
+// ---------------------------------------------------------------------------
+async function handleAdminSmartCvExtract(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized: Sesi admin tidak ditemukan.' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized: Token tidak valid.' });
+
+  const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
+    return sendJson(res, 403, { message: 'Forbidden: Hanya Admin atau Superadmin yang diizinkan.' });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const { imageBase64, cvText, fileName } = body;
+
+    if (!imageBase64 && !cvText) {
+      return sendJson(res, 400, { message: 'Harap sertakan berkas CV (PDF/JPG/PNG) atau teks biodata.' });
+    }
+
+    const { extractSmartCv } = await import('../services/smartCvExtractorService.js');
+    const cv = await extractSmartCv({ imageBase64, cvText, fileName });
+    return sendJson(res, 200, { ok: true, cv });
+  } catch (err) {
+    console.error('[handleAdminSmartCvExtract Error]:', err);
+    return sendJson(res, 500, { message: err.message || 'Gagal mengekstrak biodata CV dengan AI' });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Admin Publish Smart CV Handler
+// ---------------------------------------------------------------------------
+async function handleAdminPublishSmartCv(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized: Sesi admin tidak ditemukan.' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized: Token tidak valid.' });
+
+  const callerMeta = queryOne('SELECT role, email FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
+    return sendJson(res, 403, { message: 'Forbidden: Hanya Admin atau Superadmin yang diizinkan.' });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const {
+      full_name,
+      headline,
+      category,
+      availability,
+      experience_years,
+      expected_salary,
+      rate_type,
+      domicile_city,
+      whatsapp_number,
+      email,
+      bio,
+      skills,
+      photo_url,
+      portfolio_url,
+      badge,
+      educations,
+      experiences,
+    } = body;
+
+    if (!full_name || !headline) {
+      return sendJson(res, 400, { message: 'Nama lengkap dan headline posisi wajib diisi.' });
+    }
+
+    const cleanName = String(full_name).trim();
+    const now = new Date().toISOString();
+    const candidateUserId = crypto.randomUUID();
+    const candidateSeekerId = crypto.randomUUID();
+
+    // 1. Insert into seeker_profiles
+    execute(
+      `INSERT INTO seeker_profiles (id, user_id, full_name, photo_url, domicile_city, about, phone, expected_salary_min, expected_salary_max, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        candidateSeekerId,
+        candidateUserId,
+        cleanName,
+        photo_url || '',
+        domicile_city || 'Cimahi / Bandung',
+        bio || '',
+        whatsapp_number || '',
+        parseInt(expected_salary || '0', 10) || 0,
+        Math.round((parseInt(expected_salary || '0', 10) || 0) * 1.3),
+        now,
+        now,
+      ]
+    );
+
+    // 2. Insert into talent_marketplace_posts
+    const talentPostId = crypto.randomUUID();
+    const skillsJson = Array.isArray(skills) ? JSON.stringify(skills) : JSON.stringify([skills || 'Keahlian']);
+    execute(
+      `INSERT INTO talent_marketplace_posts (
+        id, seeker_id, user_id, headline, category, bio_summary, skills, experience_years,
+        availability_status, expected_salary, rate_type, domicile_city, whatsapp_number,
+        portfolio_url, badge, photo_url, views_count, is_published, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
+      [
+        talentPostId,
+        candidateSeekerId,
+        candidateUserId,
+        headline.trim(),
+        category || 'Umum & Jasa',
+        bio ? bio.slice(0, 200) : '',
+        skillsJson,
+        parseInt(experience_years || '0', 10) || 0,
+        availability || 'fulltime',
+        parseInt(expected_salary || '0', 10) || 0,
+        rate_type || 'monthly',
+        domicile_city || 'Cimahi / Bandung',
+        whatsapp_number || '',
+        portfolio_url || '',
+        badge || 'SIAP KERJA',
+        photo_url || '',
+        now,
+        now,
+      ]
+    );
+
+    try {
+      execute(
+        `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
+         VALUES (?, ?, ?, 'smart_add_cv_ai', 'talent_marketplace_posts', ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          callerId,
+          callerMeta.email || 'admin@loxer.local',
+          talentPostId,
+          JSON.stringify({ name: cleanName, headline: headline.trim(), category, city: domicile_city }),
+          now,
+        ]
+      );
+    } catch {
+      // non-blocking
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      message: 'Biodata pelamar kerja berhasil diterbitkan ke Bursa Talent LOXER!',
+      talent_id: talentPostId,
+      seeker_id: candidateSeekerId,
+    });
+  } catch (err) {
+    console.error('[handleAdminPublishSmartCv Error]:', err);
+    return sendJson(res, 500, { message: err.message || 'Gagal menerbitkan biodata pelamar' });
+  }
+}
+
 
 

@@ -46,6 +46,12 @@ import {
   Zap,
   RotateCcw,
   Check,
+  Phone,
+  Mail,
+  GraduationCap,
+  Award,
+  FileUp,
+  Send,
 } from 'lucide-react';
 import {
   Area,
@@ -81,6 +87,7 @@ import { AdminStats, AdminUserRow, ApplicationStatus, AuditLog, ChartDataPoint, 
 import AdminUserDataCenter from './AdminUserDataCenter';
 import AdminDeviceManagement from './AdminDeviceManagement';
 import { fetchUnifiedJobs } from '../../services/careerjetService';
+import { AdminTalentCatalogSection, SmartAddCvSection, useTalentCatalog } from './AdminTalentComponents';
 
 type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations';
 type ToastType = 'success' | 'error' | 'info';
@@ -4179,34 +4186,41 @@ function AdminApplications({
 }) {
   const { session } = useAuth();
 
-  // Sub-tabs: 'applications' | 'ads' | 'smart-add'
-  const [activeSubTab, setActiveSubTab] = useState<'applications' | 'ads' | 'smart-add'>(() => {
+  // Sub-tabs: 'applications' | 'talents' | 'smart-cv'
+  const [activeSubTab, setActiveSubTab] = useState<'applications' | 'talents' | 'smart-cv'>(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
-      if (p.get('view') === 'smart-add' || p.get('sub') === 'smart-add') return 'smart-add';
-      if (p.get('view') === 'iklan' || p.get('view') === 'ads' || p.get('sub') === 'iklan' || p.get('sub') === 'ads') return 'ads';
+      if (p.get('view') === 'smart-cv' || p.get('sub') === 'smart-cv' || p.get('view') === 'smart-add' || p.get('sub') === 'smart-add') return 'smart-cv';
+      if (
+        p.get('view') === 'talents' ||
+        p.get('view') === 'pelamar' ||
+        p.get('sub') === 'talents' ||
+        p.get('sub') === 'pelamar' ||
+        p.get('view') === 'iklan' ||
+        p.get('view') === 'ads'
+      ) return 'talents';
     }
     return 'applications';
   });
 
-  const handleSubTabChange = (tab: 'applications' | 'ads' | 'smart-add') => {
+  const handleSubTabChange = (tab: 'applications' | 'talents' | 'smart-cv') => {
     setActiveSubTab(tab);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       if (tab === 'applications') {
         url.searchParams.delete('view');
         url.searchParams.delete('sub');
-      } else if (tab === 'ads') {
-        url.searchParams.set('view', 'iklan');
-      } else if (tab === 'smart-add') {
-        url.searchParams.set('view', 'smart-add');
+      } else if (tab === 'talents') {
+        url.searchParams.set('view', 'talents');
+      } else if (tab === 'smart-cv') {
+        url.searchParams.set('view', 'smart-cv');
       }
       window.history.replaceState({}, '', url.toString());
     }
   };
 
-  // Job ads catalog hook
-  const { jobAds, setJobAds, jobAdsLoading, fetchJobAds } = useJobAdsCatalog(onToast);
+  // Talent catalog hook
+  const { talents, loading: talentsLoading, fetchTalents } = useTalentCatalog(onToast);
 
   // Applications table state
   const [loading, setLoading] = useState(true);
@@ -4279,7 +4293,7 @@ function AdminApplications({
 
   const refreshAll = () => {
     fetchApplications();
-    fetchJobAds();
+    fetchTalents();
   };
 
   async function forceUpdateStatus(row: Record<string, unknown>) {
@@ -4389,7 +4403,7 @@ function AdminApplications({
 
   return (
     <section className="space-y-5">
-      {/* Sub-Feature Tab Navigator: Pelamar vs Katalog Iklan Loker vs Smart Add */}
+      {/* Sub-Feature Tab Navigator: Data Lamaran vs Katalog Pelamar Kerja vs Smart Add CV */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/90 p-2.5 backdrop-blur-md">
         <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-950/60 border border-white/5 overflow-x-auto max-w-full">
           <button
@@ -4400,8 +4414,8 @@ function AdminApplications({
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>Data Pelamar Kerja</span>
+            <ListChecks className="w-4 h-4" />
+            <span>Data Lamaran Masuk</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                 activeSubTab === 'applications' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
@@ -4412,37 +4426,37 @@ function AdminApplications({
           </button>
 
           <button
-            onClick={() => handleSubTabChange('ads')}
+            onClick={() => handleSubTabChange('talents')}
             className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all whitespace-nowrap ${
-              activeSubTab === 'ads'
+              activeSubTab === 'talents'
                 ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-cyan-500/25'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Megaphone className="w-4 h-4" />
-            <span>Katalog Iklan Loker</span>
+            <Users className="w-4 h-4" />
+            <span>Katalog Pelamar Kerja</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                activeSubTab === 'ads' ? 'bg-white/20 text-white' : 'bg-cyan-500/20 text-cyan-300'
+                activeSubTab === 'talents' ? 'bg-white/20 text-white' : 'bg-cyan-500/20 text-cyan-300'
               }`}
             >
-              {jobAds.length}
+              {talents.length}
             </span>
           </button>
 
           <button
-            onClick={() => handleSubTabChange('smart-add')}
+            onClick={() => handleSubTabChange('smart-cv')}
             className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all whitespace-nowrap ${
-              activeSubTab === 'smart-add'
+              activeSubTab === 'smart-cv'
                 ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-md shadow-emerald-500/25 ring-1 ring-white/20'
                 : 'text-amber-400 hover:text-white hover:bg-white/5 border border-amber-500/30 bg-amber-500/10'
             }`}
           >
             <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-            <span>Smart Add Iklan</span>
+            <span>Smart Add CV</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase ${
-                activeSubTab === 'smart-add'
+                activeSubTab === 'smart-cv'
                   ? 'bg-white/20 text-white'
                   : 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
               }`}
@@ -4458,7 +4472,7 @@ function AdminApplications({
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition"
             title="Segarkan data"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading || jobAdsLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading || talentsLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
         </div>
@@ -4473,18 +4487,18 @@ function AdminApplications({
             <StatMini title="Menunggu Review" value={reviewCount} />
             <StatMini title="Shortlist & Interview" value={shortlistedCount} />
             <div
-              onClick={() => handleSubTabChange('ads')}
+              onClick={() => handleSubTabChange('talents')}
               className="cursor-pointer rounded-xl border border-cyan-500/20 bg-slate-900 p-4 transition hover:border-cyan-500/50 hover:bg-slate-800/80 group"
-              title="Klik untuk membuka Katalog Iklan Loker"
+              title="Klik untuk membuka Katalog Pelamar Kerja"
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-wide text-cyan-400 font-semibold flex items-center gap-1.5">
-                  <Megaphone className="w-3.5 h-3.5" /> Total Iklan Loker
+                  <Users className="w-3.5 h-3.5" /> Total Talent Pelamar
                 </p>
                 <ChevronRight className="w-4 h-4 text-cyan-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
               </div>
               <p className="mt-1 text-2xl font-bold text-white group-hover:text-cyan-300 transition">
-                {jobAds.length.toLocaleString('id-ID')}
+                {talents.length.toLocaleString('id-ID')}
               </p>
             </div>
           </div>
@@ -4655,32 +4669,21 @@ function AdminApplications({
         </div>
       )}
 
-      {/* SUB-TAB 2: KATALOG IKLAN LOKER (COMPREHENSIVE JOB ADS CATALOG) */}
-      {activeSubTab === 'ads' && (
-        <AdminJobAdsCatalogSection
-          adminId={adminId}
-          adminEmail={adminEmail}
+      {/* SUB-TAB 2: KATALOG PELAMAR KERJA (COMPREHENSIVE TALENTS & CANDIDATES CATALOG) */}
+      {activeSubTab === 'talents' && (
+        <AdminTalentCatalogSection
           onToast={onToast}
-          jobAds={jobAds}
-          setJobAds={setJobAds}
-          jobAdsLoading={jobAdsLoading}
-          onRefreshJobAds={fetchJobAds}
-          onViewApplicants={(jobTitle) => {
-            setSearch(jobTitle);
-            handleSubTabChange('applications');
-          }}
+          onNavigateToSmartAdd={() => handleSubTabChange('smart-cv')}
         />
       )}
 
-      {/* SUB-TAB 3: SMART ADD IKLAN (GEMINI 3.8 AI VISION & POST STRUCTURING) */}
-      {activeSubTab === 'smart-add' && (
-        <SmartAddJobSection
-          adminId={adminId}
-          adminEmail={adminEmail}
+      {/* SUB-TAB 3: SMART ADD CV (GEMINI 3.8 AI MULTIMODAL PARSING PDF/JPG/PNG) */}
+      {activeSubTab === 'smart-cv' && (
+        <SmartAddCvSection
           onToast={onToast}
-          onJobCreated={() => {
-            fetchJobAds();
-            handleSubTabChange('ads');
+          onSaved={() => {
+            fetchTalents();
+            handleSubTabChange('talents');
           }}
         />
       )}
