@@ -64,6 +64,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Never intercept sw.js itself or requests with explicit bypass params
+  if (
+    url.pathname === '/sw.js' ||
+    url.searchParams.has('no-sw') ||
+    url.searchParams.has('nocache')
+  ) {
+    return;
+  }
+
   // Bypass Vite internal HMR/dev tooling if encountered
   if (
     url.pathname.startsWith('/@vite/') ||
@@ -78,18 +87,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML Navigation: Network-first with Cache App Shell fallback
+  // HTML Navigation: Network-first with fast 3.5s timeout fallback to cached App Shell
   if (request.mode === 'navigate') {
+    const networkFetchPromise = fetch(request).then((networkResponse) => {
+      if (networkResponse && networkResponse.status === 200) {
+        const cloned = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+      }
+      return networkResponse;
+    });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Navigation network timeout')), 3500)
+    );
+
     event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const cloned = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
-          }
-          return networkResponse;
-        })
+      Promise.race([networkFetchPromise, timeoutPromise])
         .catch(async () => {
+          // Fallback to cached version if offline or slow network
           const cached = await caches.match(request);
           if (cached) return cached;
           const shell = await caches.match('/index.html');
