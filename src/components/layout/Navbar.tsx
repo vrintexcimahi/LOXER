@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, ChevronRight, User, LogOut, Settings, ShieldCheck, Download, Briefcase, Users, Zap, ShoppingBag, Smartphone } from 'lucide-react';
+import { Menu, X, ChevronDown, ChevronRight, User, LogOut, Settings, ShieldCheck, Download, Briefcase, Users, Zap, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 import { useAppAccess } from '../../contexts/AppAccessContext';
@@ -78,7 +78,6 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
   const { user, userMeta, signOut } = useAuth();
   const {
     isSuperAdmin,
-    isViewOnlyWeb,
     requireApp,
     openInstallModal,
     openSecretAdminModal,
@@ -357,18 +356,6 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               </div>
             )}
 
-            {/* Web View-Only Pill */}
-            {isViewOnlyWeb && (
-              <button
-                type="button"
-                onClick={() => openInstallModal('Melamar, Chat & Mendaftar')}
-                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition cursor-pointer"
-                title="Mode Web View Only - Buka Aplikasi untuk Akses Penuh"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Web (View-Only)</span>
-              </button>
-            )}
 
             <button
               type="button"
