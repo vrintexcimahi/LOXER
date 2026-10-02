@@ -32,6 +32,12 @@ import {
   Globe,
   MapPin,
   Code,
+  Megaphone,
+  Eye,
+  LayoutGrid,
+  List,
+  Trash2,
+  Tag,
 } from 'lucide-react';
 import {
   Area,
@@ -2357,6 +2363,36 @@ function AdminApplications({
   );
 }
 
+type CompanyWithStats = Company & {
+  owner_email?: string;
+  active_jobs?: number;
+  total_jobs?: number;
+};
+
+type JobAdWithCompany = JobListing & {
+  companies?: Company | null;
+  applicant_count?: number;
+};
+
+const JOB_TYPE_DISPLAY: Record<string, string> = {
+  'full-time': 'Full Time',
+  'part-time': 'Part Time',
+  contract: 'Kontrak',
+  freelance: 'Freelance',
+  internship: 'Magang',
+};
+
+function formatAdSalary(min?: number | null, max?: number | null) {
+  const nMin = Number(min || 0);
+  const nMax = Number(max || 0);
+  if (nMin <= 0 && nMax <= 0) return 'Kompetitif / Sesuai Pengalaman';
+  if (nMin > 0 && nMax > 0) {
+    return `Rp ${nMin.toLocaleString('id-ID')} - Rp ${nMax.toLocaleString('id-ID')}`;
+  }
+  if (nMin > 0) return `Mulai Rp ${nMin.toLocaleString('id-ID')}`;
+  return `Hingga Rp ${nMax.toLocaleString('id-ID')}`;
+}
+
 function AdminCompanies({
   adminId,
   adminEmail,
@@ -2366,99 +2402,151 @@ function AdminCompanies({
   adminEmail: string;
   onToast: (type: ToastType, message: string) => void;
 }) {
+  // Sub-tab selection: 'companies' = Daftar Perusahaan, 'ads' = Katalog Iklan Loker
+  const [activeSubTab, setActiveSubTab] = useState<'companies' | 'ads'>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('view') === 'iklan' || p.get('sub') === 'iklan') return 'ads';
+    }
+    return 'companies';
+  });
+
+  // Companies Directory State
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<Array<Company & { owner_email?: string; active_jobs?: number }>>([]);
+  const [rows, setRows] = useState<CompanyWithStats[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [verifiedFilter, setVerifiedFilter] = useState<'all' | 'verified' | 'pending'>('all');
 
-  const stats = useMemo(() => {
-    const totalCompanies = rows.length;
-    const verified = rows.filter((c) => c.verified).length;
-    const pending = rows.filter((c) => !c.verified).length;
-    const active = rows.filter((c) => (c.active_jobs || 0) > 0).length;
-    return { totalCompanies, verified, pending, active };
-  }, [rows]);
-
-  const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return rows.filter((row) => {
-      const match =
-        !query ||
-        row.name.toLowerCase().includes(query) ||
-        (row.city || '').toLowerCase().includes(query) ||
-        (row.owner_email || '').toLowerCase().includes(query);
-      const verifiedMatch =
-        verifiedFilter === 'all' || (verifiedFilter === 'verified' ? row.verified : !row.verified);
-      return match && verifiedMatch;
-    });
-  }, [rows, search, verifiedFilter]);
+  // Job Ads Catalog State
+  const [jobAds, setJobAds] = useState<JobAdWithCompany[]>([]);
+  const [jobAdsLoading, setJobAdsLoading] = useState(false);
+  const [adSearch, setAdSearch] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
+  const [adStatusFilter, setAdStatusFilter] = useState<'all' | 'active' | 'closed' | 'draft'>('all');
+  const [adTypeFilter, setAdTypeFilter] = useState<'all' | JobType>('all');
+  const [adCategoryFilter, setAdCategoryFilter] = useState('all');
+  const [adViewMode, setAdViewMode] = useState<'grid' | 'table'>('grid');
+  const [previewJob, setPreviewJob] = useState<JobAdWithCompany | null>(null);
+  const [adActionLoadingId, setAdActionLoadingId] = useState<string | null>(null);
 
   const onToastRef = useRef(onToast);
   useEffect(() => {
     onToastRef.current = onToast;
   }, [onToast]);
 
-  useEffect(() => {
-    let active = true;
-    const fetchRows = async () => {
-      if (!supabase) return;
-      setLoading(true);
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+  // Fetch Companies & compute stats
+  const fetchCompanies = useCallback(async () => {
+    if (!supabase) return;
+    setLoading(true);
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
 
-      const { data, count, error } = await supabase
-        .from('companies')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to);
+    const { data, count, error } = await supabase
+      .from('companies')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
-      if (!active) return;
-      if (error) {
-        onToastRef.current('error', `Gagal memuat perusahaan: ${error.message}`);
-        setLoading(false);
+    if (error) {
+      onToastRef.current('error', `Gagal memuat perusahaan: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+
+    const companies = (data || []) as Company[];
+    const ownerIds = companies.map((item) => item.user_id);
+    const companyIds = companies.map((item) => item.id);
+
+    const [ownerRes, jobsRes] = await Promise.all([
+      ownerIds.length
+        ? supabase.from('users_meta').select('id, email').in('id', ownerIds)
+        : Promise.resolve({ data: [], error: null } as { data: Array<{ id: string; email: string }>; error: null }),
+      companyIds.length
+        ? supabase.from('job_listings').select('company_id, status').in('company_id', companyIds)
+        : Promise.resolve({ data: [], error: null } as { data: Array<{ company_id: string; status: string }>; error: null }),
+    ]);
+
+    const ownerMap = new Map((ownerRes.data || []).map((owner) => [owner.id, owner.email]));
+    const activeMap = new Map<string, number>();
+    const totalJobsMap = new Map<string, number>();
+
+    (jobsRes.data || []).forEach((item) => {
+      totalJobsMap.set(item.company_id, (totalJobsMap.get(item.company_id) || 0) + 1);
+      if (item.status === 'active') {
+        activeMap.set(item.company_id, (activeMap.get(item.company_id) || 0) + 1);
+      }
+    });
+
+    setRows(
+      companies.map((company) => ({
+        ...company,
+        owner_email: ownerMap.get(company.user_id),
+        active_jobs: activeMap.get(company.id) || 0,
+        total_jobs: totalJobsMap.get(company.id) || 0,
+      }))
+    );
+    setTotal(count || 0);
+    setLoading(false);
+  }, [page]);
+
+  // Fetch Comprehensive Job Ads Catalog from all companies
+  const fetchJobAds = useCallback(async () => {
+    if (!supabase) return;
+    setJobAdsLoading(true);
+    try {
+      const [adsRes, appsRes] = await Promise.all([
+        supabase
+          .from('job_listings')
+          .select(
+            'id, title, category, location_city, job_type, status, salary_min, salary_max, quota, description, requirements, benefits, created_at, expires_at, company_id, companies(*)'
+          )
+          .order('created_at', { ascending: false }),
+        supabase.from('applications').select('job_id'),
+      ]);
+
+      if (adsRes.error) {
+        onToastRef.current('error', `Gagal memuat katalog iklan loker: ${adsRes.error.message}`);
+        setJobAdsLoading(false);
         return;
       }
 
-      const companies = (data || []) as Company[];
-      const ownerIds = companies.map((item) => item.user_id);
-      const companyIds = companies.map((item) => item.id);
-
-      const [ownerRes, activeJobsRes] = await Promise.all([
-        ownerIds.length
-          ? supabase.from('users_meta').select('id, email').in('id', ownerIds)
-          : Promise.resolve({ data: [], error: null } as { data: Array<{ id: string; email: string }>; error: null }),
-        companyIds.length
-          ? supabase.from('job_listings').select('company_id, status').in('company_id', companyIds)
-          : Promise.resolve({ data: [], error: null } as { data: Array<{ company_id: string; status: string }>; error: null }),
-      ]);
-
-      if (!active) return;
-
-      const ownerMap = new Map((ownerRes.data || []).map((owner) => [owner.id, owner.email]));
-      const activeMap = new Map<string, number>();
-      (activeJobsRes.data || []).forEach((item) => {
-        if (item.status === 'active') activeMap.set(item.company_id, (activeMap.get(item.company_id) || 0) + 1);
+      const appCounts: Record<string, number> = {};
+      (appsRes.data || []).forEach((a) => {
+        if (a.job_id) {
+          appCounts[a.job_id] = (appCounts[a.job_id] || 0) + 1;
+        }
       });
 
-      setRows(
-        companies.map((company) => ({
-          ...company,
-          owner_email: ownerMap.get(company.user_id),
-          active_jobs: activeMap.get(company.id) || 0,
-        }))
-      );
-      setTotal(count || 0);
-      setLoading(false);
-    };
+      const enriched: JobAdWithCompany[] = ((adsRes.data || []) as any[]).map((j) => ({
+        ...j,
+        companies: getFirstValue(j.companies) || null,
+        applicant_count: appCounts[j.id] || 0,
+      }));
 
-    fetchRows();
-    return () => {
-      active = false;
-    };
-  }, [page]);
+      setJobAds(enriched);
+    } catch (err: any) {
+      onToastRef.current('error', `Terjadi kesalahan saat memuat iklan: ${err.message}`);
+    } finally {
+      setJobAdsLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  useEffect(() => {
+    fetchJobAds();
+  }, [fetchJobAds]);
+
+  const refreshAll = () => {
+    fetchCompanies();
+    fetchJobAds();
+  };
+
+  // Company verification toggle
   async function toggleVerify(company: Company & { owner_email?: string }) {
     if (!supabase) return;
     const next = !company.verified;
@@ -2479,9 +2567,10 @@ function AdminCompanies({
     onToast('success', next ? 'Perusahaan berhasil diverifikasi.' : 'Verifikasi perusahaan dicabut.');
   }
 
+  // Delete company
   async function deleteCompany(company: Company) {
     if (!supabase) return;
-    if (!window.confirm(`Hapus perusahaan ${company.name}?`)) return;
+    if (!window.confirm(`Hapus perusahaan "${company.name}"? Semua lowongan terkait perusahaan ini juga akan terhapus.`)) return;
     const { error } = await supabase.from('companies').delete().eq('id', company.id);
     if (error) {
       onToast('error', `Gagal hapus perusahaan: ${error.message}`);
@@ -2489,121 +2578,995 @@ function AdminCompanies({
     }
     await logAdminAction(adminId, adminEmail, 'delete_company', 'company', company.id, `Delete company ${company.name}`);
     setRows((prev) => prev.filter((item) => item.id !== company.id));
-    onToast('success', 'Perusahaan berhasil dihapus.');
+    setJobAds((prev) => prev.filter((j) => j.company_id !== company.id));
+    onToast('success', 'Perusahaan dan seluruh data terkait berhasil dihapus.');
   }
 
-  return (
-    <section className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatMini title="Total Perusahaan" value={stats.totalCompanies} />
-        <StatMini title="Verified" value={stats.verified} />
-        <StatMini title="Pending" value={stats.pending} />
-        <StatMini title="Perusahaan Aktif" value={stats.active} />
-      </div>
+  // Toggle Job Ad Status (active / closed)
+  async function toggleAdStatus(ad: JobAdWithCompany) {
+    if (!supabase) return;
+    setAdActionLoadingId(ad.id);
+    const nextStatus: JobStatus = ad.status === 'active' ? 'closed' : 'active';
+    const { error } = await supabase.from('job_listings').update({ status: nextStatus }).eq('id', ad.id);
+    setAdActionLoadingId(null);
+    if (error) {
+      onToast('error', `Gagal mengubah status iklan: ${error.message}`);
+      return;
+    }
+    await logAdminAction(
+      adminId,
+      adminEmail,
+      'update_job_status',
+      'job_listing',
+      ad.id,
+      `Status iklan diubah ke ${nextStatus} untuk ${ad.title}`
+    );
+    setJobAds((prev) =>
+      prev.map((item) => (item.id === ad.id ? { ...item, status: nextStatus } : item))
+    );
+    if (previewJob?.id === ad.id) {
+      setPreviewJob((prev) => (prev ? { ...prev, status: nextStatus } : null));
+    }
+    onToast('success', `Status iklan "${ad.title}" diubah menjadi ${nextStatus === 'active' ? 'Aktif (Tayang)' : 'Ditutup'}.`);
+  }
 
-      <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div className="relative md:col-span-2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari nama perusahaan/kota/owner"
-              className="w-full rounded-lg border border-white/10 bg-slate-800 py-2 pl-9 pr-3 text-sm"
-            />
-          </div>
-          <select
-            value={verifiedFilter}
-            onChange={(e) => setVerifiedFilter(e.target.value as typeof verifiedFilter)}
-            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm"
+  // Delete Job Ad
+  async function deleteAd(ad: JobAdWithCompany) {
+    if (!supabase) return;
+    if (!window.confirm(`Hapus iklan lowongan "${ad.title}" dari perusahaan "${ad.companies?.name || 'Perusahaan'}"? Seluruh berkas pelamar pada iklan ini juga akan dihapus.`)) {
+      return;
+    }
+    setAdActionLoadingId(ad.id);
+    const [delApps, delJob] = await Promise.all([
+      supabase.from('applications').delete().eq('job_id', ad.id),
+      supabase.from('job_listings').delete().eq('id', ad.id),
+    ]);
+    setAdActionLoadingId(null);
+    if (delJob.error) {
+      onToast('error', `Gagal menghapus iklan: ${delJob.error.message}`);
+      return;
+    }
+    await logAdminAction(
+      adminId,
+      adminEmail,
+      'delete_job',
+      'job_listing',
+      ad.id,
+      `Hapus iklan lowongan ${ad.title} (${ad.companies?.name || 'N/A'})`
+    );
+    setJobAds((prev) => prev.filter((item) => item.id !== ad.id));
+    if (previewJob?.id === ad.id) {
+      setPreviewJob(null);
+    }
+    onToast('success', `Iklan "${ad.title}" berhasil dihapus.`);
+  }
+
+  // Quick jump from company row to catalog filtered by company
+  const handleViewCompanyAds = (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    setActiveSubTab('ads');
+  };
+
+  // Stats computation
+  const companyStats = useMemo(() => {
+    const totalCompanies = rows.length;
+    const verified = rows.filter((c) => c.verified).length;
+    const pending = rows.filter((c) => !c.verified).length;
+    const active = rows.filter((c) => (c.active_jobs || 0) > 0).length;
+    const totalAds = jobAds.length;
+    return { totalCompanies, verified, pending, active, totalAds };
+  }, [rows, jobAds]);
+
+  const adStats = useMemo(() => {
+    const totalAds = jobAds.length;
+    const activeAds = jobAds.filter((j) => j.status === 'active').length;
+    const closedAds = jobAds.filter((j) => j.status === 'closed').length;
+    const uniqueCompanies = new Set(jobAds.map((j) => j.company_id)).size;
+    const totalApplicants = jobAds.reduce((sum, j) => sum + (j.applicant_count || 0), 0);
+    return { totalAds, activeAds, closedAds, uniqueCompanies, totalApplicants };
+  }, [jobAds]);
+
+  // Filtered rows for Companies
+  const filteredRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      const match =
+        !query ||
+        row.name.toLowerCase().includes(query) ||
+        (row.city || '').toLowerCase().includes(query) ||
+        (row.owner_email || '').toLowerCase().includes(query);
+      const verifiedMatch =
+        verifiedFilter === 'all' || (verifiedFilter === 'verified' ? row.verified : !row.verified);
+      return match && verifiedMatch;
+    });
+  }, [rows, search, verifiedFilter]);
+
+  // Unique categories for Ads
+  const adCategories = useMemo(() => {
+    const unique = new Set(jobAds.map((j) => j.category).filter(Boolean));
+    return Array.from(unique);
+  }, [jobAds]);
+
+  // Filtered Job Ads
+  const filteredAds = useMemo(() => {
+    const q = adSearch.trim().toLowerCase();
+    return jobAds.filter((job) => {
+      const company = job.companies;
+      const matchSearch =
+        !q ||
+        job.title.toLowerCase().includes(q) ||
+        (job.category || '').toLowerCase().includes(q) ||
+        (job.location_city || '').toLowerCase().includes(q) ||
+        (company?.name || '').toLowerCase().includes(q) ||
+        (job.description || '').toLowerCase().includes(q);
+
+      const matchCompany = selectedCompanyId === 'all' || job.company_id === selectedCompanyId;
+      const matchStatus = adStatusFilter === 'all' || job.status === adStatusFilter;
+      const matchType = adTypeFilter === 'all' || job.job_type === adTypeFilter;
+      const matchCategory = adCategoryFilter === 'all' || job.category === adCategoryFilter;
+
+      return matchSearch && matchCompany && matchStatus && matchType && matchCategory;
+    });
+  }, [jobAds, adSearch, selectedCompanyId, adStatusFilter, adTypeFilter, adCategoryFilter]);
+
+  // Selected company object if filtered
+  const filteredCompanyObj = useMemo(() => {
+    if (selectedCompanyId === 'all') return null;
+    return rows.find((r) => r.id === selectedCompanyId) || jobAds.find((j) => j.company_id === selectedCompanyId)?.companies || null;
+  }, [selectedCompanyId, rows, jobAds]);
+
+  return (
+    <section className="space-y-5">
+      {/* Sub-Feature Tab Navigator: Data Perusahaan vs Katalog Iklan Loker */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/90 p-2.5 backdrop-blur-md">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-950/60 border border-white/5">
+          <button
+            onClick={() => setActiveSubTab('companies')}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+              activeSubTab === 'companies'
+                ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
           >
-            <option value="all">Semua Status</option>
-            <option value="verified">Verified</option>
-            <option value="pending">Pending</option>
-          </select>
+            <Building2 className="w-4 h-4" />
+            <span>Data Perusahaan</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeSubTab === 'companies' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {rows.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('ads')}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+              activeSubTab === 'ads'
+                ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Megaphone className="w-4 h-4" />
+            <span>Katalog Iklan Loker</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeSubTab === 'ads' ? 'bg-white/20 text-white' : 'bg-cyan-500/20 text-cyan-300'
+              }`}
+            >
+              {jobAds.length}
+            </span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 px-1">
+          {activeSubTab === 'ads' && (
+            <div className="hidden sm:flex items-center rounded-lg border border-white/10 bg-slate-950/60 p-0.5">
+              <button
+                onClick={() => setAdViewMode('grid')}
+                className={`p-1.5 rounded-md text-xs transition ${
+                  adViewMode === 'grid' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+                title="Tampilan Grid Katalog"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setAdViewMode('table')}
+                className={`p-1.5 rounded-md text-xs transition ${
+                  adViewMode === 'table' ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+                title="Tampilan Tabel Data"
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={refreshAll}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition"
+            title="Segarkan data"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading || jobAdsLoading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
-        {loading ? (
-          <div className="space-y-3 p-4">
-            <SkeletonBlock className="h-10" />
-            <SkeletonBlock className="h-10" />
-            <SkeletonBlock className="h-10" />
+      {/* ========================================================================= */}
+      {/* SUB-TAB 1: DAFTAR PERUSAHAAN (DIRECTORY & LEGALITAS)                     */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'companies' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Stats Bar */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatMini title="Total Perusahaan" value={companyStats.totalCompanies} />
+            <StatMini title="Verified" value={companyStats.verified} />
+            <div
+              onClick={() => setActiveSubTab('ads')}
+              className="cursor-pointer rounded-xl border border-cyan-500/20 bg-slate-900 p-4 transition hover:border-cyan-500/50 hover:bg-slate-800/80 group"
+              title="Klik untuk membuka Katalog Iklan Loker"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide text-cyan-400 font-semibold flex items-center gap-1.5">
+                  <Megaphone className="w-3.5 h-3.5" /> Total Iklan Loker
+                </p>
+                <ChevronRight className="w-4 h-4 text-cyan-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
+              </div>
+              <p className="mt-1 text-2xl font-bold text-white group-hover:text-cyan-300 transition">
+                {companyStats.totalAds.toLocaleString('id-ID')}
+              </p>
+            </div>
+            <StatMini title="Perusahaan Aktif (Punya Iklan)" value={companyStats.active} />
           </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3 text-left">Logo</th>
-                <th className="px-4 py-3 text-left">Nama</th>
-                <th className="px-4 py-3 text-left">Industri</th>
-                <th className="px-4 py-3 text-left">Kota</th>
-                <th className="px-4 py-3 text-left">Owner Email</th>
-                <th className="px-4 py-3 text-left">Karyawan</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Tgl Daftar</th>
-                <th className="px-4 py-3 text-left">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((company, idx) => (
-                <tr
-                  key={company.id}
-                  className={`border-b border-white/5 text-slate-300 transition-colors ${
-                    idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
-                  }`}
-                >
-                  <td className="px-4 py-3">
-                    {company.logo_url ? (
-                      <img src={company.logo_url} alt={company.name} className="h-8 w-8 rounded-full border border-white/20 object-cover" />
-                    ) : (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs">N/A</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-white">{company.name}</td>
-                  <td className="px-4 py-3">{company.industry || '-'}</td>
-                  <td className="px-4 py-3">{company.city || '-'}</td>
-                  <td className="px-4 py-3">{company.owner_email || '-'}</td>
-                  <td className="px-4 py-3">{company.employee_count || '-'}</td>
-                  <td className="px-4 py-3">
-                    {company.verified ? (
-                      <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-xs text-emerald-300">✓ Verified</span>
-                    ) : (
-                      <span className="rounded-full bg-yellow-500/20 px-2 py-1 text-xs text-yellow-300">⏳ Pending</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{new Date(company.created_at).toLocaleDateString('id-ID')}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <button onClick={() => toggleVerify(company)} className="rounded-md border border-white/10 px-2 py-1">
-                        {company.verified ? 'Cabut' : 'Verifikasi'}
-                      </button>
-                      <button
-                        onClick={() =>
-                          window.alert(
-                            `Nama: ${company.name}\nIndustri: ${company.industry}\nWebsite: ${company.website || '-'}\nDeskripsi: ${
-                              company.description || '-'
-                            }`
-                          )
-                        }
-                        className="rounded-md border border-white/10 px-2 py-1"
+
+          {/* Filter Bar */}
+          <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="relative md:col-span-2">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari nama perusahaan / kota / email owner..."
+                  className="w-full rounded-lg border border-white/10 bg-slate-800 py-2 pl-9 pr-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <select
+                value={verifiedFilter}
+                onChange={(e) => setVerifiedFilter(e.target.value as typeof verifiedFilter)}
+                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
+              >
+                <option value="all">Semua Status Verifikasi</option>
+                <option value="verified">Hanya Verified</option>
+                <option value="pending">Hanya Pending</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
+            {loading ? (
+              <div className="space-y-3 p-4">
+                <SkeletonBlock className="h-10" />
+                <SkeletonBlock className="h-10" />
+                <SkeletonBlock className="h-10" />
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Logo</th>
+                    <th className="px-4 py-3 text-left">Nama</th>
+                    <th className="px-4 py-3 text-left">Industri</th>
+                    <th className="px-4 py-3 text-left">Kota</th>
+                    <th className="px-4 py-3 text-left">Owner Email</th>
+                    <th className="px-4 py-3 text-left">Karyawan</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Iklan Loker</th>
+                    <th className="px-4 py-3 text-left">Tgl Daftar</th>
+                    <th className="px-4 py-3 text-left">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+                        Tidak ada perusahaan yang sesuai filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRows.map((company, idx) => (
+                      <tr
+                        key={company.id}
+                        className={`border-b border-white/5 text-slate-300 transition-colors ${
+                          idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                        }`}
                       >
-                        Detail
+                        <td className="px-4 py-3">
+                          {company.logo_url ? (
+                            <img
+                              src={company.logo_url}
+                              alt={company.name}
+                              className="h-8 w-8 rounded-full border border-white/20 object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 font-bold text-xs text-white">
+                              {(company.name || 'C')[0].toUpperCase()}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-white font-medium">{company.name}</td>
+                        <td className="px-4 py-3">{company.industry || '-'}</td>
+                        <td className="px-4 py-3">{company.city || '-'}</td>
+                        <td className="px-4 py-3 text-xs text-slate-400">{company.owner_email || '-'}</td>
+                        <td className="px-4 py-3">{company.employee_count || '-'}</td>
+                        <td className="px-4 py-3">
+                          {company.verified ? (
+                            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-300 border border-emerald-500/30">
+                              ✓ Verified
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs text-yellow-300 border border-yellow-500/30">
+                              ⏳ Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleViewCompanyAds(company.id)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400 transition"
+                            title="Buka seluruh iklan yang diposting perusahaan ini"
+                          >
+                            <Briefcase className="h-3.5 w-3.5" />
+                            <span>{company.total_jobs || 0} Loker</span>
+                            {(company.active_jobs || 0) > 0 && (
+                              <span className="rounded-full bg-emerald-500/30 text-emerald-300 text-[10px] px-1 font-bold">
+                                {company.active_jobs} Aktif
+                              </span>
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-400">
+                          {new Date(company.created_at).toLocaleDateString('id-ID')}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1.5 text-xs">
+                            <button
+                              onClick={() => toggleVerify(company)}
+                              className={`rounded-md border px-2 py-1 transition ${
+                                company.verified
+                                  ? 'border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10'
+                                  : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                              }`}
+                            >
+                              {company.verified ? 'Cabut' : 'Verifikasi'}
+                            </button>
+                            <button
+                              onClick={() => handleViewCompanyAds(company.id)}
+                              className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-300 hover:bg-cyan-500/20 transition flex items-center gap-1"
+                              title="Lihat katalog iklan perusahaan ini"
+                            >
+                              <Megaphone className="w-3 h-3" />
+                              <span>Iklan</span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                window.alert(
+                                  `Nama Perusahaan: ${company.name}\nIndustri: ${company.industry || '-'}\nKota: ${company.city || '-'}\nWebsite: ${company.website || '-'}\nJumlah Karyawan: ${company.employee_count || '-'}\nDeskripsi:\n${company.description || '-'}`
+                                )
+                              }
+                              className="rounded-md border border-white/10 px-2 py-1 text-slate-300 hover:bg-white/10 transition"
+                            >
+                              Detail
+                            </button>
+                            <button
+                              onClick={() => deleteCompany(company)}
+                              className="rounded-md border border-red-400/30 px-2 py-1 text-red-300 hover:bg-red-500/10 transition"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <Pagination page={page} total={total} onChange={setPage} />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUB-TAB 2: KATALOG IKLAN LOKER PERUSAHAAN (COMPREHENSIVE JOB ADS CATALOG) */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'ads' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Ad Stats Bar */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatMini title="Total Iklan Loker" value={adStats.totalAds} />
+            <div className="rounded-xl border border-emerald-500/20 bg-slate-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-emerald-400 font-semibold">Iklan Aktif (Tayang)</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-300">{adStats.activeAds.toLocaleString('id-ID')}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">Iklan Ditutup</p>
+              <p className="mt-1 text-2xl font-bold text-slate-300">{adStats.closedAds.toLocaleString('id-ID')}</p>
+            </div>
+            <div className="rounded-xl border border-cyan-500/20 bg-slate-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-cyan-400 font-semibold">Total Pelamar Masuk</p>
+              <p className="mt-1 text-2xl font-bold text-cyan-300">{adStats.totalApplicants.toLocaleString('id-ID')}</p>
+            </div>
+          </div>
+
+          {/* Active Company Filter Notification Banner */}
+          {selectedCompanyId !== 'all' && filteredCompanyObj && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cyan-500/30 bg-cyan-950/40 p-3 text-xs text-cyan-200 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>
+                  Menampilkan katalog iklan khusus perusahaan: <strong className="text-white text-sm">{filteredCompanyObj.name}</strong> ({filteredAds.length} iklan)
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedCompanyId('all')}
+                className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-2.5 py-1 text-xs font-semibold text-white hover:bg-cyan-500/30 transition"
+              >
+                ✕ Tampilkan Seluruh Perusahaan
+              </button>
+            </div>
+          )}
+
+          {/* Search & Advanced Filters */}
+          <div className="rounded-xl border border-white/10 bg-slate-900 p-4 space-y-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {/* Search Bar */}
+              <div className="relative md:col-span-2">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <input
+                  value={adSearch}
+                  onChange={(e) => setAdSearch(e.target.value)}
+                  placeholder="Cari judul loker, keahlian, kota, atau nama perusahaan..."
+                  className="w-full rounded-lg border border-white/10 bg-slate-800 py-2 pl-9 pr-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              {/* Company Selector Dropdown */}
+              <select
+                value={selectedCompanyId}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
+                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
+              >
+                <option value="all">Semua Perusahaan ({jobAds.length} Loker)</option>
+                {rows.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.total_jobs || 0} loker)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filter Pills row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-white/5">
+              {/* Status Filter */}
+              <select
+                value={adStatusFilter}
+                onChange={(e) => setAdStatusFilter(e.target.value as any)}
+                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+              >
+                <option value="all">Semua Status Iklan</option>
+                <option value="active">Tayang (Aktif)</option>
+                <option value="closed">Ditutup</option>
+                <option value="draft">Draft</option>
+              </select>
+
+              {/* Job Type Filter */}
+              <select
+                value={adTypeFilter}
+                onChange={(e) => setAdTypeFilter(e.target.value as any)}
+                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+              >
+                <option value="all">Semua Tipe Pekerjaan</option>
+                <option value="full-time">Full-time (Purna Waktu)</option>
+                <option value="part-time">Part-time (Paruh Waktu)</option>
+                <option value="freelance">Freelance (Lepas Waktu)</option>
+                <option value="contract">Kontrak</option>
+                <option value="internship">Magang</option>
+              </select>
+
+              {/* Category Filter */}
+              <select
+                value={adCategoryFilter}
+                onChange={(e) => setAdCategoryFilter(e.target.value)}
+                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+              >
+                <option value="all">Semua Kategori</option>
+                {adCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* CATALOG DISPLAY (Grid vs Table) */}
+          {jobAdsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <SkeletonBlock className="h-48" />
+              <SkeletonBlock className="h-48" />
+              <SkeletonBlock className="h-48" />
+            </div>
+          ) : filteredAds.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-slate-900 p-12 text-center">
+              <Megaphone className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-white">Tidak ada iklan loker yang ditemukan</h3>
+              <p className="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian atau reset filter perusahaan.</p>
+              {selectedCompanyId !== 'all' && (
+                <button
+                  onClick={() => setSelectedCompanyId('all')}
+                  className="mt-4 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 transition"
+                >
+                  Tampilkan Semua Perusahaan
+                </button>
+              )}
+            </div>
+          ) : adViewMode === 'grid' ? (
+            /* ======================================================= */
+            /* GRID VIEW: KATALOG VISUAL IKLAN LOKER (FLYER CARD)     */
+            /* ======================================================= */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAds.map((job) => {
+                const company = job.companies;
+                const isAktif = job.status === 'active';
+                const isActionLoading = adActionLoadingId === job.id;
+
+                return (
+                  <div
+                    key={job.id}
+                    className="flex flex-col justify-between rounded-2xl border border-white/10 bg-slate-900/95 p-5 shadow-lg transition-all duration-200 hover:border-cyan-500/50 hover:shadow-cyan-500/10 group relative"
+                  >
+                    {/* Top: Company Header & Status */}
+                    <div>
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {company?.logo_url ? (
+                            <img
+                              src={company.logo_url}
+                              alt={company.name}
+                              className="w-10 h-10 rounded-xl border border-white/10 object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-md shadow-cyan-500/20">
+                              {(company?.name || 'C')[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-300 truncate flex items-center gap-1">
+                              <span>{company?.name || 'Perusahaan'}</span>
+                              {company?.verified && (
+                                <BadgeCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" title="Verified Company" />
+                              )}
+                            </p>
+                            <p className="text-[11px] text-slate-400 flex items-center gap-1 truncate">
+                              <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
+                              <span>{job.location_city || company?.city || 'Indonesia'}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Status Pill */}
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
+                            isAktif
+                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                              : 'bg-slate-800 border-white/10 text-slate-400'
+                          }`}
+                        >
+                          {isAktif ? '● Tayang' : 'Ditutup'}
+                        </span>
+                      </div>
+
+                      {/* Job Title */}
+                      <h4 className="text-white font-bold text-base leading-snug group-hover:text-cyan-300 transition-colors line-clamp-2 mb-2">
+                        {job.title}
+                      </h4>
+
+                      {/* Badges: Category & Job Type */}
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        <span className="rounded-lg bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
+                          {job.category || 'Umum'}
+                        </span>
+                        <span className="rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-300">
+                          {JOB_TYPE_DISPLAY[job.job_type] || job.job_type}
+                        </span>
+                      </div>
+
+                      {/* Salary Range Box */}
+                      <div className="rounded-xl border border-white/5 bg-slate-950/60 p-2.5 mb-3 flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="text-xs font-semibold text-emerald-300 truncate">
+                          {formatAdSalary(job.salary_min, job.salary_max)}
+                        </span>
+                      </div>
+
+                      {/* Description Snippet */}
+                      {job.description && (
+                        <p className="text-slate-400 text-xs line-clamp-2 mb-3 leading-relaxed">
+                          {job.description}
+                        </p>
+                      )}
+
+                      {/* Key Indicators */}
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-white/5 pt-2.5 mb-3">
+                        <span className="flex items-center gap-1 font-medium text-slate-300">
+                          <Users className="w-3.5 h-3.5 text-cyan-400" />
+                          <strong>{job.applicant_count || 0}</strong> Pelamar
+                        </span>
+                        {job.quota > 0 && (
+                          <span className="text-slate-400">Kuota: {job.quota}</span>
+                        )}
+                        <span className="text-slate-500 text-[10px]">
+                          {new Date(job.created_at).toLocaleDateString('id-ID')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Bottom Action Bar */}
+                    <div className="border-t border-white/10 pt-3 flex items-center justify-between gap-1.5">
+                      <button
+                        onClick={() => setPreviewJob(job)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 py-1.5 px-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400 transition"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Pratinjau Iklan</span>
                       </button>
-                      <button onClick={() => deleteCompany(company)} className="rounded-md border border-red-400/30 px-2 py-1 text-red-300">
-                        Hapus
+
+                      <button
+                        onClick={() => toggleAdStatus(job)}
+                        disabled={isActionLoading}
+                        className={`rounded-xl border py-1.5 px-2.5 text-xs font-semibold transition ${
+                          isAktif
+                            ? 'border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10'
+                            : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                        }`}
+                        title={isAktif ? 'Tutup lowongan' : 'Tayangkan lowongan'}
+                      >
+                        {isActionLoading ? '...' : isAktif ? 'Tutup' : 'Tayangkan'}
+                      </button>
+
+                      <a
+                        href={`/browse?search=${encodeURIComponent(job.title)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-xl border border-white/10 p-2 text-slate-400 hover:text-white hover:bg-white/5 transition"
+                        title="Buka lowongan di halaman publik"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+
+                      <button
+                        onClick={() => deleteAd(job)}
+                        disabled={isActionLoading}
+                        className="rounded-xl border border-red-500/20 p-2 text-red-400 hover:bg-red-500/10 transition"
+                        title="Hapus iklan lowongan ini"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* ======================================================= */
+            /* TABLE VIEW: TABEL DATA RINCI KATALOG IKLAN LOKER        */
+            /* ======================================================= */
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Perusahaan</th>
+                    <th className="px-4 py-3 text-left">Judul Iklan Loker</th>
+                    <th className="px-4 py-3 text-left">Kategori & Tipe</th>
+                    <th className="px-4 py-3 text-left">Lokasi</th>
+                    <th className="px-4 py-3 text-left">Kisaran Gaji</th>
+                    <th className="px-4 py-3 text-left">Pelamar</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Tgl Posting</th>
+                    <th className="px-4 py-3 text-left">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAds.map((job, idx) => {
+                    const company = job.companies;
+                    const isAktif = job.status === 'active';
+                    return (
+                      <tr
+                        key={job.id}
+                        className={`border-b border-white/5 text-slate-300 transition-colors ${
+                          idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                        }`}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {company?.logo_url ? (
+                              <img
+                                src={company.logo_url}
+                                alt={company.name}
+                                className="w-7 h-7 rounded-lg border border-white/10 object-cover"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center font-bold text-xs text-white">
+                                {(company?.name || 'C')[0]}
+                              </div>
+                            )}
+                            <span className="font-semibold text-white truncate max-w-[140px] text-xs">
+                              {company?.name || 'Perusahaan'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-white max-w-[200px] truncate">
+                          {job.title}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <span className="text-sky-300">{job.category || 'Umum'}</span>
+                          <span className="text-slate-500"> • </span>
+                          <span className="text-cyan-300">{JOB_TYPE_DISPLAY[job.job_type] || job.job_type}</span>
+                        </td>
+                        <td className="px-4 py-3 text-xs">{job.location_city || '-'}</td>
+                        <td className="px-4 py-3 text-xs text-emerald-300 font-medium whitespace-nowrap">
+                          {formatAdSalary(job.salary_min, job.salary_max)}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold text-cyan-300">
+                          {job.applicant_count || 0} orang
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs ${
+                              isAktif
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-slate-800 text-slate-400 border border-white/10'
+                            }`}
+                          >
+                            {isAktif ? 'Tayang' : 'Ditutup'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-400">
+                          {new Date(job.created_at).toLocaleDateString('id-ID')}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <button
+                              onClick={() => setPreviewJob(job)}
+                              className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-cyan-300 hover:bg-cyan-500/20 transition"
+                            >
+                              Detail
+                            </button>
+                            <button
+                              onClick={() => toggleAdStatus(job)}
+                              className="rounded-md border border-white/10 px-2 py-1 text-slate-300 hover:bg-white/10 transition"
+                            >
+                              {isAktif ? 'Tutup' : 'Tayang'}
+                            </button>
+                            <button
+                              onClick={() => deleteAd(job)}
+                              className="rounded-md border border-red-500/20 px-2 py-1 text-red-300 hover:bg-red-500/10 transition"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-      <Pagination page={page} total={total} onChange={setPage} />
+      {/* ========================================================================= */}
+      {/* MODAL PRATINJAU DETAIL IKLAN LOKER (INTERACTIVE AD FLYER PREVIEW)          */}
+      {/* ========================================================================= */}
+      {previewJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-cyan-500/30 bg-slate-900 p-6 shadow-2xl">
+            {/* Close Button */}
+            <button
+              onClick={() => setPreviewJob(null)}
+              className="absolute right-4 top-4 rounded-xl border border-white/10 bg-slate-800 p-2 text-slate-400 hover:text-white hover:bg-slate-700 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Company Header */}
+            <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-4 pr-10">
+              {previewJob.companies?.logo_url ? (
+                <img
+                  src={previewJob.companies.logo_url}
+                  alt={previewJob.companies.name}
+                  className="w-12 h-12 rounded-xl border border-white/20 object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-cyan-500/30">
+                  {(previewJob.companies?.name || 'C')[0].toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-white font-bold text-base truncate">
+                    {previewJob.companies?.name || 'Perusahaan'}
+                  </h3>
+                  {previewJob.companies?.verified && (
+                    <BadgeCheck className="w-4 h-4 text-cyan-400 shrink-0" title="Verified Company" />
+                  )}
+                </div>
+                <p className="text-xs text-slate-400">
+                  {previewJob.companies?.industry || 'Industri'} • {previewJob.companies?.city || 'Indonesia'}
+                </p>
+                {previewJob.companies?.website && (
+                  <a
+                    href={previewJob.companies.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1 mt-0.5"
+                  >
+                    <Globe className="w-3 h-3" /> {previewJob.companies.website}
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Job Title & Badges */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-bold border ${
+                    previewJob.status === 'active'
+                      ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+                      : 'bg-slate-800 border-white/10 text-slate-400'
+                  }`}
+                >
+                  {previewJob.status === 'active' ? '● Sedang Tayang' : 'Ditutup'}
+                </span>
+                <span className="rounded-lg bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 text-xs font-semibold text-sky-300">
+                  {previewJob.category || 'Umum'}
+                </span>
+                <span className="rounded-lg bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-xs font-semibold text-cyan-300">
+                  {JOB_TYPE_DISPLAY[previewJob.job_type] || previewJob.job_type}
+                </span>
+              </div>
+              <h2 className="text-xl font-bold text-white leading-tight">{previewJob.title}</h2>
+            </div>
+
+            {/* Highlights Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl border border-white/10 bg-slate-950/60 p-3.5 mb-5 text-xs">
+              <div>
+                <p className="text-slate-400 flex items-center gap-1 mb-1">
+                  <Banknote className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Kisaran Gaji</span>
+                </p>
+                <p className="font-bold text-emerald-300 text-sm">
+                  {formatAdSalary(previewJob.salary_min, previewJob.salary_max)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-slate-400 flex items-center gap-1 mb-1">
+                  <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Lokasi Penempatan</span>
+                </p>
+                <p className="font-semibold text-white">
+                  {previewJob.location_city || 'Sesuai Lokasi Perusahaan'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-slate-400 flex items-center gap-1 mb-1">
+                  <Users className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Pelamar / Kuota</span>
+                </p>
+                <p className="font-semibold text-white">
+                  <strong className="text-cyan-300">{previewJob.applicant_count || 0}</strong> Pelamar
+                  {previewJob.quota > 0 ? ` (Kuota: ${previewJob.quota})` : ''}
+                </p>
+              </div>
+            </div>
+
+            {/* Job Description */}
+            <div className="space-y-4 text-xs text-slate-300 leading-relaxed">
+              <div>
+                <h4 className="font-bold text-white text-sm mb-2 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-cyan-400" />
+                  <span>Deskripsi Pekerjaan</span>
+                </h4>
+                <div className="rounded-xl border border-white/5 bg-slate-800/60 p-3.5 whitespace-pre-line text-slate-300">
+                  {previewJob.description || 'Tidak ada deskripsi pekerjaan khusus.'}
+                </div>
+              </div>
+
+              {/* Requirements */}
+              {previewJob.requirements && (
+                <div>
+                  <h4 className="font-bold text-white text-sm mb-2 flex items-center gap-1.5">
+                    <ListChecks className="w-4 h-4 text-sky-400" />
+                    <span>Persyaratan & Kualifikasi</span>
+                  </h4>
+                  <div className="rounded-xl border border-white/5 bg-slate-800/60 p-3.5 whitespace-pre-line text-slate-300">
+                    {previewJob.requirements}
+                  </div>
+                </div>
+              )}
+
+              {/* Benefits */}
+              {previewJob.benefits && (
+                <div>
+                  <h4 className="font-bold text-white text-sm mb-2 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-yellow-400" />
+                    <span>Benefit & Fasilitas</span>
+                  </h4>
+                  <div className="rounded-xl border border-white/5 bg-slate-800/60 p-3.5 whitespace-pre-line text-slate-300">
+                    {previewJob.benefits}
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[11px] text-slate-500">
+                <span>ID Lowongan: <code className="text-slate-400 font-mono">{previewJob.id}</code></span>
+                <span>Diposting: {new Date(previewJob.created_at).toLocaleString('id-ID')}</span>
+                {previewJob.expires_at && (
+                  <span>Kadaluarsa: {new Date(previewJob.expires_at).toLocaleDateString('id-ID')}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-white/10 pt-4">
+              <button
+                onClick={() => toggleAdStatus(previewJob)}
+                className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
+                  previewJob.status === 'active'
+                    ? 'border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10'
+                    : 'border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                }`}
+              >
+                {previewJob.status === 'active' ? 'Tutup Iklan' : 'Aktifkan Iklan'}
+              </button>
+
+              <a
+                href={`/browse?search=${encodeURIComponent(previewJob.title)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Buka di Portal Publik</span>
+              </a>
+
+              <button
+                onClick={() => deleteAd(previewJob)}
+                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/20 transition"
+              >
+                Hapus Iklan
+              </button>
+
+              <button
+                onClick={() => setPreviewJob(null)}
+                className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
