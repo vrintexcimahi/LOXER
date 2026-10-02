@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/useAuth';
 
 export type ToastType = 'success' | 'error' | 'info';
 

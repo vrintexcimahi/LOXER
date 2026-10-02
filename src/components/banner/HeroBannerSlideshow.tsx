@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Sparkles, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { UserRole } from '../../lib/types';
 
 export interface BannerSlide {
@@ -127,8 +127,6 @@ export default function HeroBannerSlideshow({
     touchStartX.current = null;
     touchEndX.current = null;
   };
-
-  const currentSlide = BANNER_SLIDES[currentIndex];
 
   if (variant === 'embedded') {
     return (

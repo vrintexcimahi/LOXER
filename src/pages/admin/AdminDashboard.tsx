@@ -21,6 +21,7 @@ import {
   ShieldX,
   UserCheck,
   Users,
+  Wrench,
   X,
   Terminal,
   Database,
@@ -88,13 +89,15 @@ import AdminUserDataCenter from './AdminUserDataCenter';
 import AdminDeviceManagement from './AdminDeviceManagement';
 import { fetchUnifiedJobs } from '../../services/careerjetService';
 import { AdminTalentCatalogSection, SmartAddCvSection, useTalentCatalog } from './AdminTalentComponents';
+import AdminJasa from './AdminJasa';
 
-type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations';
+type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations' | 'jasa';
 type ToastType = 'success' | 'error' | 'info';
 
 interface AdminDashboardProps {
   tab?: AdminTab;
   subTab?: 'accounts' | 'intelligence' | 'devices';
+  // (jasa has its own internal sub-tabs)
 }
 
 interface ToastState {
@@ -266,6 +269,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
       { key: 'users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', href: '/admin/users', icon: Users },
       { key: 'applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', href: '/admin/applications', icon: ListChecks },
       { key: 'companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', href: '/admin/companies', icon: Building2 },
+      { key: 'jasa', label: 'Manajemen Jasa', description: 'Kelola penyedia & katalog iklan layanan', href: '/admin/jasa', icon: Wrench },
       { key: 'integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', href: '/admin/integrations', icon: Link2 },
       ...(effectiveRole === 'superadmin' ? [
         { key: 'monitoring', label: 'Log & Monitoring', description: 'Real-time live tail & error tracker', href: '/admin/monitoring', icon: Terminal },
@@ -333,9 +337,11 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
             ? 'Manajemen Lamaran'
             : activeTab === 'companies'
               ? 'Manajemen Perusahaan'
-              : activeTab === 'integrations'
-                ? 'Integrasi API'
-                : 'Audit Log';
+              : activeTab === 'jasa'
+                ? 'Manajemen Jasa'
+                : activeTab === 'integrations'
+                  ? 'Integrasi API'
+                  : 'Audit Log';
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -517,6 +523,9 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
             {activeTab === 'companies' && (
               <AdminCompanies adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
             )}
+            {activeTab === 'jasa' && (
+              <AdminJasa adminId={user.id} adminEmail={adminEmail} onToast={showToast} />
+            )}
             {activeTab === 'integrations' && <AdminIntegrations onToast={showToast} />}
             {activeTab === 'logs' && <AdminAuditLogs />}
           </main>
@@ -531,6 +540,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                 { href: '/admin/dashboard', label: 'Dashboard', icon: Home, key: 'overview' },
                 { href: '/admin/users', label: 'Users', icon: Users, key: 'users' },
                 { href: '/admin/applications', label: 'Pelamar', icon: ListChecks, key: 'applications' },
+                { href: '/admin/jasa', label: 'Jasa', icon: Wrench, key: 'jasa' },
                 { href: '/admin/companies', label: 'Perusahaan', icon: Building2, key: 'companies' },
               ].map((item) => {
                 const active = activeTab === item.key || window.location.pathname === item.href;
@@ -2322,11 +2332,12 @@ function SmartAddJobSection({
       setTimeout(() => {
         document.getElementById('smart-job-review-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 150);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsExtracting(false);
       setExtractStep(0);
-      setExtractError(err.message || 'Gagal mengekstrak data');
-      onToast('error', `Ekstraksi gagal: ${err.message || 'Terjadi kesalahan'}`);
+      const errMsg = err instanceof Error ? err.message : 'Gagal mengekstrak data';
+      setExtractError(errMsg);
+      onToast('error', `Ekstraksi gagal: ${errMsg}`);
     }
   };
 
@@ -2363,12 +2374,24 @@ function SmartAddJobSection({
         throw new Error(errJson.message || `Gagal publikasi (HTTP ${resp.status})`);
       }
 
+      if (adminId && adminEmail) {
+        await logAdminAction(
+          adminId,
+          adminEmail,
+          'create_job',
+          'job_listing',
+          formData.title,
+          `Smart Add Job (Gemini 3.8): ${formData.title} - ${formData.company_name}`
+        );
+      }
+
       setIsPublishing(false);
       onToast('success', `🚀 Iklan loker "${formData.title}" resmi tayang di portal LOXER!`);
       onJobCreated();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsPublishing(false);
-      onToast('error', `Gagal menerbitkan loker: ${err.message}`);
+      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan saat mempublikasikan loker';
+      onToast('error', `Gagal menerbitkan loker: ${errMsg}`);
     }
   };
 
@@ -2971,6 +2994,23 @@ function SmartAddJobSection({
   );
 }
 
+interface PartnerFeedJobItem {
+  title?: string;
+  company?: string;
+  category?: string;
+  locations?: string;
+  salary?: string;
+  salary_min?: number;
+  salary_max?: number;
+  description?: string;
+  date?: string;
+  url?: string;
+  site?: string;
+  source?: string;
+  is_internal?: boolean;
+  job_id?: string;
+}
+
 function useJobAdsCatalog(onToast: (type: ToastType, message: string) => void) {
   const [jobAds, setJobAds] = useState<JobAdWithCompany[]>([]);
   const [jobAdsLoading, setJobAdsLoading] = useState(false);
@@ -3012,7 +3052,8 @@ function useJobAdsCatalog(onToast: (type: ToastType, message: string) => void) {
 
       // Internal jobs with DB linkage & management capabilities
       const internalJobMap = new Map<string, JobAdWithCompany>();
-      const internalJobsList: JobAdWithCompany[] = ((adsRes.data || []) as any[]).map((j) => {
+      const rawAds = (adsRes.data || []) as unknown as (Omit<JobAdWithCompany, 'companies'> & { companies?: Company | Company[] | null })[];
+      const internalJobsList: JobAdWithCompany[] = rawAds.map((j) => {
         const comp = getFirstValue(j.companies) || null;
         const mapped: JobAdWithCompany = {
           ...j,
@@ -3029,10 +3070,10 @@ function useJobAdsCatalog(onToast: (type: ToastType, message: string) => void) {
       });
 
       // External / Partner feed jobs (Arbeitnow Global, etc.)
-      const unifiedJobs = Array.isArray(unifiedPayload?.jobs) ? unifiedPayload.jobs : [];
+      const unifiedJobs = (Array.isArray(unifiedPayload?.jobs) ? unifiedPayload.jobs : []) as PartnerFeedJobItem[];
       const externalJobsList: JobAdWithCompany[] = [];
 
-      unifiedJobs.forEach((uj: any, idx: number) => {
+      unifiedJobs.forEach((uj: PartnerFeedJobItem, idx: number) => {
         if (uj.is_internal && uj.job_id && internalJobMap.has(uj.job_id)) {
           return;
         }
@@ -3078,11 +3119,15 @@ function useJobAdsCatalog(onToast: (type: ToastType, message: string) => void) {
             id: extCompId,
             user_id: '',
             name: compName,
+            industry: inferredCategory,
             city: uj.locations || 'Global',
+            logo_url: '',
+            description: `Perusahaan mitra LOXER: ${compName}`,
+            website: uj.url,
+            employee_count: '10-50',
             verified: true,
             created_at: uj.date || new Date().toISOString(),
             updated_at: uj.date || new Date().toISOString(),
-            website: uj.url,
           },
           applicant_count: 0,
           is_internal: false,
@@ -3096,8 +3141,9 @@ function useJobAdsCatalog(onToast: (type: ToastType, message: string) => void) {
 
       const combined = [...internalJobsList, ...externalJobsList];
       setJobAds(combined);
-    } catch (err: any) {
-      onToastRef.current('error', `Terjadi kesalahan saat memuat iklan: ${err.message}`);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      onToastRef.current('error', `Terjadi kesalahan saat memuat iklan: ${errMsg}`);
     } finally {
       setJobAdsLoading(false);
     }
@@ -3203,6 +3249,9 @@ function AdminJobAdsCatalogSection({
       supabase.from('job_listings').delete().eq('id', ad.id),
     ]);
     setAdActionLoadingId(null);
+    if (delApps.error) {
+      console.warn('[deleteAd] Gagal menghapus relasi lamaran:', delApps.error.message);
+    }
     if (delJob.error) {
       onToast('error', `Gagal menghapus iklan: ${delJob.error.message}`);
       return;
@@ -3478,7 +3527,7 @@ function AdminJobAdsCatalogSection({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-white/5">
           <select
             value={adStatusFilter}
-            onChange={(e) => setAdStatusFilter(e.target.value as any)}
+            onChange={(e) => setAdStatusFilter(e.target.value as 'all' | 'active' | 'closed' | 'draft')}
             className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
           >
             <option value="all">Semua Status Iklan</option>
@@ -3488,7 +3537,7 @@ function AdminJobAdsCatalogSection({
 
           <select
             value={adTypeFilter}
-            onChange={(e) => setAdTypeFilter(e.target.value as any)}
+            onChange={(e) => setAdTypeFilter(e.target.value as 'all' | JobType)}
             className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
           >
             <option value="all">Semua Tipe Pekerjaan</option>
@@ -3582,7 +3631,9 @@ function AdminJobAdsCatalogSection({
                         <p className="text-xs font-bold text-white truncate flex items-center gap-1" title={compName}>
                           {compName}
                           {company?.verified && (
-                            <BadgeCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" title="Verified" />
+                            <span title="Verified">
+                              <BadgeCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                            </span>
                           )}
                         </p>
                         <p className="text-[10px] text-slate-400 truncate">
@@ -3959,7 +4010,9 @@ function AdminJobAdsCatalogSection({
                     {previewJob.companies?.name || previewJob.company_name || 'Perusahaan'}
                   </h3>
                   {previewJob.companies?.verified && (
-                    <BadgeCheck className="w-4 h-4 text-cyan-400 shrink-0" title="Verified Company" />
+                    <span title="Verified Company">
+                      <BadgeCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                    </span>
                   )}
                 </div>
                 <p className="text-xs text-slate-400">
@@ -5061,7 +5114,9 @@ function AdminCompanies({
                           <div className="flex items-center gap-1.5">
                             <span>{company.name}</span>
                             {company.verified && (
-                              <BadgeCheck className="h-4 w-4 text-cyan-400 shrink-0" title="Verified" />
+                              <span title="Verified">
+                                <BadgeCheck className="h-4 w-4 text-cyan-400 shrink-0" />
+                              </span>
                             )}
                           </div>
                         </td>

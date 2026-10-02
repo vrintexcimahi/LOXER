@@ -195,6 +195,19 @@ export const adminGuideContent: Record<string, DashboardGuideContent> = {
       'Hapus atau tindak lanjuti perusahaan palsu sesegera mungkin.',
     ],
   },
+  '/admin/jasa': {
+    summary: 'Menu Jasa berfungsi sebagai pusat kendali untuk mengelola penyedia layanan freelance dan mengawasi katalog iklan jasa yang tayang di platform.',
+    detailFunctions: [
+      'Tab Penyedia Jasa: Mengelola daftar user yang mendaftarkan layanan, suspend atau aktifkan akun penyedia.',
+      'Tab Katalog Iklan Jasa: Melihat, menyetujui, menolak, atau menghapus iklan layanan yang diposting pengguna.',
+      'Memfilter iklan berdasarkan status (aktif, menunggu, ditolak, suspended) dan kategori layanan.',
+    ],
+    usageTips: [
+      'Gunakan tab Penyedia Jasa untuk menindak akun yang melanggar ketentuan layanan.',
+      'Tinjau iklan berstatus "Menunggu" secara rutin agar penyedia jasa tidak menunggu terlalu lama.',
+      'Gunakan filter kategori untuk audit kualitas iklan di segmen tertentu secara lebih cepat.',
+    ],
+  },
   '/admin/logs': {
     summary: 'Audit log menyimpan jejak tindakan admin agar semua perubahan sensitif dapat ditinjau kembali dengan mudah.',
     detailFunctions: [

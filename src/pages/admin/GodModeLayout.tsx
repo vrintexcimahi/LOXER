@@ -12,6 +12,7 @@ import {
   Smartphone,
   Menu,
   LogOut,
+  Wrench,
 } from 'lucide-react';
 import BrandText from '../../components/ui/BrandText';
 import ThemeToggle from '../../components/ui/ThemeToggle';
@@ -46,6 +47,7 @@ const CORE_ITEMS: NavItem[] = [
   { href: '/admin/users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', icon: Users },
   { href: '/admin/applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', icon: ListChecks },
   { href: '/admin/companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', icon: Building2 },
+  { href: '/admin/jasa', label: 'Manajemen Jasa', description: 'Kelola penyedia & katalog iklan layanan', icon: Wrench },
   { href: '/admin/integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', icon: Link2 },
 ];
 
@@ -53,6 +55,7 @@ const MOBILE_NAV_ITEMS: { href: string; label: string; icon: typeof Home }[] = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: Home },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/applications', label: 'Pelamar', icon: ListChecks },
+  { href: '/admin/jasa', label: 'Jasa', icon: Wrench },
   { href: '/admin/companies', label: 'Perusahaan', icon: Building2 },
 ];
 

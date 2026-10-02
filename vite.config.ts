@@ -651,7 +651,7 @@ function createAdminAuditLogMiddleware(env: Record<string, string>) {
   };
 }
 
-function createSmartJobExtractMiddleware(env: Record<string, string>) {
+function createSmartJobExtractMiddleware(_env: Record<string, string>) {
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     if (!req.url || !req.url.startsWith('/api/admin/smart-job-extract')) {
       next();
@@ -687,7 +687,7 @@ function createSmartJobExtractMiddleware(env: Record<string, string>) {
   };
 }
 
-function createSmartCvExtractMiddleware(env: Record<string, string>) {
+function createSmartCvExtractMiddleware(_env: Record<string, string>) {
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     if (!req.url || !req.url.startsWith('/api/admin/smart-cv-extract')) {
       next();

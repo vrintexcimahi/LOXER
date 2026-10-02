@@ -239,6 +239,7 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/devices': <AdminDashboard tab="users" subTab="devices" />,
         '/admin/applications': <AdminDashboard tab="applications" />,
         '/admin/companies': <AdminDashboard tab="companies" />,
+        '/admin/jasa': <AdminDashboard tab="jasa" />,
         '/admin/integrations': <AdminDashboard tab="integrations" />,
         '/admin/moderation': <ModerationQueue />,
       };
