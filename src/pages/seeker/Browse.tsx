@@ -12,6 +12,7 @@ import JobList from '../../components/JobList';
 import JobDetailModal from '../../components/jobs/JobDetailModal';
 import AuthModal from '../auth/AuthModal';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
+import HeroBannerSlideshow from '../../components/banner/HeroBannerSlideshow';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { UserRole } from '../../lib/types';
 
@@ -100,61 +101,71 @@ export default function Browse() {
           <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
           <div className="absolute -left-12 -bottom-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
 
-          <div className="relative z-10 max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-300 border border-sky-500/30">
-              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-              <span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            <div className="lg:col-span-7 space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-300 border border-sky-500/30">
+                <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                <span>
+                  {isFreelancer
+                    ? 'Bursa Layanan Jasa Mandiri & Panggilan LOXER'
+                    : 'LOXER Unified Job Hub — Pusat Lowongan Indonesia & Global'}
+                </span>
+              </div>
+
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                {isFreelancer ? 'Katalog Layanan Jasa &' : 'Cari Lowongan Kerja'}{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-teal-400">
+                  {isFreelancer ? 'Penyedia Jasa Mandiri' : 'Indonesia & Global'}
+                </span>
+              </h1>
+
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
                 {isFreelancer
-                  ? 'Bursa Layanan Jasa Mandiri & Panggilan LOXER'
-                  : 'LOXER Unified Job Hub — Pusat Lowongan Indonesia & Global'}
-              </span>
-            </div>
+                  ? 'Temukan penyedia jasa mandiri profesional: jasa pijat & refleksi, bengkel motor/mobil, servis komputer & elektronik, pertukangan, kebersihan, dan lainnya.'
+                  : 'Pencarian terintegrasi dari mitra resmi terverifikasi LOXER, Careerjet, dan feed publik Arbeitnow langsung dari satu pintu.'}
+              </p>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              {isFreelancer ? 'Katalog Layanan Jasa &' : 'Cari Lowongan Kerja'}{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-teal-400">
-                {isFreelancer ? 'Penyedia Jasa Mandiri' : 'Indonesia & Global'}
-              </span>
-            </h1>
+              {/* Quick Actions */}
+              <div className="pt-2 flex flex-wrap items-center gap-3">
+                <a
+                  href="/talents"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-slate-950 bg-gradient-to-r from-sky-400 to-cyan-300 hover:from-sky-300 hover:to-cyan-200 shadow-lg shadow-sky-500/20 transition-all transform hover:-translate-y-0.5"
+                >
+                  <Search className="w-4 h-4" />
+                  Cari Talent Siap Kerja
+                  <ArrowRight className="w-4 h-4" />
+                </a>
 
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              {isFreelancer
-                ? 'Temukan penyedia jasa mandiri profesional: jasa pijat & refleksi, bengkel motor/mobil, servis komputer & elektronik, pertukangan, kebersihan, dan lainnya.'
-                : 'Pencarian terintegrasi dari mitra resmi terverifikasi LOXER, Careerjet, dan feed publik Arbeitnow langsung dari satu pintu.'}
-            </p>
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
+                  <ShieldCheck className="w-4 h-4 text-sky-400" />
+                  <span>Rekrutmen & Lamaran Terproteksi di Platform</span>
+                </div>
+              </div>
 
-            {/* Quick Actions */}
-            <div className="pt-2 flex flex-wrap items-center gap-3">
-              <a
-                href="/talents"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-slate-950 bg-gradient-to-r from-sky-400 to-cyan-300 hover:from-sky-300 hover:to-cyan-200 shadow-lg shadow-sky-500/20 transition-all transform hover:-translate-y-0.5"
-              >
-                <Search className="w-4 h-4" />
-                Cari Talent Siap Kerja
-                <ArrowRight className="w-4 h-4" />
-              </a>
-
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
-                <ShieldCheck className="w-4 h-4 text-sky-400" />
-                <span>Rekrutmen & Lamaran Terproteksi di Platform</span>
+              {/* Provider stat pills */}
+              <div className="pt-1 flex flex-wrap gap-2">
+                {[
+                  { label: 'Mitra LOXER', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                  { label: 'Careerjet', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+                  { label: 'Arbeitnow Global', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
+                ].map((src) => (
+                  <span
+                    key={src.label}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border ${src.color}`}
+                  >
+                    <Briefcase className="w-3 h-3" />
+                    {src.label}
+                  </span>
+                ))}
               </div>
             </div>
 
-            {/* Provider stat pills */}
-            <div className="pt-1 flex flex-wrap gap-2">
-              {[
-                { label: 'Mitra LOXER', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-                { label: 'Careerjet', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
-                { label: 'Arbeitnow Global', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
-              ].map((src) => (
-                <span
-                  key={src.label}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border ${src.color}`}
-                >
-                  <Briefcase className="w-3 h-3" />
-                  {src.label}
-                </span>
-              ))}
+            <div className="lg:col-span-5 w-full">
+              <HeroBannerSlideshow
+                initialSlide={0}
+                variant="embedded"
+                onRegister={handleOpenRegister}
+              />
             </div>
           </div>
         </section>

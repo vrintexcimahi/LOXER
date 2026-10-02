@@ -20,6 +20,7 @@ import {
 import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
+import HeroBannerSlideshow from '../../components/banner/HeroBannerSlideshow';
 import AuthModal from '../auth/AuthModal';
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
@@ -331,60 +332,73 @@ export default function ProductMarketplace() {
           <div className="absolute -right-16 -top-16 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
           <div className="absolute -left-16 -bottom-16 h-72 w-72 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 max-w-4xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 backdrop-blur-md">
-              <ShoppingBag className="w-4 h-4 text-cyan-400" />
-              <span>LOXER Member Marketplace · Transaksi Terproteksi & Bebas Fee</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            <div className="lg:col-span-7 space-y-4">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 backdrop-blur-md">
+                <ShoppingBag className="w-4 h-4 text-cyan-400" />
+                <span>LOXER Member Marketplace · Transaksi Terproteksi & Bebas Fee</span>
+              </div>
+
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                Bursa Produk Digital, Barang Sekon &amp;{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
+                  Perlengkapan Kerja Member
+                </span>
+              </h1>
+
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-3xl">
+                Platform jual-beli dan transaksi resmi untuk seluruh member LOXER — pencari kerja, penyedia jasa mandiri, maupun perusahaan. Temukan peralatan kerja, laptop/komputer sekon, alat bengkel, hingga perlengkapan usaha dengan transaksi aman via WhatsApp langsung atau jaminan platform.
+              </p>
+
+              {/* Action buttons */}
+              <div className="pt-2 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleOpenSellModal}
+                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:brightness-110 shadow-lg shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>+ Jual Produk / Pasang Iklan</span>
+                </button>
+
+                {user ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setIsMyProductsOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/8 hover:bg-white/12 border border-white/15 text-xs sm:text-sm font-semibold text-slate-200 transition"
+                    >
+                      <Package className="w-4 h-4 text-cyan-400" />
+                      <span>Produk Saya ({myProducts.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsTransactionsOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/8 hover:bg-white/12 border border-white/15 text-xs sm:text-sm font-semibold text-slate-200 transition"
+                    >
+                      <Clock className="w-4 h-4 text-amber-400" />
+                      <span>Transaksi Saya ({myTransactions.length})</span>
+                    </button>
+                  </>
+                ) : null}
+
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
+                  <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                  <span>100% Bebas Biaya Admin Bagi Anggota</span>
+                </div>
+              </div>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              Bursa Produk Digital, Barang Sekon &amp;{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
-                Perlengkapan Kerja Member
-              </span>
-            </h1>
-
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-3xl">
-              Platform jual-beli dan transaksi resmi untuk seluruh member LOXER — pencari kerja, penyedia jasa mandiri, maupun perusahaan. Temukan peralatan kerja, laptop/komputer sekon, alat bengkel, hingga perlengkapan usaha dengan transaksi aman via WhatsApp langsung atau jaminan platform.
-            </p>
-
-            {/* Action buttons */}
-            <div className="pt-2 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={handleOpenSellModal}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:brightness-110 shadow-lg shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 cursor-pointer"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>+ Jual Produk / Pasang Iklan</span>
-              </button>
-
-              {user ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setIsMyProductsOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/8 hover:bg-white/12 border border-white/15 text-xs sm:text-sm font-semibold text-slate-200 transition"
-                  >
-                    <Package className="w-4 h-4 text-cyan-400" />
-                    <span>Produk Saya ({myProducts.length})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsTransactionsOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/8 hover:bg-white/12 border border-white/15 text-xs sm:text-sm font-semibold text-slate-200 transition"
-                  >
-                    <Clock className="w-4 h-4 text-amber-400" />
-                    <span>Transaksi Saya ({myTransactions.length})</span>
-                  </button>
-                </>
-              ) : null}
-
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
-                <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                <span>100% Bebas Biaya Admin Bagi Anggota</span>
-              </div>
+            <div className="lg:col-span-5 w-full">
+              <HeroBannerSlideshow
+                initialSlide={3}
+                variant="embedded"
+                onRegister={(role) => {
+                  setAuthInitialRole(role || 'seeker');
+                  setAuthMode('register');
+                }}
+              />
             </div>
           </div>
         </section>

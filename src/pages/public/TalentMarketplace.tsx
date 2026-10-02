@@ -15,6 +15,7 @@ import TalentCard from '../../components/marketplace/TalentCard';
 import TalentDetailModal from '../../components/marketplace/TalentDetailModal';
 import AuthModal from '../auth/AuthModal';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
+import HeroBannerSlideshow from '../../components/banner/HeroBannerSlideshow';
 import { TalentMarketplacePost, UserRole } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
@@ -219,38 +220,48 @@ export default function TalentMarketplace() {
           <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
           <div className="absolute -left-12 -bottom-12 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl" />
 
-          <div className="relative z-10 max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-              <heroContent.icon className="w-3.5 h-3.5 text-cyan-400" />
-              <span>{heroContent.badge}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            <div className="lg:col-span-7 space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                <heroContent.icon className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{heroContent.badge}</span>
+              </div>
+
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                {heroContent.title}{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
+                  {heroContent.highlight}
+                </span>
+              </h1>
+
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+                {heroContent.desc}
+              </p>
+
+              {/* Quick Actions & Seeker Promo */}
+              <div className="pt-2 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleNavigatePost}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 to-teal-300 hover:from-cyan-300 hover:to-teal-200 shadow-lg shadow-cyan-500/20 transition-all transform hover:-translate-y-0.5"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Posting Biodata &amp; Jasa Saya
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
+                  <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                  <span>Transaksi &amp; Rekrutmen Resmi di Platform</span>
+                </div>
+              </div>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              {heroContent.title}{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
-                {heroContent.highlight}
-              </span>
-            </h1>
-
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              {heroContent.desc}
-            </p>
-
-            {/* Quick Actions & Seeker Promo */}
-            <div className="pt-2 flex flex-wrap items-center gap-3">
-              <button
-                onClick={handleNavigatePost}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 to-teal-300 hover:from-cyan-300 hover:to-teal-200 shadow-lg shadow-cyan-500/20 transition-all transform hover:-translate-y-0.5"
-              >
-                <PlusCircle className="w-4 h-4" />
-                Posting Biodata &amp; Jasa Saya
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
-                <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                <span>Transaksi &amp; Rekrutmen Resmi di Platform</span>
-              </div>
+            <div className="lg:col-span-5 w-full">
+              <HeroBannerSlideshow
+                initialSlide={selectedAvailability === 'freelance' ? 2 : 1}
+                variant="embedded"
+                onRegister={handleOpenRegister}
+              />
             </div>
           </div>
         </section>
