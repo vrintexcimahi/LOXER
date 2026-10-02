@@ -2648,7 +2648,7 @@ interface IntegratedJobItem {
 }
 
 function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, message: string) => void }) {
-  const [provider, setProvider] = useState<'all' | 'internal' | 'arbeitnow'>('all');
+  const [provider, setProvider] = useState<'all' | 'internal' | 'arbeitnow' | 'facebook-group'>('all');
   const [keyword, setKeyword] = useState('');
   const [location, setLocation] = useState('Indonesia');
   const [loading, setLoading] = useState(false);
@@ -2723,6 +2723,7 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
 
   const providerTabs = [
     { id: 'all', label: 'Semua Feed (Unified)', desc: 'Agregator terpadu seluruh sumber', icon: Globe },
+    { id: 'facebook-group', label: 'Facebook Group (Vision AI)', desc: 'Loker terekstraksi oleh AI Scraper', icon: Database },
     { id: 'internal', label: 'Mitra Internal LOXER', desc: 'Loker verified employer LOXER', icon: Building2 },
     { id: 'arbeitnow', label: 'Arbeitnow Global', desc: 'Remote & global tech jobs', icon: Briefcase },
   ] as const;
@@ -2886,6 +2887,7 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
           {jobs.map((job, idx) => {
             const isInternal = job.is_internal || job.site === 'LOXER Mitra' || (job.source || '').includes('LOXER');
             const isArbeit = (job.site || '').toLowerCase().includes('arbeitnow') || (job.source || '').toLowerCase().includes('arbeitnow');
+            const isFb = (job.site || '').toLowerCase().includes('facebook') || (job.source || '').toLowerCase().includes('fb');
 
             return (
               <div
@@ -2918,7 +2920,7 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
                           : 'bg-slate-700/50 text-slate-300 border-white/10'
                       )}
                     >
-                      {isInternal ? 'Mitra LOXER' : isArbeit ? 'Arbeitnow' : job.site || 'Aggregator'}
+                      {isInternal ? 'Mitra LOXER' : isFb ? 'Facebook Group AI' : isArbeit ? 'Arbeitnow' : job.site || 'Aggregator'}
                     </span>
                   </div>
 

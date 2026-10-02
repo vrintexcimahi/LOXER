@@ -1,8 +1,16 @@
 import { getPublicIp } from '../services/resilienceService.js';
 
-
 function buildIntegrations() {
   return [
+    {
+      id: 'facebook-group',
+      label: 'Facebook Group AI Scraper (Vision OCR)',
+      configured: true,
+      endpoint: '/api/jobs?provider=facebook-group',
+      docsUrl: '#',
+      mode: 'cdp-vision-agent',
+      note: 'Otomasi background scraper berbasis Playwright CDP & Vision AI 9Router (Gemini Flash). Menyedot lowongan kerja komunitas tanpa menyentuh mouse.',
+    },
     {
       id: 'internal',
       label: 'Mitra Internal LOXER',

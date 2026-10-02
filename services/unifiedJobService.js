@@ -1,3 +1,4 @@
+import { searchFacebookScrapedJobs } from './fbScraperJobService.js';
 /**
  * Unified Job Aggregator Service for LOXER
  * Integrates: Careerjet (Regional), Arbeitnow (Public Feed), & Internal LOXER DB
@@ -45,6 +46,18 @@ export async function searchUnifiedJobs(params = {}) {
     return response;
   }
 
+
+  if (provider === 'facebook-group') {
+    const result = searchFacebookScrapedJobs({ keywords, location, page });
+    const response = {
+      jobs: result.jobs,
+      hits: result.hits,
+      pages: result.pages,
+      provider: 'facebook-group',
+    };
+    jobSearchCache.set(cacheKey, response);
+    return response;
+  }
 
   if (provider === 'arbeitnow') {
     const result = await searchArbeitnowJobs({ keywords, location, page });
