@@ -144,7 +144,7 @@ export default function HeroBannerSlideshow({
         <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500/20 via-sky-500/10 to-teal-500/20 blur-xl opacity-75 group-hover:opacity-100 transition duration-1000 -z-10" />
 
         {/* Outer Frame with glassy border - Large hero display */}
-        <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-cyan-400/30 bg-slate-950/90 shadow-2xl shadow-cyan-950/60 ring-1 ring-white/10 w-full aspect-[16/9] sm:aspect-[2/1] lg:aspect-[2.35/1] max-h-[380px] sm:max-h-[440px]">
+        <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-cyan-400/30 bg-slate-950 shadow-2xl shadow-cyan-950/60 ring-1 ring-white/10 w-full aspect-[16/9]">
           {/* Slides Track */}
           <div
             className="flex h-full w-full transition-transform duration-700 ease-out"
@@ -154,7 +154,7 @@ export default function HeroBannerSlideshow({
               <div
                 key={slide.id}
                 onClick={() => handleSlideClick(slide)}
-                className="relative min-w-full h-full cursor-pointer overflow-hidden flex-shrink-0"
+                className="relative min-w-full w-full h-full cursor-pointer overflow-hidden flex-shrink-0 bg-slate-950 flex items-center justify-center"
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -168,11 +168,11 @@ export default function HeroBannerSlideshow({
                   src={slide.image}
                   alt={slide.alt}
                   loading={idx === 0 ? 'eager' : 'lazy'}
-                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.02]"
+                  className="w-full h-full object-contain bg-slate-950 object-center block"
                 />
 
-                {/* Subtle dark gradient overlay on bottom for depth */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
+                {/* Subtle dark gradient overlay at bottom for pagination dots contrast */}
+                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/70 to-transparent pointer-events-none" />
 
                 {/* Top Badge */}
                 <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10">
@@ -253,7 +253,7 @@ export default function HeroBannerSlideshow({
             <div
               key={slide.id}
               onClick={() => handleSlideClick(slide)}
-              className="relative min-w-full h-full cursor-pointer overflow-hidden flex-shrink-0"
+              className="relative min-w-full w-full h-full cursor-pointer overflow-hidden flex-shrink-0 bg-slate-950 flex items-center justify-center"
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
@@ -267,8 +267,9 @@ export default function HeroBannerSlideshow({
                 src={slide.image}
                 alt={slide.alt}
                 loading={idx === 0 ? 'eager' : 'lazy'}
-                className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.02]"
+                className="w-full h-full object-contain bg-slate-950 object-center block"
               />
+              <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/70 to-transparent pointer-events-none" />
               <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/70 backdrop-blur-md px-3 py-1 text-[10px] sm:text-xs font-semibold text-cyan-300 border border-cyan-400/30 shadow-lg">
                   <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />

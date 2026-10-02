@@ -246,27 +246,7 @@ export default function JobList({
             </button>
           </div>
         </div>
-
-        {/* Provider Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {PROVIDER_TAGS.map((tag) => {
-            const active = provider === tag.id;
-            return (
-              <button
-                key={tag.id}
-                type="button"
-                onClick={() => handleProviderSelect(tag.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  active
-                    ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/25'
-                    : 'bg-slate-900 border border-white/10 text-slate-400 hover:text-white hover:border-white/20'
-                }`}
-              >
-                {tag.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Provider Pills hidden per user request: jobs continue to load from all sources unified */}
 
         {/* Category Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
