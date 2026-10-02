@@ -1,4 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createClient } from '@supabase/supabase-js';
@@ -839,6 +841,29 @@ export default defineConfig(({ mode }) => {
       {
         name: 'job-api-integrations-proxy',
         configureServer(server) {
+          server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+            const urlPath = req.url?.split('?')[0];
+            if (urlPath === '/downloads/loxer-app.apk') {
+              const candidatePaths = [
+                path.resolve(process.cwd(), 'dist/downloads/loxer-app.apk'),
+                path.resolve(process.cwd(), 'public/downloads/loxer-app.apk'),
+              ];
+              for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                  const stat = fs.statSync(p);
+                  res.writeHead(200, {
+                    'Content-Type': 'application/vnd.android.package-archive',
+                    'Content-Disposition': 'attachment; filename="loxer-app.apk"',
+                    'Content-Length': stat.size,
+                    'Cache-Control': 'public, max-age=86400',
+                  });
+                  fs.createReadStream(p).pipe(res);
+                  return;
+                }
+              }
+            }
+            next();
+          });
           server.middlewares.use(localDbMiddleware);
           server.middlewares.use(apiJobsMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
@@ -849,6 +874,29 @@ export default defineConfig(({ mode }) => {
           server.middlewares.use(authCapabilitiesMiddleware);
         },
         configurePreviewServer(server) {
+          server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+            const urlPath = req.url?.split('?')[0];
+            if (urlPath === '/downloads/loxer-app.apk') {
+              const candidatePaths = [
+                path.resolve(process.cwd(), 'dist/downloads/loxer-app.apk'),
+                path.resolve(process.cwd(), 'public/downloads/loxer-app.apk'),
+              ];
+              for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                  const stat = fs.statSync(p);
+                  res.writeHead(200, {
+                    'Content-Type': 'application/vnd.android.package-archive',
+                    'Content-Disposition': 'attachment; filename="loxer-app.apk"',
+                    'Content-Length': stat.size,
+                    'Cache-Control': 'public, max-age=86400',
+                  });
+                  fs.createReadStream(p).pipe(res);
+                  return;
+                }
+              }
+            }
+            next();
+          });
           server.middlewares.use(localDbMiddleware);
           server.middlewares.use(apiJobsMiddleware);
           server.middlewares.use(integrationsStatusMiddleware);
