@@ -120,6 +120,11 @@ export function getLocalDb() {
     } catch {
       // Column already exists
     }
+    try {
+      dbInstance.exec('ALTER TABLE job_listings ADD COLUMN expires_at TEXT;');
+    } catch {
+      // Column already exists
+    }
 
     // Role check constraint migration for users_meta (adds 'superadmin' and 'freelancer')
     try {
