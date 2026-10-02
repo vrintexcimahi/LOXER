@@ -437,3 +437,27 @@ CREATE TABLE IF NOT EXISTS fb_scraped_posts (
 CREATE INDEX IF NOT EXISTS idx_fb_scraped_url ON fb_scraped_posts(post_url);
 CREATE INDEX IF NOT EXISTS idx_fb_scraped_category ON fb_scraped_posts(category);
 
+-- 27. Jasa Ads (Katalog Iklan Jasa)
+CREATE TABLE IF NOT EXISTS jasa_ads (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'Lainnya',
+  description TEXT NOT NULL DEFAULT '',
+  price INTEGER NOT NULL DEFAULT 0,
+  price_type TEXT NOT NULL DEFAULT 'fixed' CHECK (price_type IN ('fixed', 'nego', 'hourly')),
+  city TEXT NOT NULL DEFAULT '',
+  whatsapp TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'pending', 'rejected', 'suspended')),
+  views_count INTEGER NOT NULL DEFAULT 0,
+  rating REAL DEFAULT 0,
+  review_count INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_jasa_ads_status ON jasa_ads(status);
+CREATE INDEX IF NOT EXISTS idx_jasa_ads_category ON jasa_ads(category);
+CREATE INDEX IF NOT EXISTS idx_jasa_ads_user ON jasa_ads(user_id);
+
+
