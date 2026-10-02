@@ -62,9 +62,10 @@ export function useTalentCatalog(onToast: (type: ToastType, message: string) => 
       } else if (data) {
         setTalents(data as TalentMarketplacePost[]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[useTalentCatalog Error]:', err);
-      onToast('error', `Gagal memuat katalog pelamar: ${err.message}`);
+      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      onToast('error', `Gagal memuat katalog pelamar: ${errMsg}`);
     } finally {
       setLoading(false);
     }
@@ -93,8 +94,9 @@ export function useTalentCatalog(onToast: (type: ToastType, message: string) => 
         'success',
         `Status ${talent.headline} diubah menjadi ${newStatus === 1 ? 'Aktif (Tayang)' : 'Nonaktif (Draft)'}.`
       );
-    } catch (err: any) {
-      onToast('error', `Gagal mengubah status publikasi: ${err.message}`);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      onToast('error', `Gagal mengubah status publikasi: ${errMsg}`);
     }
   };
 
@@ -107,8 +109,9 @@ export function useTalentCatalog(onToast: (type: ToastType, message: string) => 
       if (error) throw error;
       setTalents((prev) => prev.filter((t) => t.id !== talentId));
       onToast('success', `Talent "${headline}" berhasil dihapus.`);
-    } catch (err: any) {
-      onToast('error', `Gagal menghapus talent: ${err.message}`);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      onToast('error', `Gagal menghapus talent: ${errMsg}`);
     }
   };
 
@@ -874,6 +877,22 @@ export function AdminTalentCatalogSection({
   );
 }
 
+interface PdfJsPage {
+  getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
+  getViewport: (options: { scale: number }) => { width: number; height: number };
+  render: (options: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> };
+}
+
+interface PdfJsDoc {
+  numPages: number;
+  getPage: (num: number) => Promise<PdfJsPage>;
+}
+
+interface PdfJsLibrary {
+  GlobalWorkerOptions: { workerSrc: string };
+  getDocument: (options: { data: ArrayBuffer }) => { promise: Promise<PdfJsDoc> };
+}
+
 // ==============================================================================
 // SECTION: SmartAddCvSection (AI Multimodal CV Parser & Extractor [Gemini 3.8])
 // ==============================================================================
@@ -887,7 +906,7 @@ export function SmartAddCvSection({
   const [inputMode, setInputMode] = useState<'file' | 'text'>('file');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [selectedFileSize, setSelectedFileSize] = useState('');
-  const [fileType, setFileType] = useState<'pdf' | 'image' | 'text'>('file' as any);
+  const [fileType, setFileType] = useState<'pdf' | 'image' | 'text' | 'file'>('file');
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [fileBase64, setFileBase64] = useState<string>('');
   const [cvText, setCvText] = useState<string>('');
@@ -921,15 +940,16 @@ export function SmartAddCvSection({
   const [isPublishing, setIsPublishing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadPdfJs = async () => {
+  const loadPdfJs = async (): Promise<PdfJsLibrary | null> => {
     if (typeof window === 'undefined') return null;
-    if ((window as any).pdfjsLib) return (window as any).pdfjsLib;
+    const win = window as unknown as Window & { pdfjsLib?: PdfJsLibrary };
+    if (win.pdfjsLib) return win.pdfjsLib;
 
-    return new Promise((resolve, reject) => {
+    return new Promise<PdfJsLibrary>((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
       script.onload = () => {
-        const pdfjs = (window as any).pdfjsLib;
+        const pdfjs = (window as unknown as Window & { pdfjsLib?: PdfJsLibrary }).pdfjsLib;
         if (pdfjs) {
           pdfjs.GlobalWorkerOptions.workerSrc =
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -975,7 +995,7 @@ export function SmartAddCvSection({
           for (let i = 1; i <= pagesToRead; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            const textItems = textContent.items.map((item: any) => item.str).join(' ');
+            const textItems = textContent.items.map((item) => item.str || '').join(' ');
             extractedFullText += `\n--- Halaman ${i} ---\n` + textItems;
 
             if (i === 1) {
@@ -997,7 +1017,7 @@ export function SmartAddCvSection({
           onToast('info', `Berkas PDF "${file.name}" (${pdf.numPages} halaman) siap diproses.`);
           return;
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('PDF.js client parse warning:', err);
       }
 
@@ -1134,12 +1154,13 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       setIsExtracting(false);
       setExtractStep(0);
       onToast('success', 'Biodata CV berhasil diekstrak oleh Agen AI Gemini 3.8!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[SmartAddCv Extract Error]:', err);
       setIsExtracting(false);
       setExtractStep(0);
-      setExtractError(err.message || 'Gagal mengekstrak biodata CV.');
-      onToast('error', `Gagal ekstrak CV: ${err.message}`);
+      const errMsg = err instanceof Error ? err.message : 'Gagal mengekstrak biodata CV.';
+      setExtractError(errMsg);
+      onToast('error', `Gagal ekstrak CV: ${errMsg}`);
     }
   };
 
@@ -1241,8 +1262,9 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
       onToast('success', `Pelamar "${formData.full_name}" berhasil diterbitkan ke Bursa Talent LOXER!`);
       onSaved();
-    } catch (err: any) {
-      onToast('error', `Gagal menerbitkan pelamar: ${err.message}`);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      onToast('error', `Gagal menerbitkan pelamar: ${errMsg}`);
     } finally {
       setIsPublishing(false);
     }
@@ -1565,7 +1587,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   </label>
                   <select
                     value={formData.rate_type}
-                    onChange={(e) => setFormData({ ...formData, rate_type: e.target.value as any })}
+                    onChange={(e) => setFormData({ ...formData, rate_type: e.target.value as 'monthly' | 'hourly' | 'project' })}
                     className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
                   >
                     <option value="monthly">Per Bulan</option>
