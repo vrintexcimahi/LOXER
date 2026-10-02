@@ -237,14 +237,13 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/users': <AdminDashboard tab="users" />,
         '/admin/user-data': <AdminDashboard tab="users" subTab="intelligence" />,
         '/admin/devices': <AdminDashboard tab="users" subTab="devices" />,
-        '/admin/jobs': <AdminDashboard tab="jobs" />,
         '/admin/applications': <AdminDashboard tab="applications" />,
         '/admin/companies': <AdminDashboard tab="companies" />,
         '/admin/integrations': <AdminDashboard tab="integrations" />,
         '/admin/moderation': <ModerationQueue />,
       };
       
-      if (path === '/admin/editor') {
+      if (path === '/admin/editor' || path === '/admin/jobs') {
         window.location.href = '/admin/dashboard';
         return null;
       }

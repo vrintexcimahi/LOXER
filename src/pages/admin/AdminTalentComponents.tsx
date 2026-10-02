@@ -1032,7 +1032,7 @@ export function SmartAddCvSection({
     setFileType('pdf');
     const samplePhoto = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
     setFilePreviewUrl(samplePhoto);
-    setFileBase64(samplePhoto);
+    setFileBase64('');
     setCvText(`CURRICULUM VITAE
 Nama: AZQY AHMAD SAPUTRA
 Posisi Target: Operator Gudang & Packing / Logistik

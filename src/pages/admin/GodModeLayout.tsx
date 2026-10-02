@@ -1,7 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import {
   AlertTriangle,
-  Briefcase,
   Building2,
   ChevronLeft,
   Home,
@@ -45,7 +44,6 @@ function classNames(...values: Array<string | false | null | undefined>) {
 const CORE_ITEMS: NavItem[] = [
   { href: '/admin/dashboard', label: 'Dashboard Admin', description: 'Pantau statistik dan kesehatan platform', icon: Home },
   { href: '/admin/users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', icon: Users },
-  { href: '/admin/jobs', label: 'Manajemen Jobs', description: 'Atur seluruh lowongan yang tayang', icon: Briefcase },
   { href: '/admin/applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', icon: ListChecks },
   { href: '/admin/companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', icon: Building2 },
   { href: '/admin/integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', icon: Link2 },
@@ -54,7 +52,6 @@ const CORE_ITEMS: NavItem[] = [
 const MOBILE_NAV_ITEMS: { href: string; label: string; icon: typeof Home }[] = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: Home },
   { href: '/admin/users', label: 'Users', icon: Users },
-  { href: '/admin/jobs', label: 'Jobs', icon: Briefcase },
   { href: '/admin/applications', label: 'Pelamar', icon: ListChecks },
   { href: '/admin/companies', label: 'Perusahaan', icon: Building2 },
 ];

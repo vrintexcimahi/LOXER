@@ -171,15 +171,32 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
       'Kembalikan sekarang HANYA objek JSON yang valid:',
   });
 
-  if (imageBase64) {
-    let formattedUrl = imageBase64;
-    if (!formattedUrl.startsWith('data:image/')) {
+  if (imageBase64 && typeof imageBase64 === 'string') {
+    let formattedUrl = null;
+    if (imageBase64.startsWith('http://') || imageBase64.startsWith('https://')) {
+      try {
+        const imgResp = await fetch(imageBase64);
+        if (imgResp.ok) {
+          const arrayBuf = await imgResp.arrayBuffer();
+          const mime = imgResp.headers.get('content-type') || 'image/jpeg';
+          const b64 = Buffer.from(arrayBuf).toString('base64');
+          formattedUrl = `data:${mime};base64,${b64}`;
+        }
+      } catch (err) {
+        console.warn('[smartCvExtractorService] Failed to fetch image URL for inline_data:', err.message);
+      }
+    } else if (imageBase64.startsWith('data:image/')) {
+      formattedUrl = imageBase64;
+    } else if (/^[A-Za-z0-9+/=]+$/.test(imageBase64.slice(0, 100))) {
       formattedUrl = `data:image/jpeg;base64,${imageBase64}`;
     }
-    userContent.push({
-      type: 'image_url',
-      image_url: { url: formattedUrl },
-    });
+
+    if (formattedUrl) {
+      userContent.push({
+        type: 'image_url',
+        image_url: { url: formattedUrl },
+      });
+    }
   }
 
   const endpoint = `${ROUTER_BASE_URL.replace(/\/+$/, '')}/chat/completions`;

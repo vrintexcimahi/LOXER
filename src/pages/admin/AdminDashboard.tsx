@@ -254,11 +254,16 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
+  useEffect(() => {
+    if (activeTab === 'jobs') {
+      window.location.replace('/admin/dashboard');
+    }
+  }, [activeTab]);
+
   const menuItems: AdminMenuItem[] = useMemo(
     () => [
       { key: 'overview', label: 'Dashboard Admin', description: 'Pantau statistik dan kesehatan platform', href: '/admin/dashboard', icon: Home },
       { key: 'users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', href: '/admin/users', icon: Users },
-      { key: 'jobs', label: 'Manajemen Jobs', description: 'Atur seluruh lowongan yang tayang', href: '/admin/jobs', icon: Briefcase },
       { key: 'applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', href: '/admin/applications', icon: ListChecks },
       { key: 'companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', href: '/admin/companies', icon: Building2 },
       { key: 'integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', href: '/admin/integrations', icon: Link2 },
@@ -525,7 +530,6 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
               {[
                 { href: '/admin/dashboard', label: 'Dashboard', icon: Home, key: 'overview' },
                 { href: '/admin/users', label: 'Users', icon: Users, key: 'users' },
-                { href: '/admin/jobs', label: 'Jobs', icon: Briefcase, key: 'jobs' },
                 { href: '/admin/applications', label: 'Pelamar', icon: ListChecks, key: 'applications' },
                 { href: '/admin/companies', label: 'Perusahaan', icon: Building2, key: 'companies' },
               ].map((item) => {
