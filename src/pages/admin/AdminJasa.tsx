@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Tag,
+  type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -54,7 +55,7 @@ function SkeletonBlock({ className }: { className: string }) {
   return <div className={classNames('animate-pulse rounded-xl bg-slate-800/80', className)} />;
 }
 
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: number; icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; color: string }) {
+function StatCard({ label, value, icon: Icon, color }: { label: string; value: number; icon: LucideIcon; color: string }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-slate-900/60 p-4 backdrop-blur">
       <div className="flex items-center gap-3">
@@ -266,7 +267,7 @@ function KatalogJasaTab({ adminId, adminEmail, onToast }: { adminId: string; adm
       if (error && (error as unknown as { code?: string }).code !== 'PGRST116') throw error;
       setAds((data as JasaAd[]) ?? []);
       setTotal(count ?? 0);
-    } catch (_err) {
+    } catch {
       setAds([]); setTotal(0);
     } finally { setLoading(false); }
   }, [page, search, statusFilter, categoryFilter]);
@@ -398,7 +399,7 @@ type JasaSubTab = 'providers' | 'catalog';
 
 export default function AdminJasa({ adminId, adminEmail, onToast }: { adminId: string; adminEmail: string; onToast: (type: ToastType, msg: string) => void }) {
   const [subTab, setSubTab] = useState<JasaSubTab>('providers');
-  const TABS: { key: JasaSubTab; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[] = [
+  const TABS: { key: JasaSubTab; label: string; icon: LucideIcon }[] = [
     { key: 'providers', label: 'Penyedia Jasa', icon: Users },
     { key: 'catalog', label: 'Katalog Iklan Jasa', icon: LayoutGrid },
   ];
