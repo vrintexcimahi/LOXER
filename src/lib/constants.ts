@@ -22,7 +22,7 @@ export function isDefaultAdminEmail(value: string | null | undefined) {
 }
 
 export const APPLICATION_STATUS_TRANSITIONS: Record<string, string[]> = {
-  applied: ['reviewed', 'shortlisted', 'rejected', 'expired'],
+  applied: ['reviewed', 'shortlisted', 'interview_scheduled', 'rejected', 'expired'],
   reviewed: ['shortlisted', 'interview_scheduled', 'rejected', 'expired'],
   shortlisted: ['interview_scheduled', 'hired', 'rejected', 'expired'],
   interview_scheduled: ['hired', 'rejected', 'expired'],

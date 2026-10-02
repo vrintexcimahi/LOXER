@@ -41,6 +41,25 @@ function notifyAuthChange(event: 'SIGNED_IN' | 'SIGNED_OUT' | 'USER_UPDATED', se
   });
 }
 
+if (typeof window !== 'undefined') {
+  window.addEventListener('loxer:sim-session-switched', async () => {
+    try {
+      const { data } = await localClient.auth.getSession();
+      notifyAuthChange(data.session ? 'SIGNED_IN' : 'SIGNED_OUT', data.session);
+    } catch {
+      // ignore
+    }
+  });
+  window.addEventListener('loxer:sim-session-cleared', async () => {
+    try {
+      const { data } = await localClient.auth.getSession();
+      notifyAuthChange(data.session ? 'SIGNED_IN' : 'SIGNED_OUT', data.session);
+    } catch {
+      // ignore
+    }
+  });
+}
+
 export interface QueryResult<T = unknown> {
   data: T | null;
   error: { message: string } | null;
@@ -140,6 +159,16 @@ class QueryBuilder<T = unknown> implements PromiseLike<QueryResult<T>> {
 
   like(column: string, value: string) {
     this.filters.push({ column, op: 'like', value });
+    return this;
+  }
+
+  is(column: string, value: unknown) {
+    this.filters.push({ column, op: 'is', value });
+    return this;
+  }
+
+  not(column: string, op: string, value: unknown) {
+    this.filters.push({ column, op: `not_${op}`, value });
     return this;
   }
 

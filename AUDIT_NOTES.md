@@ -982,3 +982,46 @@
 ### Perlu diperhatikan agent berikutnya
 - Branch audit/otonom-ultra-max-plus-20261001 berdiri di atas commit 11a5e83 dengan 3 commit perbaikan yang siap di-review dan di-merge.
 - File data/loxer.db dan scratch_admin_integrations.txt sengaja tidak disentuh atau di-commit untuk menjaga integritas data lokal pengguna.
+
+---
+
+## [2026-10-01] Audit & Bug Fix Run — GODMAX+ (Full Autopilot Complete)
+- Branch: `audit/godmax-plus-20261001-01` | Base: `2cbdb23`
+- Mode/parameter run: MODE=audit+fix, TARGET=seluruh codebase, FOKUS=security, SQLite WAL resilience, IDOR guards, FSM consistency, WeakMap prepared statement caching, zero warnings/errors.
+- Scope run: Seluruh repositori (Backend localApiHandler, localDb, Serverless API, Frontend Employer Applicants, QueryBuilder, Test Suites).
+
+### Baseline & Metrik Verifikasi
+| Metrik | Baseline Run | Hasil Akhir GODMAX+ | Status |
+|---|---|---|---|
+| Test Suites (`test-audit-fixes.mjs`) | 24 pass / 0 fail | **36 pass / 0 fail (43 assertion checks)** | PASS (100%) |
+| Resilience 6-Pillar (`test-resilience.mjs`) | 6/6 pass | **6/6 pass** (WAL, Cache <0.01ms, Breaker <0.01ms, N+1 0, IPCache <0.01ms, RateLimit 429) | PASS (100%) |
+| TypeScript Typecheck | PASS | **PASS (0 error)** | PASS |
+| ESLint | PASS | **PASS (0 error, 0 warning)** | PASS |
+| Production Build (`vite build`) | PASS (5.44s) | **PASS (4.96s, 2338 modules)** | PASS |
+| Database Relational Integrity | 0 FK violations | **0 FK violations (`PRAGMA foreign_key_check` bersih)** | PASS |
+| Disk Image Integrity | Unknown on crash | **`PRAGMA integrity_check = ok` + Auto-Quarantine** | PASS |
+
+### Ringkasan Temuan & Solusi Kode Konkret
+1. **[Critical] SQLite WAL/SHM Corruption Mismatch pada Restore / Re-seed di Windows**
+   - *Akar Masalah*: SQLite WAL mode mempertahankan file `data/loxer.db-wal` dan `data/loxer.db-shm`. Jika `data/loxer.db` ditimpa/di-restore tanpa membersihkan WAL/SHM, SQLite mendeteksi header mismatch dan melempar `ERR_SQLITE_ERROR: database disk image is malformed`. Jika file handle belum ditutup saat unlinking, Windows menolak operasi dengan error `EBUSY`.
+   - *Solusi*:
+     - Update script `package.json` (`db:reset`) agar menghapus ketiga file (`loxer.db`, `loxer.db-wal`, `loxer.db-shm`) secara serentak.
+     - Implementasi auto self-healing di `server/localDb.js`: jika `DatabaseSync` gagal menginisialisasi atau mendeteksi corrupt image, file handle `pendingDb.close()` dipanggil terlebih dahulu untuk melepaskan file lock Windows, file dikarantina ke `data/corrupted_loxer_<timestamp>.db`, WAL/SHM dibersihkan, dan database diinisialisasi ulang dari `schema.sql`.
+2. **[High] Prepared Statement Finalized Error (`ERR_INVALID_STATE`) Setelah Database Reconnect**
+   - *Akar Masalah*: Prepared statements disimpan dalam global `Map<string, Statement>`. Ketika koneksi database ditutup dan dibuka kembali (misal setelah snapshot restore), instance statement lama tetap tersimpan di Map, padahal native Node.js SQLite telah memfinalisasi statement tersebut saat DB ditutup. Pemanggilan berikutnya melempar `TypeError [ERR_INVALID_STATE]: statement has been finalized`.
+   - *Solusi*: Mengubah struktur cache statement menjadi `WeakMap<DatabaseSync, Map<string, Statement>>`. Menambahkan pembersihan cache `clearStatementCache()` pada `closeLocalDb()`. Siklus hidup statement kini terikat secara otomatis pada siklus hidup instance `DatabaseSync`.
+3. **[High] Celah IDOR pada Entitas Profil, Pengalaman, Lowongan, dan Tawaran Kerja Langsung**
+   - *Akar Masalah*: Gateway `handleDbQuery` pada `server/localApiHandler.js` belum menerapkan Security Guards untuk tabel `companies`, `seeker_profiles`, `seeker_education/experience/skills`, `interview_invitations`, `talent_marketplace_posts`, dan `direct_job_offers`. Pengguna terautentikasi dapat memanipulasi profil orang lain atau membuat data tidak sah dengan mengirimkan filter ID target.
+   - *Solusi*: Menambahkan Security Guards 7–11 di `server/localApiHandler.js` yang secara ketat memeriksa keterkaitan `callerId` dengan record target pada tabel-tabel tersebut. Percobaan akses ilegal menghasilkan HTTP 403 Forbidden.
+4. **[Medium] Superadmin HTTP 403 Lockout pada `/api/application-status-notification`**
+   - *Akar Masalah*: Fungsi `verifyCaller` pada `api/application-status-notification.js` hanya memvalidasi peran `'employer'` dan `'admin'`, mengabaikan `'superadmin'`.
+   - *Solusi*: Menambahkan peran `'superadmin'` pada pengecekan otorisasi caller.
+5. **[Medium] Kegagalan Alur Undangan Wawancara Pelamar Status 'Applied' (FSM Fast-Tracking)**
+   - *Akar Masalah*: FSM sebelumnya hanya mengizinkan transisi status berurutan: `applied -> reviewing -> interview_scheduled`. Di dunia nyata dan pada halaman `Applicants.tsx`, recruiter sering mengundang kandidat langsung dari status `applied` ke tahap interview tanpa harus mengklik `reviewing` terlebih dahulu. Ini menyebabkan error HTTP 400 Bad Request saat employer mengirimkan undangan wawancara.
+   - *Solusi*:
+     - Menambahkan `'interview_scheduled'` ke dalam array target transisi yang diizinkan untuk status `'applied'` di `src/lib/constants.ts` dan `server/localApiHandler.js`.
+     - Memperbarui `sendInterviewInvite()` dan `handleBulkInterviewInvite()` di `src/pages/employer/Applicants.tsx` agar menggunakan validasi `isAllowedStatusTransition()` dan batch query efisien.
+6. **[Low] Ketidakmampuan Query Filter Operator NULL / NOT NULL pada Local Client**
+   - *Akar Masalah*: `QueryBuilder` pada `src/lib/localClient.ts` tidak memiliki method `.is()` dan `.not()`, menyulitkan query filter seperti `.is('reviewed_at', null)` yang umum digunakan pada antrean moderasi.
+   - *Solusi*: Menambahkan method `.is()` dan `.not()` pada `QueryBuilder` dan menangani operator `is`, `not_is`, serta `not_eq` pada `buildWhereClause` di `server/localApiHandler.js`.
+

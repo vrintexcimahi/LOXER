@@ -4,6 +4,7 @@ import { JobListing } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { queueApplicationOffline, getQueuedApplications } from '../../lib/offlineSyncService';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 
 interface JobCardProps {
   job: JobListing;
@@ -44,6 +45,7 @@ function formatSalary(min?: number | null, max?: number | null) {
 
 export default function JobCard({ job, appliedJobIds = [], onApplied, onClick }: JobCardProps) {
   const { user, userMeta } = useAuth();
+  const { requireApp } = useAppAccess();
   const [applying, setApplying] = useState(false);
   const [justApplied, setJustApplied] = useState(false);
   const isQueuedOffline = getQueuedApplications().some((q) => q.jobId === job.id);
@@ -51,6 +53,9 @@ export default function JobCard({ job, appliedJobIds = [], onApplied, onClick }:
 
   async function handleApply(e: React.MouseEvent) {
     e.stopPropagation();
+    if (!requireApp('Melamar Lowongan Pekerjaan')) {
+      return;
+    }
     if (!user || !userMeta || userMeta.role !== 'seeker' || isApplied) return;
     setApplying(true);
     try {

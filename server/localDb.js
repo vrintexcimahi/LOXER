@@ -20,25 +20,78 @@ const JWT_EXPIRES_DAYS = 7;
 
 let dbInstance = null;
 
+export function closeLocalDb() {
+  clearStatementCache();
+  if (dbInstance) {
+    try {
+      dbInstance.close();
+    } catch {
+      // ignore
+    }
+    dbInstance = null;
+  }
+}
+
 export function getLocalDb() {
   if (!dbInstance) {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
-    dbInstance = new DatabaseSync(DB_FILE);
-    dbInstance.exec('PRAGMA journal_mode = WAL;');
-    dbInstance.exec('PRAGMA synchronous = NORMAL;');
-    dbInstance.exec('PRAGMA busy_timeout = 5000;');
-    dbInstance.exec('PRAGMA cache_size = -64000;');
-    dbInstance.exec('PRAGMA temp_store = MEMORY;');
-    dbInstance.exec('PRAGMA foreign_keys = ON;');
+    let pendingDb = null;
+    const initDbConnection = () => {
+      const db = new DatabaseSync(DB_FILE);
+      pendingDb = db;
+      db.exec('PRAGMA journal_mode = WAL;');
+      db.exec('PRAGMA synchronous = NORMAL;');
+      db.exec('PRAGMA busy_timeout = 5000;');
+      db.exec('PRAGMA cache_size = -64000;');
+      db.exec('PRAGMA temp_store = MEMORY;');
+      db.exec('PRAGMA foreign_keys = ON;');
 
+      // Auto-init schema if tables don't exist
+      if (fs.existsSync(SCHEMA_FILE)) {
+        const schemaSql = fs.readFileSync(SCHEMA_FILE, 'utf8');
+        db.exec(schemaSql);
+      }
+      pendingDb = null;
+      return db;
+    };
 
-    // Auto-init schema if tables don't exist
-    if (fs.existsSync(SCHEMA_FILE)) {
-      const schemaSql = fs.readFileSync(SCHEMA_FILE, 'utf8');
-      dbInstance.exec(schemaSql);
+    try {
+      dbInstance = initDbConnection();
+    } catch (err) {
+      if (pendingDb) {
+        try { pendingDb.close(); } catch {}
+        pendingDb = null;
+      }
+      if (err.message && (err.message.includes('malformed') || err.message.includes('corrupt'))) {
+        console.error('[localDb] CRITICAL: SQLite disk image is malformed! Executing automated self-healing...');
+        try {
+          const timestamp = Date.now();
+          const corruptBackup = path.join(DATA_DIR, `corrupted_loxer_${timestamp}.db`);
+          if (fs.existsSync(DB_FILE)) {
+            try { fs.copyFileSync(DB_FILE, corruptBackup); } catch {}
+            try { fs.rmSync(DB_FILE, { force: true }); } catch {}
+          }
+          const walPath = `${DB_FILE}-wal`;
+          const shmPath = `${DB_FILE}-shm`;
+          if (fs.existsSync(walPath)) {
+            try { fs.rmSync(walPath, { force: true }); } catch {}
+          }
+          if (fs.existsSync(shmPath)) {
+            try { fs.rmSync(shmPath, { force: true }); } catch {}
+          }
+
+          dbInstance = initDbConnection();
+          console.warn(`[localDb] Automated self-healing succeeded: clean database re-initialized from schema. Corrupted file archived to ${corruptBackup}`);
+        } catch (healErr) {
+          console.error('[localDb] Self-healing failed:', healErr);
+          throw err;
+        }
+      } else {
+        throw err;
+      }
     }
 
     // Incremental column migrations for existing SQLite databases
@@ -187,6 +240,7 @@ export function getLocalDb() {
         try {
           purgeOldAuditLogs(90);
           purgeOldActivityLogs(60);
+          notifyExpiringJobListings(3);
         } catch {
           // ignore
         }
@@ -284,22 +338,29 @@ export function verifyToken(token) {
 // Database Operations Helper & Statement Caching Engine
 // ---------------------------------------------------------------------------
 
-const statementCache = new Map();
+const dbStatementCaches = new WeakMap();
 const MAX_STATEMENT_CACHE_ENTRIES = 250;
 
 export function clearStatementCache() {
-  statementCache.clear();
+  if (dbInstance) {
+    dbStatementCaches.delete(dbInstance);
+  }
 }
 
 function getCachedStatement(db, sql) {
-  let stmt = statementCache.get(sql);
+  let cache = dbStatementCaches.get(db);
+  if (!cache) {
+    cache = new Map();
+    dbStatementCaches.set(db, cache);
+  }
+  let stmt = cache.get(sql);
   if (!stmt) {
-    if (statementCache.size >= MAX_STATEMENT_CACHE_ENTRIES) {
-      const oldestKey = statementCache.keys().next().value;
-      if (oldestKey) statementCache.delete(oldestKey);
+    if (cache.size >= MAX_STATEMENT_CACHE_ENTRIES) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey) cache.delete(oldestKey);
     }
     stmt = db.prepare(sql);
-    statementCache.set(sql, stmt);
+    cache.set(sql, stmt);
   }
   return stmt;
 }
@@ -509,14 +570,7 @@ export function restoreDatabaseSnapshot(filename) {
   }
 
   // Close active DatabaseSync connection if open
-  if (dbInstance) {
-    try {
-      dbInstance.close();
-    } catch {
-      // ignore
-    }
-    dbInstance = null;
-  }
+  closeLocalDb();
 
   // Remove active WAL and SHM files to avoid conflict
   const walPath = `${DB_FILE}-wal`;
@@ -553,5 +607,75 @@ export function purgeOldActivityLogs(maxDays = 60) {
   const cutoff = new Date(Date.now() - maxDays * 24 * 60 * 60 * 1000).toISOString();
   const res = db.prepare('DELETE FROM user_activity_logs WHERE created_at < ?').run(cutoff);
   return res.changes;
+}
+
+export function notifyExpiringJobListings(daysThreshold = 3) {
+  const db = getLocalDb();
+  try {
+    const expiringJobs = db.prepare(`
+      SELECT j.id, j.title, j.expires_at, c.user_id as employer_user_id, c.name as company_name
+      FROM job_listings j
+      JOIN companies c ON c.id = j.company_id
+      WHERE j.status = 'active'
+        AND j.expires_at IS NOT NULL
+        AND j.expires_at > datetime('now')
+        AND j.expires_at <= datetime('now', '+' || ? || ' days')
+    `).all(daysThreshold);
+
+    let notifiedCount = 0;
+    for (const job of expiringJobs) {
+      if (!job.employer_user_id) continue;
+
+      const existing = db.prepare(`
+        SELECT id FROM notifications
+        WHERE user_id = ?
+          AND type = 'job_expiring'
+          AND created_at >= datetime('now', '-3 days')
+          AND metadata LIKE ?
+        LIMIT 1
+      `).get(job.employer_user_id, `%"job_id":"${job.id}"%`);
+
+      if (!existing) {
+        const notifId = 'notif_exp_' + crypto.randomUUID();
+        const title = 'Lowongan Mendekati Kadaluarsa';
+        const message = `Lowongan "${job.title}" akan berakhir pada ${job.expires_at}. Anda dapat memperpanjang durasi lowongan dengan satu klik.`;
+        const metadata = JSON.stringify({
+          job_id: job.id,
+          expires_at: job.expires_at,
+          action: 'extend_job',
+          company_name: job.company_name,
+        });
+
+        db.prepare(`
+          INSERT INTO notifications (id, user_id, title, message, type, is_read, metadata, created_at)
+          VALUES (?, ?, ?, ?, 'job_expiring', 0, ?, datetime('now'))
+        `).run(notifId, job.employer_user_id, title, message, metadata);
+
+        notifiedCount++;
+      }
+    }
+    return notifiedCount;
+  } catch (err) {
+    console.warn('[localDb] notifyExpiringJobListings notice:', err.message);
+    return 0;
+  }
+}
+
+export function extendJobListing(jobId, daysToAdd = 30) {
+  const db = getLocalDb();
+  const res = db.prepare(`
+    UPDATE job_listings
+    SET expires_at = datetime(
+      CASE 
+        WHEN expires_at > datetime('now') THEN expires_at 
+        ELSE datetime('now') 
+      END, 
+      '+' || ? || ' days'
+    ),
+    updated_at = datetime('now')
+    WHERE id = ?
+  `).run(daysToAdd, jobId);
+
+  return res.changes > 0;
 }
 

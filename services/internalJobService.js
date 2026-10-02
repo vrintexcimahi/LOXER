@@ -28,8 +28,23 @@ export function searchInternalJobs(params = {}) {
     }
 
     if (location && location.trim() && location.toLowerCase() !== 'indonesia') {
-      conditions.push('j.location_city LIKE ?');
-      sqlParams.push(`%${location.trim()}%`);
+      const cities = location
+        .split(/[,;|]+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0 && s.toLowerCase() !== 'indonesia');
+
+      if (cities.length === 1) {
+        conditions.push('(j.location_city LIKE ? OR c.city LIKE ?)');
+        const wild = `%${cities[0]}%`;
+        sqlParams.push(wild, wild);
+      } else if (cities.length > 1) {
+        const cityOrClauses = cities.map(() => '(j.location_city LIKE ? OR c.city LIKE ?)').join(' OR ');
+        conditions.push(`(${cityOrClauses})`);
+        for (const city of cities) {
+          const wild = `%${city}%`;
+          sqlParams.push(wild, wild);
+        }
+      }
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

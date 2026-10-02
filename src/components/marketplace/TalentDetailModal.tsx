@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { useAuth } from '../../contexts/useAuth';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 import { supabase } from '../../lib/supabase';
 import { broadcastSync } from '../../lib/realtimeSync';
 
@@ -38,6 +39,7 @@ export default function TalentDetailModal({
   onOfferSuccess,
 }: TalentDetailModalProps) {
   const { user, userMeta } = useAuth();
+  const { requireApp } = useAppAccess();
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [positionTitle, setPositionTitle] = useState('');
   const [offeredSalary, setOfferedSalary] = useState('');
@@ -270,8 +272,11 @@ export default function TalentDetailModal({
             </div>
 
             <button
-              onClick={() => setShowOfferForm(!showOfferForm)}
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:from-cyan-300 hover:to-teal-200 shadow-lg shadow-cyan-500/25 transition-all"
+              onClick={() => {
+                if (!requireApp('Menawarkan Pekerjaan')) return;
+                setShowOfferForm(!showOfferForm);
+              }}
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:from-cyan-300 hover:to-teal-200 shadow-lg shadow-cyan-500/25 transition-all cursor-pointer"
             >
               <Send className="w-4 h-4" />
               {showOfferForm ? 'Tutup Formulir Penawaran' : 'Tawarkan Pekerjaan Resmi di Aplikasi'}

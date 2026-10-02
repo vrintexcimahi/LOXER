@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, memo } from 'react';
 import {
   Users,
   MapPin,
@@ -98,23 +98,11 @@ export default function Applicants() {
 
   // Single Interview Modal
   const [interviewModal, setInterviewModal] = useState(false);
-  const [interviewForm, setInterviewForm] = useState({
-    scheduled_at: '',
-    location_or_link: '',
-    notes: '',
-    autoPrint: true,
-    autoWhatsApp: false,
-  });
 
   // Bulk Selection & Actions
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkInterviewModal, setBulkInterviewModal] = useState(false);
-  const [bulkInterviewForm, setBulkInterviewForm] = useState({
-    scheduled_at: '',
-    location_or_link: '',
-    notes: '',
-  });
 
   const [updatingId, setUpdatingId] = useState('');
 
@@ -259,8 +247,19 @@ export default function Applicants() {
     broadcastSync('application', { appId, status });
   }
 
-  async function sendInterviewInvite() {
+  async function sendInterviewInvite(interviewForm: {
+    scheduled_at: string;
+    location_or_link: string;
+    notes: string;
+    autoPrint: boolean;
+    autoWhatsApp: boolean;
+  }) {
     if (!supabase || !selectedApplicant || !interviewForm.scheduled_at) return;
+
+    if (!isAllowedStatusTransition(selectedApplicant.application.status, 'interview_scheduled')) {
+      alert(`Transisi status dari '${selectedApplicant.application.status}' ke 'interview_scheduled' tidak diizinkan oleh sistem seleksi.`);
+      return;
+    }
 
     const { data: invData } = await supabase
       .from('interview_invitations')
@@ -301,13 +300,6 @@ export default function Applicants() {
 
     setInterviewModal(false);
     broadcastSync('application', { appId: selectedApplicant.application.id, status: 'interview_scheduled' });
-    setInterviewForm({
-      scheduled_at: '',
-      location_or_link: '',
-      notes: '',
-      autoPrint: true,
-      autoWhatsApp: false,
-    });
   }
 
   // --- Bulk Selection & Operations ---
@@ -390,51 +382,81 @@ export default function Applicants() {
     }
   }
 
-  async function handleBulkInterviewInvite() {
+  async function handleBulkInterviewInvite(bulkInterviewForm: {
+    scheduled_at: string;
+    location_or_link: string;
+    notes: string;
+  }) {
     if (!supabase || selectedIds.length === 0 || !bulkInterviewForm.scheduled_at) return;
+
+    const eligibleIds = selectedIds.filter((id) => {
+      const item = applicants.find((a) => a.application.id === id);
+      return !item || isAllowedStatusTransition(item.application.status, 'interview_scheduled');
+    });
+
+    if (eligibleIds.length === 0) {
+      alert('Tidak ada lamaran terpilih yang memenuhi syarat untuk dijadwalkan interview.');
+      return;
+    }
+
     setBulkLoading(true);
 
     try {
-      for (const appId of selectedIds) {
-        await supabase.from('interview_invitations').insert({
-          application_id: appId,
-          scheduled_at: bulkInterviewForm.scheduled_at,
-          location_or_link: bulkInterviewForm.location_or_link,
-          notes: bulkInterviewForm.notes,
-        });
+      // 1. Batch insert invitations
+      await Promise.all(
+        eligibleIds.map((appId) =>
+          supabase.from('interview_invitations').insert({
+            application_id: appId,
+            scheduled_at: bulkInterviewForm.scheduled_at,
+            location_or_link: bulkInterviewForm.location_or_link,
+            notes: bulkInterviewForm.notes,
+          })
+        )
+      );
 
-        await supabase
-          .from('applications')
-          .update({ status: 'interview_scheduled', updated_at: new Date().toISOString() })
-          .eq('id', appId);
+      // 2. Batch update application status
+      await supabase
+        .from('applications')
+        .update({ status: 'interview_scheduled', updated_at: new Date().toISOString() })
+        .in('id', eligibleIds);
 
-        if (session?.access_token) {
-          try {
-            await fetch('/api/application-status-notification', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({ applicationId: appId, status: 'interview_scheduled' }),
-            });
-          } catch {
-            // ignore
-          }
-        }
+      // 3. Batch trigger notifications
+      if (session?.access_token) {
+        await Promise.all(
+          eligibleIds.map(async (appId) => {
+            try {
+              await fetch('/api/application-status-notification', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ applicationId: appId, status: 'interview_scheduled' }),
+              });
+            } catch {
+              // ignore
+            }
+          })
+        );
       }
 
       setApplicants((prev) =>
         prev.map((item) =>
-          selectedIds.includes(item.application.id)
+          eligibleIds.includes(item.application.id)
             ? { ...item, application: { ...item.application, status: 'interview_scheduled' } }
             : item
         )
       );
 
+      if (selectedApplicant && eligibleIds.includes(selectedApplicant.application.id)) {
+        setSelectedApplicant((prev) =>
+          prev ? { ...prev, application: { ...prev.application, status: 'interview_scheduled' } } : null
+        );
+      }
+
       setBulkInterviewModal(false);
-      setBulkInterviewForm({ scheduled_at: '', location_or_link: '', notes: '' });
       setSelectedIds([]);
+      broadcastSync('application', { appIds: eligibleIds, status: 'interview_scheduled' });
     } finally {
       setBulkLoading(false);
     }
@@ -981,172 +1003,241 @@ export default function Applicants() {
         </div>
       )}
 
-      {/* --- Single Interview Modal --- */}
-      {interviewModal && selectedApplicant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setInterviewModal(false)} />
-          <div className="relative w-full max-w-md animate-fade-up rounded-3xl border border-sky-100 bg-white p-8 shadow-2xl">
-            <div className="-mx-8 -mt-8 mb-6 h-1 rounded-full rounded-t-3xl gradient-cta" />
-            <button
-              onClick={() => setInterviewModal(false)}
-              className="absolute right-4 top-4 text-slate-400 transition-colors hover:text-sky-600"
-            >
-              <X className="h-5 w-5" />
-            </button>
+      {/* --- Single Interview Modal (Memoized Isolated Component) --- */}
+      <InterviewInviteModal
+        isOpen={interviewModal}
+        applicantName={selectedApplicant?.profile.full_name || 'Kandidat'}
+        applicantPhone={selectedApplicant?.profile.phone}
+        onClose={() => setInterviewModal(false)}
+        onSubmit={sendInterviewInvite}
+      />
 
-            <h3 className="mb-1 text-lg font-black text-slate-800">Undang Wawancara (Interview)</h3>
-            <p className="mb-5 text-sm text-slate-500">
-              Kirim jadwal interview ke <span className="font-semibold text-slate-700">{selectedApplicant.profile.full_name}</span>
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="label">Jadwal Interview *</label>
-                <input
-                  type="datetime-local"
-                  value={interviewForm.scheduled_at}
-                  onChange={(e) => setInterviewForm({ ...interviewForm, scheduled_at: e.target.value })}
-                  className="input-field"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="label">Lokasi / Link Meeting Virtual</label>
-                <input
-                  value={interviewForm.location_or_link}
-                  onChange={(e) => setInterviewForm({ ...interviewForm, location_or_link: e.target.value })}
-                  placeholder="Contoh: Kantor Utama, Google Meet, Zoom..."
-                  className="input-field"
-                />
-              </div>
-
-              <div>
-                <label className="label">Catatan Tambahan (opsional)</label>
-                <textarea
-                  value={interviewForm.notes}
-                  onChange={(e) => setInterviewForm({ ...interviewForm, notes: e.target.value })}
-                  placeholder="Dresscode, berkas portofolio yang perlu disiapkan, dll."
-                  className="input-field h-20 resize-none"
-                />
-              </div>
-
-              {/* Automatic dispatch toggles */}
-              <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-3 space-y-2">
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={interviewForm.autoPrint}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, autoPrint: e.target.checked })}
-                    className="rounded border-sky-300 text-sky-600 focus:ring-sky-500"
-                  />
-                  <span>Langsung buka pratinjau cetak / simpan PDF surat undangan</span>
-                </label>
-
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={interviewForm.autoWhatsApp}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, autoWhatsApp: e.target.checked })}
-                    className="rounded border-sky-300 text-sky-600 focus:ring-sky-500"
-                  />
-                  <span>Buka pesan WhatsApp resmi ke nomor kandidat ({selectedApplicant.profile.phone || 'Nomor HP'})</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => setInterviewModal(false)}
-                className="flex-1 rounded-xl border border-sky-200 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-sky-50"
-              >
-                Batal
-              </button>
-              <button
-                onClick={sendInterviewInvite}
-                disabled={!interviewForm.scheduled_at}
-                className="gradient-cta flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
-              >
-                <Calendar className="h-4 w-4" /> Simpan & Undang
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- Bulk Interview Modal --- */}
-      {bulkInterviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            onClick={() => setBulkInterviewModal(false)}
-          />
-          <div className="relative w-full max-w-md animate-fade-up rounded-3xl border border-sky-100 bg-white p-8 shadow-2xl">
-            <div className="-mx-8 -mt-8 mb-6 h-1 rounded-full rounded-t-3xl gradient-cta" />
-            <button
-              onClick={() => setBulkInterviewModal(false)}
-              className="absolute right-4 top-4 text-slate-400 transition-colors hover:text-sky-600"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <h3 className="mb-1 text-lg font-black text-slate-800">Undang Interview Bersama</h3>
-            <p className="mb-5 text-sm text-slate-500">
-              Jadwalkan wawancara sekaligus untuk{' '}
-              <span className="font-bold text-sky-600">{selectedIds.length} pelamar terpilih</span>.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="label">Jadwal Interview Bersama *</label>
-                <input
-                  type="datetime-local"
-                  value={bulkInterviewForm.scheduled_at}
-                  onChange={(e) => setBulkInterviewForm({ ...bulkInterviewForm, scheduled_at: e.target.value })}
-                  className="input-field"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="label">Lokasi / Link Meeting</label>
-                <input
-                  value={bulkInterviewForm.location_or_link}
-                  onChange={(e) => setBulkInterviewForm({ ...bulkInterviewForm, location_or_link: e.target.value })}
-                  placeholder="Google Meet, Zoom, atau Alamat Kantor..."
-                  className="input-field"
-                />
-              </div>
-
-              <div>
-                <label className="label">Catatan Tambahan</label>
-                <textarea
-                  value={bulkInterviewForm.notes}
-                  onChange={(e) => setBulkInterviewForm({ ...bulkInterviewForm, notes: e.target.value })}
-                  placeholder="Informasi tahapan grup interview, tes teknis, dll."
-                  className="input-field h-20 resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => setBulkInterviewModal(false)}
-                className="flex-1 rounded-xl border border-sky-200 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-sky-50"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleBulkInterviewInvite}
-                disabled={!bulkInterviewForm.scheduled_at || bulkLoading}
-                className="gradient-cta flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
-              >
-                <Calendar className="h-4 w-4" /> {bulkLoading ? 'Memproses...' : 'Undang Semua'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* --- Bulk Interview Modal (Memoized Isolated Component) --- */}
+      <BulkInterviewInviteModal
+        isOpen={bulkInterviewModal}
+        count={selectedIds.length}
+        loading={bulkLoading}
+        onClose={() => setBulkInterviewModal(false)}
+        onSubmit={handleBulkInterviewInvite}
+      />
     </EmployerLayout>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Memoized Isolated Interview Modal Components (Prevents Full-List Re-renders)
+// ---------------------------------------------------------------------------
+
+interface InterviewInviteModalProps {
+  isOpen: boolean;
+  applicantName: string;
+  applicantPhone?: string;
+  onClose: () => void;
+  onSubmit: (form: {
+    scheduled_at: string;
+    location_or_link: string;
+    notes: string;
+    autoPrint: boolean;
+    autoWhatsApp: boolean;
+  }) => Promise<void> | void;
+}
+
+const InterviewInviteModal = memo(function InterviewInviteModal({
+  isOpen,
+  applicantName,
+  applicantPhone,
+  onClose,
+  onSubmit,
+}: InterviewInviteModalProps) {
+  const [form, setForm] = useState({
+    scheduled_at: '',
+    location_or_link: '',
+    notes: '',
+    autoPrint: true,
+    autoWhatsApp: false,
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md animate-fade-up rounded-3xl border border-sky-100 bg-white p-8 shadow-2xl">
+        <div className="-mx-8 -mt-8 mb-6 h-1 rounded-full rounded-t-3xl gradient-cta" />
+        <button onClick={onClose} className="absolute right-4 top-4 text-slate-400 transition-colors hover:text-sky-600">
+          <X className="h-5 w-5" />
+        </button>
+
+        <h3 className="mb-1 text-lg font-black text-slate-800">Undang Wawancara (Interview)</h3>
+        <p className="mb-5 text-sm text-slate-500">
+          Kirim jadwal interview ke <span className="font-semibold text-slate-700">{applicantName}</span>
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">Jadwal Interview *</label>
+            <input
+              type="datetime-local"
+              value={form.scheduled_at}
+              onChange={(e) => setForm((prev) => ({ ...prev, scheduled_at: e.target.value }))}
+              className="input-field"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Lokasi / Link Meeting Virtual</label>
+            <input
+              value={form.location_or_link}
+              onChange={(e) => setForm((prev) => ({ ...prev, location_or_link: e.target.value }))}
+              placeholder="Contoh: Kantor Utama, Google Meet, Zoom..."
+              className="input-field"
+            />
+          </div>
+
+          <div>
+            <label className="label">Catatan Tambahan (opsional)</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+              placeholder="Dresscode, berkas portofolio yang perlu disiapkan, dll."
+              className="input-field h-20 resize-none"
+            />
+          </div>
+
+          <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-3 space-y-2">
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.autoPrint}
+                onChange={(e) => setForm((prev) => ({ ...prev, autoPrint: e.target.checked }))}
+                className="rounded border-sky-300 text-sky-600 focus:ring-sky-500"
+              />
+              <span>Langsung buka pratinjau cetak / simpan PDF surat undangan</span>
+            </label>
+
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.autoWhatsApp}
+                onChange={(e) => setForm((prev) => ({ ...prev, autoWhatsApp: e.target.checked }))}
+                className="rounded border-sky-300 text-sky-600 focus:ring-sky-500"
+              />
+              <span>Buka pesan WhatsApp resmi ke nomor kandidat ({applicantPhone || 'Nomor HP'})</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-sky-200 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-sky-50"
+          >
+            Batal
+          </button>
+          <button
+            onClick={() => onSubmit(form)}
+            disabled={!form.scheduled_at}
+            className="gradient-cta flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+          >
+            <Calendar className="h-4 w-4" /> Simpan & Undang
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+interface BulkInterviewInviteModalProps {
+  isOpen: boolean;
+  count: number;
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (form: {
+    scheduled_at: string;
+    location_or_link: string;
+    notes: string;
+  }) => Promise<void> | void;
+}
+
+const BulkInterviewInviteModal = memo(function BulkInterviewInviteModal({
+  isOpen,
+  count,
+  loading,
+  onClose,
+  onSubmit,
+}: BulkInterviewInviteModalProps) {
+  const [form, setForm] = useState({
+    scheduled_at: '',
+    location_or_link: '',
+    notes: '',
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md animate-fade-up rounded-3xl border border-sky-100 bg-white p-8 shadow-2xl">
+        <div className="-mx-8 -mt-8 mb-6 h-1 rounded-full rounded-t-3xl gradient-cta" />
+        <button onClick={onClose} className="absolute right-4 top-4 text-slate-400 transition-colors hover:text-sky-600">
+          <X className="h-5 w-5" />
+        </button>
+
+        <h3 className="mb-1 text-lg font-black text-slate-800">Undang Interview Bersama</h3>
+        <p className="mb-5 text-sm text-slate-500">
+          Jadwalkan wawancara sekaligus untuk <span className="font-bold text-sky-600">{count} pelamar terpilih</span>.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">Jadwal Interview Bersama *</label>
+            <input
+              type="datetime-local"
+              value={form.scheduled_at}
+              onChange={(e) => setForm((prev) => ({ ...prev, scheduled_at: e.target.value }))}
+              className="input-field"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Lokasi / Link Meeting</label>
+            <input
+              value={form.location_or_link}
+              onChange={(e) => setForm((prev) => ({ ...prev, location_or_link: e.target.value }))}
+              placeholder="Google Meet, Zoom, atau Alamat Kantor..."
+              className="input-field"
+            />
+          </div>
+
+          <div>
+            <label className="label">Catatan Tambahan</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+              placeholder="Informasi tahapan grup interview, tes teknis, dll."
+              className="input-field h-20 resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-sky-200 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-sky-50"
+          >
+            Batal
+          </button>
+          <button
+            onClick={() => onSubmit(form)}
+            disabled={!form.scheduled_at || loading}
+            className="gradient-cta flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+          >
+            <Calendar className="h-4 w-4" /> {loading ? 'Memproses...' : 'Undang Semua'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});

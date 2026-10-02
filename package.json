@@ -8,7 +8,7 @@
     "dev:live": "vite --host 0.0.0.0 --port 3035 --open",
     "dev:local": "vite --host 0.0.0.0 --port 3035",
     "db:seed": "node scripts/seed-local.mjs",
-    "db:reset": "node -e \"import fs from 'node:fs'; fs.rmSync('data/loxer.db', {force: true});\" && node scripts/seed-local.mjs",
+    "db:reset": "node -e \"import fs from 'node:fs'; for (const f of ['data/loxer.db', 'data/loxer.db-wal', 'data/loxer.db-shm']) { if (fs.existsSync(f)) fs.rmSync(f, {force: true}); }\" && node scripts/seed-local.mjs",
     "test:local": "node scripts/test-local-api.mjs && node scripts/test-audit-fixes.mjs",
     "build": "vite build",
     "lint": "eslint .",

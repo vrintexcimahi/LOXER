@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, ChevronRight, User, LogOut, Settings, ShieldCheck, Download, Briefcase, Users, Zap, ShoppingBag } from 'lucide-react';
+import { Menu, X, ChevronDown, ChevronRight, User, LogOut, Settings, ShieldCheck, Download, Briefcase, Users, Zap, ShoppingBag, Smartphone } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
-import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 import BrandText from '../ui/BrandText';
 import ThemeToggle from '../ui/ThemeToggle';
 import NotificationBell from '../ui/NotificationBell';
@@ -76,14 +76,27 @@ function getNextOnlineUsers(current: number, min: number, max: number) {
 
 export default function Navbar({ onLogin, onRegister }: NavbarProps) {
   const { user, userMeta, signOut } = useAuth();
-  const { canInstall, isInstalled, promptInstall } = usePWAInstall();
+  const {
+    isSuperAdmin,
+    isViewOnlyWeb,
+    requireApp,
+    openInstallModal,
+    openSecretAdminModal,
+    lockSuperAdmin,
+  } = useAppAccess();
   const {
     isUnlocked,
     handleTriggerClick,
     toastMessage,
     toastVisible,
     setToastVisible,
-  } = useAdminEasterEgg();
+  } = useAdminEasterEgg({
+    totalClicks: 5,
+    notifyStartClick: 2,
+    onUnlocked: () => {
+      openSecretAdminModal();
+    },
+  });
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -287,7 +300,7 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               />
             </a>
 
-            {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin') && (
+            {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin' || isSuperAdmin) && (
               <a
                 href="/admin/dashboard"
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 hover:bg-cyan-500/30 transition shadow-sm animate-pulse"
@@ -322,17 +335,51 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
 
           {/* Right Actions */}
           <div className="hidden md:flex items-center gap-3">
-            {canInstall && !isInstalled && (
+            {/* Super Admin Bypass Active Indicator */}
+            {isSuperAdmin && (
+              <div className="flex items-center gap-1.5 animate-pulse">
+                <a
+                  href="/admin/dashboard"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 hover:bg-cyan-500/30 transition shadow-sm"
+                  title="Super Admin Bypass Web Aktif - Buka Dashboard"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Super Admin</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={lockSuperAdmin}
+                  className="text-[10px] text-slate-400 hover:text-rose-400 transition underline cursor-pointer"
+                  title="Kunci kembali mode Super Admin"
+                >
+                  Kunci
+                </button>
+              </div>
+            )}
+
+            {/* Web View-Only Pill */}
+            {isViewOnlyWeb && (
               <button
                 type="button"
-                onClick={() => promptInstall()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-400/30 transition shadow-sm cursor-pointer active:scale-95"
-                title="Pasang Aplikasi LOXER (PWA)"
+                onClick={() => openInstallModal('Melamar, Chat & Mendaftar')}
+                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition cursor-pointer"
+                title="Mode Web View Only - Buka Aplikasi untuk Akses Penuh"
               >
-                <Download className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Pasang App</span>
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Web (View-Only)</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => openInstallModal('Download & Pasang Aplikasi')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-400/30 transition shadow-sm cursor-pointer active:scale-95"
+              title="Unduh / Pasang Aplikasi LOXER"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Aplikasi LOXER</span>
+            </button>
+
             <ThemeToggle compact />
             {user && userMeta ? (
               <>
@@ -393,13 +440,16 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               <>
                 <button
                   onClick={onLogin}
-                  className="text-white text-sm font-medium hover:text-cyan-400 transition-colors"
+                  className="text-white text-sm font-medium hover:text-cyan-400 transition-colors cursor-pointer"
                 >
                   Sign In
                 </button>
                 <button
-                  onClick={() => onRegister?.('seeker')}
-                  className="gradient-cta text-white rounded-full px-5 py-2 text-sm font-semibold shadow-lg shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all duration-150"
+                  onClick={() => {
+                    if (!requireApp('Mendaftar Akun')) return;
+                    onRegister?.('seeker');
+                  }}
+                  className="gradient-cta text-white rounded-full px-5 py-2 text-sm font-semibold shadow-lg shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all duration-150 cursor-pointer"
                 >
                   Get Started
                 </button>
@@ -547,24 +597,23 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
               <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all shrink-0" />
             </a>
           </div>
-          {canInstall && !isInstalled && (
-            <button
-              type="button"
-              onClick={() => {
-                promptInstall();
-                setMobileOpen(false);
-              }}
-              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-sm font-semibold transition cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-cyan-400" />
-              <span>Pasang Aplikasi LOXER</span>
-            </button>
-          )}
+          {/* Mobile Install App / Download APK Button */}
+          <button
+            type="button"
+            onClick={() => {
+              openInstallModal('Pasang / Download Aplikasi LOXER');
+              setMobileOpen(false);
+            }}
+            className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500/25 to-sky-500/25 hover:bg-cyan-500/35 text-cyan-300 border border-cyan-400/40 text-sm font-bold transition cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-cyan-400" />
+            <span>Download APK / Pasang Aplikasi</span>
+          </button>
           <hr className="border-white/10" />
           {user ? (
             <>
               <a href={getDashboardPath()} className="text-white font-medium text-sm">Dashboard</a>
-              {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin') ? (
+              {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin' || isSuperAdmin) ? (
                 <a href="/admin/dashboard" className="text-cyan-300 font-medium text-sm inline-flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-cyan-400" /> Mode Administrator (God Mode)
                 </a>
@@ -574,8 +623,12 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
           ) : (
             <>
               <button onClick={onLogin} className="text-white text-sm font-medium text-left">Sign In</button>
-              <button onClick={() => { setMobileOpen(false); onRegister?.('employer'); }} className="text-cyan-400 text-sm font-medium text-left">Daftar sebagai Perusahaan</button>
-              {(isUnlocked) && (
+              <button onClick={() => {
+                setMobileOpen(false);
+                if (!requireApp('Mendaftar sebagai Perusahaan')) return;
+                onRegister?.('employer');
+              }} className="text-cyan-400 text-sm font-medium text-left">Daftar sebagai Perusahaan</button>
+              {(isUnlocked || isSuperAdmin) && (
                 <a
                   href="/admin/dashboard"
                   onClick={() => setMobileOpen(false)}
@@ -584,7 +637,11 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
                   <ShieldCheck className="w-4 h-4 text-cyan-400" /> Portal Admin (God Mode)
                 </a>
               )}
-              <button onClick={() => { setMobileOpen(false); onRegister?.('seeker'); }} className="gradient-cta text-white rounded-xl px-5 py-3 text-sm font-semibold w-full">Get Started Free</button>
+              <button onClick={() => {
+                setMobileOpen(false);
+                if (!requireApp('Mendaftar Akun')) return;
+                onRegister?.('seeker');
+              }} className="gradient-cta text-white rounded-xl px-5 py-3 text-sm font-semibold w-full">Get Started Free</button>
             </>
           )}
         </div>

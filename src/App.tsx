@@ -13,6 +13,10 @@ import OfflineIndicator from './components/pwa/OfflineIndicator';
 import PwaUpdateNotification from './components/pwa/PwaUpdateNotification';
 import BrowserCachePrompt from './components/pwa/BrowserCachePrompt';
 import PublicMobileBottomNav from './components/layout/PublicMobileBottomNav';
+import { AppAccessProvider, useAppAccess } from './contexts/AppAccessContext';
+import InstallAppModal from './components/app/InstallAppModal';
+import SecretAdminModal from './components/app/SecretAdminModal';
+import WebModeBanner from './components/app/WebModeBanner';
 
 const AuthModal = lazy(() => import('./pages/auth/AuthModal'));
 const SeekerDashboard = lazy(() => import('./pages/seeker/SeekerDashboard'));
@@ -54,6 +58,17 @@ import { getActiveSimRole } from './lib/simSession';
 
 function Router() {
   const { user, userMeta, loading, configured } = useAuth();
+  const {
+    isSuperAdmin,
+    isViewOnlyWeb,
+    installModalOpen,
+    installModalAction,
+    secretAdminModalOpen,
+    requireApp,
+    closeInstallModal,
+    openSecretAdminModal,
+    closeSecretAdminModal,
+  } = useAppAccess();
   const [authMode, setAuthMode] = useState<AuthMode>(null);
   const [authInitialRole, setAuthInitialRole] = useState<UserRole>('seeker');
   const [path, setPath] = useState<string>(() => window.location.pathname);
@@ -64,16 +79,17 @@ function Router() {
   const isGodModeUnlocked = (() => {
     try {
       if (previewRole && previewRole !== 'admin') return false;
-      if (previewRole === 'admin') return true;
+      if (previewRole === 'admin' || isSuperAdmin) return true;
       return (
         sessionStorage.getItem('loxer_admin_unlocked') === 'true' ||
-        sessionStorage.getItem('app_admin_unlocked') === 'true'
+        sessionStorage.getItem('app_admin_unlocked') === 'true' ||
+        sessionStorage.getItem('loxer_super_admin_bypass') === 'true'
       );
     } catch {
       return false;
     }
   })();
-  const isDefaultAdminAccount = (!previewRole || previewRole === 'admin') && (isDefaultAdminEmail(user?.email) || isGodModeUnlocked);
+  const isDefaultAdminAccount = (!previewRole || previewRole === 'admin') && (isDefaultAdminEmail(user?.email) || isGodModeUnlocked || isSuperAdmin);
   const effectiveRole = previewRole === 'admin'
     ? 'admin'
     : previewRole === 'employer'
@@ -86,6 +102,9 @@ function Router() {
 
 
   const handleOpenRegister = (role: UserRole = 'seeker') => {
+    if (!requireApp('Mendaftar Akun')) {
+      return;
+    }
     setAuthInitialRole(role);
     setAuthMode('register');
   };
@@ -114,10 +133,18 @@ function Router() {
   useEffect(() => {
     if (path === '/login') setAuthMode('login');
     if (path === '/register') {
+      if (!requireApp('Mendaftar Akun')) {
+        window.history.pushState({}, '', '/');
+        setPath('/');
+        return;
+      }
       setAuthInitialRole('seeker');
       setAuthMode('register');
     }
-  }, [path]);
+    if (path === '/admin-secret' || path === '/secret-admin') {
+      openSecretAdminModal();
+    }
+  }, [path, requireApp, openSecretAdminModal]);
 
   // Automatic PWA Offline Sync when internet connectivity is restored
   useEffect(() => {
@@ -164,14 +191,30 @@ VITE_SUPABASE_ANON_KEY=...`}
   }
 
   const isRoleAuthorized = (role: 'seeker' | 'employer' | 'admin' | 'superadmin') => {
+    if (role === 'admin' && (isDefaultAdminAccount || isGodModeUnlocked || effectiveRole === 'superadmin' || effectiveRole === 'admin' || isSuperAdmin)) return true;
+    if (role === 'superadmin' && (isDefaultAdminAccount || isGodModeUnlocked || effectiveRole === 'superadmin' || isSuperAdmin)) return true;
+    if (isViewOnlyWeb && (role === 'seeker' || role === 'employer')) return false;
     if (previewRole === role) return true;
     if ((previewRole === 'freelancer' || previewRole === 'jasa') && role === 'seeker') return true;
-    if (role === 'admin' && (isDefaultAdminAccount || isGodModeUnlocked || effectiveRole === 'superadmin' || effectiveRole === 'admin')) return true;
-    if (role === 'superadmin' && (isDefaultAdminAccount || isGodModeUnlocked || effectiveRole === 'superadmin')) return true;
     return Boolean(user && effectiveRole === role);
   };
 
   const renderPage = () => {
+    // Mode Web View-Only: akses portal dashboard Seeker/Employer dialihkan dengan popup edukasi
+    if (isViewOnlyWeb) {
+      if (
+        path.startsWith('/seeker/') ||
+        path.startsWith('/employer/')
+      ) {
+        setTimeout(() => {
+          requireApp('Mengakses Portal Pengguna');
+        }, 150);
+        window.history.pushState({}, '', '/browse');
+        setPath('/browse');
+        return <Browse />;
+      }
+    }
+
     if (path === '/seeker/dashboard') return isRoleAuthorized('seeker') ? <SeekerDashboard /> : null;
     if (path === '/browse' || path === '/seeker/browse') return <Browse />;
     if (path === '/seeker/applications') return isRoleAuthorized('seeker') ? <Applications /> : null;
@@ -252,6 +295,17 @@ VITE_SUPABASE_ANON_KEY=...`}
       <OfflineIndicator />
       <PwaUpdateNotification />
       <BrowserCachePrompt />
+      <InstallAppModal
+        isOpen={installModalOpen}
+        actionTitle={installModalAction}
+        onClose={closeInstallModal}
+        onOpenSecretAdmin={openSecretAdminModal}
+      />
+      <SecretAdminModal
+        isOpen={secretAdminModalOpen}
+        onClose={closeSecretAdminModal}
+      />
+      <WebModeBanner />
       {page ? (
         <Suspense fallback={<FullScreenLoader message="Menyiapkan halaman..." />}>
           {page}
@@ -298,7 +352,9 @@ export default function App() {
   return (
     <AuthProvider>
       <DeviceProvider>
-        <Router />
+        <AppAccessProvider>
+          <Router />
+        </AppAccessProvider>
       </DeviceProvider>
     </AuthProvider>
   );

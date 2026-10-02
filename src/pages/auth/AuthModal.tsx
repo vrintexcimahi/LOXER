@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check, ShieldCheck, Sparkles, Key, Wrench } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check, ShieldCheck, Sparkles, Key, Wrench, Smartphone } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 import { UserRole } from '../../lib/types';
 import BrandText from '../../components/ui/BrandText';
 import AndroidToast from '../../components/ui/AndroidToast';
@@ -43,6 +44,11 @@ const DEFAULT_AUTH_CAPABILITIES: AuthCapabilities = {
 
 export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwitchMode }: AuthModalProps) {
   const { signIn, signUp, signInWithGoogle, requestOtp, verifyOtpCode } = useAuth();
+  const {
+    isViewOnlyWeb,
+    openInstallModal,
+    openSecretAdminModal,
+  } = useAppAccess();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -379,6 +385,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
 
       if (isSuperAdminAttempt) {
         try {
+          sessionStorage.setItem('loxer_super_admin_bypass', 'true');
           sessionStorage.setItem('loxer_admin_unlocked', 'true');
           sessionStorage.setItem('app_admin_unlocked', 'true');
         } catch {
@@ -532,6 +539,27 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>Buka Langsung Panel God Mode</span>
                 </a>
+              </div>
+            </div>
+          )}
+
+          {/* Web View-Only Registration Warning Banner */}
+          {mode === 'register' && isViewOnlyWeb && (
+            <div className="mb-5 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3 animate-fade-in">
+              <Smartphone className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <span className="font-bold text-white block mb-0.5">Pendaftaran Akun Wajib Melalui Aplikasi LOXER</span>
+                Seluruh pendaftaran akun baru, pelamar, dan perusahaan wajib menggunakan Aplikasi Resmi LOXER untuk verifikasi identitas dan keamanan data.
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    openInstallModal('Mendaftar Akun');
+                  }}
+                  className="mt-2 inline-flex items-center gap-1.5 font-bold text-cyan-300 hover:text-cyan-200 underline cursor-pointer"
+                >
+                  <span>Install / Unduh Aplikasi Sekarang &rarr;</span>
+                </button>
               </div>
             </div>
           )}
@@ -823,12 +851,40 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
           <p className="text-center text-slate-500 text-sm mt-5">
             {mode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'}{' '}
             <button
-              onClick={() => onSwitchMode(mode === 'login' ? 'register' : 'login')}
-              className="text-sky-600 font-semibold hover:text-sky-800 transition-colors"
+              type="button"
+              onClick={() => {
+                if (mode === 'login') {
+                  if (isViewOnlyWeb) {
+                    onClose();
+                    openInstallModal('Mendaftar Akun');
+                    return;
+                  }
+                  onSwitchMode('register');
+                } else {
+                  onSwitchMode('login');
+                }
+              }}
+              className="text-sky-600 font-semibold hover:text-sky-800 transition-colors cursor-pointer"
             >
               {mode === 'login' ? 'Daftar Gratis' : 'Masuk'}
             </button>
           </p>
+
+          {/* Secret Super Admin Access Entry */}
+          <div className="text-center mt-3 pt-3 border-t border-white/5">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                openSecretAdminModal();
+              }}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-cyan-400 transition cursor-pointer"
+              title="Akses Rahasia Khusus Super Administrator"
+            >
+              <Lock className="w-3 h-3 text-cyan-500" />
+              <span>Akses Rahasia Super Admin</span>
+            </button>
+          </div>
         </div>
       </div>
 

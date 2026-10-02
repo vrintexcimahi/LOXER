@@ -12,6 +12,8 @@ import {
   listDatabaseSnapshots,
   getSnapshotFilePath,
   restoreDatabaseSnapshot,
+  extendJobListing,
+  notifyExpiringJobListings,
 } from './localDb.js';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -60,7 +62,7 @@ if (loginCleanTimer && loginCleanTimer.unref) loginCleanTimer.unref();
 const googleAuthRateLimiter = new SlidingWindowRateLimiter(30, 60 * 1000);
 
 const APPLICATION_STATUS_TRANSITIONS = {
-  applied: new Set(['reviewed', 'shortlisted', 'rejected', 'expired']),
+  applied: new Set(['reviewed', 'shortlisted', 'interview_scheduled', 'rejected', 'expired']),
   reviewed: new Set(['shortlisted', 'interview_scheduled', 'rejected', 'expired']),
   shortlisted: new Set(['interview_scheduled', 'hired', 'rejected', 'expired']),
   interview_scheduled: new Set(['hired', 'rejected', 'expired']),
@@ -425,7 +427,7 @@ function buildWhereClause(filters = []) {
   for (const filter of filters) {
     const { column, op, value } = filter;
     if (!column || !/^[a-zA-Z0-9_]+$/.test(column)) continue;
-    if (op === 'eq') {
+    if (op === 'eq' || op === 'is') {
       if (value === null) {
         conditions.push(`"${column}" IS NULL`);
       } else {
@@ -440,9 +442,13 @@ function buildWhereClause(filters = []) {
       } else {
         conditions.push('1 = 0');
       }
-    } else if (op === 'neq') {
-      conditions.push(`"${column}" != ?`);
-      params.push(value);
+    } else if (op === 'neq' || op === 'not_eq' || op === 'not_is') {
+      if (value === null) {
+        conditions.push(`"${column}" IS NOT NULL`);
+      } else {
+        conditions.push(`"${column}" != ?`);
+        params.push(value);
+      }
     } else if (op === 'like' || op === 'ilike') {
       conditions.push(`"${column}" LIKE ?`);
       params.push(value);
@@ -755,6 +761,22 @@ async function handleDbQuery(req, res) {
     return sendJson(res, 400, { error: { message: 'Tabel tidak valid atau tidak terdaftar.' } });
   }
 
+  // Validate onConflict early to prevent SQL injection attempts
+  if (onConflict !== undefined && onConflict !== null) {
+    const rawConflict = onConflict || 'id';
+    const conflictKeys = String(rawConflict).split(',').map((k) => k.trim()).filter(Boolean);
+    if (conflictKeys.length === 0 || conflictKeys.some((k) => !/^[a-zA-Z0-9_]+$/.test(k))) {
+      return sendJson(res, 400, { error: { message: 'Kolom onConflict tidak valid.' } });
+    }
+  }
+
+  // Gracefully handle empty updates as successful no-ops
+  if (action === 'update' && (!data || Object.keys(data).length === 0)) {
+    const { whereSql, params } = buildWhereClause(filters);
+    const existingRows = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
+    return sendJson(res, 200, { data: enrichRowsRelations(table, existingRows), error: null });
+  }
+
   const isMutation = action === 'insert' || action === 'update' || action === 'delete' || action === 'upsert';
 
   // Security Guard 1: direct mutation on users table is strictly forbidden via generic query endpoint
@@ -914,6 +936,222 @@ async function handleDbQuery(req, res) {
           const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [job.company_id, callerId]);
           if (!company && !member) {
             return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda bukan pemilik lowongan dari lamaran ini (IDOR guard).' } });
+          }
+        }
+      }
+    }
+  }
+
+  // Security Guard 7: companies IDOR protection
+  if (table === 'companies' && isMutation && !isAdminOrSuper) {
+    if (callerId) {
+      if (action === 'insert' || action === 'upsert') {
+        const records = Array.isArray(data) ? data : [data];
+        for (const item of records) {
+          if (item?.user_id && item.user_id !== callerId) {
+            return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat mendaftarkan perusahaan untuk akun Anda sendiri (IDOR guard).' } });
+          }
+        }
+      }
+      if (action === 'update' || action === 'delete') {
+        const { whereSql, params } = buildWhereClause(filters);
+        if (!whereSql) {
+          return sendJson(res, 400, { error: { message: 'Modifikasi perusahaan tanpa filter tidak diizinkan.' } });
+        }
+        const targetedComps = queryAll(`SELECT id, user_id FROM companies ${whereSql}`, params);
+        for (const comp of targetedComps) {
+          const isOwner = comp.user_id === callerId;
+          const isMember = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [comp.id, callerId]);
+          if (!isOwner && !isMember) {
+            return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak memiliki akses ke perusahaan ini (IDOR guard).' } });
+          }
+        }
+        if (action === 'update' && data?.user_id && data.user_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak dapat mengalihkan kepemilikan perusahaan ke user lain.' } });
+        }
+      }
+    }
+  }
+
+  // Security Guard 8: seeker_profiles and child tables IDOR protection
+  if ((table === 'seeker_profiles' || table === 'seeker_education' || table === 'seeker_experience' || table === 'seeker_skills') && isMutation && !isAdminOrSuper) {
+    if (callerId) {
+      if (table === 'seeker_profiles') {
+        if (action === 'insert' || action === 'upsert') {
+          const records = Array.isArray(data) ? data : [data];
+          for (const item of records) {
+            if (item?.user_id && item.user_id !== callerId) {
+              return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat membuat profil pencari kerja untuk akun Anda sendiri (IDOR guard).' } });
+            }
+          }
+        }
+        if (action === 'update' || action === 'delete') {
+          const { whereSql, params } = buildWhereClause(filters);
+          if (!whereSql) {
+            return sendJson(res, 400, { error: { message: 'Modifikasi profil pencari kerja tanpa filter tidak diizinkan.' } });
+          }
+          const targetedProfiles = queryAll(`SELECT id, user_id FROM seeker_profiles ${whereSql}`, params);
+          for (const prof of targetedProfiles) {
+            if (prof.user_id !== callerId) {
+              return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak berwenang memodifikasi profil pengguna lain (IDOR guard).' } });
+            }
+          }
+        }
+      } else {
+        // Child tables: seeker_education, seeker_experience, seeker_skills
+        const callerSeeker = queryOne('SELECT id FROM seeker_profiles WHERE user_id = ?', [callerId]);
+        if (callerSeeker) {
+          if (action === 'insert' || action === 'upsert') {
+            const records = Array.isArray(data) ? data : [data];
+            for (const item of records) {
+              if (item?.seeker_id && item.seeker_id !== callerSeeker.id) {
+                return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat mengelola data profil Anda sendiri (IDOR guard).' } });
+              }
+            }
+          }
+          if (action === 'update' || action === 'delete') {
+            const { whereSql, params } = buildWhereClause(filters);
+            if (!whereSql) {
+              return sendJson(res, 400, { error: { message: 'Modifikasi riwayat pencari kerja tanpa filter tidak diizinkan.' } });
+            }
+            const targetedRows = queryAll(`SELECT id, seeker_id FROM "${table}" ${whereSql}`, params);
+            for (const row of targetedRows) {
+              if (row.seeker_id !== callerSeeker.id) {
+                return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak berwenang memodifikasi data profil pengguna lain (IDOR guard).' } });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Security Guard 9: interview_invitations IDOR protection
+  if (table === 'interview_invitations' && isMutation && !isAdminOrSuper) {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk mengelola undangan interview.' } });
+    }
+    if (callerRole !== 'employer') {
+      return sendJson(res, 403, { error: { message: 'Akses ditolak: Hanya employer atau administrator yang dapat membuat atau mengelola undangan interview.' } });
+    }
+
+    if (action === 'insert' || action === 'upsert') {
+      const records = Array.isArray(data) ? data : [data];
+      for (const item of records) {
+        if (!item?.application_id) {
+          return sendJson(res, 400, { error: { message: 'application_id wajib diisi untuk undangan interview.' } });
+        }
+        const app = queryOne('SELECT id, job_id FROM applications WHERE id = ?', [item.application_id]);
+        if (!app) {
+          return sendJson(res, 404, { error: { message: 'Lamaran tidak ditemukan.' } });
+        }
+        const job = queryOne('SELECT company_id FROM job_listings WHERE id = ?', [app.job_id]);
+        if (job?.company_id) {
+          const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [job.company_id, callerId]);
+          const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [job.company_id, callerId]);
+          if (!company && !member) {
+            return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda bukan pemilik lowongan dari lamaran ini (IDOR guard).' } });
+          }
+        }
+      }
+    }
+
+    if (action === 'update' || action === 'delete') {
+      const { whereSql, params } = buildWhereClause(filters);
+      if (!whereSql) {
+        return sendJson(res, 400, { error: { message: 'Modifikasi undangan interview tanpa filter tidak diizinkan.' } });
+      }
+      const targetedInvs = queryAll(`SELECT id, application_id FROM interview_invitations ${whereSql}`, params);
+      for (const inv of targetedInvs) {
+        const app = queryOne('SELECT job_id FROM applications WHERE id = ?', [inv.application_id]);
+        if (app?.job_id) {
+          const job = queryOne('SELECT company_id FROM job_listings WHERE id = ?', [app.job_id]);
+          if (job?.company_id) {
+            const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [job.company_id, callerId]);
+            const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [job.company_id, callerId]);
+            if (!company && !member) {
+              return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak memiliki wewenang atas undangan interview dari perusahaan lain (IDOR guard).' } });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Security Guard 10: talent_marketplace_posts IDOR protection
+  if (table === 'talent_marketplace_posts' && isMutation && !isAdminOrSuper) {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk memodifikasi postingan marketplace bakat.' } });
+    }
+    if (action === 'insert' || action === 'upsert') {
+      const records = Array.isArray(data) ? data : [data];
+      for (const item of records) {
+        if (item?.user_id && item.user_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat memposting profil bakat milik Anda sendiri (IDOR guard).' } });
+        }
+      }
+    }
+    if (action === 'update' || action === 'delete') {
+      const { whereSql, params } = buildWhereClause(filters);
+      if (!whereSql) {
+        return sendJson(res, 400, { error: { message: 'Modifikasi postingan marketplace tanpa filter tidak diizinkan.' } });
+      }
+      const targetedPosts = queryAll(`SELECT id, user_id FROM talent_marketplace_posts ${whereSql}`, params);
+      for (const post of targetedPosts) {
+        if (post.user_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak berwenang memodifikasi postingan bakat milik pengguna lain (IDOR guard).' } });
+        }
+      }
+    }
+  }
+
+  // Security Guard 11: direct_job_offers IDOR protection
+  if (table === 'direct_job_offers' && isMutation && !isAdminOrSuper) {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk mengelola tawaran kerja langsung.' } });
+    }
+    if (action === 'insert' || action === 'upsert') {
+      const records = Array.isArray(data) ? data : [data];
+      for (const item of records) {
+        if (!item?.company_id) {
+          return sendJson(res, 400, { error: { message: 'company_id wajib diisi untuk direct job offer.' } });
+        }
+        const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [item.company_id, callerId]);
+        const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [item.company_id, callerId]);
+        if (!company && !member) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat mengirim penawaran kerja atas nama perusahaan Anda sendiri (IDOR guard).' } });
+        }
+      }
+    }
+    if (action === 'update' || action === 'delete') {
+      const { whereSql, params } = buildWhereClause(filters);
+      if (!whereSql) {
+        return sendJson(res, 400, { error: { message: 'Modifikasi tawaran kerja langsung tanpa filter tidak diizinkan.' } });
+      }
+      const targetedOffers = queryAll(`SELECT id, company_id, seeker_id FROM direct_job_offers ${whereSql}`, params);
+      for (const offer of targetedOffers) {
+        const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [offer.company_id, callerId]);
+        const member = queryOne('SELECT id FROM company_members WHERE company_id = ? AND user_id = ?', [offer.company_id, callerId]);
+        const isEmployerOwner = Boolean(company || member);
+
+        // Seeker recipient check
+        const seeker = queryOne('SELECT id FROM seeker_profiles WHERE id = ? AND user_id = ?', [offer.seeker_id, callerId]);
+        const isSeekerRecipient = Boolean(seeker);
+
+        if (action === 'delete' && !isEmployerOwner) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Hanya perusahaan pengirim atau administrator yang dapat membatalkan tawaran.' } });
+        }
+        if (action === 'update') {
+          if (!isEmployerOwner && !isSeekerRecipient) {
+            return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak memiliki akses ke penawaran kerja ini (IDOR guard).' } });
+          }
+          if (isSeekerRecipient && !isEmployerOwner) {
+            // Seeker can only update status (accept/decline)
+            const keys = Object.keys(data || {});
+            const invalidKeys = keys.filter((k) => k !== 'status' && k !== 'updated_at');
+            if (invalidKeys.length > 0) {
+              return sendJson(res, 403, { error: { message: 'Pencari kerja hanya dapat mengubah status respon penawaran.' } });
+            }
           }
         }
       }
@@ -2228,6 +2466,9 @@ export function createLocalDbMiddleware(env = {}) {
       if (url.startsWith('/api/admin/backups/restore-snapshot') && req.method === 'POST') {
         return handleAdminRestoreSnapshot(req, res);
       }
+      if (url.startsWith('/api/employer/jobs/extend') && req.method === 'POST') {
+        return handleExtendJobListing(req, res);
+      }
     }
 
     next();
@@ -2460,4 +2701,58 @@ async function handleAdminRestoreSnapshot(req, res) {
   } catch (err) {
     return sendJson(res, 500, { message: err.message || 'Gagal memulihkan database dari snapshot.' });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Employer Job Expiry Extension Handler
+// ---------------------------------------------------------------------------
+async function handleExtendJobListing(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const tokenPayload = verifyToken(token);
+  const callerId = tokenPayload?.sub || tokenPayload?.userId;
+  if (!callerId) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
+  if (!callerMeta || (callerMeta.role !== 'employer' && callerMeta.role !== 'admin' && callerMeta.role !== 'superadmin')) {
+    return sendJson(res, 403, { message: 'Akses ditolak: Hanya employer atau admin yang dapat memperpanjang lowongan.' });
+  }
+
+  const body = await parseJsonBody(req);
+  const jobId = body.jobId || body.id;
+  const daysToAdd = Math.max(1, parseInt(body.days || '30', 10));
+
+  if (!jobId) {
+    return sendJson(res, 400, { message: 'jobId wajib diisi.' });
+  }
+
+  // IDOR check: if employer, ensure they own the company of this job
+  if (callerMeta.role === 'employer') {
+    const job = queryOne('SELECT company_id FROM job_listings WHERE id = ?', [jobId]);
+    if (!job) {
+      return sendJson(res, 404, { message: 'Lowongan tidak ditemukan.' });
+    }
+    const company = queryOne('SELECT id FROM companies WHERE id = ? AND user_id = ?', [job.company_id, callerId]);
+    if (!company) {
+      return sendJson(res, 403, { message: 'IDOR Guard: Anda tidak memiliki wewenang memperpanjang lowongan perusahaan lain.' });
+    }
+  }
+
+  const success = extendJobListing(jobId, daysToAdd);
+  if (!success) {
+    return sendJson(res, 404, { message: 'Lowongan tidak ditemukan atau gagal diperpanjang.' });
+  }
+
+  // Clear hot cache so the updated expiry is reflected immediately
+  try {
+    if (jobSearchCache && typeof jobSearchCache.clear === 'function') {
+      jobSearchCache.clear();
+    }
+  } catch {
+    // ignore
+  }
+
+  const updatedJob = queryOne('SELECT id, title, expires_at, status FROM job_listings WHERE id = ?', [jobId]);
+  return sendJson(res, 200, { ok: true, extended: true, job: updatedJob });
 }

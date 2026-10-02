@@ -12,6 +12,34 @@ export interface QueuedApplication {
   companyName?: string;
   seekerId: string;
   queuedAt: string;
+  retryCount?: number;
+  nextRetryAt?: number;
+}
+
+export function recordQueueFailure(jobId: string, seekerId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
+    if (!raw) return;
+    const list: QueuedApplication[] = JSON.parse(raw);
+    const updated = list.map((item) => {
+      if (item.jobId === jobId && item.seekerId === seekerId) {
+        const retries = (item.retryCount || 0) + 1;
+        // Exponential backoff: 2s, 4s, 8s, 16s, 32s, up to 60s max
+        const backoffMs = Math.min(Math.pow(2, retries) * 1000, 60000);
+        return {
+          ...item,
+          retryCount: retries,
+          nextRetryAt: Date.now() + backoffMs,
+        };
+      }
+      return item;
+    });
+    localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('loxer:offline-queue-changed', { detail: updated }));
+  } catch {
+    // ignore
+  }
 }
 
 export function getQueuedApplications(seekerId?: string): QueuedApplication[] {
@@ -161,7 +189,13 @@ export async function syncQueuedApplications(
   let synced = 0;
   let failed = 0;
 
+  const now = Date.now();
   for (const item of eligibleItems) {
+    if (item.nextRetryAt && item.nextRetryAt > now) {
+      // Masih dalam masa jeda exponential backoff
+      continue;
+    }
+
     try {
       const { error } = await supabaseClient.from('applications').insert({
         job_id: item.jobId,
@@ -176,9 +210,11 @@ export async function syncQueuedApplications(
         removeQueuedApplication(item.jobId, item.seekerId);
         synced++;
       } else {
+        recordQueueFailure(item.jobId, item.seekerId);
         failed++;
       }
     } catch {
+      recordQueueFailure(item.jobId, item.seekerId);
       failed++;
     }
   }

@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Pin,
 } from 'lucide-react';
+import { useAppAccess } from '../contexts/AppAccessContext';
 
 dayjs.extend(relativeTime);
 dayjs.locale('id');
@@ -156,6 +157,7 @@ function getProviderBadge(site) {
 }
 
 export default function JobCard({ job, onSelectJob }) {
+  const { requireApp } = useAppAccess();
   const summary = stripHtml(job.description);
   const shortSummary = summary.length > 150 ? `${summary.slice(0, 150)}...` : summary;
   const isRemote = (job.locations || '').toLowerCase().includes('remote');
@@ -167,6 +169,24 @@ export default function JobCard({ job, onSelectJob }) {
     if (isInternal && onSelectJob) {
       e.preventDefault();
       onSelectJob(job);
+    }
+  };
+
+  const handleInternalApply = (e) => {
+    e.stopPropagation();
+    if (!requireApp('Melamar Lowongan Pekerjaan')) {
+      return;
+    }
+    if (onSelectJob) {
+      onSelectJob(job);
+    }
+  };
+
+  const handleExternalApply = (e) => {
+    if (!requireApp('Melamar Lowongan Pekerjaan')) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
     }
   };
 
@@ -279,8 +299,8 @@ export default function JobCard({ job, onSelectJob }) {
                 Detail
               </button>
               <button
-                onClick={handleCardClick}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-3 py-2 text-xs font-bold text-slate-950 shadow-md shadow-sky-500/20 transition-all hover:from-sky-400 hover:to-cyan-300 active:scale-[0.98]"
+                onClick={handleInternalApply}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-3 py-2 text-xs font-bold text-slate-950 shadow-md shadow-sky-500/20 transition-all hover:from-sky-400 hover:to-cyan-300 active:scale-[0.98] cursor-pointer"
               >
                 <ArrowUpRight className="h-3.5 w-3.5" />
                 Lamar di LOXER
@@ -295,7 +315,8 @@ export default function JobCard({ job, onSelectJob }) {
                 href={job.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-3 py-2 text-xs font-bold text-slate-950 shadow-md shadow-sky-500/20 transition-all hover:from-sky-400 hover:to-cyan-300 active:scale-[0.98]"
+                onClick={handleExternalApply}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-3 py-2 text-xs font-bold text-slate-950 shadow-md shadow-sky-500/20 transition-all hover:from-sky-400 hover:to-cyan-300 active:scale-[0.98] cursor-pointer"
               >
                 <ArrowUpRight className="h-3.5 w-3.5" />
                 Lamar Sekarang

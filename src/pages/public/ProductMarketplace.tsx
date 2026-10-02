@@ -22,6 +22,7 @@ import Footer from '../../components/layout/Footer';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
 import AuthModal from '../auth/AuthModal';
 import { useAuth } from '../../contexts/useAuth';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 import {
   MarketplaceProduct,
   MarketplaceTransaction,
@@ -53,6 +54,7 @@ const PRESET_IMAGES = [
 
 export default function ProductMarketplace() {
   const { user, userMeta } = useAuth();
+  const { requireApp } = useAppAccess();
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -158,6 +160,9 @@ export default function ProductMarketplace() {
   }, [products, user]);
 
   const handleOpenSellModal = () => {
+    if (!requireApp('Pasang Iklan Produk')) {
+      return;
+    }
     if (!user) {
       setAuthInitialRole('seeker');
       setAuthMode('login');
@@ -232,6 +237,9 @@ export default function ProductMarketplace() {
   };
 
   const handleStartWhatsAppChat = (product: MarketplaceProduct) => {
+    if (!requireApp('Menghubungi Penjual & Beli (WhatsApp)')) {
+      return;
+    }
     const phone = product.seller_whatsapp.startsWith('0')
       ? '62' + product.seller_whatsapp.slice(1)
       : product.seller_whatsapp;
@@ -242,6 +250,9 @@ export default function ProductMarketplace() {
   };
 
   const handleOpenOrderModal = (product: MarketplaceProduct) => {
+    if (!requireApp('Mengajukan Transaksi Produk')) {
+      return;
+    }
     if (!user) {
       setAuthInitialRole('seeker');
       setAuthMode('login');
@@ -300,6 +311,7 @@ export default function ProductMarketplace() {
       <Navbar
         onLogin={() => setAuthMode('login')}
         onRegister={(role) => {
+          if (!requireApp('Mendaftar Akun')) return;
           setAuthInitialRole(role || 'seeker');
           setAuthMode('register');
         }}

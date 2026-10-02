@@ -12,9 +12,11 @@ import JobList from '../../components/JobList';
 import JobDetailModal from '../../components/jobs/JobDetailModal';
 import AuthModal from '../auth/AuthModal';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 import { UserRole } from '../../lib/types';
 
 export default function Browse() {
+  const { requireApp } = useAppAccess();
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
   const [page, setPage] = useState(1);
@@ -69,6 +71,9 @@ export default function Browse() {
   };
 
   const handleOpenRegister = (role: UserRole = 'seeker') => {
+    if (!requireApp('Mendaftar Akun')) {
+      return;
+    }
     setAuthInitialRole(role);
     setAuthMode('register');
   };

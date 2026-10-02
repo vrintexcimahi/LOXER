@@ -18,6 +18,7 @@ import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav
 import { TalentMarketplacePost, UserRole } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 
 const CATEGORIES = [
   'Semua',
@@ -37,6 +38,7 @@ const CATEGORIES = [
 
 export default function TalentMarketplace() {
   const { user } = useAuth();
+  const { requireApp } = useAppAccess();
   const parseAvailabilityFromUrl = () => {
     if (typeof window === 'undefined') return 'all';
     const params = new URLSearchParams(window.location.search);
@@ -184,11 +186,17 @@ export default function TalentMarketplace() {
   }, [talents, selectedCategory, selectedAvailability, selectedCity, searchQuery]);
 
   const handleOpenRegister = (role: UserRole = 'seeker') => {
+    if (!requireApp('Mendaftar Akun')) {
+      return;
+    }
     setAuthInitialRole(role);
     setAuthMode('register');
   };
 
   const handleNavigatePost = () => {
+    if (!requireApp('Posting Biodata & Jasa')) {
+      return;
+    }
     if (!user) {
       setAuthInitialRole('seeker');
       setAuthMode('login');

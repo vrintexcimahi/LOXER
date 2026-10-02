@@ -17,6 +17,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { queueApplicationOffline, getQueuedApplications } from '../../lib/offlineSyncService';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 import { JobListing } from '../../lib/types';
 
 interface JobDetailModalProps {
@@ -77,6 +78,7 @@ export default function JobDetailModal({
   onApplied,
 }: JobDetailModalProps) {
   const { user, userMeta } = useAuth();
+  const { requireApp } = useAppAccess();
   const [job, setJob] = useState<JobListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -175,6 +177,9 @@ export default function JobDetailModal({
   }, [onClose]);
 
   const handleApply = async () => {
+    if (!requireApp('Melamar Lowongan Pekerjaan')) {
+      return;
+    }
     if (!jobId || !user) return;
     if (userMeta?.role !== 'seeker' && userMeta?.role !== 'freelancer') return;
 
@@ -464,8 +469,13 @@ export default function JobDetailModal({
             {!user ? (
               <button
                 type="button"
-                onClick={() => onRequireAuth?.('login')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:brightness-110 active:scale-95 transition"
+                onClick={() => {
+                  if (!requireApp('Melamar Lowongan Pekerjaan')) {
+                    return;
+                  }
+                  onRequireAuth?.('login');
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer"
               >
                 Masuk / Daftar untuk Melamar
               </button>

@@ -388,8 +388,10 @@ async function testAuditFixes() {
     });
     const empLoginData = await empLoginRes.json();
     const empToken = empLoginData.data?.session?.access_token;
-    if (empToken) {
-      let foreignJob = queryOne("SELECT j.id, a.id as app_id FROM job_listings j JOIN applications a ON a.job_id = j.id WHERE j.company_id NOT IN (SELECT id FROM companies WHERE user_id = '7c807010-51b6-4659-841f-5679746c14d3') LIMIT 1");
+    const empUser = empLoginData.data?.user || queryOne("SELECT id FROM users WHERE email = 'employer@demo.com'");
+    const empUserId = empUser?.id;
+    if (empToken && empUserId) {
+      let foreignJob = queryOne("SELECT j.id, a.id as app_id FROM job_listings j JOIN applications a ON a.job_id = j.id WHERE j.company_id NOT IN (SELECT id FROM companies WHERE user_id = ?) LIMIT 1", [empUserId]);
       let foreignAppId = foreignJob?.app_id;
       let seededForeign = false;
 
@@ -397,7 +399,7 @@ async function testAuditFixes() {
         const dummyCompId = 'comp_foreign_' + Date.now();
         const dummyJobId = 'job_foreign_' + Date.now();
         foreignAppId = 'app_foreign_' + Date.now();
-        const dummyUser = queryOne("SELECT id FROM users WHERE id != '7c807010-51b6-4659-841f-5679746c14d3' LIMIT 1");
+        const dummyUser = queryOne("SELECT id FROM users WHERE id != ? LIMIT 1", [empUserId]);
         const foreignUserId = dummyUser?.id || 'usr_foreign_mock';
         execute("INSERT OR IGNORE INTO companies (id, user_id, name) VALUES (?, ?, 'Foreign Corp')", [dummyCompId, foreignUserId]);
         execute("INSERT OR IGNORE INTO job_listings (id, company_id, title) VALUES (?, ?, 'Foreign Job')", [dummyJobId, dummyCompId]);
@@ -439,8 +441,8 @@ async function testAuditFixes() {
     assert(traversalRes.status === 404, '24. Security: Snapshot download path traversal attempt blocked with 404');
 
     // 25. Test Employer Job Mutation IDOR Guard (Saran 1)
-    if (empToken) {
-      const foreignJob = queryOne("SELECT id, company_id FROM job_listings WHERE company_id NOT IN (SELECT id FROM companies WHERE user_id = '7c807010-51b6-4659-841f-5679746c14d3') LIMIT 1");
+    if (empToken && empUserId) {
+      const foreignJob = queryOne("SELECT id, company_id FROM job_listings WHERE company_id NOT IN (SELECT id FROM companies WHERE user_id = ?) LIMIT 1", [empUserId]);
       if (foreignJob) {
         const idorJobRes = await fetch(`${baseUrl}/api/local/db/query`, {
           method: 'POST',
@@ -462,8 +464,8 @@ async function testAuditFixes() {
     }
 
     // 26. Test Application Status FSM Transition Guard (Saran 4)
-    if (empToken) {
-      const empComp = queryOne("SELECT id FROM companies WHERE user_id = '7c807010-51b6-4659-841f-5679746c14d3' LIMIT 1");
+    if (empToken && empUserId) {
+      const empComp = queryOne("SELECT id FROM companies WHERE user_id = ? LIMIT 1", [empUserId]);
       if (empComp) {
         const empJob = queryOne("SELECT id FROM job_listings WHERE company_id = ? LIMIT 1", [empComp.id]);
         if (empJob) {
@@ -530,6 +532,136 @@ async function testAuditFixes() {
       });
       const restoreData = await restoreRes.json();
       assert(restoreRes.status === 200 && restoreData.ok, '30. Backup: Admin database snapshot restore successfully verified');
+    }
+
+    // 31. Security: Employer modifying foreign company profile blocked with 403 (IDOR Guard)
+    if (empToken && empUserId) {
+      const foreignComp = queryOne("SELECT id FROM companies WHERE user_id != ? LIMIT 1", [empUserId]);
+      if (foreignComp) {
+        const idorCompRes = await fetch(`${baseUrl}/api/local/db/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${empToken}`,
+          },
+          body: JSON.stringify({
+            table: 'companies',
+            action: 'update',
+            data: { name: 'Hacked Company Name' },
+            filters: [{ column: 'id', op: 'eq', value: foreignComp.id }],
+          }),
+        });
+        assert(idorCompRes.status === 403, '31. Security: Employer modifying foreign company profile blocked with 403 (IDOR Guard)');
+      }
+
+      // 32. Security: User modifying foreign seeker profile blocked with 403 (IDOR Guard)
+      const foreignSeeker = queryOne("SELECT id FROM seeker_profiles WHERE user_id != ? LIMIT 1", [empUserId]);
+      if (foreignSeeker) {
+        const idorSeekerRes = await fetch(`${baseUrl}/api/local/db/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${empToken}`,
+          },
+          body: JSON.stringify({
+            table: 'seeker_profiles',
+            action: 'update',
+            data: { full_name: 'Hacked Seeker Name' },
+            filters: [{ column: 'id', op: 'eq', value: foreignSeeker.id }],
+          }),
+        });
+        assert(idorSeekerRes.status === 403, '32. Security: User modifying foreign seeker profile blocked with 403 (IDOR Guard)');
+      }
+
+      // 33. Security: Employer creating interview invitation on foreign job application blocked with 403 (IDOR Guard)
+      const foreignJob = queryOne("SELECT id FROM job_listings WHERE company_id NOT IN (SELECT id FROM companies WHERE user_id = ?) LIMIT 1", [empUserId]);
+      if (foreignJob) {
+        const foreignAppId = 'app_foreign_test_' + Date.now();
+        const testSeeker = queryOne("SELECT id FROM seeker_profiles LIMIT 1");
+        if (testSeeker) {
+          execute("INSERT OR REPLACE INTO applications (id, job_id, seeker_id, status) VALUES (?, ?, ?, 'applied')", [foreignAppId, foreignJob.id, testSeeker.id]);
+
+          const idorInvRes = await fetch(`${baseUrl}/api/local/db/query`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${empToken}`,
+            },
+            body: JSON.stringify({
+              table: 'interview_invitations',
+              action: 'insert',
+              data: {
+                application_id: foreignAppId,
+                scheduled_at: new Date().toISOString(),
+                location_or_link: 'Office',
+              },
+            }),
+          });
+          assert(idorInvRes.status === 403, '33. Security: Employer creating interview invitation on foreign job application blocked with 403 (IDOR Guard)');
+          execute("DELETE FROM applications WHERE id = ?", [foreignAppId]);
+        }
+      }
+
+      // 34. Security: User modifying foreign talent marketplace post blocked with 403 (IDOR Guard)
+      const foreignTalent = queryOne("SELECT id FROM talent_marketplace_posts WHERE user_id != ? LIMIT 1", [empUserId]);
+      if (foreignTalent) {
+        const idorTalentRes = await fetch(`${baseUrl}/api/local/db/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${empToken}`,
+          },
+          body: JSON.stringify({
+            table: 'talent_marketplace_posts',
+            action: 'update',
+            data: { headline: 'Hacked Headline' },
+            filters: [{ column: 'id', op: 'eq', value: foreignTalent.id }],
+          }),
+        });
+        assert(idorTalentRes.status === 403, '34. Security: User modifying foreign talent marketplace post blocked with 403 (IDOR Guard)');
+      }
+    }
+
+    // 35. Test Query with is and not filters
+    const isFilterRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'moderation_queue',
+        action: 'select',
+        filters: [{ column: 'reviewed_at', op: 'is', value: null }],
+      }),
+    });
+    const isFilterData = await isFilterRes.json();
+    assert(isFilterRes.status === 200 && Array.isArray(isFilterData.data), '35. Query: Filter op is/null supported cleanly');
+
+    // 36. Test FSM: Fast-track transition applied -> interview_scheduled allowed
+    if (empToken && empUserId) {
+      const empComp = queryOne("SELECT id FROM companies WHERE user_id = ? LIMIT 1", [empUserId]);
+      if (empComp) {
+        const empJob = queryOne("SELECT id FROM job_listings WHERE company_id = ? LIMIT 1", [empComp.id]);
+        const seeker = queryOne("SELECT id FROM seeker_profiles LIMIT 1");
+        if (empJob && seeker) {
+          const fastTrackAppId = 'app_fasttrack_' + Date.now();
+          execute("INSERT OR REPLACE INTO applications (id, job_id, seeker_id, status) VALUES (?, ?, ?, 'applied')", [fastTrackAppId, empJob.id, seeker.id]);
+
+          const fastTrackRes = await fetch(`${baseUrl}/api/local/db/query`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${empToken}`,
+            },
+            body: JSON.stringify({
+              table: 'applications',
+              action: 'update',
+              data: { status: 'interview_scheduled' },
+              filters: [{ column: 'id', op: 'eq', value: fastTrackAppId }],
+            }),
+          });
+          assert(fastTrackRes.status === 200, '36. FSM: Fast-track transition applied -> interview_scheduled allowed');
+          execute("DELETE FROM applications WHERE id = ?", [fastTrackAppId]);
+        }
+      }
     }
 
     if (failureCount > 0) {

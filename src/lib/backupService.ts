@@ -232,49 +232,76 @@ export async function restoreBackupData(pkg: BackupPackage): Promise<{ success: 
 // Telegram Bot Integration
 // ---------------------------------------------------------------------------
 
+function getStorageSalt(): string {
+  try {
+    return (window.location.origin || 'loxer_origin') + '::' + (navigator.userAgent.slice(0, 32) || 'loxer_ua');
+  } catch {
+    return 'loxer_backup_salt_key_2026';
+  }
+}
+
+function obfuscateConfig(text: string): string {
+  try {
+    const salt = getStorageSalt();
+    const encoded = encodeURIComponent(text);
+    let result = '';
+    for (let i = 0; i < encoded.length; i++) {
+      result += String.fromCharCode(encoded.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+    }
+    return 'enc:v1:' + btoa(result);
+  } catch {
+    return text;
+  }
+}
+
+function deobfuscateConfig(stored: string): string {
+  try {
+    if (!stored.startsWith('enc:v1:')) {
+      return stored; // backward-compatibility with plain JSON
+    }
+    const salt = getStorageSalt();
+    const raw = atob(stored.slice(7));
+    let result = '';
+    for (let i = 0; i < raw.length; i++) {
+      result += String.fromCharCode(raw.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+    }
+    return decodeURIComponent(result);
+  } catch {
+    return stored;
+  }
+}
+
 export function getTelegramConfig(): TelegramConfig {
+  const defaultConfig: TelegramConfig = {
+    enabled: false,
+    botToken: '',
+    chatId: '',
+    backupTime: '23:59',
+    sendDocument: true,
+    sendSummaryText: true,
+    lastStatus: 'idle',
+  };
+
   if (typeof window === 'undefined') {
-    return {
-      enabled: false,
-      botToken: '',
-      chatId: '',
-      backupTime: '23:59',
-      sendDocument: true,
-      sendSummaryText: true,
-      lastStatus: 'idle',
-    };
+    return defaultConfig;
   }
 
   try {
     const raw = localStorage.getItem(TELEGRAM_CONFIG_KEY);
     if (!raw) {
-      return {
-        enabled: false,
-        botToken: '',
-        chatId: '',
-        backupTime: '23:59',
-        sendDocument: true,
-        sendSummaryText: true,
-        lastStatus: 'idle',
-      };
+      return defaultConfig;
     }
-    return JSON.parse(raw) as TelegramConfig;
+    const decrypted = deobfuscateConfig(raw);
+    return JSON.parse(decrypted) as TelegramConfig;
   } catch {
-    return {
-      enabled: false,
-      botToken: '',
-      chatId: '',
-      backupTime: '23:59',
-      sendDocument: true,
-      sendSummaryText: true,
-      lastStatus: 'idle',
-    };
+    return defaultConfig;
   }
 }
 
 export function saveTelegramConfig(config: TelegramConfig) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(TELEGRAM_CONFIG_KEY, JSON.stringify(config));
+  const json = JSON.stringify(config);
+  localStorage.setItem(TELEGRAM_CONFIG_KEY, obfuscateConfig(json));
 }
 
 export async function testTelegramMessage(token: string, chatId: string): Promise<{ ok: boolean; message: string }> {

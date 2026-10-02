@@ -158,4 +158,55 @@ export function clearSimRoleSession(role: SimRole): void {
   const { tokenKey, userKey } = getSimStorageKeys(role);
   localStorage.removeItem(tokenKey);
   localStorage.removeItem(userKey);
+
+  // Dispatch custom event for real-time memory cleanup
+  window.dispatchEvent(
+    new CustomEvent('loxer:sim-session-cleared', {
+      detail: { role },
+    })
+  );
+}
+
+/**
+ * Pembersihan atomik seluruh token dan sesi simulasi untuk mencegah kebocoran residual data profil
+ */
+export function clearAllSimSessions(): void {
+  if (typeof window === 'undefined') return;
+  const roles: SimRole[] = ['seeker', 'employer', 'freelancer', 'admin'];
+  for (const role of roles) {
+    const { tokenKey, userKey } = getSimStorageKeys(role);
+    localStorage.removeItem(tokenKey);
+    localStorage.removeItem(userKey);
+  }
+  window.dispatchEvent(new CustomEvent('loxer:sim-session-cleared', { detail: { role: 'all' } }));
+}
+
+/**
+ * Beralih antar role simulasi secara atomik dengan pembersihan state residual
+ */
+export async function switchSimRole(newRole: SimRole | null): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (!newRole) {
+    // Kembali ke sesi live utama
+    try {
+      window.name = '';
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new CustomEvent('loxer:sim-session-cleared', { detail: { role: 'exit' } }));
+    return;
+  }
+
+  try {
+    window.name = `loxer_sim_${newRole}`;
+  } catch {
+    // ignore
+  }
+
+  await seedSimRoleSession(newRole);
+  window.dispatchEvent(
+    new CustomEvent('loxer:sim-session-switched', {
+      detail: { role: newRole },
+    })
+  );
 }

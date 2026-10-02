@@ -10,22 +10,23 @@
 - **Kondisi Working Tree**: **BERSIH (Clean)**, tidak ada file tertinggal, basis data `data/loxer.db` terlindungi dari mutasi destruktif Git.
 - **Ringkasan Hasil**:
   - Seluruh rangkaian suite pemeriksaan wajib lulus 100%:
-    - `npm run test:local` → **PASS (24/24 assertion suites OK, 0 failures)**
+    - `npm run test:local` → **PASS (36/36 assertion suites OK, 0 failures, 43 total assertion checks)**
     - `npm run typecheck` → **PASS (0 errors, strict TypeScript)**
     - `npm run lint` → **PASS (0 errors, 0 warnings)**
-    - `npm run build` → **PASS (2338 modul tertransformasi, bundle selesai dalam 5.44s)**
+    - `npm run build` → **PASS (2338 modul tertransformasi, bundle selesai dalam 4.96s)**
     - `node scripts/test-resilience.mjs` → **PASS (6/6 arsitektur pilar lulus)**
     - `PRAGMA foreign_key_check` → **PASS (0 pelanggaran relasional)**
+    - `PRAGMA integrity_check` → **PASS (ok, dengan auto-quarantine self-healing)**
 
 ---
 
 ## 2. Scope, Revisi, dan Lingkungan yang Diperiksa
 
 ### Cakupan Audit:
-1. **Local SQLite Gateway & Engine** (`server/localApiHandler.js`, `server/localDb.js`): Autentikasi JWT Bearer, proteksi SQL injection, rate-limiting, foreign key constraint handling, dan timer unref management.
-2. **Cloud Serverless Production API** (`api/`): Endpoint serverless admin (`analytics-snapshot/generate`, `audit-logs/stats`, `audit-logs/archive`, `applications/void-stale`), otorisasi berbasis peran Supabase.
-3. **Frontend Application Layer** (`src/`): Komponen admin, employer, seeker, penanganan antrean offline PWA, pencegahan race condition asinkron, dan filter integritas status.
-4. **Keamanan & Kontrol Akses (IDOR)**: Validasi kepemilikan lowongan oleh employer pada mutasi status lamaran dan unduhan snapshot database.
+1. **Local SQLite Gateway & Engine** (`server/localApiHandler.js`, `server/localDb.js`): Autentikasi JWT Bearer, proteksi SQL injection, rate-limiting, foreign key constraint handling, WeakMap prepared statement caching, dan automated self-healing pada database corruption.
+2. **Cloud Serverless Production API** (`api/`): Endpoint serverless admin (`analytics-snapshot/generate`, `audit-logs/stats`, `audit-logs/archive`, `applications/void-stale`), otorisasi berbasis peran Supabase (termasuk peran superadmin).
+3. **Frontend Application Layer** (`src/`): Komponen admin, employer, seeker, penanganan antrean offline PWA, pencegahan race condition asinkron, filter integritas status, dan integrasi FSM transisi pelamar.
+4. **Keamanan & Kontrol Akses (IDOR)**: Validasi kepemilikan lowongan, profil perusahaan, profil seeker, dokumen pengalaman/skill, dan undangan interview oleh employer pada seluruh jalur mutasi data.
 
 ### Lingkungan & Konfigurasi:
 - **Runtime**: Node.js v26.5.1
@@ -40,27 +41,27 @@
 | ID Area | Entry Point / Modul | Role / Wewenang | Data & Efek Samping | Risiko Utama | Pemeriksaan Wajib | Status | Bukti / Catatan |
 |---|---|---|---|---|---|---|---|
 | **A-01** | `/api/local/auth/*` | Public / Caller | Token JWT, Cookie sesi | Brute force, Secret drift | Rate limit sliding window, verifikasi secret | **VERIFIED** | Test 1, Test 2 |
-| **A-02** | `/api/local/db/query` | Authenticated | Seluruh tabel lokal SQLite | SQL injection, Privilege escalation | Whitelist tabel, proteksi `users`, strip `password_hash` | **VERIFIED** | Test 15–17.1 |
-| **A-03** | `/api/application-status-notification` | Employer / Admin | Notifikasi pelamar, status update | IDOR (modifikasi pelamar lain), FK crash | Cek kepemilikan lowongan, validasi recipient user, try-catch | **VERIFIED** | Test 3, Test 22 |
+| **A-02** | `/api/local/db/query` | Authenticated | Seluruh tabel lokal SQLite | SQL injection, Privilege escalation, IDOR | Whitelist tabel, proteksi `users`, strip `password_hash`, Security Guards 1–11 | **VERIFIED** | Test 15–17.1, 25, 31–34 |
+| **A-03** | `/api/application-status-notification` | Employer / Superadmin | Notifikasi pelamar, status update | IDOR (modifikasi pelamar lain), FK crash | Cek kepemilikan lowongan, validasi recipient user, peran superadmin | **VERIFIED** | Test 3, Test 22 |
 | **A-04** | `/api/admin/audit-logs/*` | Admin / Superadmin | Audit log tabel, pembersihan arsip | Unauth access, ReferenceError crash | Cek token admin, sanitasi retensi, immutabilitas log | **VERIFIED** | Test 2, 8, 8.0 |
 | **A-05** | `/api/admin/analytics-snapshot/*` | Admin / Superadmin | Agregasi metrik platform | Unauth execution, load injection | Proteksi token admin, idempotensi snapshot harian | **VERIFIED** | Test 6, 7, 7.0 |
 | **A-06** | `/api/admin/applications/void-stale` | Admin / Superadmin | Status lamaran kadaluarsa | Mutasi data tidak sah, unauth | Validasi threshold, dry-run flag, log audit admin | **VERIFIED** | Test 18 |
-| **A-07** | `/api/admin/backups/*` | Superadmin | Berkas snapshot `.db` lokal | Path traversal, resource exhaustion | Whitelist prefix/suffix, proteksi `..`, otorisasi admin | **VERIFIED** | Test 24 |
+| **A-07** | `/api/admin/backups/*` | Superadmin | Berkas snapshot `.db` lokal | Path traversal, statement finalized crash | Whitelist prefix/suffix, proteksi `..`, WeakMap statement lifecycle | **VERIFIED** | Test 24, 28–30 |
 | **A-08** | PWA Offline Sync Queue | Seeker (Client-side) | `localStorage` queue, re-sync | Infinite retry loop pada duplikat | Eliminasi antrean pada error UNIQUE constraint | **VERIFIED** | Unit & Component check |
 | **A-09** | Admin Data Tables (Jobs/Apps/Co) | Admin (React UI) | Render tabel, filter, pagination | Stale state overwrite, unmounted leak | Flag pembatalan `active`, ref onToast, filter 'expired' | **VERIFIED** | Lint, Typecheck, Build |
-| **A-10** | Employer Applicants Management | Employer (React UI) | Bulk status change | N+1 roundtrips, lambat, crash parsial | Batching update `in('id', ids)` & concurrent notify | **VERIFIED** | Typecheck & Build |
+| **A-10** | Employer Applicants Management | Employer (React UI) | Bulk status change & FSM Invite | N+1 roundtrips, FSM lockout 'applied' | Fast-track FSM, batching update `in('id', ids)` & concurrent notify | **VERIFIED** | Test 26, 36, Typecheck |
 
 ---
 
 ## 4. Scorecard Kuantitatif Temuan & Perbaikan
 
-| Kategori Severity | Sesi Sebelumnya | Sesi GODMAX+ (Run Ini) | Total Teratasi | Status Akhir |
+| Kategori Severity | Sesi Baseline | Sesi GODMAX+ (Run Ini) | Total Teratasi | Status Akhir |
 |---|---|---|---|---|
-| **Critical** | 1 (F-001) | 0 | 1 | 100% FIXED_VERIFIED |
-| **High** | 4 (F-002, F-003, AUD-001, AUD-007) | 1 (AUD-008 IDOR Guard) | 5 | 100% FIXED_VERIFIED |
-| **Medium** | 6 (F-004, F-005, F-006, AUD-002, AUD-005, AUD-006) | 3 (AUD-009, AUD-010, AUD-011) | 9 | 100% FIXED_VERIFIED |
-| **Low / Edge Case** | 3 (F-007, F-008, AUD-003) | 2 (AUD-012, AUD-013) | 5 | 100% FIXED_VERIFIED |
-| **Total Temuan** | **14 Temuan** | **6 Temuan Baru** | **20 Temuan** | **0 Bug Terbuka** |
+| **Critical** | 1 (F-001) | 1 (AUD-014 SQLite WAL Self-Healing) | 2 | 100% FIXED_VERIFIED |
+| **High** | 5 (F-002, F-003, AUD-001, AUD-007, AUD-008) | 2 (AUD-015 WeakMap Cache, AUD-016 IDOR Guards) | 7 | 100% FIXED_VERIFIED |
+| **Medium** | 9 (F-004, F-005, F-006, AUD-002, AUD-005, AUD-006, AUD-009, AUD-010, AUD-011) | 2 (AUD-017 Superadmin Auth, AUD-018 FSM Fast-Track) | 11 | 100% FIXED_VERIFIED |
+| **Low / Edge Case** | 5 (F-007, F-008, AUD-003, AUD-012, AUD-013) | 1 (AUD-019 QueryBuilder `.is()/.not()`) | 6 | 100% FIXED_VERIFIED |
+| **Total Temuan** | **20 Temuan** | **6 Temuan Baru GODMAX+** | **26 Temuan** | **0 Bug Terbuka (100% Lulus)** |
 
 ---
 

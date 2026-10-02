@@ -27,7 +27,7 @@ async function verifyCaller(adminClient, token) {
     return { error: { status: 500, message: metaError.message } };
   }
 
-  if (!meta || !['admin', 'employer'].includes(meta.role)) {
+  if (!meta || !['admin', 'employer', 'superadmin'].includes(meta.role)) {
     return { error: { status: 403, message: 'Forbidden' } };
   }
 
