@@ -96,54 +96,68 @@ export default function Browse() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-6 sm:p-10 shadow-2xl">
-          <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
-          <div className="absolute -left-12 -bottom-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
+        {/* Hero Section: Large Slideshow on Top, Compact Text Underneath */}
+        <section className="relative overflow-hidden rounded-3xl border border-sky-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-4 sm:p-6 lg:p-7 shadow-2xl">
+          <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute -left-12 -bottom-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
-            <div className="lg:col-span-7 space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-300 border border-sky-500/30">
-                <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                <span>
-                  {isFreelancer
-                    ? 'Bursa Layanan Jasa Mandiri & Panggilan LOXER'
-                    : 'LOXER Unified Job Hub — Pusat Lowongan Indonesia & Global'}
+          {/* 1. Large Slideshow on Top */}
+          <div className="relative z-10 w-full mb-4 sm:mb-5">
+            <HeroBannerSlideshow
+              initialSlide={0}
+              variant="embedded"
+              onRegister={handleOpenRegister}
+            />
+          </div>
+
+          {/* 2. Compact Text & Actions Below */}
+          <div className="relative z-10 border-t border-white/10 pt-3.5 sm:pt-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1.5 max-w-3xl">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-sky-500/10 text-sky-300 border border-sky-500/30">
+                  <Sparkles className="w-3 h-3 text-sky-400" />
+                  <span>
+                    {isFreelancer
+                      ? 'Bursa Layanan Jasa Mandiri & Panggilan LOXER'
+                      : 'LOXER Unified Job Hub — Pusat Lowongan Indonesia & Global'}
+                  </span>
                 </span>
               </div>
 
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-black text-white tracking-tight leading-snug">
                 {isFreelancer ? 'Katalog Layanan Jasa &' : 'Cari Lowongan Kerja'}{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-teal-400">
                   {isFreelancer ? 'Penyedia Jasa Mandiri' : 'Indonesia & Global'}
                 </span>
               </h1>
 
-              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
                 {isFreelancer
                   ? 'Temukan penyedia jasa mandiri profesional: jasa pijat & refleksi, bengkel motor/mobil, servis komputer & elektronik, pertukangan, kebersihan, dan lainnya.'
                   : 'Pencarian terintegrasi dari mitra resmi terverifikasi LOXER, Careerjet, dan feed publik Arbeitnow langsung dari satu pintu.'}
               </p>
+            </div>
 
-              {/* Quick Actions */}
-              <div className="pt-2 flex flex-wrap items-center gap-3">
+            {/* Quick Actions & Provider stat pills */}
+            <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-start sm:items-center gap-3 shrink-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <a
                   href="/talents"
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-slate-950 bg-gradient-to-r from-sky-400 to-cyan-300 hover:from-sky-300 hover:to-cyan-200 shadow-lg shadow-sky-500/20 transition-all transform hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-950 bg-gradient-to-r from-sky-400 to-cyan-300 hover:from-sky-300 hover:to-cyan-200 shadow-md shadow-sky-500/20 transition-all transform hover:-translate-y-0.5"
                 >
-                  <Search className="w-4 h-4" />
+                  <Search className="w-3.5 h-3.5" />
                   Cari Talent Siap Kerja
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </a>
 
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-sky-400" />
-                  <span>Rekrutmen & Lamaran Terproteksi di Platform</span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
+                  <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Rekrutmen Resmi</span>
                 </div>
               </div>
 
               {/* Provider stat pills */}
-              <div className="pt-1 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {[
                   { label: 'Mitra LOXER', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
                   { label: 'Careerjet', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
@@ -151,21 +165,13 @@ export default function Browse() {
                 ].map((src) => (
                   <span
                     key={src.label}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border ${src.color}`}
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${src.color}`}
                   >
-                    <Briefcase className="w-3 h-3" />
+                    <Briefcase className="w-2.5 h-2.5" />
                     {src.label}
                   </span>
                 ))}
               </div>
-            </div>
-
-            <div className="lg:col-span-5 w-full">
-              <HeroBannerSlideshow
-                initialSlide={0}
-                variant="embedded"
-                onRegister={handleOpenRegister}
-              />
             </div>
           </div>
         </section>
