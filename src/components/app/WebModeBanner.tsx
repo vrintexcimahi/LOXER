@@ -33,12 +33,12 @@ export default function WebModeBanner() {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-xs font-black text-white">Mode Web: View-Only</span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                Aplikasi Wajib
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                APK Android Wajib
               </span>
             </div>
             <p className="text-[11px] text-slate-300 leading-tight mt-1 truncate sm:whitespace-normal">
-              Melamar loker, chat penjual, &amp; daftar akun wajib melalui Aplikasi LOXER.
+              Melamar loker, chat penjual, &amp; daftar akun wajib melalui Aplikasi Resmi APK.
             </p>
           </div>
         </div>
@@ -47,9 +47,9 @@ export default function WebModeBanner() {
           <button
             type="button"
             onClick={() => openInstallModal('Melamar, Chat & Mendaftar')}
-            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-400 text-slate-950 text-xs font-extrabold shadow-md shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer whitespace-nowrap"
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-400 text-slate-950 text-xs font-extrabold shadow-md shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer whitespace-nowrap"
           >
-            Pasang App
+            Download APK
           </button>
           <button
             type="button"

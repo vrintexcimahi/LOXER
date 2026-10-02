@@ -5,7 +5,7 @@
   "description": "Platform rekrutmen Indonesia - lamar pekerjaan 1 klik, tanpa upload CV. Temukan karir impian bersama 8.000+ perusahaan terpilih.",
   "start_url": "/",
   "scope": "/",
-  "display": "standalone",
+  "display": "browser",
   "orientation": "any",
   "background_color": "#0f172a",
   "theme_color": "#0284c7",

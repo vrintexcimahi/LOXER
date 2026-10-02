@@ -487,6 +487,7 @@ export function createDatabaseSnapshot(label = '') {
 
   const db = getLocalDb();
   try {
+    db.exec('REINDEX;');
     db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
   } catch {
     // ignore
@@ -587,6 +588,9 @@ export function restoreDatabaseSnapshot(filename) {
 
   // Re-open and verify database
   const db = getLocalDb();
+  try {
+    db.exec('REINDEX;');
+  } catch {}
   const check = db.prepare('PRAGMA integrity_check').get();
   if (check && check.integrity_check !== 'ok') {
     throw new Error(`Integritas basis data gagal: ${check.integrity_check}`);

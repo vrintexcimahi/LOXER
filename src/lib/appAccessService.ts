@@ -58,24 +58,7 @@ export function detectIsAppClient(): boolean {
       return true;
     }
 
-    // 3. Check Standalone Display Mode (PWA desktop / mobile installed)
-    const isStandaloneDisplay =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.matchMedia('(display-mode: fullscreen)').matches ||
-      window.matchMedia('(display-mode: minimal-ui)').matches;
-    if (isStandaloneDisplay) {
-      return true;
-    }
-
-    // 4. Check iOS Safari standalone
-    if (
-      'standalone' in navigator &&
-      (navigator as unknown as { standalone: boolean }).standalone === true
-    ) {
-      return true;
-    }
-
-    // 5. Check Document Referrer for Android TWA package id
+    // 3. Check Document Referrer for Android TWA package id (Official APK)
     if (document.referrer && document.referrer.includes('android-app://id.web.loxer.app')) {
       return true;
     }

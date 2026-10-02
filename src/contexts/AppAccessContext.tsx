@@ -61,20 +61,6 @@ export function AppAccessProvider({ children }: { children: ReactNode }) {
 
     checkAppClient();
 
-    // Listen to media query display-mode change (e.g. installed PWA opened)
-    const mediaQuery = window.matchMedia('(display-mode: standalone)');
-    const handleMediaChange = (e: MediaQueryListEvent) => {
-      if (e.matches) {
-        setIsApp(true);
-      }
-    };
-
-    try {
-      mediaQuery.addEventListener('change', handleMediaChange);
-    } catch {
-      mediaQuery.addListener(handleMediaChange);
-    }
-
     // Secret Global Keyboard Shortcut: Ctrl + Shift + A or Cmd + Shift + A
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
@@ -94,11 +80,6 @@ export function AppAccessProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
-      try {
-        mediaQuery.removeEventListener('change', handleMediaChange);
-      } catch {
-        mediaQuery.removeListener(handleMediaChange);
-      }
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
