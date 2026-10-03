@@ -976,13 +976,21 @@ async function handleDbQuery(req, res) {
   let callerId = null;
   let isAdminOrSuper = false;
   let callerRole = null;
-  if (token) {
+
+  // 1. Verify admin privilege using central admin authenticator (supports JWT, local-admin tokens, and admin emails)
+  const adminCheck = verifyAdminRequest(req);
+  if (adminCheck.ok) {
+    isAdminOrSuper = true;
+    callerId = adminCheck.callerId;
+    callerRole = adminCheck.callerMeta?.role || 'admin';
+  } else if (token) {
     const decoded = verifyToken(token);
     if (decoded) {
       callerId = decoded.sub || decoded.userId;
-      const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
-      callerRole = callerMeta?.role || null;
-      if (callerRole === 'admin' || callerRole === 'superadmin') {
+      const callerMeta = queryOne('SELECT role, email FROM users_meta WHERE id = ?', [callerId]);
+      callerRole = callerMeta?.role || decoded.role || null;
+      const callerEmail = (decoded.email || callerMeta?.email || '').trim().toLowerCase();
+      if (callerRole === 'admin' || callerRole === 'superadmin' || isAllowedAdminEmail(callerEmail)) {
         isAdminOrSuper = true;
       }
     }
@@ -1659,6 +1667,20 @@ async function handleDbQuery(req, res) {
       }
 
       const toDelete = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
+
+      // Clean up dependent direct_job_offers references if deleting talent_marketplace_posts
+      if (table === 'talent_marketplace_posts') {
+        const toDeleteIds = toDelete.map((r) => r.id).filter(Boolean);
+        if (toDeleteIds.length > 0) {
+          const placeholders = toDeleteIds.map(() => '?').join(', ');
+          try {
+            execute(`DELETE FROM direct_job_offers WHERE post_id IN (${placeholders})`, toDeleteIds);
+          } catch {
+            // ignore if cascade already handled
+          }
+        }
+      }
+
       execute(`DELETE FROM "${table}" ${whereSql}`, params);
 
       if (table === 'job_listings') jobSearchCache.clear();

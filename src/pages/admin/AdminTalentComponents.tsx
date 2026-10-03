@@ -100,7 +100,12 @@ export function useTalentCatalog(onToast: (type: ToastType, message: string) => 
         `Status ${talent.headline} diubah menjadi ${newStatus === 1 ? 'Aktif (Tayang)' : 'Nonaktif (Draft)'}.`
       );
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : 'Terjadi kesalahan';
       onToast('error', `Gagal mengubah status publikasi: ${errMsg}`);
     }
   };
@@ -115,7 +120,12 @@ export function useTalentCatalog(onToast: (type: ToastType, message: string) => 
       setTalents((prev) => prev.filter((t) => t.id !== talentId));
       onToast('success', `Talent "${headline}" berhasil dihapus.`);
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : 'Terjadi kesalahan';
       onToast('error', `Gagal menghapus talent: ${errMsg}`);
     }
   };
