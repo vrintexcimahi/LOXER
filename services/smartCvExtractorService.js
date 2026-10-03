@@ -88,6 +88,24 @@ function matchStandardTalentCategory(rawCategory) {
 }
 
 /**
+ * Bersihkan domisili dari detail jalan/RT/RW agar hanya menyisakan nama kota/kabupaten
+ */
+export function cleanDomicileCity(rawCity) {
+  if (!rawCity) return 'Cimahi';
+  let str = String(rawCity).trim();
+  if (str.includes(',') || str.includes('/')) {
+    const parts = str.split(/,|\//).map((p) => p.trim()).filter(Boolean);
+    const lastPart = parts[parts.length - 1];
+    if (lastPart && !/\b(jl|jalan|rt|rw|no|gang|blok)\b/i.test(lastPart)) {
+      str = lastPart;
+    }
+  }
+  str = str.replace(/^(jl\.?|jalan|gang|gg\.?|komplek|perumahan)\s+[^,]+/i, '').trim();
+  str = str.replace(/^[,\s-]+/, '').trim();
+  return str || 'Cimahi';
+}
+
+/**
  * Extract candidate CV & Biodata using 9Router Gemini 3.8 Multimodal
  * @param {Object} options
  * @param {string} [options.imageBase64] - Base64 image data URL (from JPG/PNG or rendered PDF page canvas)
@@ -245,21 +263,6 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
       }
 
       const parsed = JSON.parse(cleanedJson);
-
-function cleanDomicileCity(rawCity) {
-  if (!rawCity) return 'Cimahi';
-  let str = String(rawCity).trim();
-  if (str.includes(',') || str.includes('/')) {
-    const parts = str.split(/,|\//).map((p) => p.trim()).filter(Boolean);
-    const lastPart = parts[parts.length - 1];
-    if (lastPart && !/\b(jl|jalan|rt|rw|no|gang|blok)\b/i.test(lastPart)) {
-      str = lastPart;
-    }
-  }
-  str = str.replace(/^(jl\.?|jalan|gang|gg\.?|komplek|perumahan)\s+[^,]+/i, '').trim();
-  str = str.replace(/^[,\s-]+/, '').trim();
-  return str || 'Cimahi';
-}
 
       const result = {
         full_name: (parsed.full_name || 'Pelamar Kerja').trim(),
