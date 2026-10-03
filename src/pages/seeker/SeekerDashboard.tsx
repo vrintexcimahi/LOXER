@@ -109,7 +109,7 @@ export default function SeekerDashboard() {
             <div className="flex items-center justify-between gap-1 mb-3">
               <div className="flex items-center gap-1.5 truncate">
                 <h2 className="font-bold text-slate-800 text-xs sm:text-sm truncate">Lamaran Terkini</h2>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200" title="Sinkronisasi status otomatis aktif">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30" title="Sinkronisasi status otomatis aktif">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live
                 </span>
@@ -121,10 +121,10 @@ export default function SeekerDashboard() {
 
             {applications.length === 0 ? (
               <div className="text-center py-4 sm:py-6 flex flex-col items-center justify-center">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-sky-50 rounded-xl flex items-center justify-center mb-2">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-sky-50 dark:bg-slate-800/80 rounded-xl flex items-center justify-center mb-2">
                   <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400" />
                 </div>
-                <p className="text-slate-700 text-xs sm:text-sm font-bold">Belum ada lamaran</p>
+                <p className="text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold">Belum ada lamaran</p>
                 <p className="text-slate-400 text-[10px] sm:text-xs mt-0.5 leading-tight line-clamp-1">Mulai lamar lowongan favorit</p>
                 <a href="/seeker/browse" className="inline-flex items-center justify-center gap-1 mt-2.5 gradient-cta text-white rounded-xl px-3 py-1.5 text-[10px] sm:text-xs font-bold shadow-sm hover:brightness-110 active:scale-95 transition">
                   Cari Lowongan
@@ -133,8 +133,8 @@ export default function SeekerDashboard() {
             ) : (
               <div className="space-y-2">
                 {applications.slice(0, 3).map((app) => (
-                  <div key={app.id} className="flex items-center gap-2 p-2 rounded-xl hover:bg-sky-50 transition-colors border border-transparent hover:border-sky-100">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0 text-sky-600 font-bold text-xs">
+                  <div key={app.id} className="flex items-center gap-2 p-2 rounded-xl hover:bg-sky-50 dark:hover:bg-slate-800/60 transition-colors border border-transparent hover:border-sky-100 dark:hover:border-slate-700">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-sky-100 dark:bg-cyan-500/20 text-sky-600 dark:text-cyan-300 flex items-center justify-center flex-shrink-0 font-bold text-xs">
                       {(app.job_listings?.companies?.name || 'C')[0]}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -158,7 +158,7 @@ export default function SeekerDashboard() {
                 <span>Notifikasi</span>
               </h2>
               {notifications.length > 0 && (
-                <span className="text-[9px] bg-cyan-100 text-cyan-700 px-1.5 py-0.2 rounded-full font-bold">
+                <span className="text-[9px] bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30 px-1.5 py-0.2 rounded-full font-bold">
                   {notifications.length}
                 </span>
               )}
@@ -166,17 +166,29 @@ export default function SeekerDashboard() {
 
             {notifications.length === 0 ? (
               <div className="text-center py-4 sm:py-6 flex flex-col items-center justify-center">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-sky-50 rounded-xl flex items-center justify-center mb-2">
-                  <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-sky-300" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-sky-50 dark:bg-slate-800/80 rounded-xl flex items-center justify-center mb-2">
+                  <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400 dark:text-cyan-400" />
                 </div>
-                <p className="text-slate-700 text-xs sm:text-sm font-bold">Tidak ada notifikasi</p>
+                <p className="text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold">Tidak ada notifikasi</p>
                 <p className="text-slate-400 text-[10px] sm:text-xs mt-0.5 leading-tight">Pemberitahuan terbaru akan muncul di sini</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {notifications.slice(0, 3).map((n) => (
-                  <div key={n.id} className={`p-2 rounded-xl border text-[11px] ${!n.is_read ? 'border-l-2 border-l-cyan-400 bg-cyan-50/70 border-cyan-100' : 'border-sky-50 bg-sky-50/40'}`}>
-                    <p className="text-slate-800 font-bold truncate text-[11px]">{n.title}</p>
+                  <div
+                    key={n.id}
+                    className={`p-2 sm:p-2.5 rounded-xl border text-[11px] transition-colors ${
+                      !n.is_read
+                        ? 'border-l-2 border-l-cyan-400 bg-cyan-500/10 border-cyan-500/25 dark:bg-cyan-500/15 dark:border-cyan-500/30'
+                        : 'border-slate-200/80 bg-slate-50/60 dark:border-white/10 dark:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="font-bold truncate text-[11px] text-slate-800">{n.title}</p>
+                      {!n.is_read && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" title="Belum dibaca" />
+                      )}
+                    </div>
                     <p className="text-slate-500 text-[10px] line-clamp-1 mt-0.5">{n.message}</p>
                   </div>
                 ))}
