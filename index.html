@@ -35,7 +35,14 @@
     <script>
       function purgeLoxerCachesAndReload() {
         try {
-          sessionStorage.clear();
+          var now = Date.now();
+          var lastRetry = parseInt(sessionStorage.getItem('loxer_chunk_retry') || '0', 10);
+          if (now - lastRetry < 15000) {
+            console.warn('[LOXER] Reload loop dicegah (cooldown 15s aktif).');
+            return;
+          }
+          sessionStorage.setItem('loxer_chunk_retry', String(now));
+
           var p = [];
           if ('serviceWorker' in navigator) {
             p.push(navigator.serviceWorker.getRegistrations().then(function(regs) {
@@ -57,16 +64,14 @@
         }
       }
 
-      // Global error listener for stale dynamic chunks or module load failures
+      // Global error listener khusus kegagalan load dynamic chunk module (anti looping)
       window.addEventListener('error', function(e) {
         var msg = (e && e.message) ? e.message.toLowerCase() : '';
-        if (msg.indexOf('dynamically imported module') !== -1 ||
-            msg.indexOf('failed to fetch dynamically imported module') !== -1 ||
-            msg.indexOf('loading chunk') !== -1 ||
-            msg.indexOf('unexpected token') !== -1 ||
-            msg.indexOf('forwardref') !== -1) {
-          if (!sessionStorage.getItem('loxer_chunk_retry')) {
-            sessionStorage.setItem('loxer_chunk_retry', Date.now().toString());
+        if (msg.indexOf('failed to fetch dynamically imported module') !== -1 ||
+            msg.indexOf('error loading dynamically imported module') !== -1) {
+          var now = Date.now();
+          var lastRetry = parseInt(sessionStorage.getItem('loxer_chunk_retry') || '0', 10);
+          if (now - lastRetry > 15000) {
             purgeLoxerCachesAndReload();
           }
         }
@@ -74,11 +79,11 @@
 
       window.addEventListener('unhandledrejection', function(e) {
         var reason = (e && e.reason) ? (e.reason.message || String(e.reason)).toLowerCase() : '';
-        if (reason.indexOf('dynamically imported module') !== -1 ||
-            reason.indexOf('failed to fetch') !== -1 ||
-            reason.indexOf('loading chunk') !== -1) {
-          if (!sessionStorage.getItem('loxer_chunk_retry')) {
-            sessionStorage.setItem('loxer_chunk_retry', Date.now().toString());
+        if (reason.indexOf('failed to fetch dynamically imported module') !== -1 ||
+            reason.indexOf('error loading dynamically imported module') !== -1) {
+          var now = Date.now();
+          var lastRetry = parseInt(sessionStorage.getItem('loxer_chunk_retry') || '0', 10);
+          if (now - lastRetry > 15000) {
             purgeLoxerCachesAndReload();
           }
         }

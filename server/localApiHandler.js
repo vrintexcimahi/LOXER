@@ -726,6 +726,20 @@ function enrichRowsRelations(table, rows) {
     return rows;
   }
 
+  if (table === 'marketplace_products') {
+    for (const row of rows) {
+      if (!row) continue;
+      if (typeof row.images === 'string') {
+        try {
+          row.images = JSON.parse(row.images);
+        } catch {
+          row.images = [];
+        }
+      }
+    }
+    return rows;
+  }
+
   return rows;
 }
 
@@ -764,6 +778,8 @@ const ALLOWED_DB_TABLES = new Set([
   'direct_job_offers',
   'jasa_ads',
   'fb_scraped_posts',
+  'marketplace_products',
+  'marketplace_transactions',
 ]);
 
 async function handleDbQuery(req, res) {
@@ -1199,6 +1215,33 @@ async function handleDbQuery(req, res) {
               return sendJson(res, 403, { error: { message: 'Pencari kerja hanya dapat mengubah status respon penawaran.' } });
             }
           }
+        }
+      }
+    }
+  }
+
+  // Security Guard 12: marketplace_products IDOR protection
+  if (table === 'marketplace_products' && isMutation && !isAdminOrSuper) {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk mengelola produk marketplace.' } });
+    }
+    if (action === 'insert' || action === 'upsert') {
+      const records = Array.isArray(data) ? data : [data];
+      for (const item of records) {
+        if (item?.user_id && item.user_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat memposting produk marketplace milik Anda sendiri (IDOR guard).' } });
+        }
+      }
+    }
+    if (action === 'update' || action === 'delete') {
+      const { whereSql, params } = buildWhereClause(filters);
+      if (!whereSql) {
+        return sendJson(res, 400, { error: { message: 'Modifikasi produk marketplace tanpa filter tidak diizinkan.' } });
+      }
+      const targetedProds = queryAll(`SELECT id, user_id FROM marketplace_products ${whereSql}`, params);
+      for (const prod of targetedProds) {
+        if (prod.user_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak berwenang memodifikasi produk marketplace milik pengguna lain (IDOR guard).' } });
         }
       }
     }

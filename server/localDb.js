@@ -342,6 +342,120 @@ export function getLocalDb() {
       console.warn('[localDb] jasa_ads setup notice:', e.message);
     }
 
+    // Ensure marketplace_products & marketplace_transactions tables exist
+    try {
+      dbInstance.exec(`
+        CREATE TABLE IF NOT EXISTS marketplace_products (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          seller_name TEXT NOT NULL,
+          seller_role TEXT NOT NULL DEFAULT 'seeker',
+          seller_verified INTEGER NOT NULL DEFAULT 0,
+          seller_avatar TEXT,
+          seller_whatsapp TEXT NOT NULL,
+          seller_city TEXT NOT NULL,
+          title TEXT NOT NULL,
+          category TEXT NOT NULL,
+          sub_category TEXT,
+          condition TEXT NOT NULL,
+          price REAL NOT NULL,
+          price_type TEXT NOT NULL DEFAULT 'nego',
+          images TEXT NOT NULL DEFAULT '[]',
+          description TEXT NOT NULL,
+          stock INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'available',
+          digital_download_url TEXT,
+          views_count INTEGER NOT NULL DEFAULT 0,
+          likes_count INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_products_cat ON marketplace_products(category);
+        CREATE INDEX IF NOT EXISTS idx_mp_products_status ON marketplace_products(status);
+
+        CREATE TABLE IF NOT EXISTS marketplace_transactions (
+          id TEXT PRIMARY KEY,
+          product_id TEXT NOT NULL,
+          product_title TEXT NOT NULL,
+          product_price REAL NOT NULL,
+          product_image TEXT,
+          buyer_id TEXT NOT NULL,
+          buyer_name TEXT NOT NULL,
+          buyer_whatsapp TEXT NOT NULL,
+          seller_id TEXT NOT NULL,
+          seller_name TEXT NOT NULL,
+          seller_whatsapp TEXT NOT NULL,
+          offer_price REAL NOT NULL,
+          notes TEXT,
+          payment_method TEXT NOT NULL DEFAULT 'whatsapp',
+          status TEXT NOT NULL DEFAULT 'pending',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_tx_buyer ON marketplace_transactions(buyer_id);
+        CREATE INDEX IF NOT EXISTS idx_mp_tx_seller ON marketplace_transactions(seller_id);
+      `);
+
+      const mpCount = dbInstance.prepare('SELECT COUNT(*) as cnt FROM marketplace_products').get();
+      if (!mpCount || mpCount.cnt === 0) {
+        const anyUser = dbInstance.prepare('SELECT id FROM users LIMIT 1').get();
+        const userId = anyUser?.id || 'usr-demo-dev-1';
+        const insProduct = dbInstance.prepare(`
+          INSERT INTO marketplace_products (
+            id, user_id, seller_name, seller_role, seller_verified, seller_whatsapp, seller_city,
+            title, category, sub_category, condition, price, price_type, images, description, stock,
+            status, digital_download_url, views_count, likes_count, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `);
+        insProduct.run(
+          'prod-dig-1',
+          userId,
+          'Arifin Ahmad (Dev)',
+          'freelancer',
+          1,
+          '6281234567801',
+          'Bandung',
+          'Source Code Aplikasi Kasir & POS Multi-Cabang (React + Node.js)',
+          'digital',
+          'Source Code & Script',
+          'Digital',
+          450000,
+          'nego',
+          JSON.stringify(['https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80']),
+          'Source code lengkap aplikasi POS Kasir & Inventaris toko siap pakai. Fitur cetak struk bluetooth, laporan penjualan harian/bulanan, stok barang otomatis, barcode scanner, dan dashboard admin modern. Include dokumentasi instalasi lengkap.',
+          99,
+          'available',
+          'https://github.com/vrintexcimahi/LOXER',
+          342,
+          58
+        );
+        insProduct.run(
+          'prod-sec-1',
+          userId,
+          'PT Vrintex Asset IT',
+          'employer',
+          1,
+          '6281234567802',
+          'Jakarta Selatan',
+          'MacBook Pro M1 2020 RAM 16GB SSD 512GB Space Grey Like New',
+          'second',
+          'Laptop & Komputer',
+          'Sekon (Second)',
+          11500000,
+          'nego',
+          JSON.stringify(['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80']),
+          'Eks pemakaian kantor divisi design & tech. Body 98% mulus tanpa dent/penyok, battery health 91% (Normal cycle count rendah), layar jernih TrueTone aktif, iCloud aman bebas reset. Kelengkapan unit + charger original Type-C 61W.',
+          2,
+          'available',
+          null,
+          812,
+          94
+        );
+      }
+    } catch (e) {
+      console.warn('[localDb] marketplace tables setup notice:', e.message);
+    }
+
     // Auto-record today's analytics snapshot on initialization
     try {
       recordDailyAnalyticsSnapshot();
@@ -703,8 +817,25 @@ export function restoreDatabaseSnapshot(filename) {
     try { fs.unlinkSync(shmPath); } catch {}
   }
 
-  // Copy snapshot over active database
-  fs.copyFileSync(fullPath, DB_FILE);
+  // Copy snapshot over active database with retry for Windows file unlock
+  let copied = false;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      fs.copyFileSync(fullPath, DB_FILE);
+      copied = true;
+      break;
+    } catch (err) {
+      if (attempt < 4) {
+        try {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+        } catch {
+          // fallback if SharedArrayBuffer unavailable
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
 
   // Re-open and verify database
   const db = getLocalDb();

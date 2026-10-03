@@ -244,6 +244,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Safety timeout: jamin loader tidak pernah menggantung lebih dari 2.5 detik
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 2500);
+
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const simRole = typeof window !== 'undefined' ? (searchParams?.get('sim_role') || (window.name?.startsWith('loxer_sim_') ? window.name.replace('loxer_sim_', '') : null)) : null;
     const previewRole = searchParams?.get('preview_role') || searchParams?.get('role') || simRole;
@@ -254,7 +259,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           setSession(session);
           setUser(session.user);
-          fetchUserMeta(session.user).finally(() => setLoading(false));
+          fetchUserMeta(session.user).finally(() => {
+            clearTimeout(safetyTimer);
+            setLoading(false);
+          });
           return;
         }
 
@@ -296,6 +304,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession({ user: mockUser, access_token: 'preview-token' } as unknown as Session);
           setUser(mockUser);
           setUserMeta(mockMeta);
+          clearTimeout(safetyTimer);
           setLoading(false);
           return;
         }
@@ -303,9 +312,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         setUser(null);
         setUserMeta(null);
+        clearTimeout(safetyTimer);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        clearTimeout(safetyTimer);
+        setLoading(false);
+      });
 
     const {
       data: { subscription },
@@ -321,7 +334,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, [fetchUserMeta]);
 
   useEffect(() => {
