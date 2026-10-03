@@ -22,8 +22,8 @@ function normalizeLocationOptions(payload) {
 const PROVIDER_TAGS = [
   { id: 'all', label: '🌐 Semua Sumber' },
   { id: 'internal', label: '⭐ Mitra LOXER' },
+  { id: 'facebook-group', label: '👥 Facebook Group AI' },
   { id: 'careerjet', label: '⚡ Careerjet' },
-  { id: 'arbeitnow', label: '🌍 Arbeitnow' },
 ];
 
 const JOB_CATEGORIES = [

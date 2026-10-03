@@ -3207,7 +3207,7 @@ function useJobAdsCatalog(onToast: (type: ToastType, message: string) => void) {
         return mapped;
       });
 
-      // External / Partner feed jobs (Arbeitnow Global, etc.)
+      // External / Partner feed jobs (Careerjet Regional, Facebook Group, etc.)
       const unifiedJobs = (Array.isArray(unifiedPayload?.jobs) ? unifiedPayload.jobs : []) as PartnerFeedJobItem[];
       const externalJobsList: JobAdWithCompany[] = [];
 
@@ -3269,8 +3269,8 @@ function useJobAdsCatalog(onToast: (type: ToastType, message: string) => void) {
           },
           applicant_count: 0,
           is_internal: false,
-          site: uj.site || 'Arbeitnow',
-          source: uj.source || 'Arbeitnow Global Feed',
+          site: uj.site || 'Mitra Eksternal',
+          source: uj.source || 'Partner Feed',
           external_url: uj.url,
         };
 
@@ -3573,7 +3573,7 @@ function AdminJobAdsCatalogSection({
             <Globe className="w-3.5 h-3.5" /> Global Partner Feed
           </p>
           <p className="mt-1 text-2xl font-bold text-purple-300">{adStats.externalAds.toLocaleString('id-ID')}</p>
-          <p className="mt-1 text-[11px] text-slate-400">Arbeitnow Live API</p>
+          <p className="mt-1 text-[11px] text-slate-400">Partner & Aggregator Feed</p>
         </div>
       </div>
 
@@ -3612,7 +3612,7 @@ function AdminJobAdsCatalogSection({
               : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
           }`}
         >
-          <span>🌍 Arbeitnow Global</span>
+          <span>🌐 Partner / Eksternal</span>
           <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">{adStats.externalAds}</span>
         </button>
       </div>
@@ -4154,7 +4154,7 @@ function AdminJobAdsCatalogSection({
                   )}
                 </div>
                 <p className="text-xs text-slate-400">
-                  {previewJob.is_internal ? '⭐ Mitra Resmi Terverifikasi LOXER' : `🌍 Sumber: ${previewJob.site || 'Arbeitnow Global'}`} • {previewJob.location_city || 'Indonesia'}
+                  {previewJob.is_internal ? '⭐ Mitra Resmi Terverifikasi LOXER' : `🌍 Sumber: ${previewJob.site || 'Mitra Eksternal'}`} • {previewJob.location_city || 'Indonesia'}
                 </p>
                 {previewJob.companies?.website && (
                   <a
@@ -4187,7 +4187,7 @@ function AdminJobAdsCatalogSection({
                   </span>
                 ) : (
                   <span className="rounded-lg bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 text-xs font-semibold text-purple-300">
-                    Arbeitnow Feed
+                    {previewJob.site || 'Partner Feed'}
                   </span>
                 )}
                 <span className="rounded-lg bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 text-xs font-semibold text-sky-300">
@@ -4335,12 +4335,12 @@ function AdminJobAdsCatalogSection({
               ) : (
                 <>
                   <a
-                    href={previewJob.external_url || 'https://www.arbeitnow.com'}
+                    href={previewJob.external_url || '#'}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-purple-600/30 hover:brightness-110 transition"
                   >
-                    <span>Lamar di Sumber Resmi ({previewJob.site || 'Arbeitnow'})</span>
+                    <span>Lamar di Sumber Resmi ({previewJob.site || 'Eksternal'})</span>
                     <ExternalLink className="w-4 h-4" />
                   </a>
 
@@ -5405,7 +5405,7 @@ interface IntegratedJobItem {
 }
 
 function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, message: string) => void }) {
-  const [provider, setProvider] = useState<'all' | 'internal' | 'arbeitnow' | 'facebook-group'>('all');
+  const [provider, setProvider] = useState<'all' | 'internal' | 'facebook-group'>('all');
   const [keyword, setKeyword] = useState('');
   const [location, setLocation] = useState('Indonesia');
   const [loading, setLoading] = useState(false);
@@ -5482,7 +5482,6 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
     { id: 'all', label: 'Semua Feed (Unified)', desc: 'Agregator terpadu seluruh sumber', icon: Globe },
     { id: 'facebook-group', label: 'Facebook Group (Vision AI)', desc: 'Loker terekstraksi oleh AI Scraper', icon: Database },
     { id: 'internal', label: 'Mitra Internal LOXER', desc: 'Loker verified employer LOXER', icon: Building2 },
-    { id: 'arbeitnow', label: 'Arbeitnow Global', desc: 'Remote & global tech jobs', icon: Briefcase },
   ] as const;
 
   return (
@@ -5643,7 +5642,6 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {jobs.map((job, idx) => {
             const isInternal = job.is_internal || job.site === 'LOXER Mitra' || (job.source || '').includes('LOXER');
-            const isArbeit = (job.site || '').toLowerCase().includes('arbeitnow') || (job.source || '').toLowerCase().includes('arbeitnow');
             const isFb = (job.site || '').toLowerCase().includes('facebook') || (job.source || '').toLowerCase().includes('fb');
 
             return (
@@ -5672,12 +5670,12 @@ function LiveJobIntegrationsValidator({ onToast }: { onToast: (type: ToastType, 
                         'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md border',
                         isInternal
                           ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                          : isArbeit
-                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                          : isFb
+                          ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
                           : 'bg-slate-700/50 text-slate-300 border-white/10'
                       )}
                     >
-                      {isInternal ? 'Mitra LOXER' : isFb ? 'Facebook Group AI' : isArbeit ? 'Arbeitnow' : job.site || 'Aggregator'}
+                      {isInternal ? 'Mitra LOXER' : isFb ? 'Facebook Group AI' : job.site || 'Aggregator'}
                     </span>
                   </div>
 
@@ -5879,8 +5877,6 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
       let url = `/api/jobs?provider=${provider.id}`;
       if (provider.id === 'internal') {
         url = `/api/jobs?provider=internal`;
-      } else if (provider.id === 'arbeitnow') {
-        url = `/api/jobs?provider=arbeitnow`;
       }
       const res = await fetch(url);
       const latency = Math.round(performance.now() - start);
@@ -5927,7 +5923,7 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
           <h2 className="mt-2 text-2xl font-black text-white">Kelola semua sumber lowongan dari satu tempat</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-400">
             Halaman ini dipakai untuk memantau koneksi API, mencatat endpoint proxy LOXER, dan menyiapkan provider seperti
-            Mitra LOXER, Careerjet, dan Arbeitnow.
+            Mitra LOXER, Facebook Group AI Scraper, dan Careerjet.
           </p>
         </div>
 
@@ -6055,9 +6051,9 @@ function AdminIntegrations({ onToast }: { onToast: (type: ToastType, message: st
             </p>
           </div>
           <div className="rounded-lg border border-white/10 bg-slate-800/70 p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Careerjet & Feed Publik</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Facebook Group AI & Careerjet</p>
             <p className="mt-2 text-sm text-slate-300">
-              1. <strong>Arbeitnow:</strong> Feed publik aktif tanpa perlu API key, menyajikan ribuan remote & tech jobs global.
+              1. <strong>Facebook Group AI:</strong> Scraping otomatis postingan grup menggunakan Playwright CDP & Vision AI Gemini Flash.
             </p>
             <p className="mt-1 text-sm text-slate-300">
               2. <strong>Careerjet:</strong> Pasang <code>CAREERJET_API_KEY</code> dan daftarkan IP server di dashboard partner.

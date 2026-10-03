@@ -5,7 +5,7 @@ async function run() {
   const endpoints = [
     { name: 'Integrations Status', path: '/api/integrations-status' },
     { name: 'Internal Provider Jobs', path: '/api/jobs?provider=internal' },
-    { name: 'Arbeitnow Public Feed', path: '/api/jobs?provider=arbeitnow' },
+    { name: 'Facebook Group Jobs', path: '/api/jobs?provider=facebook-group' },
     { name: 'Unified (All) Feed', path: '/api/jobs?provider=all&keywords=developer&location=Indonesia' },
     { name: 'Careerjet Unconfigured Check', path: '/api/jobs?provider=careerjet', expectedStatus: 500 },
     { name: 'JSearch Unconfigured Check', path: '/api/jobs?provider=jsearch', expectedStatus: 500 },

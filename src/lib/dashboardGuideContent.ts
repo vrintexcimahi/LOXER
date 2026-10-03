@@ -224,7 +224,7 @@ export const adminGuideContent: Record<string, DashboardGuideContent> = {
   '/admin/integrations': {
     summary: 'Integrasi API berfungsi sebagai pusat monitoring koneksi provider lowongan, endpoint proxy, dan kebutuhan setup layanan eksternal.',
     detailFunctions: [
-      'Menampilkan status provider seperti Careerjet, Arbeitnow, dan JSearch.',
+      'Menampilkan status provider seperti Mitra Internal, Facebook Group AI, Careerjet, dan JSearch.',
       'Menyimpan catatan endpoint yang dipakai sistem LOXER untuk lowongan.',
       'Membantu admin mengecek kebutuhan whitelist IP dan API key.',
     ],

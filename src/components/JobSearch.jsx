@@ -3,8 +3,8 @@ import { Briefcase, Globe2, MapPin, Search } from 'lucide-react';
 export const PROVIDER_OPTIONS = [
   { value: 'all', label: '🌐 Semua Sumber (Aggregator)' },
   { value: 'internal', label: '⭐ Mitra Internal LOXER' },
+  { value: 'facebook-group', label: '👥 Facebook Group AI' },
   { value: 'careerjet', label: '⚡ Careerjet Regional' },
-  { value: 'arbeitnow', label: '🌍 Arbeitnow (Remote / Global)' },
 ];
 
 const CONTRACT_OPTIONS = [

@@ -142,10 +142,10 @@ function getProviderBadge(site) {
       icon: Briefcase,
     };
   }
-  if (normalized.includes('arbeitnow')) {
+  if (normalized.includes('facebook') || normalized.includes('fb')) {
     return {
-      label: 'Arbeitnow Global',
-      badgeTheme: 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-purple-500/20',
+      label: 'Facebook Group AI',
+      badgeTheme: 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-blue-500/20',
       icon: Sparkles,
     };
   }

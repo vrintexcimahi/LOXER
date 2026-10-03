@@ -121,7 +121,6 @@ export function getProviderCircuitBreaker(name, options = {}) {
 
 // Pre-initialize standard providers
 export const careerjetBreaker = getProviderCircuitBreaker('careerjet');
-export const arbeitnowBreaker = getProviderCircuitBreaker('arbeitnow');
 export const jsearchBreaker = getProviderCircuitBreaker('jsearch');
 
 // ---------------------------------------------------------------------------

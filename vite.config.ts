@@ -193,15 +193,6 @@ function createIntegrationsStatusMiddleware(env: Record<string, string>) {
           note: 'Butuh API key privat dan whitelist server IP publik.',
         },
         {
-          id: 'arbeitnow',
-          label: 'Arbeitnow API',
-          configured: true,
-          endpoint: '/api/jobs?provider=arbeitnow',
-          docsUrl: 'https://www.arbeitnow.com/api/job-board-api',
-          mode: 'public-feed',
-          note: 'Feed publik tanpa API key, cocok untuk remote jobs internasional.',
-        },
-        {
           id: 'jsearch',
           label: 'JSearch via RapidAPI',
           configured: Boolean(process.env.RAPIDAPI_KEY),

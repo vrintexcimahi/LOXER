@@ -134,7 +134,7 @@ export default function Browse() {
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
                 {isFreelancer
                   ? 'Temukan penyedia jasa mandiri profesional: jasa pijat & refleksi, bengkel motor/mobil, servis komputer & elektronik, pertukangan, kebersihan, dan lainnya.'
-                  : 'Pencarian terintegrasi dari mitra resmi terverifikasi LOXER, Careerjet, dan feed publik Arbeitnow langsung dari satu pintu.'}
+                  : 'Pencarian terintegrasi dari mitra resmi terverifikasi LOXER, Facebook Group AI, dan Careerjet langsung dari satu pintu.'}
               </p>
             </div>
 
@@ -160,8 +160,8 @@ export default function Browse() {
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { label: 'Mitra LOXER', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                  { label: 'Facebook Group AI', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
                   { label: 'Careerjet', color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
-                  { label: 'Arbeitnow Global', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
                 ].map((src) => (
                   <span
                     key={src.label}
