@@ -195,16 +195,16 @@ export default function SeekerDashboard() {
               Lihat Semua <ArrowRight className="w-3 h-3" />
             </a>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
             {recentJobs.slice(0, 3).map((job) => (
-              <a key={job.id} href={`/seeker/browse?job_id=${job.id}`} className="flex items-center gap-3 p-3 rounded-xl border border-sky-100 hover:border-sky-300 hover:bg-sky-50 transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0 text-sky-600 font-black text-sm">
+              <a key={job.id} href={`/seeker/browse?job_id=${job.id}`} className="flex flex-col sm:flex-row items-center sm:items-center gap-1.5 sm:gap-3 p-2 sm:p-3 rounded-xl border border-sky-100 hover:border-sky-300 hover:bg-sky-50 transition-all group text-center sm:text-left">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0 text-sky-600 font-black text-xs sm:text-sm">
                   {(job.companies?.name || 'C')[0]}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-slate-800 text-xs font-semibold truncate group-hover:text-sky-600 transition-colors">{job.title}</p>
-                  <p className="text-slate-400 text-[10px] truncate">{job.companies?.name}</p>
-                  <p className="text-sky-500 text-[10px] font-medium">{job.location_city}</p>
+                <div className="min-w-0 w-full">
+                  <p className="text-slate-800 text-[10px] sm:text-xs font-semibold truncate group-hover:text-sky-600 transition-colors">{job.title}</p>
+                  <p className="text-slate-400 text-[8px] sm:text-[10px] truncate">{job.companies?.name}</p>
+                  <p className="text-sky-500 text-[8px] sm:text-[10px] font-medium truncate">{job.location_city}</p>
                 </div>
               </a>
             ))}

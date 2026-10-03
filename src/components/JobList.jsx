@@ -312,12 +312,12 @@ export default function JobList({
 
       {/* Loading Skeleton */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="h-80 rounded-2xl border border-white/5 bg-slate-900/50 animate-pulse p-4 space-y-4">
-              <div className="h-32 rounded-xl bg-slate-800" />
-              <div className="h-4 w-3/4 rounded bg-slate-800" />
-              <div className="h-4 w-1/2 rounded bg-slate-800" />
+        <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-5">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <div key={index} className="h-48 sm:h-80 rounded-xl sm:rounded-2xl border border-white/5 bg-slate-900/50 animate-pulse p-2 sm:p-4 space-y-2 sm:space-y-4">
+              <div className="h-20 sm:h-32 rounded-lg sm:rounded-xl bg-slate-800" />
+              <div className="h-3 sm:h-4 w-3/4 rounded bg-slate-800" />
+              <div className="h-3 sm:h-4 w-1/2 rounded bg-slate-800" />
             </div>
           ))}
         </div>
@@ -365,8 +365,8 @@ export default function JobList({
             </div>
           </div>
 
-          {/* 4-column grid — matches TalentMarketplace layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+          {/* 3-column mobile grid, 4-column desktop grid */}
+          <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-5">
             {filteredJobs.map((job) => (
               <JobCard
                 key={`${job.site}-${job.url}-${job.title}`}

@@ -198,36 +198,36 @@ export default function JobCard({ job, onSelectJob }) {
   return (
     <div
       onClick={isInternal && onSelectJob ? handleCardClick : undefined}
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border transition-all duration-300 border-white/10 bg-slate-900/80 hover:border-sky-500/40 hover:bg-slate-900 shadow-lg shadow-black/40 ${isInternal && onSelectJob ? 'cursor-pointer' : ''}`}
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 border-white/10 bg-slate-900/80 hover:border-sky-500/40 hover:bg-slate-900 shadow-md sm:shadow-lg shadow-black/40 ${isInternal && onSelectJob ? 'cursor-pointer' : ''}`}
     >
       {/* Top Banner — Job Logo & Info */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-sky-950/40 p-4 pb-3">
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-sky-950/40 p-2 sm:p-4 pb-2 sm:pb-3">
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent pointer-events-none" />
 
         {/* Provider Badge - top left */}
-        <div className="relative z-10 flex items-start justify-between mb-3">
+        <div className="relative z-10 flex items-start justify-between gap-1 mb-1.5 sm:mb-3">
           <span
-            className={`rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md ${provider.badgeTheme}`}
+            className={`rounded border px-1 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md truncate max-w-[70px] sm:max-w-none ${provider.badgeTheme}`}
           >
-            <span className="flex items-center gap-1">
-              <ProviderIcon className="h-2.5 w-2.5" />
-              {provider.label}
+            <span className="flex items-center gap-0.5 sm:gap-1 truncate">
+              <ProviderIcon className="h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0" />
+              <span className="truncate">{provider.label}</span>
             </span>
           </span>
           {isInternal && (
-            <span className="flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 backdrop-blur-md">
-              ⭐ Prioritas
+            <span className="flex items-center gap-0.5 rounded border border-amber-500/40 bg-amber-500/20 px-1 sm:px-1.5 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-bold text-amber-300 backdrop-blur-md shrink-0">
+              ⭐<span className="hidden sm:inline"> Prioritas</span>
             </span>
           )}
         </div>
 
         {/* Company Logo + Name */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl border border-white/10 bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+          <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl border border-white/10 bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md">
             {logoUrl ? (
               <img src={logoUrl} alt={companyName} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-sky-300 font-black text-xl">{initial}</span>
+              <span className="text-sky-300 font-black text-xs sm:text-xl">{initial}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -236,34 +236,34 @@ export default function JobCard({ job, onSelectJob }) {
               target={isInternal ? '_self' : '_blank'}
               rel={isInternal ? undefined : 'noreferrer'}
               onClick={handleCardClick}
-              className="text-sm font-extrabold text-white tracking-wide hover:text-sky-400 transition-colors line-clamp-2 leading-tight"
+              className="text-[10px] sm:text-sm font-extrabold text-white tracking-tight sm:tracking-wide hover:text-sky-400 transition-colors line-clamp-2 leading-tight"
             >
               {job.title}
             </a>
-            <p className="flex items-center gap-1 mt-1 text-[11px] text-slate-400 truncate">
-              <Building2 className="h-3 w-3 text-sky-400 shrink-0" />
-              {companyName}
+            <p className="flex items-center gap-1 mt-0.5 sm:mt-1 text-[8px] sm:text-[11px] text-slate-400 truncate">
+              <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-sky-400 shrink-0" />
+              <span className="truncate">{companyName}</span>
             </p>
           </div>
-          {/* External link icon */}
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900/60 border border-white/20 text-slate-300">
+          {/* External link icon (Desktop only) */}
+          <div className="hidden sm:flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900/60 border border-white/20 text-slate-300">
             {isInternal ? <ShieldCheck className="h-3 w-3 text-sky-400" /> : <Pin className="h-3 w-3" />}
           </div>
         </div>
 
         {/* Location & Date row at bottom */}
-        <div className="relative z-10 mt-3 flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-sky-200/90 drop-shadow flex items-center gap-1 truncate">
-            <MapPin className="h-2.5 w-2.5 text-sky-400" />
-            {job.locations || 'Indonesia'}
+        <div className="relative z-10 mt-1.5 sm:mt-3 flex items-center justify-between gap-1">
+          <span className="text-[7px] sm:text-[10px] font-semibold text-sky-200/90 drop-shadow flex items-center gap-0.5 truncate">
+            <MapPin className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-sky-400 shrink-0" />
+            <span className="truncate">{job.locations || 'Indonesia'}</span>
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             {isRemote && (
-              <span className="flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md">
+              <span className="rounded border border-emerald-500/40 bg-emerald-500/20 px-1 py-0.2 sm:px-1.5 sm:py-0.5 text-[7px] sm:text-[9px] font-bold text-emerald-300 backdrop-blur-md">
                 Remote
               </span>
             )}
-            <span className="text-[10px] font-mono text-slate-300 drop-shadow flex items-center gap-1">
+            <span className="hidden sm:flex text-[10px] font-mono text-slate-300 drop-shadow items-center gap-1">
               <Clock3 className="h-2.5 w-2.5 text-amber-400" />
               {formatPublishedDate(job.date)}
             </span>
@@ -272,23 +272,34 @@ export default function JobCard({ job, onSelectJob }) {
       </div>
 
       {/* Card Body */}
-      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
+      <div className="p-2 sm:p-4 flex-1 flex flex-col justify-between space-y-1.5 sm:space-y-3">
         {/* Salary */}
-        <div className="flex items-baseline justify-between rounded-lg bg-slate-950/60 border border-white/5 px-2.5 py-1.5">
-          <span className="text-[10px] text-slate-400">Gaji / Tarif:</span>
-          <span className="text-xs font-bold text-emerald-300 flex items-center gap-1">
-            <Coins className="h-3 w-3 text-emerald-400" />
-            {formatSalary(job)}
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between rounded-md sm:rounded-lg bg-slate-950/60 border border-white/5 px-1.5 py-1 sm:px-2.5 sm:py-1.5">
+          <span className="text-[7px] sm:text-[10px] text-slate-400">Gaji:</span>
+          <span className="text-[8px] sm:text-xs font-bold text-emerald-300 flex items-center gap-0.5 sm:gap-1 truncate">
+            <Coins className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400 shrink-0" />
+            <span className="truncate">{formatSalary(job)}</span>
           </span>
         </div>
 
-        {/* Description snippet */}
-        <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+        {/* Description snippet (Desktop only) */}
+        <p className="hidden sm:block text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
           {shortSummary || 'Deskripsi lowongan pekerjaan tidak tersedia.'}
         </p>
 
-        {/* Action Buttons */}
-        <div className="pt-2 border-t border-white/5 flex items-center gap-2">
+        {/* Mobile Action Button (1 column) */}
+        <div className="sm:hidden pt-1 border-t border-white/5">
+          <button
+            onClick={isInternal && onSelectJob ? handleCardClick : handleExternalApply}
+            className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-1.5 py-1 text-[9px] font-bold text-slate-950 shadow-sm hover:from-sky-400 hover:to-cyan-300 active:scale-[0.98] cursor-pointer"
+          >
+            <span>{isInternal ? 'Lamar' : 'Detail'}</span>
+            <ArrowUpRight className="h-2.5 w-2.5" />
+          </button>
+        </div>
+
+        {/* Desktop Action Buttons */}
+        <div className="hidden sm:flex pt-2 border-t border-white/5 items-center gap-2">
           {isInternal && onSelectJob ? (
             <>
               <button

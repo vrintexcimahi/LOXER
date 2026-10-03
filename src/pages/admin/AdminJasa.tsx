@@ -325,7 +325,7 @@ function KatalogJasaTab({ adminId, adminEmail, onToast }: { adminId: string; adm
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => <SkeletonBlock key={i} className="h-48 w-full" />)}</div>
+        <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-4">{Array.from({ length: 6 }).map((_, i) => <SkeletonBlock key={i} className="h-36 sm:h-48 w-full" />)}</div>
       ) : ads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <Wrench className="mb-4 h-12 w-12 text-slate-600" />
@@ -333,34 +333,41 @@ function KatalogJasaTab({ adminId, adminEmail, onToast }: { adminId: string; adm
           <p className="mt-1 text-sm text-slate-500">{total === 0 ? 'Tabel jasa_ads belum tersedia atau belum ada data.' : 'Tidak ada iklan yang cocok dengan filter.'}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-4">
           {ads.map((ad) => {
             const statusInfo = STATUS_LABEL[ad.status] ?? STATUS_LABEL['pending'];
             return (
-              <div key={ad.id} className="group relative rounded-2xl border border-white/8 bg-slate-900/60 p-4 hover:border-violet-500/20 hover:bg-slate-900/80 transition-all">
-                <div className="flex items-start justify-between gap-2 mb-3">
+              <div key={ad.id} className="group relative rounded-xl sm:rounded-2xl border border-white/8 bg-slate-900/60 p-2 sm:p-4 hover:border-violet-500/20 hover:bg-slate-900/80 transition-all flex flex-col justify-between">
+                <div className="flex items-start justify-between gap-1 mb-1.5 sm:mb-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-white line-clamp-2 leading-snug">{ad.title}</p>
-                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 text-[10px] font-medium text-violet-300"><Tag className="h-2.5 w-2.5" />{ad.category || 'Lainnya'}</span>
-                      <span className={classNames('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold', statusInfo.className)}>{statusInfo.label}</span>
+                    <p className="font-semibold text-white line-clamp-2 text-[10px] sm:text-base leading-tight sm:leading-snug">{ad.title}</p>
+                    <div className="mt-1 flex items-center gap-1 flex-wrap">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/10 border border-violet-500/20 px-1 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[10px] font-medium text-violet-300 truncate max-w-[60px] sm:max-w-none"><Tag className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{ad.category || 'Jasa'}</span>
+                      <span className={classNames('inline-flex items-center rounded-full border px-1 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[10px] font-semibold', statusInfo.className)}>{statusInfo.label}</span>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400 line-clamp-2 mb-3">{ad.description || '—'}</p>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mb-4">
+                <p className="hidden sm:block text-xs text-slate-400 line-clamp-2 mb-3">{ad.description || '—'}</p>
+                <div className="hidden sm:flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mb-4">
                   {ad.city && <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-slate-500" />{ad.city}</span>}
                   {ad.rating != null && <span className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-400" />{ad.rating.toFixed(1)} ({ad.review_count ?? 0})</span>}
                   <span className="flex items-center gap-1"><Eye className="h-3 w-3 text-slate-500" />{ad.views_count ?? 0} views</span>
                 </div>
-                <p className="mb-4 text-sm font-bold text-cyan-300">Rp {ad.price?.toLocaleString('id-ID') ?? '—'}{ad.price_type && <span className="ml-1 text-xs font-normal text-slate-400">{PRICE_TYPE_LABEL[ad.price_type]}</span>}</p>
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="mb-1.5 sm:mb-4 text-[10px] sm:text-sm font-bold text-cyan-300 truncate">Rp {ad.price?.toLocaleString('id-ID') ?? '—'}{ad.price_type && <span className="ml-1 text-[8px] sm:text-xs font-normal text-slate-400">{PRICE_TYPE_LABEL[ad.price_type]}</span>}</p>
+
+                {/* Mobile action button (1 column) */}
+                <div className="sm:hidden pt-1">
+                  <button onClick={() => setDetailAd(ad)} className="w-full py-1 text-[9px] bg-slate-800 text-slate-200 rounded font-medium hover:bg-slate-700 transition">Detail</button>
+                </div>
+
+                {/* Desktop action buttons */}
+                <div className="hidden sm:flex items-center gap-1.5 flex-wrap">
                   <button onClick={() => setDetailAd(ad)} className="flex items-center gap-1 rounded-lg border border-white/10 bg-slate-800 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 hover:bg-slate-700 transition-colors"><Eye className="h-3.5 w-3.5" />Detail</button>
                   {ad.status !== 'active' && <button onClick={() => handleStatusChange(ad, 'active')} className="flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/20 transition-colors"><CheckCircle2 className="h-3.5 w-3.5" />Setujui</button>}
                   {ad.status !== 'rejected' && <button onClick={() => handleStatusChange(ad, 'rejected')} className="flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-medium text-rose-300 hover:bg-rose-500/20 transition-colors"><XCircle className="h-3.5 w-3.5" />Tolak</button>}
                   <button onClick={() => handleDelete(ad)} className="flex items-center gap-1 rounded-lg border border-rose-700/30 bg-rose-700/10 px-2.5 py-1.5 text-[11px] font-medium text-rose-400 hover:bg-rose-700/20 transition-colors ml-auto"><Trash2 className="h-3.5 w-3.5" />Hapus</button>
                 </div>
-                <p className="mt-2 text-[10px] text-slate-600">Diposting: {new Date(ad.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                <p className="hidden sm:block mt-2 text-[10px] text-slate-600">Diposting: {new Date(ad.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               </div>
             );
           })}

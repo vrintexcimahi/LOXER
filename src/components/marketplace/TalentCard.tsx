@@ -47,36 +47,36 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
 
   return (
     <div
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border transition-all duration-300 ${
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 ${
         featured
-          ? 'border-cyan-400/50 bg-gradient-to-b from-slate-900/95 via-slate-900 to-slate-950 shadow-xl shadow-cyan-500/10 hover:shadow-cyan-500/20'
-          : 'border-white/10 bg-slate-900/80 hover:border-cyan-500/40 hover:bg-slate-900 shadow-lg shadow-black/40'
+          ? 'border-cyan-400/50 bg-gradient-to-b from-slate-900/95 via-slate-900 to-slate-950 shadow-md sm:shadow-xl shadow-cyan-500/10 hover:shadow-cyan-500/20'
+          : 'border-white/10 bg-slate-900/80 hover:border-cyan-500/40 hover:bg-slate-900 shadow-md sm:shadow-lg shadow-black/40'
       }`}
     >
       {/* 1:1 Aspect Ratio Photo Header (Ratio 1:1) */}
-      <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-3">
+      <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-1.5 sm:p-3">
         {photoUrl ? (
           <img
             src={photoUrl}
             alt={fullName}
-            className="h-full w-full object-cover object-center rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover object-center rounded-lg sm:rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-600/30 to-indigo-600/30 text-cyan-300 font-extrabold text-5xl">
+          <div className="flex h-full w-full items-center justify-center rounded-lg sm:rounded-2xl bg-gradient-to-tr from-cyan-600/30 to-indigo-600/30 text-cyan-300 font-extrabold text-2xl sm:text-5xl">
             {fullName.charAt(0).toUpperCase()}
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none rounded-2xl m-3" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none rounded-lg sm:rounded-2xl m-1.5 sm:m-3" />
 
         {/* Top Badges */}
-        <div className="absolute left-5 top-5 flex items-center gap-1.5">
-          <span className={`rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md ${badgeTheme}`}>
+        <div className="absolute left-2.5 sm:left-5 top-2.5 sm:top-5 flex items-center gap-1">
+          <span className={`rounded border px-1 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md truncate max-w-[65px] sm:max-w-none ${badgeTheme}`}>
             {talent.badge || 'SIAP KERJA'}
           </span>
           {Boolean(talent.availability) && (
-            <span className="flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md">
+            <span className="hidden sm:flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {AVAILABILITY_LABELS[talent.availability] || talent.availability}
             </span>
@@ -84,45 +84,45 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
         </div>
 
         {/* Pin / Verified Icon */}
-        <div className="absolute right-5 top-5 flex items-center gap-1">
+        <div className="absolute right-2.5 sm:right-5 top-2.5 sm:top-5 flex items-center gap-1">
           {featured ? (
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 shadow-md">
-              <Pin className="h-3 w-3" />
+            <div className="flex h-4 w-4 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 shadow-md">
+              <Pin className="h-2 w-2 sm:h-3 sm:w-3" />
             </div>
           ) : (
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/60 border border-white/20 text-slate-300">
-              <ShieldCheck className="h-3 w-3 text-cyan-400" />
+            <div className="flex h-4 w-4 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-slate-900/60 border border-white/20 text-slate-300">
+              <ShieldCheck className="h-2 w-2 sm:h-3 sm:w-3 text-cyan-400" />
             </div>
           )}
         </div>
 
         {/* Category Pill Over Banner */}
-        <div className="absolute bottom-4 left-5 right-5 flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-cyan-200/90 drop-shadow truncate">
-            {talent.category || 'Talent Umum'}
+        <div className="absolute bottom-2 sm:bottom-4 left-2.5 sm:left-5 right-2.5 sm:right-5 flex items-center justify-between gap-1">
+          <span className="text-[7px] sm:text-[10px] font-semibold text-cyan-200/90 drop-shadow truncate">
+            {talent.category || 'Talent'}
           </span>
-          <span className="text-[10px] font-mono text-slate-300 drop-shadow flex items-center gap-1">
-            <MapPin className="h-2.5 w-2.5 text-cyan-400" />
-            {talent.domicile_city || 'Indonesia'}
+          <span className="text-[7px] sm:text-[10px] font-mono text-slate-300 drop-shadow flex items-center gap-0.5 truncate">
+            <MapPin className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-cyan-400 shrink-0" />
+            <span className="truncate">{talent.domicile_city || 'Indonesia'}</span>
           </span>
         </div>
       </div>
 
       {/* Card Body */}
-      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
+      <div className="p-2 sm:p-4 flex-1 flex flex-col justify-between space-y-1.5 sm:space-y-3">
         <div>
           {/* Candidate Name & Title */}
           <div className="cursor-pointer" onClick={() => onSelect(talent)}>
-            <h3 className="text-sm sm:text-base font-extrabold text-white tracking-wide uppercase hover:text-cyan-400 transition-colors line-clamp-1">
+            <h3 className="text-[10px] sm:text-base font-extrabold text-white tracking-tight sm:tracking-wide uppercase hover:text-cyan-400 transition-colors line-clamp-1">
               {fullName}
             </h3>
-            <p className="mt-0.5 text-xs font-medium text-slate-300 line-clamp-1 leading-snug">
+            <p className="mt-0.5 text-[8px] sm:text-xs font-medium text-slate-300 line-clamp-1 leading-snug">
               {talent.headline}
             </p>
           </div>
 
-          {/* Protected In-App Contact Bar (Platform Monetization & Security) */}
-          <div className="mt-2.5">
+          {/* Protected In-App Contact Bar (Desktop only) */}
+          <div className="hidden sm:block mt-2.5">
             <button
               type="button"
               onClick={() => (onOfferJob ? onOfferJob(talent) : onSelect(talent))}
@@ -142,23 +142,23 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
           </div>
 
           {/* Salary / Rate Expectations */}
-          <div className="mt-2.5 flex items-baseline justify-between rounded-lg bg-slate-950/60 border border-white/5 px-2.5 py-1.5">
-            <span className="text-[10px] text-slate-400">Ekspektasi / Tarif:</span>
-            <span className="text-xs font-bold text-cyan-300">
+          <div className="mt-1 sm:mt-2.5 flex flex-col sm:flex-row sm:items-baseline sm:justify-between rounded-md sm:rounded-lg bg-slate-950/60 border border-white/5 px-1.5 py-0.5 sm:px-2.5 sm:py-1.5">
+            <span className="text-[7px] sm:text-[10px] text-slate-400">Tarif:</span>
+            <span className="text-[8px] sm:text-xs font-bold text-cyan-300 truncate">
               {talent.expected_salary > 0
                 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
-                : 'Dapat dinegosiasikan'}
+                : 'Nego'}
             </span>
           </div>
 
-          {/* Bio Snippet */}
-          <p className="mt-2 text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+          {/* Bio Snippet (Desktop only) */}
+          <p className="hidden sm:block mt-2 text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
             {talent.bio || talent.bio_summary || 'Siap berkontribusi secara profesional.'}
           </p>
 
-          {/* Skills Chips */}
+          {/* Skills Chips (Desktop only) */}
           {skills.length > 0 && (
-            <div className="mt-2.5 flex flex-wrap gap-1">
+            <div className="hidden sm:flex mt-2.5 flex-wrap gap-1">
               {skills.slice(0, 3).map((skill, idx) => (
                 <span
                   key={idx}
@@ -176,8 +176,19 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="pt-2 border-t border-white/5 flex items-center gap-2">
+        {/* Mobile Action Button (1 column) */}
+        <div className="sm:hidden pt-1 border-t border-white/5">
+          <button
+            onClick={() => onSelect(talent)}
+            className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-400 px-1.5 py-1 text-[9px] font-bold text-slate-950 shadow-sm hover:from-cyan-400 hover:to-teal-300 active:scale-[0.98] cursor-pointer"
+          >
+            <span>Lihat</span>
+            <Eye className="h-2.5 w-2.5" />
+          </button>
+        </div>
+
+        {/* Desktop Action Buttons */}
+        <div className="hidden sm:flex pt-2 border-t border-white/5 items-center gap-2">
           <button
             onClick={() => onSelect(talent)}
             className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-slate-800/80 px-3 py-2 text-xs font-bold text-slate-200 transition-colors hover:bg-slate-700 hover:text-white"

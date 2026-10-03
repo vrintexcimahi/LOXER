@@ -372,15 +372,15 @@ export default function TalentMarketplace() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+            <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-5">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
                 <div
                   key={n}
-                  className="h-80 rounded-2xl border border-white/5 bg-slate-900/50 animate-pulse p-4 space-y-4"
+                  className="h-48 sm:h-80 rounded-xl sm:rounded-2xl border border-white/5 bg-slate-900/50 animate-pulse p-2 sm:p-4 space-y-2 sm:space-y-4"
                 >
-                  <div className="h-36 rounded-xl bg-slate-800" />
-                  <div className="h-4 w-3/4 rounded bg-slate-800" />
-                  <div className="h-4 w-1/2 rounded bg-slate-800" />
+                  <div className="h-20 sm:h-36 rounded-lg sm:rounded-xl bg-slate-800" />
+                  <div className="h-3 sm:h-4 w-3/4 rounded bg-slate-800" />
+                  <div className="h-3 sm:h-4 w-1/2 rounded bg-slate-800" />
                 </div>
               ))}
             </div>
@@ -406,7 +406,7 @@ export default function TalentMarketplace() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+            <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-5">
               {filteredTalents.map((talent) => (
                 <TalentCard
                   key={talent.id}

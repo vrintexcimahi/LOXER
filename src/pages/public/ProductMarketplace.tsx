@@ -528,7 +528,7 @@ export default function ProductMarketplace() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-5">
               {filteredProducts.map((prod) => {
                 const conditionColor =
                   prod.condition === 'Digital'
@@ -540,7 +540,7 @@ export default function ProductMarketplace() {
                 return (
                   <div
                     key={prod.id}
-                    className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80 hover:border-cyan-500/40 hover:bg-slate-900 shadow-xl shadow-black/40 transition-all duration-300 hover:-translate-y-1"
+                    className="group flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-white/10 bg-slate-900/80 hover:border-cyan-500/40 hover:bg-slate-900 shadow-md sm:shadow-xl shadow-black/40 transition-all duration-300 hover:-translate-y-1"
                   >
                     {/* Image Thumbnail - Ratio 1:1 Penuh */}
                     <div className="relative aspect-square w-full overflow-hidden bg-slate-800">
@@ -553,67 +553,79 @@ export default function ProductMarketplace() {
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
 
                       {/* Condition Badge */}
-                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                        <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border backdrop-blur-md ${conditionColor}`}>
+                      <div className="absolute top-1.5 left-1.5 sm:top-3 sm:left-3 flex items-center gap-1">
+                        <span className={`px-1 sm:px-2.5 py-0.2 sm:py-0.5 rounded sm:rounded-lg text-[7px] sm:text-[10px] font-black uppercase tracking-wider border backdrop-blur-md ${conditionColor}`}>
                           {prod.condition}
                         </span>
                         {prod.status === 'sold' && (
-                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-red-500/80 text-white border border-red-400">
+                          <span className="px-1 sm:px-2 py-0.2 sm:py-0.5 rounded sm:rounded-lg text-[7px] sm:text-[10px] font-black uppercase bg-red-500/80 text-white border border-red-400">
                             TERJUAL
                           </span>
                         )}
                       </div>
 
                       {/* Category Pill */}
-                      <div className="absolute bottom-2.5 left-3">
-                        <span className="text-[10px] font-medium text-slate-300 bg-slate-950/80 px-2 py-0.5 rounded-md border border-white/10 backdrop-blur-sm">
+                      <div className="absolute bottom-1.5 left-1.5 sm:bottom-2.5 sm:left-3">
+                        <span className="text-[7px] sm:text-[10px] font-medium text-slate-300 bg-slate-950/80 px-1 sm:px-2 py-0.2 sm:py-0.5 rounded sm:rounded-md border border-white/10 backdrop-blur-sm truncate max-w-[80px] sm:max-w-none inline-block">
                           {prod.sub_category || prod.category.toUpperCase()}
                         </span>
                       </div>
                     </div>
 
                     {/* Content Body */}
-                    <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div className="p-2 sm:p-4 flex-1 flex flex-col justify-between space-y-1.5 sm:space-y-3">
                       <div>
                         {/* Price */}
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-lg font-black text-cyan-400">
+                        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+                          <span className="text-xs sm:text-lg font-black text-cyan-400 truncate">
                             {formatRupiah(prod.price)}
                           </span>
-                          <span className="text-[11px] font-semibold text-slate-400 uppercase">
+                          <span className="text-[7px] sm:text-[11px] font-semibold text-slate-400 uppercase truncate">
                             {prod.price_type === 'nego' ? '• Nego' : '• Pas'}
                           </span>
                         </div>
 
                         {/* Title */}
-                        <h3 className="font-bold text-sm text-slate-100 line-clamp-2 mt-1 group-hover:text-cyan-300 transition-colors">
+                        <h3 className="font-bold text-[10px] sm:text-sm text-slate-100 line-clamp-2 mt-0.5 sm:mt-1 group-hover:text-cyan-300 transition-colors leading-tight">
                           {prod.title}
                         </h3>
 
-                        {/* Description Preview */}
-                        <p className="text-xs text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
+                        {/* Description Preview (Desktop only) */}
+                        <p className="hidden sm:block text-xs text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
                           {prod.description}
                         </p>
                       </div>
 
                       {/* Seller Footer */}
-                      <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-                        <div className="flex items-center gap-2 truncate">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                      <div className="pt-1 sm:pt-3 border-t border-white/10 flex items-center justify-between text-[8px] sm:text-xs text-slate-400">
+                        <div className="flex items-center gap-1 sm:gap-2 truncate">
+                          <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center font-bold text-[7px] sm:text-[10px] flex-shrink-0">
                             {prod.seller_name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="truncate text-slate-300 font-medium text-[11px]">
+                          <span className="truncate text-slate-300 font-medium text-[8px] sm:text-[11px]">
                             {prod.seller_name}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-400 flex-shrink-0">
-                          <MapPin className="w-3 h-3 text-cyan-400" />
-                          <span>{prod.seller_city}</span>
+                        <div className="flex items-center gap-0.5 sm:gap-1 text-[7px] sm:text-[11px] text-slate-400 flex-shrink-0">
+                          <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-400 shrink-0" />
+                          <span className="truncate max-w-[45px] sm:max-w-none">{prod.seller_city}</span>
                         </div>
                       </div>
 
-                      {/* Action buttons */}
-                      <div className="grid grid-cols-2 gap-2 pt-1">
+                      {/* Mobile action button (1 column) */}
+                      <div className="sm:hidden pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProduct(prod)}
+                          className="w-full py-1 px-1 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold text-[9px] flex items-center justify-center gap-1 shadow-sm transition"
+                        >
+                          <Package className="w-2.5 h-2.5" />
+                          <span>Detail</span>
+                        </button>
+                      </div>
+
+                      {/* Desktop Action buttons */}
+                      <div className="hidden sm:grid grid-cols-2 gap-2 pt-1">
                         <button
                           type="button"
                           onClick={() => setSelectedProduct(prod)}
