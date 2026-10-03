@@ -6,13 +6,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Smartphone, Monitor, RotateCw, Lock,
-  Maximize2, Minimize2, Wifi, Battery, Sparkles, Zap,
-  Columns, Shield, Briefcase, Users, LayoutGrid, LogIn,
-  ExternalLink,
-  Copy, Check,
+  Maximize2, Minimize2, Wifi, Battery, Sparkles,
+  Columns, Shield, Briefcase, Users, LayoutGrid,
 } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
-import { seedSimRoleSession, clearSimRoleSession, SimRole } from '../../lib/simSession';
 
 export type ActiveRoleTab = 'quad-roles' | 'dual-view';
 
@@ -187,40 +184,14 @@ const ROLE_CONFIGS: RoleConfig[] = [
   },
 ];
 
-function CopyButton({ text, label }: { text: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(text).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  };
-  return (
-    <button
-      type="button"
-      onClick={copy}
-      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-[10px] font-mono text-slate-300 hover:text-white transition-all cursor-pointer active:scale-95 shrink-0"
-      title={`Salin ${label || text}`}
-    >
-      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
-      <span>{copied ? 'Tersalin!' : (label || text)}</span>
-    </button>
-  );
-}
-
 export default function DeveloperWorkbench() {
   const [activeTab, setActiveTab] = useState<ActiveRoleTab>('quad-roles');
-  const [cacheBuster, setCacheBuster] = useState(false);
+  const cacheBuster = false;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState('09:41');
 
   // Paths per role
-  const [rolePaths, setRolePaths] = useState<Record<string, string>>({
-    seeker: '/seeker/dashboard',
-    employer: '/employer/dashboard',
-    freelancer: '/seeker/marketplace',
-    admin: '/admin/dashboard',
-  });
-  const [roleInputUrls, setRoleInputUrls] = useState<Record<string, string>>({
+  const [rolePaths] = useState<Record<string, string>>({
     seeker: '/seeker/dashboard',
     employer: '/employer/dashboard',
     freelancer: '/seeker/marketplace',
@@ -273,16 +244,6 @@ export default function DeveloperWorkbench() {
     return url;
   }, [cacheBuster]);
 
-  const navigateRole = (roleId: string, targetPath: string) => {
-    const cp = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
-    setRolePaths(prev => ({ ...prev, [roleId]: cp }));
-    setRoleInputUrls(prev => ({ ...prev, [roleId]: cp }));
-    const ref = getRoleRef(roleId);
-    if (ref.current) {
-      ref.current.src = getIframeUrl(cp, roleId);
-    }
-  };
-
   const reloadRole = (roleId: string) => {
     const current = rolePaths[roleId];
     const ref = getRoleRef(roleId);
@@ -312,28 +273,6 @@ export default function DeveloperWorkbench() {
       setIsFullscreen(false);
     }
   };
-
-  // Build the 1-Click Standalone Browser URL with isolated session
-  const buildAutoLoginUrl = (demo: RoleConfig['demoUser'], roleId: string) => {
-    const sep = demo.redirectPath.includes('?') ? '&' : '?';
-    return `${demo.redirectPath}${sep}sim_role=${roleId}&preview_role=${roleId}`;
-  };
-
-  const loginRoleSession = async (roleId: string) => {
-    if (['seeker', 'employer', 'freelancer', 'admin'].includes(roleId)) {
-      await seedSimRoleSession(roleId as SimRole);
-      reloadRole(roleId);
-    }
-  };
-
-  const resetRoleSession = (roleId: string) => {
-    if (['seeker', 'employer', 'freelancer', 'admin'].includes(roleId)) {
-      clearSimRoleSession(roleId as SimRole);
-      reloadRole(roleId);
-    }
-  };
-
-
 
   return (
     <GodModeLayout

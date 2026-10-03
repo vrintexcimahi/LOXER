@@ -468,7 +468,7 @@ export default function TalentDetailModal({
                 </span>
               </div>
 
-              {talent.portfolio_url.startsWith('data:image') || /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(talent.portfolio_url) ? (
+              {(talent.portfolio_url && (talent.portfolio_url.startsWith('data:image') || /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(talent.portfolio_url))) ? (
                 <div className="relative flex justify-center rounded-xl bg-slate-900/90 border border-white/10 p-2 sm:p-4 overflow-hidden">
                   <img
                     src={talent.portfolio_url}

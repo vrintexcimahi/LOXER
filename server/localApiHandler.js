@@ -1692,6 +1692,21 @@ async function handleDbQuery(req, res) {
         }
       }
 
+      // Clean up dependent user auth and profile references if deleting users_meta
+      if (table === 'users_meta') {
+        const toDeleteIds = toDelete.map((r) => r.id).filter(Boolean);
+        if (toDeleteIds.length > 0) {
+          const placeholders = toDeleteIds.map(() => '?').join(', ');
+          try {
+            execute(`DELETE FROM users WHERE id IN (${placeholders})`, toDeleteIds);
+            execute(`DELETE FROM seeker_profiles WHERE user_id IN (${placeholders})`, toDeleteIds);
+            execute(`DELETE FROM companies WHERE user_id IN (${placeholders})`, toDeleteIds);
+          } catch {
+            // ignore if cascade already handled
+          }
+        }
+      }
+
       execute(`DELETE FROM "${table}" ${whereSql}`, params);
 
       if (table === 'job_listings') jobSearchCache.clear();

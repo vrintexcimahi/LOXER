@@ -205,17 +205,17 @@ export default function JobCard({ job, onSelectJob }) {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent pointer-events-none" />
 
         {/* Provider Badge - top left */}
-        <div className="relative z-10 flex items-start justify-between gap-1 mb-1.5 sm:mb-3">
+        <div className="relative z-10 flex items-start justify-between gap-1 mb-2 sm:mb-3">
           <span
-            className={`rounded border px-1 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md truncate max-w-[70px] sm:max-w-none ${provider.badgeTheme}`}
+            className={`rounded border px-1.5 sm:px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md truncate max-w-[90px] sm:max-w-none ${provider.badgeTheme}`}
           >
-            <span className="flex items-center gap-0.5 sm:gap-1 truncate">
-              <ProviderIcon className="h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0" />
+            <span className="flex items-center gap-1 truncate">
+              <ProviderIcon className="h-2.5 w-2.5 shrink-0" />
               <span className="truncate">{provider.label}</span>
             </span>
           </span>
           {isInternal && (
-            <span className="flex items-center gap-0.5 rounded border border-amber-500/40 bg-amber-500/20 px-1 sm:px-1.5 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-bold text-amber-300 backdrop-blur-md shrink-0">
+            <span className="flex items-center gap-0.5 rounded border border-amber-500/40 bg-amber-500/20 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold text-amber-300 backdrop-blur-md shrink-0">
               ⭐<span className="hidden sm:inline"> Prioritas</span>
             </span>
           )}
@@ -223,11 +223,11 @@ export default function JobCard({ job, onSelectJob }) {
 
         {/* Company Logo + Name */}
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-          <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl border border-white/10 bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border border-white/10 bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md">
             {logoUrl ? (
               <img src={logoUrl} alt={companyName} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-sky-300 font-black text-xs sm:text-xl">{initial}</span>
+              <span className="text-sky-300 font-black text-sm sm:text-xl">{initial}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -236,11 +236,11 @@ export default function JobCard({ job, onSelectJob }) {
               target={isInternal ? '_self' : '_blank'}
               rel={isInternal ? undefined : 'noreferrer'}
               onClick={handleCardClick}
-              className="text-[10px] sm:text-sm font-extrabold text-white tracking-tight sm:tracking-wide hover:text-sky-400 transition-colors line-clamp-2 leading-tight"
+              className="text-xs sm:text-sm font-extrabold text-white tracking-tight sm:tracking-wide hover:text-sky-400 transition-colors line-clamp-2 leading-tight"
             >
               {job.title}
             </a>
-            <p className="flex items-center gap-1 mt-0.5 sm:mt-1 text-[8px] sm:text-[11px] text-slate-400 truncate">
+            <p className="flex items-center gap-1 mt-0.5 sm:mt-1 text-[9px] sm:text-[11px] text-slate-400 truncate">
               <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-sky-400 shrink-0" />
               <span className="truncate">{companyName}</span>
             </p>
@@ -252,14 +252,14 @@ export default function JobCard({ job, onSelectJob }) {
         </div>
 
         {/* Location & Date row at bottom */}
-        <div className="relative z-10 mt-1.5 sm:mt-3 flex items-center justify-between gap-1">
-          <span className="text-[7px] sm:text-[10px] font-semibold text-sky-200/90 drop-shadow flex items-center gap-0.5 truncate">
-            <MapPin className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-sky-400 shrink-0" />
+        <div className="relative z-10 mt-2 sm:mt-3 flex items-center justify-between gap-1">
+          <span className="text-[8px] sm:text-[10px] font-semibold text-sky-200/90 drop-shadow flex items-center gap-0.5 truncate">
+            <MapPin className="h-2.5 w-2.5 text-sky-400 shrink-0" />
             <span className="truncate">{job.locations || 'Indonesia'}</span>
           </span>
           <div className="flex items-center gap-1 shrink-0">
             {isRemote && (
-              <span className="rounded border border-emerald-500/40 bg-emerald-500/20 px-1 py-0.2 sm:px-1.5 sm:py-0.5 text-[7px] sm:text-[9px] font-bold text-emerald-300 backdrop-blur-md">
+              <span className="rounded border border-emerald-500/40 bg-emerald-500/20 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold text-emerald-300 backdrop-blur-md">
                 Remote
               </span>
             )}
@@ -272,12 +272,12 @@ export default function JobCard({ job, onSelectJob }) {
       </div>
 
       {/* Card Body */}
-      <div className="p-2 sm:p-4 flex-1 flex flex-col justify-between space-y-1.5 sm:space-y-3">
+      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
         {/* Salary */}
-        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between rounded-md sm:rounded-lg bg-slate-950/60 border border-white/5 px-1.5 py-1 sm:px-2.5 sm:py-1.5">
-          <span className="text-[7px] sm:text-[10px] text-slate-400">Gaji:</span>
-          <span className="text-[8px] sm:text-xs font-bold text-emerald-300 flex items-center gap-0.5 sm:gap-1 truncate">
-            <Coins className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400 shrink-0" />
+        <div className="flex items-baseline justify-between rounded-lg bg-slate-950/60 border border-white/5 px-2 py-1.5 sm:px-2.5 sm:py-1.5">
+          <span className="text-[8px] sm:text-[10px] text-slate-400">Gaji:</span>
+          <span className="text-[9px] sm:text-xs font-bold text-emerald-300 flex items-center gap-1 truncate">
+            <Coins className="h-3 w-3 text-emerald-400 shrink-0" />
             <span className="truncate">{formatSalary(job)}</span>
           </span>
         </div>
@@ -288,13 +288,13 @@ export default function JobCard({ job, onSelectJob }) {
         </p>
 
         {/* Mobile Action Button (1 column) */}
-        <div className="sm:hidden pt-1 border-t border-white/5">
+        <div className="sm:hidden pt-1.5 border-t border-white/5">
           <button
             onClick={isInternal && onSelectJob ? handleCardClick : handleExternalApply}
-            className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-1.5 py-1 text-[9px] font-bold text-slate-950 shadow-sm hover:from-sky-400 hover:to-cyan-300 active:scale-[0.98] cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-2 py-1.5 text-[10px] font-bold text-slate-950 shadow-sm hover:from-sky-400 hover:to-cyan-300 active:scale-[0.98] cursor-pointer"
           >
             <span>{isInternal ? 'Lamar' : 'Detail'}</span>
-            <ArrowUpRight className="h-2.5 w-2.5" />
+            <ArrowUpRight className="h-3 w-3" />
           </button>
         </div>
 

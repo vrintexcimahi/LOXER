@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Send, Eye, ShieldCheck, Pin, Lock, FileText } from 'lucide-react';
+import { MapPin, Send, Eye, ShieldCheck, Pin, Lock, ArrowUpRight } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 
 interface TalentCardProps {
@@ -138,25 +138,25 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
 
         {/* Category Pill Over Banner */}
         <div className="absolute bottom-2 sm:bottom-4 left-2.5 sm:left-5 right-2.5 sm:right-5 flex items-center justify-between gap-1 z-10">
-          <span className="text-[7px] sm:text-[10px] font-semibold text-cyan-200/90 drop-shadow truncate">
+          <span className="text-[8px] sm:text-[10px] font-semibold text-cyan-200/90 drop-shadow truncate">
             {talent.category || 'Talent'}
           </span>
-          <span className="text-[7px] sm:text-[10px] font-mono text-slate-300 drop-shadow flex items-center gap-0.5 truncate">
-            <MapPin className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-cyan-400 shrink-0" />
+          <span className="text-[8px] sm:text-[10px] font-mono text-slate-300 drop-shadow flex items-center gap-0.5 truncate">
+            <MapPin className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
             <span className="truncate">{talent.domicile_city || 'Indonesia'}</span>
           </span>
         </div>
       </div>
 
       {/* Card Body */}
-      <div className="p-2 sm:p-4 flex-1 flex flex-col justify-between space-y-1.5 sm:space-y-3">
+      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
         <div>
           {/* Candidate Name & Title */}
           <div className="cursor-pointer" onClick={() => onSelect(talent)}>
-            <h3 className="text-[10px] sm:text-base font-extrabold text-white tracking-tight sm:tracking-wide uppercase hover:text-cyan-400 transition-colors line-clamp-1">
+            <h3 className="text-xs sm:text-base font-extrabold text-white tracking-tight sm:tracking-wide uppercase hover:text-cyan-400 transition-colors line-clamp-1">
               {fullName}
             </h3>
-            <p className="mt-0.5 text-[8px] sm:text-xs font-medium text-slate-300 line-clamp-1 leading-snug">
+            <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-slate-300 line-clamp-1 leading-snug">
               {talent.headline}
             </p>
           </div>
@@ -182,9 +182,9 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
           </div>
 
           {/* Salary / Rate Expectations */}
-          <div className="mt-1 sm:mt-2.5 flex flex-col sm:flex-row sm:items-baseline sm:justify-between rounded-md sm:rounded-lg bg-slate-950/60 border border-white/5 px-1.5 py-0.5 sm:px-2.5 sm:py-1.5">
-            <span className="text-[7px] sm:text-[10px] text-slate-400">Tarif:</span>
-            <span className="text-[8px] sm:text-xs font-bold text-cyan-300 truncate">
+          <div className="mt-1.5 sm:mt-2.5 flex items-baseline justify-between rounded-md sm:rounded-lg bg-slate-950/60 border border-white/5 px-2 py-1 sm:px-2.5 sm:py-1.5">
+            <span className="text-[8px] sm:text-[10px] text-slate-400">Tarif:</span>
+            <span className="text-[10px] sm:text-xs font-bold text-cyan-300 truncate">
               {talent.expected_salary > 0
                 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
                 : '-'}
@@ -217,13 +217,13 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
         </div>
 
         {/* Mobile Action Button (1 column) */}
-        <div className="sm:hidden pt-1 border-t border-white/5">
+        <div className="sm:hidden pt-1.5 border-t border-white/5">
           <button
             onClick={() => onSelect(talent)}
-            className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-400 px-1.5 py-1 text-[9px] font-bold text-slate-950 shadow-sm hover:from-cyan-400 hover:to-teal-300 active:scale-[0.98] cursor-pointer"
+            className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-400 px-2 py-1.5 text-[10px] font-bold text-slate-950 shadow-sm hover:from-cyan-400 hover:to-teal-300 active:scale-[0.98] cursor-pointer"
           >
-            <span>Lihat</span>
-            <Eye className="h-2.5 w-2.5" />
+            <span>Lihat Profil</span>
+            <ArrowUpRight className="h-3 w-3" />
           </button>
         </div>
 
