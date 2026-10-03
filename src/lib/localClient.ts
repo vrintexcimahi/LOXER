@@ -132,6 +132,11 @@ class QueryBuilder<T = unknown> implements PromiseLike<QueryResult<T>> {
     return this;
   }
 
+  or(filters: string) {
+    this.filters.push({ column: '', op: 'or', value: filters });
+    return this;
+  }
+
   gte(column: string, value: unknown) {
     this.filters.push({ column, op: 'gte', value });
     return this;

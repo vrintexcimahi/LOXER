@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search,
   RefreshCw,
@@ -118,7 +118,7 @@ function PenyediaJasaTab({ adminId, adminEmail, onToast }: { adminId: string; ad
       let query = supabase
         .from('users_meta')
         .select('id, email, role, is_banned, created_at', { count: 'exact' })
-        .or('role.eq.freelancer,role.eq.seeker')
+        .in('role', ['freelancer', 'seeker'])
         .order('created_at', { ascending: false })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
       if (statusFilter === 'active') query = query.eq('is_banned', false);
@@ -133,8 +133,8 @@ function PenyediaJasaTab({ adminId, adminEmail, onToast }: { adminId: string; ad
         profiles = prof ?? [];
       }
       const profileMap = Object.fromEntries(profiles.map((p) => [p.user_id, p]));
-      const enriched: JasaProvider[] = (data ?? []).map((u: { id: string; email: string; role: string; is_banned?: boolean; created_at: string }) => ({
-        id: u.id, email: u.email, role: u.role, is_banned: u.is_banned ?? false, created_at: u.created_at,
+      const enriched: JasaProvider[] = (data ?? []).map((u: { id: string; email: string; role: string; is_banned?: boolean | number; created_at: string }) => ({
+        id: u.id, email: u.email, role: u.role, is_banned: Boolean(u.is_banned), created_at: u.created_at,
         full_name: profileMap[u.id]?.full_name, phone: profileMap[u.id]?.phone, city: profileMap[u.id]?.domicile_city,
       }));
       setProviders(enriched);

@@ -426,44 +426,88 @@ function buildWhereClause(filters = []) {
 
   for (const filter of filters) {
     const { column, op, value } = filter;
+
+    // Handle PostgREST-style OR conditions: e.g. "role.eq.freelancer,role.eq.seeker" or "(buyer_id.eq.x,seller_id.eq.x)"
+    if (op === 'or' && typeof value === 'string') {
+      const parts = value.replace(/^\(|\)$/g, '').split(',').map((p) => p.trim()).filter(Boolean);
+      const orConditions = [];
+      for (const part of parts) {
+        const dotIdx1 = part.indexOf('.');
+        if (dotIdx1 === -1) continue;
+        const col = part.slice(0, dotIdx1);
+        const rest = part.slice(dotIdx1 + 1);
+        const dotIdx2 = rest.indexOf('.');
+        if (dotIdx2 === -1) continue;
+        const subOp = rest.slice(0, dotIdx2);
+        const val = rest.slice(dotIdx2 + 1);
+        if (!/^[a-zA-Z0-9_]+$/.test(col)) continue;
+        if (subOp === 'eq' || subOp === 'is') {
+          if (val === 'null') {
+            orConditions.push(`"${col}" IS NULL`);
+          } else {
+            orConditions.push(`"${col}" = ?`);
+            params.push(val === 'true' ? 1 : val === 'false' ? 0 : val);
+          }
+        } else if (subOp === 'neq' || subOp === 'not_eq') {
+          if (val === 'null') {
+            orConditions.push(`"${col}" IS NOT NULL`);
+          } else {
+            orConditions.push(`"${col}" != ?`);
+            params.push(val === 'true' ? 1 : val === 'false' ? 0 : val);
+          }
+        } else if (subOp === 'like' || subOp === 'ilike') {
+          orConditions.push(`"${col}" LIKE ?`);
+          params.push(val);
+        }
+      }
+      if (orConditions.length > 0) {
+        conditions.push(`(${orConditions.join(' OR ')})`);
+      }
+      continue;
+    }
+
     if (!column || !/^[a-zA-Z0-9_]+$/.test(column)) continue;
+
+    const normVal = typeof value === 'boolean' ? (value ? 1 : 0) : value;
+
     if (op === 'eq' || op === 'is') {
-      if (value === null) {
+      if (normVal === null) {
         conditions.push(`"${column}" IS NULL`);
       } else {
         conditions.push(`"${column}" = ?`);
-        params.push(value);
+        params.push(normVal);
       }
     } else if (op === 'in') {
       if (Array.isArray(value) && value.length > 0) {
-        const placeholders = value.map(() => '?').join(', ');
+        const mappedValues = value.map((v) => (typeof v === 'boolean' ? (v ? 1 : 0) : v));
+        const placeholders = mappedValues.map(() => '?').join(', ');
         conditions.push(`"${column}" IN (${placeholders})`);
-        params.push(...value);
+        params.push(...mappedValues);
       } else {
         conditions.push('1 = 0');
       }
     } else if (op === 'neq' || op === 'not_eq' || op === 'not_is') {
-      if (value === null) {
+      if (normVal === null) {
         conditions.push(`"${column}" IS NOT NULL`);
       } else {
         conditions.push(`"${column}" != ?`);
-        params.push(value);
+        params.push(normVal);
       }
     } else if (op === 'like' || op === 'ilike') {
       conditions.push(`"${column}" LIKE ?`);
-      params.push(value);
+      params.push(normVal);
     } else if (op === 'gte') {
       conditions.push(`"${column}" >= ?`);
-      params.push(value);
+      params.push(normVal);
     } else if (op === 'lte') {
       conditions.push(`"${column}" <= ?`);
-      params.push(value);
+      params.push(normVal);
     } else if (op === 'gt') {
       conditions.push(`"${column}" > ?`);
-      params.push(value);
+      params.push(normVal);
     } else if (op === 'lt') {
       conditions.push(`"${column}" < ?`);
-      params.push(value);
+      params.push(normVal);
     }
   }
 
@@ -1224,6 +1268,8 @@ async function handleDbQuery(req, res) {
         for (const [k, v] of Object.entries(row)) {
           if (v !== null && typeof v === 'object') {
             processed[k] = JSON.stringify(v);
+          } else if (typeof v === 'boolean') {
+            processed[k] = v ? 1 : 0;
           } else {
             processed[k] = v;
           }
@@ -1259,6 +1305,8 @@ async function handleDbQuery(req, res) {
         setPairs.push(`"${k}" = ?`);
         if (v !== null && typeof v === 'object') {
           setValues.push(JSON.stringify(v));
+        } else if (typeof v === 'boolean') {
+          setValues.push(v ? 1 : 0);
         } else {
           setValues.push(v);
         }
@@ -1322,7 +1370,7 @@ async function handleDbQuery(req, res) {
           if (!/^[a-zA-Z0-9_]+$/.test(k)) continue;
           if (conflictKeys.includes(k)) continue;
           setPairs.push(`"${k}" = ?`);
-          setValues.push(v !== null && typeof v === 'object' ? JSON.stringify(v) : v);
+          setValues.push(v !== null && typeof v === 'object' ? JSON.stringify(v) : (typeof v === 'boolean' ? (v ? 1 : 0) : v));
         }
         if (table === 'seeker_profiles' || table === 'companies' || table === 'job_listings' || table === 'applications' || table === 'pages') {
           if (!record.updated_at) {
@@ -1350,7 +1398,7 @@ async function handleDbQuery(req, res) {
 
         const keys = Object.keys(row).filter((k) => /^[a-zA-Z0-9_]+$/.test(k));
         const placeholders = keys.map(() => '?').join(', ');
-        const values = keys.map((k) => (row[k] !== null && typeof row[k] === 'object' ? JSON.stringify(row[k]) : row[k]));
+        const values = keys.map((k) => (row[k] !== null && typeof row[k] === 'object' ? JSON.stringify(row[k]) : (typeof row[k] === 'boolean' ? (row[k] ? 1 : 0) : row[k])));
 
         const sql = `INSERT OR REPLACE INTO "${table}" (${keys.map((k) => `"${k}"`).join(', ')}) VALUES (${placeholders})`;
         execute(sql, values);

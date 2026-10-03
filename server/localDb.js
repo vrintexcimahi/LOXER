@@ -242,6 +242,106 @@ export function getLocalDb() {
       console.warn('[localDb] orphan user repair notice:', e.message);
     }
 
+    // Ensure jasa_ads table exists and seed initial demo data if empty
+    try {
+      dbInstance.exec(`
+        CREATE TABLE IF NOT EXISTS jasa_ads (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          category TEXT NOT NULL DEFAULT 'Lainnya',
+          description TEXT NOT NULL DEFAULT '',
+          price INTEGER NOT NULL DEFAULT 0,
+          price_type TEXT NOT NULL DEFAULT 'fixed' CHECK (price_type IN ('fixed', 'nego', 'hourly')),
+          city TEXT NOT NULL DEFAULT '',
+          whatsapp TEXT,
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'pending', 'rejected', 'suspended')),
+          views_count INTEGER NOT NULL DEFAULT 0,
+          rating REAL DEFAULT 0,
+          review_count INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_jasa_ads_status ON jasa_ads(status);
+        CREATE INDEX IF NOT EXISTS idx_jasa_ads_category ON jasa_ads(category);
+        CREATE INDEX IF NOT EXISTS idx_jasa_ads_user ON jasa_ads(user_id);
+      `);
+
+      const countRow = dbInstance.prepare('SELECT COUNT(*) as cnt FROM jasa_ads').get();
+      if (!countRow || countRow.cnt === 0) {
+        const anyUser = dbInstance.prepare('SELECT id FROM users LIMIT 1').get();
+        if (anyUser) {
+          const insertStmt = dbInstance.prepare(`
+            INSERT INTO jasa_ads (id, user_id, title, category, description, price, price_type, city, whatsapp, status, views_count, rating, review_count, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          `);
+          insertStmt.run(
+            'ad-jasa-001',
+            anyUser.id,
+            'Jasa Service & Cuci AC Panggilan Cepat Bergaransi',
+            'Teknik & Pertukangan',
+            'Melayani cuci AC, perbaikan AC bocor, tambah freon R32/R410/R22, dan bongkar pasang AC semua merk. Teknisi berpengalaman dan bergaransi.',
+            75000,
+            'fixed',
+            'Bandung & Cimahi',
+            '081234567890',
+            'active',
+            142,
+            4.9,
+            28
+          );
+          insertStmt.run(
+            'ad-jasa-002',
+            anyUser.id,
+            'Jasa Desain Grafis Profesional (Logo, Brosur, Sosmed)',
+            'Desain & Multimedia',
+            'Pembuatan desain logo branding UMKM/Perusahaan, banner promosi, feed Instagram, kartu nama, dan kemasan produk. Revisi fleksibel sampai puas.',
+            150000,
+            'nego',
+            'Jakarta Selatan',
+            '081987654321',
+            'active',
+            320,
+            5.0,
+            45
+          );
+          insertStmt.run(
+            'ad-jasa-003',
+            anyUser.id,
+            'Jasa Pembuatan Website Company Profile & Toko Online',
+            'Teknologi & IT',
+            'Website modern, responsif mobile, cepat, dan SEO-friendly. Sudah termasuk hosting, domain .com 1 tahun, dan integrasi WhatsApp CS.',
+            850000,
+            'fixed',
+            'Surabaya',
+            '082133445566',
+            'active',
+            215,
+            4.8,
+            19
+          );
+          insertStmt.run(
+            'ad-jasa-004',
+            anyUser.id,
+            'Jasa Instalasi & Perbaikan Listrik Rumah / Kantor',
+            'Teknik & Pertukangan',
+            'Pemasangan instalasi kabel baru, tambah titik lampu/stop kontak, perbaikan konsleting listrik, dan perapihan panel MCB.',
+            50000,
+            'hourly',
+            'Bekasi',
+            '085678901234',
+            'pending',
+            48,
+            4.7,
+            8
+          );
+        }
+      }
+    } catch (e) {
+      console.warn('[localDb] jasa_ads setup notice:', e.message);
+    }
+
     // Auto-record today's analytics snapshot on initialization
     try {
       recordDailyAnalyticsSnapshot();
