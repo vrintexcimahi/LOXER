@@ -226,9 +226,11 @@ export default function TalentDetailModal({
                 Ekspektasi Tarif
               </span>
               <span className="text-base sm:text-lg font-bold text-emerald-400 block mt-0.5">
-                Rp {talent.expected_salary.toLocaleString('id-ID')}
+                {talent.expected_salary > 0 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')}` : '-'}
               </span>
-              <span className="text-[10px] text-slate-400 font-semibold">{rateLabel}</span>
+              <span className="text-[10px] text-slate-400 font-semibold">
+                {talent.expected_salary > 0 ? rateLabel : 'Tidak dicantumkan'}
+              </span>
             </div>
 
             <div className="rounded-xl border border-white/5 bg-slate-800/60 p-3">
@@ -444,9 +446,58 @@ export default function TalentDetailModal({
             </div>
           )}
 
+          {/* Berkas CV Lengkap (Gambar Ke-2) Terproteksi */}
+          {Boolean(talent.portfolio_url) && (
+            <div className="space-y-3 rounded-2xl border border-cyan-500/20 bg-slate-950/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-white">
+                      Gambar Ke-2: Berkas CV Lengkap
+                    </h4>
+                    <p className="text-[11px] text-cyan-300/80">
+                      Seluruh informasi kontak telah disensor demi privasi & perekrutan resmi via aplikasi
+                    </p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2.5 py-0.5 text-[10px] font-bold text-cyan-300">
+                  🔒 Kontak Diblur Otomatis
+                </span>
+              </div>
+
+              {talent.portfolio_url.startsWith('data:image') || /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(talent.portfolio_url) ? (
+                <div className="relative flex justify-center rounded-xl bg-slate-900/90 border border-white/10 p-2 sm:p-4 overflow-hidden">
+                  <img
+                    src={talent.portfolio_url}
+                    alt="Berkas CV Lengkap Kandidat (Kontak Terproteksi)"
+                    className="max-h-[600px] w-auto rounded-lg shadow-xl object-contain border border-white/5 cursor-zoom-in hover:brightness-105 transition-all"
+                    onClick={() => window.open(talent.portfolio_url, '_blank')}
+                    title="Klik untuk membuka dokumen ukuran penuh"
+                  />
+                </div>
+              ) : (
+                <a
+                  href={talent.portfolio_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-slate-800/60 hover:bg-slate-800 transition-colors text-xs font-medium text-cyan-300"
+                >
+                  <span className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-cyan-400" />
+                    Buka Berkas Portofolio CV Lengkap
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </a>
+              )}
+            </div>
+          )}
+
           {/* External Links: Portfolio & Resume */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            {talent.portfolio_url ? (
+            {talent.portfolio_url && !talent.portfolio_url.startsWith('data:image') && !/\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(talent.portfolio_url) ? (
               <a
                 href={talent.portfolio_url}
                 target="_blank"
@@ -462,7 +513,7 @@ export default function TalentDetailModal({
             ) : (
               <div className="flex items-center gap-2 p-3 rounded-xl border border-white/5 bg-slate-800/20 text-xs text-slate-500">
                 <Briefcase className="w-4 h-4" />
-                Portofolio online belum dilampirkan
+                Portofolio online via dokumen CV
               </div>
             )}
 

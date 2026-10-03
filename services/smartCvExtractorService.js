@@ -139,7 +139,7 @@ Ekstrak dan susun seluruh informasi kandidat secara komprehensif, akurat, dan pr
 ).
 4. "availability": Status ketersediaan ("fulltime", "freelance", "parttime", atau "remote"). Default "fulltime" jika tidak disebut.
 5. "experience_years": Estimasi total pengalaman kerja dalam tahun (angka bulat, minimal 0).
-6. "expected_salary": Estimasi ekspektasi gaji atau tarif dalam angka murni (contoh: 4500000). Jika tidak tercantum, perkirakan nilai wajar regional UMR/pasar atau isi 0.
+6. "expected_salary": 0 (WAJIB bernilai 0. Untuk user/talent yang ditambahkan admin dari berkas CV atau tanpa akun di aplikasi, bagian tarif harus dikosongkan/diisi 0).
 7. "rate_type": Tipe tarif ("monthly" untuk bulanan, "hourly" per jam, "project" per order/proyek).
 8. "domicile_city": Kota domisili atau tempat tinggal kandidat (contoh: "Cimahi", "Kota Bandung", "Kabupaten Bandung", "Jakarta Selatan", dll.).
 9. "whatsapp_number": Nomor telepon atau WhatsApp (format diawali 08... atau 62...).
@@ -152,6 +152,8 @@ Ekstrak dan susun seluruh informasi kandidat secara komprehensif, akurat, dan pr
 16. "badge": Label badge kandidat ("SIAP KERJA", "TOP TALENT", "FREELANCER", atau "TERVERIFIKASI").
 17. "ai_notes": Catatan singkat evaluasi kecocokan AI (kelebihan pelamar, kesiapan kerja, dan integritas berkas).
 18. "confidence_score": Nilai keyakinan kelengkapan data (angka 70 - 99).
+19. "photo_box": Koordinat kotak pembatas (bounding box) dari PAS FOTO / FOTO WAJAH kandidat pelamar yang ada di lembar CV dalam format array integer [ymin, xmin, ymax, xmax] dengan skala 0 sampai 1000 (contoh: [45, 90, 305, 435]). Jika berkas tidak memuat foto wajah/pas foto, isi null.
+20. "contact_boxes": Array kotak pembatas (bounding boxes) [ [ymin, xmin, ymax, xmax], ... ] dari seluruh AREA KONTAK pelamar pada lembar CV (seperti bagian yang memuat nomor HP, WhatsApp, email, alamat rumah detail, media sosial, atau seluruh kolom blok 'KONTAK'). Skala integer 0 sampai 1000 (contoh: [[340, 70, 520, 410]]).
 
 Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
 {
@@ -160,7 +162,7 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
   "category": "...",
   "availability": "fulltime",
   "experience_years": 2,
-  "expected_salary": 4500000,
+  "expected_salary": 0,
   "rate_type": "monthly",
   "domicile_city": "...",
   "whatsapp_number": "...",
@@ -176,7 +178,9 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
   "portfolio_url": "",
   "badge": "SIAP KERJA",
   "ai_notes": "...",
-  "confidence_score": 95
+  "confidence_score": 95,
+  "photo_box": [45, 90, 305, 435],
+  "contact_boxes": [[340, 70, 520, 410]]
 }`;
 
   const userContent = [];
@@ -264,6 +268,16 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
 
       const parsed = JSON.parse(cleanedJson);
 
+      const parsedPhotoBox = Array.isArray(parsed.photo_box) && parsed.photo_box.length === 4
+        ? parsed.photo_box.map((n) => Math.max(0, Math.min(1000, parseInt(n, 10) || 0)))
+        : null;
+
+      const parsedContactBoxes = Array.isArray(parsed.contact_boxes)
+        ? parsed.contact_boxes
+            .filter((b) => Array.isArray(b) && b.length === 4)
+            .map((b) => b.map((n) => Math.max(0, Math.min(1000, parseInt(n, 10) || 0))))
+        : [];
+
       const result = {
         full_name: (parsed.full_name || 'Pelamar Kerja').trim(),
         headline: (parsed.headline || 'Pencari Kerja Aktif').trim(),
@@ -272,7 +286,7 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
           ? parsed.availability
           : 'fulltime',
         experience_years: typeof parsed.experience_years === 'number' ? parsed.experience_years : parseInt(parsed.experience_years || '0', 10) || 0,
-        expected_salary: typeof parsed.expected_salary === 'number' ? parsed.expected_salary : parseInt(String(parsed.expected_salary || '0').replace(/\D/g, ''), 10) || 0,
+        expected_salary: 0, // Dikosongkan untuk user yang ditambahkan admin tanpa akun
         rate_type: ['monthly', 'hourly', 'project'].includes(parsed.rate_type) ? parsed.rate_type : 'monthly',
         domicile_city: cleanDomicileCity(parsed.domicile_city),
         whatsapp_number: (parsed.whatsapp_number || '').trim(),
@@ -283,7 +297,10 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
         experiences: Array.isArray(parsed.experiences) ? parsed.experiences : [],
         portfolio_url: (parsed.portfolio_url || '').trim(),
         badge: ['TOP TALENT', 'SIAP KERJA', 'FREELANCER', 'TERVERIFIKASI'].includes(parsed.badge) ? parsed.badge : 'SIAP KERJA',
-        photo_url: imageBase64 ? imageBase64 : '',
+        photo_box: parsedPhotoBox,
+        contact_boxes: parsedContactBoxes,
+        raw_image_url: imageBase64 ? imageBase64 : '',
+        photo_url: '', // Akan diisi pas foto hasil crop di frontend / canvas
         ai_notes: (parsed.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Kontak terproteksi privasi)').trim(),
         confidence_score: typeof parsed.confidence_score === 'number' ? parsed.confidence_score : 92,
         extracted_at: new Date().toISOString(),

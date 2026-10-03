@@ -1,4 +1,5 @@
-import { MapPin, Send, Eye, ShieldCheck, Pin, Lock } from 'lucide-react';
+import { useState } from 'react';
+import { MapPin, Send, Eye, ShieldCheck, Pin, Lock, FileText } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 
 interface TalentCardProps {
@@ -16,6 +17,8 @@ const AVAILABILITY_LABELS: Record<string, string> = {
 };
 
 export default function TalentCard({ talent, onSelect, onOfferJob, featured = false }: TalentCardProps) {
+  const [activeMedia, setActiveMedia] = useState<'photo' | 'cv'>('photo');
+
   const skills: string[] = Array.isArray(talent.skills)
     ? talent.skills
     : typeof talent.skills === 'string'
@@ -30,6 +33,7 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
 
   const fullName = talent.seeker_profiles?.full_name || talent.headline.split(' ')[0] || 'Kandidat';
   const photoUrl = talent.photo_url || talent.seeker_profiles?.photo_url;
+  const currentDisplayUrl = (activeMedia === 'cv' && talent.portfolio_url) ? talent.portfolio_url : photoUrl;
 
   const badgeTheme =
     talent.badge === 'TOP TALENT' || talent.badge === 'REKOMENDASI'
@@ -55,11 +59,13 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
     >
       {/* 1:1 Aspect Ratio Photo Header (Ratio 1:1) */}
       <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-1.5 sm:p-3">
-        {photoUrl ? (
+        {currentDisplayUrl ? (
           <img
-            src={photoUrl}
+            src={currentDisplayUrl}
             alt={fullName}
-            className="h-full w-full object-cover object-center rounded-lg sm:rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105"
+            className={`h-full w-full rounded-lg sm:rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105 ${
+              activeMedia === 'cv' ? 'object-contain bg-slate-950/90' : 'object-cover object-center'
+            }`}
             loading="lazy"
           />
         ) : (
@@ -71,7 +77,7 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none rounded-lg sm:rounded-2xl m-1.5 sm:m-3" />
 
         {/* Top Badges */}
-        <div className="absolute left-2.5 sm:left-5 top-2.5 sm:top-5 flex items-center gap-1">
+        <div className="absolute left-2.5 sm:left-5 top-2.5 sm:top-5 flex items-center gap-1 z-10">
           <span className={`rounded border px-1 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md truncate max-w-[65px] sm:max-w-none ${badgeTheme}`}>
             {talent.badge || 'SIAP KERJA'}
           </span>
@@ -83,8 +89,42 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
           )}
         </div>
 
-        {/* Pin / Verified Icon */}
-        <div className="absolute right-2.5 sm:right-5 top-2.5 sm:top-5 flex items-center gap-1">
+        {/* Pin / Verified Icon & Media Switcher */}
+        <div className="absolute right-2.5 sm:right-5 top-2.5 sm:top-5 flex items-center gap-1 z-20">
+          {Boolean(talent.portfolio_url) && (
+            <div className="flex items-center bg-black/80 backdrop-blur-md rounded-lg p-0.5 border border-white/20 shadow-sm mr-1">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveMedia('photo');
+                }}
+                className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold transition-all cursor-pointer ${
+                  activeMedia === 'photo'
+                    ? 'bg-cyan-400 text-slate-950 shadow'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                title="Tampilkan Pas Foto"
+              >
+                Foto
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveMedia('cv');
+                }}
+                className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold transition-all cursor-pointer ${
+                  activeMedia === 'cv'
+                    ? 'bg-cyan-400 text-slate-950 shadow'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                title="Tampilkan Berkas CV (Diblur)"
+              >
+                CV
+              </button>
+            </div>
+          )}
           {featured ? (
             <div className="flex h-4 w-4 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 shadow-md">
               <Pin className="h-2 w-2 sm:h-3 sm:w-3" />
@@ -97,7 +137,7 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
         </div>
 
         {/* Category Pill Over Banner */}
-        <div className="absolute bottom-2 sm:bottom-4 left-2.5 sm:left-5 right-2.5 sm:right-5 flex items-center justify-between gap-1">
+        <div className="absolute bottom-2 sm:bottom-4 left-2.5 sm:left-5 right-2.5 sm:right-5 flex items-center justify-between gap-1 z-10">
           <span className="text-[7px] sm:text-[10px] font-semibold text-cyan-200/90 drop-shadow truncate">
             {talent.category || 'Talent'}
           </span>
@@ -147,7 +187,7 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
             <span className="text-[8px] sm:text-xs font-bold text-cyan-300 truncate">
               {talent.expected_salary > 0
                 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
-                : 'Nego'}
+                : '-'}
             </span>
           </div>
 

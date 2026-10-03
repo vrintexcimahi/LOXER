@@ -39,6 +39,16 @@ export async function seedDatabase() {
     console.log(`ℹ️ Super Admin vrintex diperbarui: ${VRINTEX_USER} (password: kayaraya3+)`);
   }
 
+  // Also ensure fixed root admin (admin-vrintex-root) exists for simulator/bypass authentication
+  execute(
+    'INSERT OR IGNORE INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)',
+    ['admin-vrintex-root', 'vrintex@loxer.app', vrintexHash, now]
+  );
+  execute(
+    "INSERT OR IGNORE INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, 'superadmin', ?, 0)",
+    ['admin-vrintex-root', 'vrintex@loxer.app', now]
+  );
+
   // Also ensure legacy/fallback admin exists
   const adminHash = hashPassword('admin123');
   let adminUser = queryOne('SELECT id FROM users WHERE email = ?', [DEFAULT_ADMIN_EMAIL]);

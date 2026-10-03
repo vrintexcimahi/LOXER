@@ -31,6 +31,7 @@ import {
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { maskPhoneNumber, maskEmail, cleanDomicileCity } from '../../lib/contactPrivacyService';
+import { cropPasFotoFromImage, generateBlurredCvImage } from '../../lib/cvImageProcessor';
 import ProtectedTalentChatModal from '../../components/marketplace/ProtectedTalentChatModal';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -227,7 +228,7 @@ export function AdminTalentDetailModal({
             <p className="mt-1 text-sm font-extrabold text-cyan-300">
               {talent.expected_salary > 0
                 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
-                : 'Dapat dinegosiasikan'}
+                : '-'}
             </p>
           </div>
           <div className="rounded-xl border border-white/5 bg-slate-950/60 p-3">
@@ -272,6 +273,37 @@ export function AdminTalentDetailModal({
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Gambar Ke-2: Berkas Dokumen CV Lengkap (Kontak Diblur) */}
+        {talent.portfolio_url && (talent.portfolio_url.startsWith('data:image') || /\.(png|jpe?g|webp)($|\?)/i.test(talent.portfolio_url)) && (
+          <div className="space-y-2.5 rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-cyan-400" />
+                <span>Gambar Ke-2: Berkas CV Lengkap (Kontak Terproteksi Privasi)</span>
+              </h3>
+              <a
+                href={talent.portfolio_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 rounded-lg border border-cyan-500/30 bg-cyan-950/40 px-2.5 py-1 transition hover:bg-cyan-900/50"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Buka Gambar Penuh</span>
+              </a>
+            </div>
+            <div className="relative max-h-96 overflow-y-auto rounded-xl border border-white/10 bg-slate-900 flex justify-center p-2">
+              <img
+                src={talent.portfolio_url}
+                alt="Dokumen CV Lengkap Pelamar"
+                className="max-w-full h-auto object-contain rounded-lg shadow-xl"
+              />
+            </div>
+            <p className="text-[10px] text-slate-400">
+              🔒 Seluruh nomor telepon, WhatsApp, email, dan alamat rumah pada berkas CV otomatis disensor/diblur permanen demi privasi pelamar. Semua proses perekrutan wajib di dalam aplikasi LOXER.
+            </p>
           </div>
         )}
 
@@ -374,6 +406,7 @@ export function AdminTalentCatalogSection({
   const [selectedAvailability, setSelectedAvailability] = useState('all');
   const [selectedCity, setSelectedCity] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [cardImageMode, setCardImageMode] = useState<Record<string, 'photo' | 'cv'>>({});
   const [previewTalent, setPreviewTalent] = useState<TalentMarketplacePost | null>(null);
   const [chatTalent, setChatTalent] = useState<TalentMarketplacePost | null>(null);
 
@@ -650,6 +683,13 @@ export function AdminTalentCatalogSection({
             const rateLabel =
               talent.rate_type === 'hourly' ? '/ jam' : talent.rate_type === 'project' ? '/ order' : '/ bln';
 
+            const hasCvImage = Boolean(
+              talent.portfolio_url &&
+              (talent.portfolio_url.startsWith('data:image') || /\.(png|jpe?g|webp)($|\?)/i.test(talent.portfolio_url))
+            );
+            const currentMode = cardImageMode[talent.id] || 'photo';
+            const displayPhoto = currentMode === 'cv' && hasCvImage ? talent.portfolio_url : photoUrl;
+
             return (
               <div
                 key={talent.id}
@@ -657,9 +697,9 @@ export function AdminTalentCatalogSection({
               >
                 {/* 1:1 Aspect Ratio Photo Header */}
                 <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-1.5 sm:p-3">
-                  {photoUrl ? (
+                  {displayPhoto ? (
                     <img
-                      src={photoUrl}
+                      src={displayPhoto}
                       alt={fullName}
                       className="h-full w-full object-cover object-center rounded-lg sm:rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"
@@ -687,8 +727,35 @@ export function AdminTalentCatalogSection({
                     )}
                   </div>
 
-                  {/* Top Right: Verified / Publish indicator */}
-                  <div className="absolute right-2 sm:right-5 top-2 sm:top-5 flex items-center gap-1">
+                  {/* Top Right: Verified / Publish indicator + Mode Switcher */}
+                  <div className="absolute right-2 sm:right-5 top-2 sm:top-5 flex items-center gap-1 z-10">
+                    {hasCvImage && (
+                      <div
+                        className="flex items-center gap-0.5 rounded-lg bg-slate-950/85 p-0.5 border border-white/15 backdrop-blur-md shadow-lg"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setCardImageMode((prev) => ({ ...prev, [talent.id]: 'photo' }))}
+                          className={`px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold rounded transition ${
+                            currentMode === 'photo' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Tampilkan Pas Foto"
+                        >
+                          Foto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCardImageMode((prev) => ({ ...prev, [talent.id]: 'cv' }))}
+                          className={`px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold rounded transition ${
+                            currentMode === 'cv' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Tampilkan Berkas CV Full (Kontak Diblur)"
+                        >
+                          CV
+                        </button>
+                      </div>
+                    )}
                     <span
                       className={`rounded-full px-1.5 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-bold backdrop-blur-md ${
                         isPublished ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/40' : 'bg-slate-800/80 text-slate-400 border border-white/10'
@@ -721,10 +788,10 @@ export function AdminTalentCatalogSection({
                     {/* Salary / Rate */}
                     <div className="mt-1 sm:mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-md sm:rounded-xl bg-slate-950/60 border border-white/5 px-1.5 py-0.5 sm:px-2.5 sm:py-1.5">
                       <span className="text-[7px] sm:text-[10px] text-slate-400 uppercase font-bold">Tarif:</span>
-                      <span className="text-[8px] sm:text-xs font-black text-cyan-300 truncate">
+                      <span className="text-[8px] sm:text-xs font-black text-slate-400 truncate">
                         {talent.expected_salary > 0
                           ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
-                          : 'Nego'}
+                          : '-'}
                       </span>
                     </div>
 
@@ -862,10 +929,10 @@ export function AdminTalentCatalogSection({
                       <p className="text-white">{talent.category}</p>
                       <p className="text-slate-400 text-[11px]">{talent.domicile_city || 'Cimahi'}</p>
                     </td>
-                    <td className="px-4 py-3 font-semibold text-cyan-300">
+                    <td className="px-4 py-3 font-semibold text-slate-300">
                       {talent.expected_salary > 0
                         ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} / bln`
-                        : 'Nego'}
+                        : '-'}
                     </td>
                     <td className="px-4 py-3 capitalize">{talent.availability || 'fulltime'}</td>
                     <td className="px-4 py-3">
@@ -1022,6 +1089,7 @@ export function SmartAddCvSection({
   const [skillInput, setSkillInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [testChatOpen, setTestChatOpen] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'photo' | 'cv'>('photo');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadPdfJs = async (): Promise<PdfJsLibrary | null> => {
@@ -1252,7 +1320,7 @@ PENGALAMAN KERJA:
 PENDIDIKAN:
 - SMK Negeri 1 Cimahi (Teknik Komputer & Jaringan, Lulus 2021)
 
-EKSPEKTASI GAJI: Rp 4.200.000 / bulan (Nego)
+EKSPEKTASI GAJI: 0 (Kosongkan / Nego)
 STATUS: Siap Kerja Segera (Fulltime)`);
 
     onToast('info', 'Contoh CV Azqy Ahmad Saputra berhasil dimuat. Silakan klik "Mulai Ekstraksi AI".');
@@ -1299,29 +1367,50 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       const cv = resData.cv;
       if (!cv) throw new Error('Data biodata CV tidak ditemukan dalam respon AI.');
 
+      // 1. Potong otomatis Pas Foto dari lembar CV menggunakan koordinat AI
+      let croppedPhoto = '';
+      if (fileBase64 && cv.photo_box) {
+        try {
+          croppedPhoto = await cropPasFotoFromImage(fileBase64, cv.photo_box);
+        } catch (cropErr) {
+          console.warn('[SmartAddCv] Crop error:', cropErr);
+        }
+      }
+
+      // 2. Sensor dan blur otomatis area kontak pada berkas CV full (Gambar ke-2)
+      let blurredCv = '';
+      if (fileBase64) {
+        try {
+          blurredCv = await generateBlurredCvImage(fileBase64, cv.contact_boxes);
+        } catch (blurErr) {
+          console.warn('[SmartAddCv] Blur error:', blurErr);
+          blurredCv = fileBase64;
+        }
+      }
+
       setFormData({
         full_name: cv.full_name || 'Pelamar Kerja',
         headline: cv.headline || 'Pencari Kerja Aktif',
         category: cv.category || 'Umum & Jasa',
         availability: cv.availability || 'fulltime',
         experience_years: Number(cv.experience_years) || 0,
-        expected_salary: Number(cv.expected_salary) || 0,
+        expected_salary: 0, // KOSONGKAN TARIF SESUAI PERMINTAAN USER (DITAMBAH ADMIN / TANPA AKUN)
         rate_type: cv.rate_type || 'monthly',
         domicile_city: cleanDomicileCity(cv.domicile_city || 'Cimahi'),
         whatsapp_number: cv.whatsapp_number || '',
         email: cv.email || '',
         bio: cv.bio || '',
         skills: Array.isArray(cv.skills) && cv.skills.length > 0 ? cv.skills : ['Komunikasi', 'Kerja Tim'],
-        portfolio_url: cv.portfolio_url || '',
+        portfolio_url: blurredCv || cv.portfolio_url || '', // GAMBAR KE-2: CV FULL DENGAN KONTAK DIBLUR
         badge: cv.badge || 'SIAP KERJA',
-        photo_url: cv.photo_url || '',
-        ai_notes: cv.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Privasi Terproteksi)',
+        photo_url: croppedPhoto || '', // FOTO UTAMA: PAS FOTO HASIL CROP OTOMATIS
+        ai_notes: cv.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Kontak terproteksi privasi)',
         confidence_score: cv.confidence_score || 95,
       });
 
       setIsExtracting(false);
       setExtractStep(0);
-      onToast('success', 'Biodata CV berhasil diekstrak oleh Agen AI Gemini 3.8!');
+      onToast('success', 'Biodata CV berhasil diekstrak! Pas foto terpotong & kontak CV telah disensor.');
     } catch (err: unknown) {
       console.error('[SmartAddCv Extract Error]:', err);
       setIsExtracting(false);
@@ -1808,14 +1897,18 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    Ekspektasi Gaji (Rp)
+                    Ekspektasi Gaji / Tarif (Rp)
                   </label>
                   <input
                     type="number"
-                    value={formData.expected_salary}
+                    value={formData.expected_salary || ''}
+                    placeholder="Kosongkan jika ditambahkan oleh admin"
                     onChange={(e) => setFormData({ ...formData, expected_salary: Number(e.target.value) || 0 })}
                     className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
                   />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Kosongkan (nilai 0) untuk user tanpa akun / ditambah admin.
+                  </span>
                 </div>
 
                 <div>
@@ -1913,28 +2006,87 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    Proteksi Tampilan Dokumen CV
+              </div>
+
+              {/* Media Profil: Foto Utama (Pas Foto) & Gambar Ke-2 (CV Full Diblur) */}
+              <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Media Profil: Foto Utama (Pas Foto) &amp; Gambar Ke-2 (CV Full Diblur)</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData({
-                        ...formData,
-                        photo_url: formData.photo_url ? '' : (filePreviewUrl || ''),
-                      });
-                    }}
-                    className="w-full rounded-xl border border-cyan-500/30 bg-slate-800/80 hover:bg-slate-700/80 px-3 py-2 text-xs font-semibold text-slate-200 transition text-left flex items-center justify-between"
-                  >
-                    <span>{formData.photo_url ? '🛡️ Gunakan Inisial / Sembunyikan CV Mentah' : '🖼️ Tampilkan Lampiran Dokumen'}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${formData.photo_url ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                      {formData.photo_url ? 'Gambar CV Aktif' : 'Inisial Aman'}
-                    </span>
-                  </button>
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    Disarankan avatar inisial agar layout CV kertas tidak mengekspos nomor kontak langsung.
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    Otomatis Gemini OCR
                   </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Foto Utama: Pas Foto */}
+                  <div className="rounded-xl border border-white/10 bg-slate-900/90 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                        <span>Foto Utama (Pas Foto)</span>
+                      </span>
+                      {formData.photo_url ? (
+                        <span className="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.2 rounded">
+                          Pas Foto Terdeteksi
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-semibold text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded">
+                          Inisial Default
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-slate-950 flex items-center justify-center shadow-inner">
+                        {formData.photo_url ? (
+                          <img src={formData.photo_url} alt="Pas Foto" className="h-full w-full object-cover object-center" />
+                        ) : (
+                          <span className="text-xl font-black text-cyan-300">{formData.full_name.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-[10px] text-slate-300 leading-snug">
+                          {formData.photo_url ? 'Wajah kandidat terpotong otomatis 1:1 dari dokumen CV.' : 'Tidak ada pas foto di lembar CV. Inisial nama otomatis digunakan.'}
+                        </p>
+                        {formData.photo_url && (
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, photo_url: '' })}
+                            className="text-[10px] font-semibold text-rose-300 hover:text-rose-200 underline"
+                          >
+                            Hapus foto (gunakan inisial)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Gambar Ke-2: CV Full Kontak Diblur */}
+                  <div className="rounded-xl border border-white/10 bg-slate-900/90 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                        <span>Gambar Ke-2 (CV Full)</span>
+                      </span>
+                      <span className="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.2 rounded flex items-center gap-1">
+                        <Lock className="w-2.5 h-2.5" /> Kontak Diblur Penuh
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-slate-950 flex items-center justify-center shadow-inner">
+                        {formData.portfolio_url ? (
+                          <img src={formData.portfolio_url} alt="CV Full Diblur" className="h-full w-full object-cover object-top" />
+                        ) : (
+                          <FileText className="w-6 h-6 text-slate-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-[10px] text-slate-300 leading-snug">
+                          Nomor HP, WA &amp; email disensor permanen. Perekrutan 100% via aplikasi LOXER.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2067,30 +2219,51 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
               {/* Exact Card Component */}
               <div className="overflow-hidden rounded-2xl border border-cyan-500/40 bg-slate-900 shadow-2xl">
+                {/* Media Switcher Tab for Live Preview */}
+                {formData.portfolio_url && (
+                  <div className="p-2 border-b border-white/10 bg-slate-950/85 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400">Pratinjau Media:</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode('photo')}
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
+                          previewMode === 'photo'
+                            ? 'bg-cyan-500 text-slate-950 shadow'
+                            : 'text-slate-400 hover:text-white bg-slate-800'
+                        }`}
+                      >
+                        Foto 1: Pas Foto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode('cv')}
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
+                          previewMode === 'cv'
+                            ? 'bg-cyan-500 text-slate-950 shadow'
+                            : 'text-slate-400 hover:text-white bg-slate-800'
+                        }`}
+                      >
+                        Foto 2: CV Full (Diblur)
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-3">
-                  {formData.photo_url ? (
+                  {(previewMode === 'cv' && formData.portfolio_url ? formData.portfolio_url : formData.photo_url) ? (
                     <div className="relative h-full w-full overflow-hidden rounded-2xl">
                       <img
-                        src={formData.photo_url}
+                        src={previewMode === 'cv' && formData.portfolio_url ? formData.portfolio_url : formData.photo_url}
                         alt={formData.full_name}
-                        className="h-full w-full object-cover object-top rounded-2xl opacity-85"
+                        className="h-full w-full object-cover object-top rounded-2xl opacity-90"
                       />
-                      {/* Privacy Sensor Watermark & Masking Strip over Image */}
-                      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex flex-col justify-between p-3 pointer-events-none rounded-2xl">
-                        <div className="self-end rounded-lg bg-slate-950/90 border border-emerald-500/40 px-2 py-0.5 text-[9px] font-bold text-emerald-300 flex items-center gap-1 shadow-lg">
+                      {previewMode === 'cv' && (
+                        <div className="absolute top-2 right-2 rounded-lg bg-slate-950/90 border border-emerald-500/40 px-2 py-0.5 text-[9px] font-bold text-emerald-300 flex items-center gap-1 shadow-lg">
                           <Lock className="w-2.5 h-2.5 text-emerald-400" />
-                          <span>Kontak Disensor</span>
+                          <span>Kontak Diblur</span>
                         </div>
-                        <div className="rounded-xl bg-slate-950/90 border border-cyan-500/30 p-2 backdrop-blur-md text-center shadow-lg">
-                          <p className="text-[10px] font-bold text-cyan-300 flex items-center justify-center gap-1">
-                            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                            <span>Dokumen Terproteksi Privasi LOXER</span>
-                          </p>
-                          <p className="text-[9px] text-slate-400">
-                            Nomor HP, WA &amp; Email pada berkas otomatis disensor ke publik
-                          </p>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-600/30 to-indigo-600/30 text-cyan-300 font-extrabold text-5xl">
@@ -2133,11 +2306,11 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   <p className="text-xs text-slate-300 font-medium line-clamp-1">{formData.headline}</p>
 
                   <div className="flex items-center justify-between rounded-xl bg-slate-950/60 border border-white/5 px-2.5 py-1.5">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold">Ekspektasi:</span>
-                    <span className="text-xs font-black text-cyan-300">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Tarif:</span>
+                    <span className="text-xs font-black text-slate-400">
                       {formData.expected_salary > 0
                         ? `Rp ${formData.expected_salary.toLocaleString('id-ID')} / bln`
-                        : 'Dapat dinegosiasikan'}
+                        : '-'}
                     </span>
                   </div>
 

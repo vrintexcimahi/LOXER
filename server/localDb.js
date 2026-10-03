@@ -283,6 +283,12 @@ export function getLocalDb() {
     try {
       dbInstance.exec(`
         INSERT OR IGNORE INTO users (id, email, password_hash, created_at)
+        VALUES ('admin-vrintex-root', 'vrintex@loxer.app', 'stub_hash_placeholder', datetime('now'));
+
+        INSERT OR IGNORE INTO users_meta (id, email, role, created_at, is_banned)
+        VALUES ('admin-vrintex-root', 'vrintex@loxer.app', 'superadmin', datetime('now'), 0);
+
+        INSERT OR IGNORE INTO users (id, email, password_hash, created_at)
         SELECT DISTINCT user_id, user_id || '@loxer.local', 'stub_hash_placeholder', datetime('now')
         FROM seeker_profiles
         WHERE user_id NOT IN (SELECT id FROM users);
