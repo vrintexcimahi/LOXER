@@ -46,6 +46,7 @@ import {
   Bot,
   Zap,
   Check,
+  Key,
 } from 'lucide-react';
 import {
   Area,
@@ -83,13 +84,14 @@ import AdminDeviceManagement from './AdminDeviceManagement';
 import { fetchUnifiedJobs } from '../../services/careerjetService';
 import { AdminTalentCatalogSection, SmartAddCvSection, useTalentCatalog } from './AdminTalentComponents';
 import AdminJasa from './AdminJasa';
+import AdminRbacMatrix from './AdminRbacMatrix';
 
 type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations' | 'jasa';
 type ToastType = 'success' | 'error' | 'info';
 
 interface AdminDashboardProps {
   tab?: AdminTab;
-  subTab?: 'accounts' | 'intelligence' | 'devices';
+  subTab?: 'accounts' | 'intelligence' | 'devices' | 'rbac';
   // (jasa has its own internal sub-tabs)
 }
 
@@ -1143,11 +1145,13 @@ function AdminUsers({
   adminEmail,
   isSuperAdmin,
   onToast,
+  onOpenRbac,
 }: {
   adminId: string;
   adminEmail: string;
   isSuperAdmin?: boolean;
   onToast: (type: ToastType, message: string) => void;
+  onOpenRbac?: () => void;
 }) {
   const { user, userMeta } = useAuth();
   const currentAdminEmail = adminEmail || user?.email || userMeta?.email || '';
@@ -1566,14 +1570,28 @@ function AdminUsers({
             <p className="text-sm font-semibold text-rose-300">Akun Internal — Pengelola Web</p>
             <p className="text-xs text-slate-400 mt-0.5">Daftar akun khusus pengelolaan platform: Super Admin, Admin, Marketing, dan Customer Service.</p>
           </div>
-          {isSuperAdminUser && (
-            <button
-              onClick={() => setShowAddInternal(true)}
-              className="ml-auto shrink-0 rounded-lg border border-rose-400/30 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/25 transition-colors"
-            >
-              + Tambah Akun Internal
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {onOpenRbac && (
+              <button
+                type="button"
+                onClick={onOpenRbac}
+                className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 hover:border-amber-400/50 transition-all flex items-center gap-1.5 shadow-sm shadow-amber-950/20"
+                title="Kelola hak akses modul operasional untuk setiap peran"
+              >
+                <Key className="h-3.5 w-3.5 text-amber-400" />
+                <span>Kelola Hak Akses (RBAC)</span>
+              </button>
+            )}
+            {isSuperAdminUser && (
+              <button
+                type="button"
+                onClick={() => setShowAddInternal(true)}
+                className="rounded-lg border border-rose-400/30 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/25 transition-colors"
+              >
+                + Tambah Akun Internal
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-start gap-3">
@@ -1863,12 +1881,13 @@ function AdminUsersManagement({
   adminEmail: string;
   isSuperAdmin?: boolean;
   onToast: (type: ToastType, message: string) => void;
-  initialSubTab?: 'accounts' | 'intelligence' | 'devices';
+  initialSubTab?: 'accounts' | 'intelligence' | 'devices' | 'rbac';
 }) {
-  const [subTab, setSubTab] = useState<'accounts' | 'intelligence' | 'devices'>(() => {
+  const [subTab, setSubTab] = useState<'accounts' | 'intelligence' | 'devices' | 'rbac'>(() => {
     if (initialSubTab) return initialSubTab;
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('subTab') || urlParams.get('tab');
+    if (tabParam === 'rbac' || tabParam === 'hak-akses') return 'rbac';
     if (tabParam === 'intelligence' || tabParam === 'user-data') return 'intelligence';
     if (tabParam === 'devices' || tabParam === 'perangkat') return 'devices';
     if (window.location.pathname === '/admin/user-data') return 'intelligence';
@@ -1876,11 +1895,13 @@ function AdminUsersManagement({
     return 'accounts';
   });
 
-  const handleSubTabChange = (newTab: 'accounts' | 'intelligence' | 'devices') => {
+  const handleSubTabChange = (newTab: 'accounts' | 'intelligence' | 'devices' | 'rbac') => {
     setSubTab(newTab);
     const targetUrl =
       newTab === 'accounts'
         ? '/admin/users'
+        : newTab === 'rbac'
+        ? '/admin/users?subTab=rbac'
         : newTab === 'intelligence'
         ? '/admin/users?subTab=intelligence'
         : '/admin/users?subTab=devices';
@@ -1926,6 +1947,20 @@ function AdminUsersManagement({
 
           <button
             type="button"
+            onClick={() => handleSubTabChange('rbac')}
+            className={classNames(
+              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+              subTab === 'rbac'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 border border-amber-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+            )}
+          >
+            <ShieldCheck className="h-4 w-4 text-amber-400" />
+            <span>Hak Akses Modul (RBAC)</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handleSubTabChange('intelligence')}
             className={classNames(
               'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
@@ -1956,7 +1991,24 @@ function AdminUsersManagement({
 
       {/* Active SubTab View */}
       <div className="transition-all">
-        {subTab === 'accounts' && <AdminUsers adminId={adminId} adminEmail={adminEmail} isSuperAdmin={isSuperAdmin} onToast={onToast} />}
+        {subTab === 'accounts' && (
+          <AdminUsers
+            adminId={adminId}
+            adminEmail={adminEmail}
+            isSuperAdmin={isSuperAdmin}
+            onToast={onToast}
+            onOpenRbac={() => handleSubTabChange('rbac')}
+          />
+        )}
+        {subTab === 'rbac' && (
+          <AdminRbacMatrix
+            adminId={adminId}
+            adminEmail={adminEmail}
+            isSuperAdmin={isSuperAdmin}
+            onToast={onToast}
+            onBackToAccounts={() => handleSubTabChange('accounts')}
+          />
+        )}
         {subTab === 'intelligence' && <AdminUserDataCenter />}
         {subTab === 'devices' && <AdminDeviceManagement />}
       </div>
