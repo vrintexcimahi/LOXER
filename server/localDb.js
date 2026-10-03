@@ -18,26 +18,48 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
 }
 const JWT_EXPIRES_DAYS = 7;
 
-let dbInstance = null;
+let dbInstance = globalThis.__loxer_db_instance || null;
 
 export function closeLocalDb() {
   clearStatementCache();
-  if (dbInstance) {
+  const inst = dbInstance || globalThis.__loxer_db_instance;
+  if (inst) {
     try {
-      dbInstance.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+      inst.exec('PRAGMA wal_checkpoint(TRUNCATE);');
     } catch {
       // ignore
     }
     try {
-      dbInstance.close();
+      inst.close();
     } catch {
       // ignore
     }
     dbInstance = null;
+    globalThis.__loxer_db_instance = null;
   }
 }
 
 export function getLocalDb() {
+  if (dbInstance) {
+    try {
+      dbInstance.exec('SELECT 1;');
+      return dbInstance;
+    } catch {
+      dbInstance = null;
+      globalThis.__loxer_db_instance = null;
+    }
+  }
+
+  if (globalThis.__loxer_db_instance) {
+    try {
+      globalThis.__loxer_db_instance.exec('SELECT 1;');
+      dbInstance = globalThis.__loxer_db_instance;
+      return dbInstance;
+    } catch {
+      globalThis.__loxer_db_instance = null;
+    }
+  }
+
   if (!dbInstance) {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -45,26 +67,47 @@ export function getLocalDb() {
 
     let pendingDb = null;
     const initDbConnection = () => {
-      const db = new DatabaseSync(DB_FILE);
-      pendingDb = db;
-      db.exec('PRAGMA busy_timeout = 5000;');
-      db.exec('PRAGMA journal_mode = WAL;');
-      db.exec('PRAGMA synchronous = NORMAL;');
-      db.exec('PRAGMA cache_size = -64000;');
-      db.exec('PRAGMA temp_store = MEMORY;');
-      db.exec('PRAGMA foreign_keys = ON;');
+      let lastErr = null;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        let db = null;
+        try {
+          db = new DatabaseSync(DB_FILE);
+          pendingDb = db;
+          db.exec('PRAGMA busy_timeout = 5000;');
+          db.exec('PRAGMA journal_mode = WAL;');
+          db.exec('PRAGMA synchronous = NORMAL;');
+          db.exec('PRAGMA cache_size = -64000;');
+          db.exec('PRAGMA temp_store = MEMORY;');
+          db.exec('PRAGMA foreign_keys = ON;');
 
-      // Auto-init schema if tables don't exist
-      if (fs.existsSync(SCHEMA_FILE)) {
-        const schemaSql = fs.readFileSync(SCHEMA_FILE, 'utf8');
-        db.exec(schemaSql);
+          // Auto-init schema if tables don't exist
+          if (fs.existsSync(SCHEMA_FILE)) {
+            const schemaSql = fs.readFileSync(SCHEMA_FILE, 'utf8');
+            db.exec(schemaSql);
+          }
+          pendingDb = null;
+          return db;
+        } catch (e) {
+          lastErr = e;
+          if (db) {
+            try { db.close(); } catch {}
+          }
+          pendingDb = null;
+          if (e.message && (e.message.includes('locked') || e.message.includes('busy')) && attempt < 7) {
+            const delay = 100 * (attempt + 1);
+            const start = Date.now();
+            while (Date.now() - start < delay) {}
+            continue;
+          }
+          throw e;
+        }
       }
-      pendingDb = null;
-      return db;
+      throw lastErr;
     };
 
     try {
       dbInstance = initDbConnection();
+      globalThis.__loxer_db_instance = dbInstance;
     } catch (err) {
       if (pendingDb) {
         try { pendingDb.close(); } catch {}
@@ -212,6 +255,25 @@ export function getLocalDb() {
         CREATE INDEX IF NOT EXISTS idx_job_listings_created_at ON job_listings(created_at);
         CREATE INDEX IF NOT EXISTS idx_talent_posts_headline ON talent_marketplace_posts(headline);
         CREATE INDEX IF NOT EXISTS idx_talent_posts_category ON talent_marketplace_posts(category);
+      `);
+    } catch {
+      // ignore
+    }
+
+    // 28. Refresh tokens table migration
+    try {
+      dbInstance.exec(`
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          expires_at TEXT NOT NULL,
+          revoked INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+        CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash);
       `);
     } catch {
       // ignore
@@ -480,11 +542,19 @@ export function getLocalDb() {
           purgeOldAuditLogs(90);
           purgeOldActivityLogs(60);
           notifyExpiringJobListings(3);
+          pruneOldSnapshots(7);
         } catch {
           // ignore
         }
       }, 60 * 60 * 1000);
       if (timer.unref) timer.unref();
+
+      // Start automatic daily database backup scheduler
+      try {
+        startAutoBackupSchedule();
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -574,6 +644,90 @@ export function verifyToken(token) {
 }
 
 // ---------------------------------------------------------------------------
+// Refresh Tokens & Rotational Session Management
+// ---------------------------------------------------------------------------
+
+export function hashToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+export function createRefreshToken(userId) {
+  if (!userId) throw new Error('userId is required for refresh token');
+  const rawToken = 'lrt_' + crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashToken(rawToken);
+  const tokenId = 'rt_' + crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  execute(
+    'INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked) VALUES (?, ?, ?, ?, 0)',
+    [tokenId, userId, tokenHash, expiresAt]
+  );
+
+  return { rawToken, tokenId, expiresAt };
+}
+
+export function rotateRefreshToken(rawToken) {
+  if (!rawToken || typeof rawToken !== 'string') return null;
+  const tokenHash = hashToken(rawToken);
+  const existing = queryOne(
+    'SELECT id, user_id, expires_at, revoked FROM refresh_tokens WHERE token_hash = ?',
+    [tokenHash]
+  );
+
+  if (!existing || existing.revoked === 1) {
+    return null;
+  }
+
+  // Check expiration
+  if (new Date(existing.expires_at).getTime() < Date.now()) {
+    execute('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?', [existing.id]);
+    return null;
+  }
+
+  // Atomic rotation inside transaction
+  return withTransaction(() => {
+    execute('UPDATE refresh_tokens SET revoked = 1 WHERE id = ?', [existing.id]);
+
+    const newRawToken = 'lrt_' + crypto.randomBytes(32).toString('hex');
+    const newTokenHash = hashToken(newRawToken);
+    const newId = 'rt_' + crypto.randomUUID();
+    const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    execute(
+      'INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked) VALUES (?, ?, ?, ?, 0)',
+      [newId, existing.user_id, newTokenHash, newExpiresAt]
+    );
+
+    const user = queryOne('SELECT id, email, created_at FROM users WHERE id = ?', [existing.user_id]);
+    const userMeta = queryOne('SELECT role, is_banned FROM users_meta WHERE id = ?', [existing.user_id]);
+
+    const accessToken = generateToken({
+      sub: existing.user_id,
+      email: user?.email,
+      role: userMeta?.role || 'seeker',
+    });
+
+    return {
+      accessToken,
+      refreshToken: newRawToken,
+      expiresAt: newExpiresAt,
+      user: {
+        id: user?.id,
+        email: user?.email,
+        role: userMeta?.role || 'seeker',
+      },
+    };
+  });
+}
+
+export function revokeRefreshToken(rawToken) {
+  if (!rawToken) return false;
+  const tokenHash = hashToken(rawToken);
+  execute('UPDATE refresh_tokens SET revoked = 1 WHERE token_hash = ?', [tokenHash]);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Database Operations Helper & Statement Caching Engine
 // ---------------------------------------------------------------------------
 
@@ -648,6 +802,25 @@ export function execute(sql, params = []) {
     const db = getLocalDb();
     const stmt = getCachedStatement(db, sql);
     return stmt.run(...params);
+  });
+}
+
+export function withTransaction(callback) {
+  return runWithBusyRetry(() => {
+    const db = getLocalDb();
+    db.exec('BEGIN IMMEDIATE;');
+    try {
+      const result = callback(db);
+      db.exec('COMMIT;');
+      return result;
+    } catch (err) {
+      try {
+        db.exec('ROLLBACK;');
+      } catch {
+        // ignore rollback error
+      }
+      throw err;
+    }
   });
 }
 
@@ -788,6 +961,36 @@ export function pruneOldSnapshots(maxKeepDays = 7) {
     }
   }
   return deleted;
+}
+
+// ---------------------------------------------------------------------------
+// Automated Database Backup Scheduler (Cron Job)
+// ---------------------------------------------------------------------------
+
+let autoBackupTimer = null;
+
+export function startAutoBackupSchedule(intervalMs = 24 * 60 * 60 * 1000) {
+  if (autoBackupTimer) return;
+  autoBackupTimer = setInterval(() => {
+    try {
+      console.log('[localDb] Menjalankan scheduled database snapshot otomatis...');
+      createDatabaseSnapshot('cron-auto');
+      pruneOldSnapshots(7);
+    } catch (err) {
+      console.warn('[localDb] Scheduled database snapshot notice:', err.message);
+    }
+  }, intervalMs);
+
+  if (autoBackupTimer.unref) {
+    autoBackupTimer.unref();
+  }
+}
+
+export function stopAutoBackupSchedule() {
+  if (autoBackupTimer) {
+    clearInterval(autoBackupTimer);
+    autoBackupTimer = null;
+  }
 }
 
 export function getSnapshotFilePath(filename) {

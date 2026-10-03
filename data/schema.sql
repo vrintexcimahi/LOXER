@@ -460,4 +460,18 @@ CREATE INDEX IF NOT EXISTS idx_jasa_ads_status ON jasa_ads(status);
 CREATE INDEX IF NOT EXISTS idx_jasa_ads_category ON jasa_ads(category);
 CREATE INDEX IF NOT EXISTS idx_jasa_ads_user ON jasa_ads(user_id);
 
+-- 28. Refresh Tokens Table (Rotation & Revocation)
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  revoked INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+
+
 

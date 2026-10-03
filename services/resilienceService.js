@@ -393,3 +393,108 @@ export class SlidingWindowRateLimiter {
 
 export const apiRateLimiter = new SlidingWindowRateLimiter(60, 60 * 1000);
 export const dbRateLimiter = new SlidingWindowRateLimiter(600, 60 * 1000);
+
+// ---------------------------------------------------------------------------
+// 6. Account Lockout Manager for Adaptive Auth Security
+// ---------------------------------------------------------------------------
+
+export class AccountLockoutManager {
+  constructor(maxAttempts = 5, lockoutDurationMs = 15 * 60 * 1000) {
+    this.maxAttempts = maxAttempts;
+    this.lockoutDurationMs = lockoutDurationMs;
+    this.attempts = new Map(); // key -> { count, lockedUntil, lastAttempt }
+
+    if (typeof setInterval !== 'undefined') {
+      const timer = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+      if (timer.unref) timer.unref();
+    }
+  }
+
+  isLocked(key) {
+    if (!key) return { locked: false, remainingAttempts: this.maxAttempts, retryAfterSec: 0 };
+    const cleanKey = String(key).toLowerCase().trim();
+    const record = this.attempts.get(cleanKey);
+    if (!record) {
+      return { locked: false, remainingAttempts: this.maxAttempts, retryAfterSec: 0 };
+    }
+
+    const now = Date.now();
+    if (record.lockedUntil && record.lockedUntil > now) {
+      const retryAfterSec = Math.ceil((record.lockedUntil - now) / 1000);
+      return {
+        locked: true,
+        remainingAttempts: 0,
+        retryAfterSec,
+        lockedUntil: new Date(record.lockedUntil).toISOString(),
+      };
+    }
+
+    if (record.lockedUntil && record.lockedUntil <= now) {
+      this.attempts.delete(cleanKey);
+      return { locked: false, remainingAttempts: this.maxAttempts, retryAfterSec: 0 };
+    }
+
+    const remainingAttempts = Math.max(0, this.maxAttempts - record.count);
+    return { locked: false, remainingAttempts, retryAfterSec: 0 };
+  }
+
+  recordFailure(key) {
+    if (!key) return this.isLocked(key);
+    const cleanKey = String(key).toLowerCase().trim();
+    const now = Date.now();
+    let record = this.attempts.get(cleanKey);
+
+    if (!record || (record.lockedUntil && record.lockedUntil <= now)) {
+      record = { count: 0, lockedUntil: 0, lastAttempt: now };
+      this.attempts.set(cleanKey, record);
+    }
+
+    record.count += 1;
+    record.lastAttempt = now;
+
+    if (record.count >= this.maxAttempts) {
+      record.lockedUntil = now + this.lockoutDurationMs;
+      const retryAfterSec = Math.ceil(this.lockoutDurationMs / 1000);
+      return {
+        locked: true,
+        remainingAttempts: 0,
+        retryAfterSec,
+        lockedUntil: new Date(record.lockedUntil).toISOString(),
+      };
+    }
+
+    return {
+      locked: false,
+      remainingAttempts: this.maxAttempts - record.count,
+      retryAfterSec: 0,
+    };
+  }
+
+  recordSuccess(key) {
+    if (!key) return;
+    const cleanKey = String(key).toLowerCase().trim();
+    this.attempts.delete(cleanKey);
+  }
+
+  reset(key) {
+    if (key) {
+      this.attempts.delete(String(key).toLowerCase().trim());
+    } else {
+      this.attempts.clear();
+    }
+  }
+
+  cleanup() {
+    const now = Date.now();
+    for (const [key, record] of this.attempts.entries()) {
+      if (record.lockedUntil && record.lockedUntil <= now) {
+        this.attempts.delete(key);
+      } else if (now - record.lastAttempt > this.lockoutDurationMs) {
+        this.attempts.delete(key);
+      }
+    }
+  }
+}
+
+export const accountLockoutManager = new AccountLockoutManager(5, 15 * 60 * 1000);
+

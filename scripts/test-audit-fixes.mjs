@@ -1,5 +1,6 @@
 import { createServer } from 'vite';
-import { getLocalDb, closeLocalDb, queryOne, queryAll, execute } from '../server/localDb.js';
+import { getLocalDb, closeLocalDb, queryOne, queryAll, execute, withTransaction } from '../server/localDb.js';
+import { accountLockoutManager } from '../services/resilienceService.js';
 
 let failureCount = 0;
 function assert(condition, message) {
@@ -533,6 +534,7 @@ async function testAuditFixes() {
       });
       const restoreData = await restoreRes.json();
       assert(restoreRes.status === 200 && restoreData.ok, '30. Backup: Admin database snapshot restore successfully verified');
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
     // 31. Security: Employer modifying foreign company profile blocked with 403 (IDOR Guard)
@@ -788,6 +790,80 @@ async function testAuditFixes() {
         }
       }
     }
+
+    // 42. Recommendation 1: Refresh Token returned on login
+    assert(Boolean(loginData.data?.session?.refresh_token), '42. Auth: Login returns valid refresh_token');
+    const rawRefreshToken = loginData.data?.session?.refresh_token;
+
+    // 43. Recommendation 1: POST /api/local/auth/refresh rotates token
+    let newRefreshToken = null;
+    if (rawRefreshToken) {
+      const refreshRes = await fetch(`${baseUrl}/api/local/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rawRefreshToken }),
+      });
+      const refreshData = await refreshRes.json();
+      assert(refreshRes.status === 200 && Boolean(refreshData.data?.access_token), '43. Auth: POST /api/local/auth/refresh rotates token successfully');
+      newRefreshToken = refreshData.data?.refresh_token;
+
+      // 44. Recommendation 1: Single-use enforcement (old refresh token is revoked)
+      const replayRes = await fetch(`${baseUrl}/api/local/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rawRefreshToken }),
+      });
+      assert(replayRes.status === 401, '44. Security: Replaying revoked refresh token is blocked with 401');
+
+      // 45. Recommendation 1: Explicit revocation
+      if (newRefreshToken) {
+        const revokeRes = await fetch(`${baseUrl}/api/local/auth/revoke`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: newRefreshToken }),
+        });
+        assert(revokeRes.status === 200, '45. Auth: POST /api/local/auth/revoke succeeds');
+
+        const postRevokeRefresh = await fetch(`${baseUrl}/api/local/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: newRefreshToken }),
+        });
+        assert(postRevokeRefresh.status === 401, '45.1 Security: Revoked token cannot be refreshed');
+      }
+    }
+
+    // 46. Recommendation 5: withTransaction immediate transaction rollback
+    const testRollbackEmail = 'tx_test_' + Date.now() + '@example.com';
+    let caughtTxError = false;
+    try {
+      withTransaction(() => {
+        execute("INSERT INTO users (id, email, password_hash) VALUES ('tx_temp', ?, 'hash')", [testRollbackEmail]);
+        throw new Error('Intentional transaction abort');
+      });
+    } catch {
+      caughtTxError = true;
+    }
+    const rolledBackUser = queryOne("SELECT id FROM users WHERE email = ?", [testRollbackEmail]);
+    assert(caughtTxError && !rolledBackUser, '46. Reliability: withTransaction cleanly rolls back on error');
+
+    // 47. Recommendation 3: Adaptive Account Lockout after consecutive failures
+    const targetLockoutEmail = 'lockout_target_' + Date.now() + '@example.com';
+    accountLockoutManager.reset(targetLockoutEmail);
+    for (let i = 0; i < 5; i++) {
+      await fetch(`${baseUrl}/api/local/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetLockoutEmail, password: 'wrongpassword' }),
+      });
+    }
+    const lockedLoginRes = await fetch(`${baseUrl}/api/local/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: targetLockoutEmail, password: 'wrongpassword' }),
+    });
+    assert(lockedLoginRes.status === 429, '47. Security: Account locked out with 429 after 5 failed login attempts');
+    accountLockoutManager.reset(targetLockoutEmail);
 
     if (failureCount > 0) {
       throw new Error(`${failureCount} test assertion(s) failed!`);

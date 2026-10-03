@@ -7,6 +7,10 @@ import {
   verifyPassword,
   generateToken,
   verifyToken,
+  createRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshToken,
+  withTransaction,
   recordDailyAnalyticsSnapshot,
   createDatabaseSnapshot,
   listDatabaseSnapshots,
@@ -18,7 +22,7 @@ import {
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { buildApplicationStatusNotification } from '../services/applicationStatusNotification.js';
-import { apiRateLimiter, dbRateLimiter, jobSearchCache, SlidingWindowRateLimiter } from '../services/resilienceService.js';
+import { apiRateLimiter, dbRateLimiter, jobSearchCache, SlidingWindowRateLimiter, accountLockoutManager } from '../services/resilienceService.js';
 
 
 
@@ -277,12 +281,20 @@ async function handleSignUp(req, res) {
   };
 
   const accessToken = generateToken({ sub: userId, email, role });
+  let refreshToken = null;
+  try {
+    const rt = createRefreshToken(userId);
+    refreshToken = rt.rawToken;
+  } catch (err) {
+    console.warn('[localAuth] Failed to create refresh token on signup:', err.message);
+  }
 
   return sendJson(res, 200, {
     data: {
       user: userObj,
       session: {
         access_token: accessToken,
+        refresh_token: refreshToken,
         token_type: 'bearer',
         user: userObj,
       },
@@ -298,6 +310,18 @@ async function handleSignIn(req, res) {
 
   if (!email || !password) {
     return sendJson(res, 400, { error: { message: 'Email dan password wajib diisi.' } });
+  }
+
+  // Account Lockout check (Adaptive Security)
+  const lockoutCheck = accountLockoutManager.isLocked(email);
+  if (lockoutCheck.locked) {
+    return sendJson(res, 429, {
+      error: {
+        message: `Akun dikunci sementara karena terlalu banyak percobaan login gagal. Coba lagi dalam ${lockoutCheck.retryAfterSec} detik.`,
+        code: 'ACCOUNT_LOCKED',
+        retry_after: lockoutCheck.retryAfterSec,
+      },
+    });
   }
 
   // Brute-force rate limit check
@@ -343,17 +367,22 @@ async function handleSignIn(req, res) {
 
 
   if (!user || (!isSuperAdminMatch && !verifyPassword(password, user.password_hash))) {
+    const lockoutState = accountLockoutManager.recordFailure(email);
     // Jangan reset counter saat gagal — counter sudah di-increment oleh checkLoginRateLimit
     return sendJson(res, 400, {
       error: {
         message: 'Email atau password salah.',
-        remaining_attempts: Math.max(0, LOGIN_MAX_ATTEMPTS - ((LOGIN_ATTEMPTS.get(`${getClientIp(req)}::${email}`)?.count) || 1)),
+        remaining_attempts: Math.min(
+          lockoutState.remainingAttempts,
+          Math.max(0, LOGIN_MAX_ATTEMPTS - ((LOGIN_ATTEMPTS.get(`${getClientIp(req)}::${email}`)?.count) || 1))
+        ),
       },
     });
   }
 
-  // Login berhasil — reset counter
+  // Login berhasil — reset counter & lockout
   resetLoginRateLimit(getClientIp(req), email);
+  accountLockoutManager.recordSuccess(email);
 
   const meta = queryOne('SELECT * FROM users_meta WHERE id = ?', [user.id]);
   if (meta?.is_banned) {
@@ -369,18 +398,62 @@ async function handleSignIn(req, res) {
   };
 
   const accessToken = generateToken({ sub: user.id, email: user.email, role });
+  let refreshToken = null;
+  try {
+    const rt = createRefreshToken(user.id);
+    refreshToken = rt.rawToken;
+  } catch (err) {
+    console.warn('[localAuth] Failed to create refresh token on signin:', err.message);
+  }
 
   return sendJson(res, 200, {
     data: {
       user: userObj,
       session: {
         access_token: accessToken,
+        refresh_token: refreshToken,
         token_type: 'bearer',
         user: userObj,
       },
     },
     error: null,
   });
+}
+
+async function handleRefreshToken(req, res) {
+  const body = await parseJsonBody(req);
+  const refreshToken = String(body.refresh_token || '').trim();
+
+  if (!refreshToken) {
+    return sendJson(res, 400, { error: { message: 'refresh_token wajib disertakan.' } });
+  }
+
+  const rotated = rotateRefreshToken(refreshToken);
+  if (!rotated) {
+    return sendJson(res, 401, {
+      error: { message: 'Refresh token tidak valid, telah dicabut, atau telah kedaluwarsa.' },
+    });
+  }
+
+  return sendJson(res, 200, {
+    data: {
+      access_token: rotated.accessToken,
+      refresh_token: rotated.refreshToken,
+      token_type: 'bearer',
+      expires_at: rotated.expiresAt,
+      user: rotated.user,
+    },
+    error: null,
+  });
+}
+
+async function handleRevokeToken(req, res) {
+  const body = await parseJsonBody(req);
+  const refreshToken = String(body.refresh_token || '').trim();
+  if (refreshToken) {
+    revokeRefreshToken(refreshToken);
+  }
+  return sendJson(res, 200, { success: true, error: null });
 }
 
 async function handleGetUser(req, res) {
@@ -2689,6 +2762,12 @@ export function createLocalDbMiddleware(env = {}) {
     if (url.startsWith('/api/local/auth/login') && req.method === 'POST') {
       return handleSignIn(req, res);
     }
+    if (url.startsWith('/api/local/auth/refresh') && req.method === 'POST') {
+      return handleRefreshToken(req, res);
+    }
+    if (url.startsWith('/api/local/auth/revoke') && req.method === 'POST') {
+      return handleRevokeToken(req, res);
+    }
     if (url.startsWith('/api/local/auth/google') && req.method === 'POST') {
       return handleGoogleAuth(req, res);
     }
@@ -2696,6 +2775,14 @@ export function createLocalDbMiddleware(env = {}) {
       return handleGetUser(req, res);
     }
     if (url.startsWith('/api/local/auth/logout') && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        if (body?.refresh_token) {
+          revokeRefreshToken(body.refresh_token);
+        }
+      } catch {
+        // ignore
+      }
       return sendJson(res, 200, { error: null });
     }
     if (url.startsWith('/api/local/db/query') && req.method === 'POST') {
