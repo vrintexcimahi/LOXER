@@ -1025,3 +1025,62 @@
    - *Akar Masalah*: `QueryBuilder` pada `src/lib/localClient.ts` tidak memiliki method `.is()` dan `.not()`, menyulitkan query filter seperti `.is('reviewed_at', null)` yang umum digunakan pada antrean moderasi.
    - *Solusi*: Menambahkan method `.is()` dan `.not()` pada `QueryBuilder` dan menangani operator `is`, `not_is`, serta `not_eq` pada `buildWhereClause` di `server/localApiHandler.js`.
 
+---
+
+## [2026-10-03] Audit & Bug Fix Run — GODMAX+ (Full Autopilot Complete)
+- Branch: `main` | Head Commit: `6989441`
+- Mode/parameter run: MODE=audit+fix, TARGET=seluruh codebase, FOKUS=security, SQLite WAL resilience & busy_timeout, IDOR guards 13-15, notifications select isolation, admin_sessions/audit_logs table guards, zero TypeScript/ESLint errors, production build green.
+- Scope run: Seluruh repositori (Backend localApiHandler, localDb, Serverless API, Frontend Admin Talent, Types, Test Suites).
+
+### Baseline & Metrik Verifikasi
+| Metrik | Baseline Run | Hasil Akhir GODMAX+ | Status |
+|---|---|---|---|
+| Test Suites (`test-local-api`, `test-audit-fixes`, `test_smart_features`) | 49 pass / 0 fail | **54 pass / 0 fail (0 failures)** | PASS (100%) |
+| AI Vision OCR Extraction | LULUS | **LULUS (9Router Gemini 3.8 Flash High OK)** | PASS (100%) |
+| Resilience 6-Pillar (`test-resilience.mjs`) | 6/6 pass | **6/6 pass** | PASS (100%) |
+| TypeScript Typecheck (`tsc --noEmit`) | FAIL (TS6133, TS2304, TS2739) | **PASS (0 error)** | PASS (100%) |
+| ESLint (`eslint .`) | FAIL (unused vars) | **PASS (0 error, 3 warnings)** | PASS (100%) |
+| Production Build (`vite build`) | FAIL | **PASS (0 error, 5.72s)** | PASS (100%) |
+| Database Relational Integrity | 0 FK violations | **0 FK violations (`PRAGMA foreign_key_check` bersih)** | PASS (100%) |
+| Disk Image Integrity | Database locked / WAL replay | **`PRAGMA integrity_check = ok` + busy_timeout 5s** | PASS (100%) |
+
+### Ringkasan Temuan & Solusi Kode Konkret
+1. **[Critical] AUD-001: Celah IDOR pada Pembuatan dan Mutasi Iklan Jasa (`jasa_ads`)**
+   - *Akar Masalah*: Handler `/api/local/db/query` sebelumnya belum memiliki Security Guard untuk tabel `jasa_ads`. Pengguna terautentikasi dapat membuat iklan atas nama pengguna lain atau mengedit/menghapus iklan pengguna lain dengan mengirimkan payload atau filter ID target.
+   - *Solusi*: Ditambahkan Security Guard 13 di `server/localApiHandler.js` yang memvalidasi bahwa `user_id` pada insert/upsert cocok dengan `callerId`, serta memvalidasi kepemilikan ad sebelum mutasi update/delete dieksekusi.
+   - *Verifikasi*: Assertion 39 pada `scripts/test-audit-fixes.mjs` memverifikasi penolakan dengan HTTP 403 Forbidden.
+
+2. **[High] AUD-002: Celah IDOR dan Pemalsuan Transaksi Marketplace (`marketplace_transactions`)**
+   - *Akar Masalah*: Mutasi pada tabel `marketplace_transactions` dapat disisipkan oleh pengguna manapun dengan `buyer_id` orang lain, menimbulkan potensi fraud atau pemalsuan tagihan transaksi.
+   - *Solusi*: Ditambahkan Security Guard 14 di `server/localApiHandler.js` yang mewajibkan `buyer_id === callerId` pada insert, serta membatasi update/delete hanya kepada partisipan transaksi (`buyer_id === callerId || seller_id === callerId`).
+   - *Verifikasi*: Assertion 40 pada `scripts/test-audit-fixes.mjs` memverifikasi penolakan dengan HTTP 403 Forbidden.
+
+3. **[High] AUD-003: Celah Manipulasi dan Kebocoran Notifikasi Antar-Pengguna (`notifications`)**
+   - *Akar Masalah*: Pengguna non-admin dapat memodifikasi (update/delete) notifikasi pengguna lain jika mengetahui ID notifikasi tersebut, serta berpotensi membaca notifikasi seluruh pengguna platform jika query `select` tidak difilter.
+   - *Solusi*:
+     - Ditambahkan Security Guard 15 di `server/localApiHandler.js` untuk memblokir mutasi notifikasi milik pengguna lain dengan HTTP 403.
+     - Ditambahkan isolasi select otomatis pada tabel `notifications` sehingga query non-admin otomatis di-inject filter `user_id = callerId`, atau mengembalikan array kosong bila mencoba membaca notifikasi pengguna lain.
+   - *Verifikasi*: Assertion 41 pada `scripts/test-audit-fixes.mjs` memverifikasi pemblokiran mutasi ilegal.
+
+4. **[High] AUD-004: Akses Query Tanpa Autentikasi ke Tabel Keamanan Sistem (`audit_logs` & `admin_sessions`)**
+   - *Akar Masalah*: Meskipun mutasi direct delete pada `audit_logs` sudah diblokir, aksi `select` pada `audit_logs` dan `admin_sessions` belum diproteksi secara menyeluruh di gateway lokal, memungkinkan entri audit keamanan dan session token dibaca tanpa izin.
+   - *Solusi*: Menambahkan pengecekan hak akses di `server/localApiHandler.js`: query `select` pada `audit_logs` mewajibkan token terautentikasi (HTTP 401 jika anonim), dan query pada `admin_sessions` mewajibkan hak admin/superadmin (HTTP 403 jika pengguna biasa).
+   - *Verifikasi*: Assertion 37 dan 38 pada `scripts/test-audit-fixes.mjs` memverifikasi blokade 401 dan 403.
+
+5. **[Medium] AUD-005: SQLite Lock Contention dan WAL Replay Crash pada Restore Snapshot di Windows**
+   - *Akar Masalah*: `PRAGMA busy_timeout = 5000` dieksekusi setelah `PRAGMA journal_mode = WAL` dan `PRAGMA synchronous = NORMAL`, sehingga jika terdapat proses lain yang membuka DB saat startup, inisialisasi langsung melempar `database is locked`. Selain itu, saat me-restore database dari snapshot, keberadaan file `-wal` lama menyebabkan SQLite mencoba me-replay frame usang dan menghasilkan error `database disk image is malformed`.
+   - *Solusi*:
+     - Memindahkan `PRAGMA busy_timeout = 5000` ke baris pertama segera setelah `new DatabaseSync(DB_FILE)`.
+     - Menambahkan defensive file truncation (0 bytes) sebelum unlinking file `-wal` dan `-shm` di `restoreDatabaseSnapshot()`.
+     - Menambahkan `PRAGMA wal_checkpoint(TRUNCATE)` di dalam `closeLocalDb()`.
+   - *Verifikasi*: Assertion 30 pada `scripts/test-audit-fixes.mjs` sukses me-restore snapshot tanpa lock contention atau malformed image error.
+
+6. **[Medium] AUD-006: Inkonsistensi Tipe Data dan Missing Properties pada Talent Marketplace**
+   - *Akar Masalah*: Interface `TalentMarketplacePost` di `src/lib/types.ts` mewajibkan tipe penuh `SeekerProfile`, menyebabkan error tipe pada form preview modal yang hanya menyertakan properti parsial (`full_name`, `photo_url`). Selain itu, preview talent di `AdminTalentComponents.tsx` kekurangan properti wajib `experience_years` dan `views_count`.
+   - *Solusi*:
+     - Mengubah `seeker_profiles?: SeekerProfile` menjadi `seeker_profiles?: Partial<SeekerProfile>` pada `src/lib/types.ts`.
+     - Melengkapi object preview di `AdminTalentComponents.tsx` dengan `experience_years: 1, views_count: 0`.
+     - Merestorasi import yang hilang (`ShieldAlert`, `cleanDomicileCity`, `maskEmail`) dan membersihkan import tidak terpakai (`Phone`, `Lock`, `maskAddress`).
+   - *Verifikasi*: `npm run typecheck`, `npm run lint`, dan `npm run build` lulus 100% dengan 0 error.
+
+

@@ -207,7 +207,7 @@ export interface TalentMarketplacePost {
   is_published: boolean | number;
   created_at: string;
   updated_at: string;
-  seeker_profiles?: SeekerProfile;
+  seeker_profiles?: Partial<SeekerProfile>;
 }
 
 export interface DirectJobOffer {

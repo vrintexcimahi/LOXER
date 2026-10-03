@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   X,
-  Lock,
   Briefcase,
   ExternalLink,
   ShieldCheck,
@@ -18,7 +17,7 @@ import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { supabase } from '../../lib/supabase';
 import { broadcastSync } from '../../lib/realtimeSync';
-import { maskPhoneNumber, maskEmail, maskAddress } from '../../lib/contactPrivacyService';
+import { maskPhoneNumber } from '../../lib/contactPrivacyService';
 import ProtectedTalentChatModal from './ProtectedTalentChatModal';
 
 const AVAILABILITY_LABELS: Record<string, string> = {

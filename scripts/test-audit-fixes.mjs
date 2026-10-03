@@ -1,5 +1,5 @@
 import { createServer } from 'vite';
-import { getLocalDb, queryOne, queryAll, execute } from '../server/localDb.js';
+import { getLocalDb, closeLocalDb, queryOne, queryAll, execute } from '../server/localDb.js';
 
 let failureCount = 0;
 function assert(condition, message) {
@@ -522,6 +522,7 @@ async function testAuditFixes() {
       assert(unauthRestore.status === 401, '29. Security: Unauthenticated restore-snapshot blocked with 401');
 
       // 30. Test Admin Snapshot Restore
+      closeLocalDb();
       const restoreRes = await fetch(`${baseUrl}/api/admin/backups/restore-snapshot`, {
         method: 'POST',
         headers: {
@@ -660,6 +661,130 @@ async function testAuditFixes() {
           });
           assert(fastTrackRes.status === 200, '36. FSM: Fast-track transition applied -> interview_scheduled allowed');
           execute("DELETE FROM applications WHERE id = ?", [fastTrackAppId]);
+        }
+      }
+    }
+
+    // 37. Security: Unauthenticated or non-admin select on audit_logs blocked (401/403)
+    const unauthAuditSelectRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'audit_logs',
+        action: 'select',
+      }),
+    });
+    assert(unauthAuditSelectRes.status === 401, '37. Security: Unauthenticated query to audit_logs blocked with 401');
+
+    // 38. Security: Non-admin query to admin_sessions blocked with 403
+    if (empToken) {
+      const nonAdminSessionRes = await fetch(`${baseUrl}/api/local/db/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${empToken}`,
+        },
+        body: JSON.stringify({
+          table: 'admin_sessions',
+          action: 'select',
+        }),
+      });
+      assert(nonAdminSessionRes.status === 403, '38. Security: Non-admin query to admin_sessions blocked with 403');
+    }
+
+    // 39. Security: jasa_ads IDOR Guard (Employer cannot update another user's ad)
+    if (empToken && empUserId) {
+      const foreignUser = queryOne("SELECT id FROM users WHERE id != ? LIMIT 1", [empUserId]);
+      const foreignUserId = foreignUser?.id;
+      const foreignAd = queryOne("SELECT id, user_id FROM jasa_ads WHERE user_id != ? LIMIT 1", [empUserId]);
+      if (foreignAd) {
+        const idorAdRes = await fetch(`${baseUrl}/api/local/db/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${empToken}`,
+          },
+          body: JSON.stringify({
+            table: 'jasa_ads',
+            action: 'update',
+            data: { title: 'Hacked Jasa Title' },
+            filters: [{ column: 'id', op: 'eq', value: foreignAd.id }],
+          }),
+        });
+        assert(idorAdRes.status === 403, '39. Security: Employer modifying foreign jasa_ads blocked with 403 (IDOR Guard)');
+      } else if (foreignUserId) {
+        const dummyAdId = 'ad_foreign_' + Date.now();
+        execute("INSERT INTO jasa_ads (id, user_id, title) VALUES (?, ?, 'Foreign Service')", [dummyAdId, foreignUserId]);
+        const idorAdRes = await fetch(`${baseUrl}/api/local/db/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${empToken}`,
+          },
+          body: JSON.stringify({
+            table: 'jasa_ads',
+            action: 'update',
+            data: { title: 'Hacked Jasa Title' },
+            filters: [{ column: 'id', op: 'eq', value: dummyAdId }],
+          }),
+        });
+        assert(idorAdRes.status === 403, '39. Security: Employer modifying foreign jasa_ads blocked with 403 (IDOR Guard)');
+        execute("DELETE FROM jasa_ads WHERE id = ?", [dummyAdId]);
+      }
+    }
+
+    // 40. Security: marketplace_transactions IDOR Guard (User cannot create transaction with someone else as buyer)
+    if (empToken && empUserId) {
+      const fakeTxRes = await fetch(`${baseUrl}/api/local/db/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${empToken}`,
+        },
+        body: JSON.stringify({
+          table: 'marketplace_transactions',
+          action: 'insert',
+          data: {
+            id: 'tx_fake_' + Date.now(),
+            buyer_id: 'victim_user_id',
+            seller_id: 'some_seller',
+            product_id: 'prod_123',
+            amount: 500000,
+          },
+        }),
+      });
+      assert(fakeTxRes.status === 403, '40. Security: User creating marketplace transaction for foreign buyer blocked with 403 (IDOR Guard)');
+    }
+
+    // 41. Security: notifications IDOR Guard (User cannot modify another user's notifications)
+    if (empToken && empUserId) {
+      const foreignUser = queryOne("SELECT id FROM users WHERE id != ? LIMIT 1", [empUserId]);
+      const foreignUserId = foreignUser?.id;
+      const foreignNotif = queryOne("SELECT id, user_id FROM notifications WHERE user_id != ? LIMIT 1", [empUserId]);
+      let targetNotifId = foreignNotif?.id;
+      let seededNotif = false;
+      if (!targetNotifId && foreignUserId) {
+        targetNotifId = 'notif_foreign_' + Date.now();
+        execute("INSERT INTO notifications (id, user_id, title, message) VALUES (?, ?, 'Test', 'Message')", [targetNotifId, foreignUserId]);
+        seededNotif = true;
+      }
+      if (targetNotifId) {
+        const idorNotifRes = await fetch(`${baseUrl}/api/local/db/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${empToken}`,
+          },
+          body: JSON.stringify({
+            table: 'notifications',
+            action: 'update',
+            data: { is_read: 1 },
+            filters: [{ column: 'id', op: 'eq', value: targetNotifId }],
+          }),
+        });
+        assert(idorNotifRes.status === 403, '41. Security: User modifying foreign notification blocked with 403 (IDOR Guard)');
+        if (seededNotif) {
+          execute("DELETE FROM notifications WHERE id = ?", [targetNotifId]);
         }
       }
     }

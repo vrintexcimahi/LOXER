@@ -965,18 +965,20 @@ async function handleDbQuery(req, res) {
     return sendJson(res, 403, { error: { message: 'Catatan audit log bersifat permanen dan tidak dapat diubah atau dihapus.' } });
   }
 
+  // audit_logs and admin_sessions select access protection
+  if ((table === 'audit_logs' || table === 'admin_sessions') && action === 'select' && !isAdminOrSuper) {
+    if (!token) {
+      return sendJson(res, 401, { error: { message: `Autentikasi diperlukan untuk mengakses tabel ${table}.` } });
+    }
+    return sendJson(res, 403, { error: { message: `Akses ditolak: Hanya administrator yang dapat mengakses tabel ${table}.` } });
+  }
+
   // Security Guard 3: administrative tables (ip_blocks, admin_sessions, feature_flags) require admin/superadmin token for mutations
   if ((table === 'ip_blocks' || table === 'admin_sessions' || table === 'feature_flags') && isMutation) {
-    let callerRole = null;
-    if (token) {
-      const decoded = verifyToken(token);
-      const callerId = decoded?.sub || decoded?.userId;
-      if (callerId) {
-        const callerMeta = queryOne('SELECT role FROM users_meta WHERE id = ?', [callerId]);
-        callerRole = callerMeta?.role;
+    if (!isAdminOrSuper) {
+      if (!token) {
+        return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk memodifikasi tabel sistem.' } });
       }
-    }
-    if (callerRole !== 'admin' && callerRole !== 'superadmin') {
       return sendJson(res, 403, { error: { message: 'Akses ditolak: Operasi ini memerlukan wewenang administrator.' } });
     }
   }
@@ -1361,8 +1363,94 @@ async function handleDbQuery(req, res) {
     }
   }
 
+  // Security Guard 13: jasa_ads IDOR protection
+  if (table === 'jasa_ads' && isMutation && !isAdminOrSuper) {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk mengelola iklan jasa.' } });
+    }
+    if (action === 'insert' || action === 'upsert') {
+      const records = Array.isArray(data) ? data : [data];
+      for (const item of records) {
+        if (item?.user_id && item.user_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat memposting iklan jasa milik Anda sendiri (IDOR guard).' } });
+        }
+      }
+    }
+    if (action === 'update' || action === 'delete') {
+      const { whereSql, params } = buildWhereClause(filters);
+      if (!whereSql) {
+        return sendJson(res, 400, { error: { message: 'Modifikasi iklan jasa tanpa filter tidak diizinkan.' } });
+      }
+      const targetedAds = queryAll(`SELECT id, user_id FROM jasa_ads ${whereSql}`, params);
+      for (const ad of targetedAds) {
+        if (ad.user_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak berwenang memodifikasi iklan jasa milik pengguna lain (IDOR guard).' } });
+        }
+      }
+    }
+  }
+
+  // Security Guard 14: marketplace_transactions IDOR protection
+  if (table === 'marketplace_transactions' && isMutation && !isAdminOrSuper) {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk transaksi marketplace.' } });
+    }
+    if (action === 'insert' || action === 'upsert') {
+      const records = Array.isArray(data) ? data : [data];
+      for (const item of records) {
+        if (item?.buyer_id && item.buyer_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda hanya dapat membuat transaksi atas nama Anda sendiri (IDOR guard).' } });
+        }
+      }
+    }
+    if (action === 'update' || action === 'delete') {
+      const { whereSql, params } = buildWhereClause(filters);
+      if (!whereSql) {
+        return sendJson(res, 400, { error: { message: 'Modifikasi transaksi tanpa filter tidak diizinkan.' } });
+      }
+      const targetedTxs = queryAll(`SELECT id, buyer_id, seller_id FROM marketplace_transactions ${whereSql}`, params);
+      for (const tx of targetedTxs) {
+        if (tx.buyer_id !== callerId && tx.seller_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda bukan partisipan dalam transaksi ini (IDOR guard).' } });
+        }
+      }
+    }
+  }
+
+  // Security Guard 15: notifications IDOR protection
+  if (table === 'notifications' && isMutation && !isAdminOrSuper) {
+    if (!callerId) {
+      return sendJson(res, 401, { error: { message: 'Autentikasi diperlukan untuk memodifikasi notifikasi.' } });
+    }
+    if (action === 'update' || action === 'delete') {
+      const { whereSql, params } = buildWhereClause(filters);
+      if (!whereSql) {
+        return sendJson(res, 400, { error: { message: 'Modifikasi notifikasi tanpa filter tidak diizinkan.' } });
+      }
+      const targetedNotifs = queryAll(`SELECT id, user_id FROM notifications ${whereSql}`, params);
+      for (const n of targetedNotifs) {
+        if (n.user_id !== callerId) {
+          return sendJson(res, 403, { error: { message: 'Akses ditolak: Anda tidak dapat memodifikasi notifikasi milik pengguna lain (IDOR guard).' } });
+        }
+      }
+    }
+  }
+
   try {
     if (action === 'select') {
+      // Security: ensure non-admin users only view their own notifications
+      if (table === 'notifications' && !isAdminOrSuper) {
+        if (!callerId) {
+          return sendJson(res, 200, { data: [], count: 0, error: null });
+        }
+        const existingUserFilter = filters.find((f) => f.column === 'user_id');
+        if (!existingUserFilter) {
+          filters.push({ column: 'user_id', op: 'eq', value: callerId });
+        } else if (existingUserFilter.op === 'eq' && existingUserFilter.value !== callerId) {
+          return sendJson(res, 200, { data: [], count: 0, error: null });
+        }
+      }
+
       const { whereSql, params } = buildWhereClause(filters);
       let orderSql = '';
       if (order && order.column && /^[a-zA-Z0-9_]+$/.test(order.column)) {

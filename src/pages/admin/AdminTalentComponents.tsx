@@ -11,7 +11,7 @@ import {
   List,
   MapPin,
   Eye,
-  Phone,
+  ShieldAlert,
   Check,
   Trash2,
   CheckCircle2,
@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
-import { maskPhoneNumber } from '../../lib/contactPrivacyService';
+import { maskPhoneNumber, maskEmail, cleanDomicileCity } from '../../lib/contactPrivacyService';
 import ProtectedTalentChatModal from '../../components/marketplace/ProtectedTalentChatModal';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -2173,6 +2173,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                 whatsapp_number: formData.whatsapp_number,
                 badge: formData.badge,
                 photo_url: formData.photo_url,
+                experience_years: 1,
+                views_count: 0,
                 is_published: 1,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),

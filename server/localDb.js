@@ -24,6 +24,11 @@ export function closeLocalDb() {
   clearStatementCache();
   if (dbInstance) {
     try {
+      dbInstance.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+    } catch {
+      // ignore
+    }
+    try {
       dbInstance.close();
     } catch {
       // ignore
@@ -42,9 +47,9 @@ export function getLocalDb() {
     const initDbConnection = () => {
       const db = new DatabaseSync(DB_FILE);
       pendingDb = db;
+      db.exec('PRAGMA busy_timeout = 5000;');
       db.exec('PRAGMA journal_mode = WAL;');
       db.exec('PRAGMA synchronous = NORMAL;');
-      db.exec('PRAGMA busy_timeout = 5000;');
       db.exec('PRAGMA cache_size = -64000;');
       db.exec('PRAGMA temp_store = MEMORY;');
       db.exec('PRAGMA foreign_keys = ON;');
@@ -807,14 +812,24 @@ export function restoreDatabaseSnapshot(filename) {
   // Close active DatabaseSync connection if open
   closeLocalDb();
 
-  // Remove active WAL and SHM files to avoid conflict
+  // Remove or truncate active WAL and SHM files to avoid conflict
   const walPath = `${DB_FILE}-wal`;
   const shmPath = `${DB_FILE}-shm`;
   if (fs.existsSync(walPath)) {
-    try { fs.unlinkSync(walPath); } catch {}
+    try {
+      fs.truncateSync(walPath, 0);
+      fs.unlinkSync(walPath);
+    } catch {
+      try { fs.writeFileSync(walPath, Buffer.alloc(0)); } catch {}
+    }
   }
   if (fs.existsSync(shmPath)) {
-    try { fs.unlinkSync(shmPath); } catch {}
+    try {
+      fs.truncateSync(shmPath, 0);
+      fs.unlinkSync(shmPath);
+    } catch {
+      try { fs.writeFileSync(shmPath, Buffer.alloc(0)); } catch {}
+    }
   }
 
   // Copy snapshot over active database with retry for Windows file unlock
