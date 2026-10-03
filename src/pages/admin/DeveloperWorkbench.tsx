@@ -338,221 +338,87 @@ export default function DeveloperWorkbench() {
   return (
     <GodModeLayout
       title="Developer Mode Workbench (Quad-Role Testing)"
-      description="Uji seluruh detail fitur tiap role (Pencari Kerja, Perusahaan, Jasa, Admin) dengan simulator multi-layar simultan dan dual-view."
-    >
-      <div ref={containerRef} className={`space-y-4 ${isFullscreen ? 'fixed inset-0 z-50 bg-slate-950 p-4 overflow-y-auto' : ''}`}>
-
-        {/* ═══════════════════════════════════════════════════════════════════
-            TOP ROLE SELECTOR BAR (FOKUS TIAP ROLE)
-        ═════════════════════════════════════════════════════════════════════ */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-xl p-3 sm:p-4 shadow-xl space-y-3">
-          <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
-
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-950 border border-slate-800 rounded-xl overflow-x-auto no-scrollbar">
-              <button
-                type="button"
-                onClick={() => setActiveTab('quad-roles')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer active:scale-95 ${
-                  activeTab === 'quad-roles'
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-500/25'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
-                <span>4 Layar Simultan</span>
-                <span className="text-[9px] bg-rose-500 text-white px-1.5 py-0.2 rounded-full font-black">4</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('dual-view')}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer active:scale-95 ${
-                  activeTab === 'dual-view'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                }`}
-              >
-                <Columns className="w-3.5 h-3.5 shrink-0" />
-                <span>Dual View</span>
-              </button>
-            </div>
-
-            {/* Quick Tools (Cache Buster / Fullscreen) */}
-            <div className="flex items-center gap-2 shrink-0 self-end xl:self-auto">
-              <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs cursor-pointer select-none transition ${
-                cacheBuster ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-              }`}>
-                <input type="checkbox" checked={cacheBuster} onChange={e => setCacheBuster(e.target.checked)} className="sr-only" />
-                <Zap className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Anti-Cache</span>
-              </label>
-
-              <button
-                type="button"
-                onClick={toggleFullscreen}
-                className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-                title="Fullscreen Workbench"
-              >
-                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
-            </div>
+      description="Simulator multi-layar 4 role serentak (Pencari Kerja, Perusahaan, Jasa, Admin)"
+      actions={
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* View Mode Switcher */}
+          <div className="flex items-center gap-1 p-0.5 bg-slate-950 border border-slate-800 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveTab('quad-roles')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeTab === 'quad-roles'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="4 Layar Simultan"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">4 Layar</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('dual-view')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeTab === 'dual-view'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Dual View (Mobile & Desktop)"
+            >
+              <Columns className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Dual View</span>
+            </button>
           </div>
-        </div>
 
+          {/* Reload All Frames */}
+          <button
+            type="button"
+            onClick={() => ROLE_CONFIGS.forEach(r => reloadRole(r.id))}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 transition cursor-pointer"
+            title="Reload Semua Frame"
+          >
+            <RotateCw className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden lg:inline">Reload</span>
+          </button>
+
+          {/* Fullscreen Toggle */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+            title={isFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh (Fullscreen)'}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+        </div>
+      }
+    >
+      <div ref={containerRef} className={isFullscreen ? 'fixed inset-0 z-50 bg-slate-950 p-3 overflow-y-auto' : ''}>
         {/* ═══════════════════════════════════════════════════════════════════
-            MODE: QUAD ROLES SIMULTAN (4 LAYAR BERSAMAAN)
+            MODE: QUAD ROLES SIMULTAN (4 LAYAR BERSAMAAN) - OPTIMAL TAMPILAN FRAME
         ═════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'quad-roles' && (
-          <div className="space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between gap-2 px-1">
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-extrabold text-white">4 Sesi Role Serentak</span>
-                <span className="text-[11px] text-slate-400 hidden sm:inline">— Uji interaksi multi-role secara berdampingan</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  ROLE_CONFIGS.forEach(r => reloadRole(r.id));
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 transition cursor-pointer"
-              >
-                <RotateCw className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Reload Semua 4 Layar</span>
-              </button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-start animate-fade-in">
+            {ROLE_CONFIGS.map(role => {
+              const activePath = rolePaths[role.id];
+              const iRef = getRoleRef(role.id);
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
-              {ROLE_CONFIGS.map(role => {
-                const Icon = role.icon;
-                const activePath = rolePaths[role.id];
-                const inputUrl = roleInputUrls[role.id];
-                const iRef = getRoleRef(role.id);
-
-                return (
-                  <div key={role.id} className="flex flex-col w-full min-w-0">
-                    <div className="mb-2 flex items-center justify-between px-1 text-xs">
-                      <span className="font-bold text-slate-200 flex items-center gap-1.5">
-                        <Icon className="w-3.5 h-3.5 shrink-0" />
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${role.badgeClass}`}>
-                          {role.title}
-                        </span>
-                      </span>
-                    </div>
-
-                    {/* Mandiri Browser & Isolated Session Toolbar */}
-                    <div className="mb-2 p-1.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col gap-1.5 shadow-sm">
-                      <div className="flex items-center justify-between gap-1 text-[10px]">
-                        <span className="font-mono text-slate-300 truncate font-semibold flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="truncate">{role.demoUser.name.split(' ')[0]}</span>
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => loginRoleSession(role.id)}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-[9px] font-bold transition cursor-pointer active:scale-95"
-                            title={`Login ulang sesi mandiri ${role.title}`}
-                          >
-                            <LogIn className="w-2.5 h-2.5" />
-                            <span>Login Sesi</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => resetRoleSession(role.id)}
-                            className="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-rose-400 transition cursor-pointer"
-                            title={`Reset / Hapus Sesi ${role.title}`}
-                          >
-                            <RotateCw className="w-2.5 h-2.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-1 text-[9px]">
-                        <a
-                          href={buildAutoLoginUrl(role.demoUser, role.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-bold transition"
-                          title="Buka tampilan role ini di jendela / tab browser mandiri terisolasi"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>Buka Browser Mandiri</span>
-                        </a>
-                        <CopyButton text={role.demoUser.email} label="salin" />
-                      </div>
-                    </div>
-
-                    {/* Window Frame */}
-                    <div className="rounded-2xl border border-slate-700/70 bg-slate-950 shadow-2xl overflow-hidden flex flex-col h-[650px] xl:h-[700px] w-full">
-                      {/* Controls */}
-                      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-2.5 py-1.5 shrink-0">
-                        <div className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-[#ff5f56] inline-block" />
-                          <span className="w-2 h-2 rounded-full bg-[#ffbd2e] inline-block" />
-                          <span className="w-2 h-2 rounded-full bg-[#27c93f] inline-block" />
-                        </div>
-
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            navigateRole(role.id, inputUrl);
-                          }}
-                          className="flex-1 mx-2"
-                        >
-                          <input
-                            type="text"
-                            value={inputUrl}
-                            onChange={(e) => setRoleInputUrls(prev => ({ ...prev, [role.id]: e.target.value }))}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-md px-2 py-0.5 text-[10px] font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
-                          />
-                        </form>
-
-                        <button
-                          type="button"
-                          onClick={() => reloadRole(role.id)}
-                          className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
-                        >
-                          <RotateCw className="w-3 h-3" />
-                        </button>
-                      </div>
-
-                      {/* Sub-nav quick pills */}
-                      <div className="bg-slate-900/90 border-b border-slate-800 px-2 py-1 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
-                        {role.subFeatures.slice(0, 4).map(feat => {
-                          const isActive = activePath === feat.path;
-                          return (
-                            <button
-                              key={feat.path}
-                              type="button"
-                              onClick={() => navigateRole(role.id, feat.path)}
-                              className={`px-2 py-0.5 rounded-md whitespace-nowrap font-mono text-[9px] transition cursor-pointer ${
-                                isActive
-                                  ? `${role.badgeClass} font-bold shadow-sm`
-                                  : 'bg-slate-950 text-slate-400 hover:text-white'
-                              }`}
-                            >
-                              {feat.label.split(' ')[0]}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Iframe */}
-                      <div className="flex-1 w-full bg-white relative overflow-hidden">
-                        <iframe
-                          ref={iRef}
-                          src={getIframeUrl(activePath, role.id)}
-                          title={`${role.title} Quad`}
-                          className="w-full h-full border-none"
-                        />
-                      </div>
+              return (
+                <div key={role.id} className="flex flex-col w-full min-w-0">
+                  <div className="rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl overflow-hidden flex flex-col h-[calc(100vh-125px)] min-h-[720px] max-h-[960px] w-full">
+                    <div className="flex-1 w-full bg-slate-950 relative overflow-hidden">
+                      <iframe
+                        ref={iRef}
+                        src={getIframeUrl(activePath, role.id)}
+                        title={`${role.title} Quad`}
+                        className="w-full h-full border-none bg-slate-950"
+                      />
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

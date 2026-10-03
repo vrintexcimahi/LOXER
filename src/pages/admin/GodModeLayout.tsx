@@ -27,6 +27,7 @@ import { useSystemLogs } from '../../lib/logService';
 interface GodModeLayoutProps {
   title: string;
   description: string;
+  actions?: ReactNode;
   children: ReactNode;
 }
 
@@ -116,7 +117,7 @@ function SidebarSection({
   );
 }
 
-export default function GodModeLayout({ title, description, children }: GodModeLayoutProps) {
+export default function GodModeLayout({ title, description, actions, children }: GodModeLayoutProps) {
   const { user, userMeta, signOut } = useAuth();
   const pathname = window.location.pathname;
   const { isCollapsed, isMobileOpen, toggleCollapsed, toggleMobile, closeMobile } = usePersistentSidebar('loxer-god-mode-sidebar');
@@ -299,6 +300,7 @@ export default function GodModeLayout({ title, description, children }: GodModeL
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 shrink-0 self-end sm:self-auto">
+                {actions}
                 <ThemeToggle compact variant="dark" />
                 <NotificationBell variant="dark" compact />
                 <div className="hidden sm:block rounded-xl border border-rose-400/30 bg-rose-500/20 px-2.5 py-1.5 sm:px-3 sm:py-2 text-right max-w-[150px] sm:max-w-[220px] shadow-sm shadow-rose-500/20">
