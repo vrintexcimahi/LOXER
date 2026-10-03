@@ -1696,22 +1696,26 @@ function maskIp(ip) {
 }
 
 async function handleDeviceRegister(req, res) {
-  const body = await parseJsonBody(req);
-  const deviceId = String(body.deviceId || '').trim().slice(0, 128);
-  if (!deviceId) {
-    return sendJson(res, 400, { error: { message: 'deviceId wajib diisi' } });
-  }
+  try {
+    const body = await parseJsonBody(req);
+    const deviceId = String(body.deviceId || '').trim().slice(0, 128);
+    if (!deviceId) {
+      return sendJson(res, 400, { error: { message: 'deviceId wajib diisi' } });
+    }
 
-  const token = parseBearerToken(req);
-  const decoded = verifyToken(token);
-  let userId = decoded?.sub || null;
-  if (!userId && body.userId && typeof body.userId === 'string') {
-    const u = queryOne('SELECT id FROM users WHERE id = ?', [body.userId]);
-    if (u) userId = u.id;
-  }
+    const token = parseBearerToken(req);
+    const decoded = verifyToken(token);
+    let userId = decoded?.sub || null;
+    if (!userId && body.userId && typeof body.userId === 'string') {
+      userId = body.userId;
+    }
+    if (userId) {
+      const u = queryOne('SELECT id FROM users WHERE id = ?', [userId]);
+      if (!u) userId = null;
+    }
 
-  const ip = getClientIp(req);
-  const now = new Date().toISOString();
+    const ip = getClientIp(req);
+    const now = new Date().toISOString();
 
   const deviceType = String(body.deviceType || 'unknown').slice(0, 32);
   const uiProfile = String(body.uiProfile || 'desktop-standard').slice(0, 32);
@@ -1821,7 +1825,11 @@ async function handleDeviceRegister(req, res) {
     }
   }
 
-  return sendJson(res, 200, { ok: true, deviceId });
+    return sendJson(res, 200, { ok: true, deviceId });
+  } catch (err) {
+    console.error('[handleDeviceRegister] Error:', err.message);
+    return sendJson(res, 200, { ok: false, error: err.message, deviceId });
+  }
 }
 
 async function handleUserDevices(req, res) {
