@@ -10,9 +10,9 @@
 - **Kondisi Working Tree**: **BERSIH (Clean & Verified)**, seluruh perubahan diverifikasi mandiri dengan automated regression suite.
 - **Ringkasan Hasil**:
   - Seluruh rangkaian suite pemeriksaan wajib lulus 100%:
-    - `npm run test:local` → **PASS (54/54 assertion checks across 3 test suites, 0 failures)**:
+    - `npm run test:local` → **PASS (60/60 assertion checks across 3 test suites, 0 failures)**:
       - `scripts/test-local-api.mjs`: 5/5 OK
-      - `scripts/test-audit-fixes.mjs`: 41/41 OK
+      - `scripts/test-audit-fixes.mjs`: 47/47 OK
       - `scripts/test_smart_features.mjs`: 8/8 OK
     - `npm run typecheck` → **PASS (0 errors, strict TypeScript pada `tsconfig.app.json`)**
     - `npm run lint` → **PASS (0 errors, ESLint bersih)**
@@ -131,29 +131,29 @@
 
 Berikut adalah 20 rekomendasi terstruktur dan spesifik hasil audit komprehensif sistem LOXER:
 
-1. **Implementasi Refresh Token Rotasi Otomatis pada Local Auth Gateway**
+1. **Implementasi Refresh Token Rotasi Otomatis pada Local Auth Gateway** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: keamanan | P1 | M.
-   - Dasar: `server/localDb.js:65-95`, `server/localApiHandler.js:250-320`.
-   - Masalah/peluang dan pendekatan: Token JWT lokal saat ini memiliki masa berlaku statis tanpa dukungan rotasi refresh token otomatis. Terapkan tabel `refresh_tokens` dengan masa aktif bertingkat (access token 15 menit, refresh token 7 hari) dan mekanisme rotasi sekali pakai (single-use rotation).
-   - Manfaat: Mengurangi risiko pencurian token jangka panjang dan meningkatkan standar kepatuhan keamanan data pengguna.
-   - Kriteria berhasil: Login menghasilkan pasangan `access_token` dan `refresh_token`, dan refresh token lama langsung di-revoke saat token baru diterbitkan.
-   - Dependensi/risiko dan langkah pertama: Buat tabel `refresh_tokens` di `data/schema.sql` dan buat endpoint `/api/local/auth/refresh`.
+   - Dasar: `server/localDb.js:570-645`, `server/localApiHandler.js:275-400, 2680-2700`.
+   - Masalah/peluang dan pendekatan: Telah diimplementasikan tabel `refresh_tokens`, fungsi `createRefreshToken`, `rotateRefreshToken`, `revokeRefreshToken`, serta endpoint `/api/local/auth/refresh` dan `/api/local/auth/revoke`. Rotasi token menggunakan sistem sekali pakai (*single-use rotation*) dan token usang langsung dicabut.
+   - Manfaat: Mengurangi risiko pencurian token jangka panjang dan meningkatkan kepatuhan keamanan data pengguna.
+   - Kriteria berhasil: Login mengembalikan pasangan token, rotasi token sukses menerbitkan token baru dan mencabut token lama, percobaan replay token lama ditolak dengan 401. Terverifikasi 100% pada Test 42–45.1.
+   - Dependensi/risiko dan langkah pertama: Sudah terimplementasi dan teruji pada pipeline otomatis.
 
-2. **Penerapan Automated Database Backup Cron ke Storage Terisolasi**
+2. **Penerapan Automated Database Backup Cron ke Storage Terisolasi** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: operasional | P1 | S.
-   - Dasar: `server/localDb.js:770-810`, `data/loxer.db`.
-   - Masalah/peluang dan pendekatan: Database snapshot saat ini dipicu secara manual dari panel admin. Tambahkan job cron internal (misal setiap pukul 02:00 WIB) yang memanggil `createDatabaseSnapshot()` dan merotasi maksimal 7 arsip cadangan terbaru.
+   - Dasar: `server/localDb.js:780-820, 925-955`, `data/loxer.db`.
+   - Masalah/peluang dan pendekatan: Telah diintegrasikan `startAutoBackupSchedule()` yang berjalan secara background scheduler (`.unref()`) pada bootstrap basis data, memicu `createDatabaseSnapshot('cron-auto')` dan menjalankan `pruneOldSnapshots(7)` untuk mempertahankan maksimal 7 arsip terbaru.
    - Manfaat: Mencegah kehilangan data operasional akibat kegagalan perangkat keras atau insiden crash tanpa intervensi manual.
-   - Kriteria berhasil: Berkas backup `.db` otomatis terbentuk di direktori `data/backups/` setiap 24 jam dengan rotasi berkala.
-   - Dependensi/risiko dan langkah pertama: Daftarkan timer scheduler dengan `.unref()` pada fungsi bootstrap di `server/localDb.js`.
+   - Kriteria berhasil: Berkas backup `.db` otomatis terbentuk di direktori `data/backups/` dengan pembersihan arsip kadaluarsa secara berkala.
+   - Dependensi/risiko dan langkah pertama: Sudah aktif di `server/localDb.js`.
 
-3. **Rate Limiting Adaptif Berbasis IP dan Akun pada Endpoint Auth**
+3. **Rate Limiting Adaptif Berbasis IP dan Akun pada Endpoint Auth** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: keamanan | P1 | S.
-   - Dasar: `services/resilienceService.js:80-140`.
-   - Masalah/peluang dan pendekatan: Rate limiter saat ini hanya membatasi frekuensi request global per IP. Tingkatkan agar melacak kegagalan autentikasi beruntun per kombinasi (IP + email), menerapkan penguncian sementara (lockout) 15 menit setelah 5 kali kesalahan kata sandi berturut-turut.
-   - Manfaat: Melindungi akun administrator dan perusahaan dari serangan credential stuffing dan targeted brute-force.
-   - Kriteria berhasil: Akun terkunci sementara pada percobaan login gagal ke-5 dengan respons HTTP 429 berpesan informatif.
-   - Dependensi/risiko dan langkah pertama: Tambahkan cache kegagalan login di `resilienceService.js`.
+   - Dasar: `services/resilienceService.js:395-485`, `server/localApiHandler.js:300-360`.
+   - Masalah/peluang dan pendekatan: Telah diimplementasikan `AccountLockoutManager` pada `resilienceService.js` dan diintegrasikan pada alur login. Sistem secara adaptif melacak kegagalan autentikasi per akun/email, dan mengunci akun selama 15 menit setelah 5 kali kesalahan kata sandi berturut-turut dengan status HTTP 429 berpesan informatif.
+   - Manfaat: Melindungi akun pengguna dan administrator dari serangan brute-force dan credential stuffing.
+   - Kriteria berhasil: Akun terkunci sementara pada percobaan login gagal ke-5 dengan respons HTTP 429. Terverifikasi pada Test 47.
+   - Dependensi/risiko dan langkah pertama: Sudah terintegrasi dan teruji pada pipeline otomatis.
 
 4. **Transisi File Storage CV dan Logo ke CDN / Object Storage (S3 / Cloudflare R2)**
    - Jenis / prioritas / effort: arsitektur | P1 | L.
@@ -163,13 +163,13 @@ Berikut adalah 20 rekomendasi terstruktur dan spesifik hasil audit komprehensif 
    - Kriteria berhasil: Database hanya menyimpan link URL, dan ukuran database tetap stabil di bawah 20MB.
    - Dependensi/risiko dan langkah pertama: Buat adapter penyimpanan `storageService.js` dengan opsi local disk fallback.
 
-5. **Isolasi Mutasi Database Menggunakan SQLite Immediate Transaction**
+5. **Isolasi Mutasi Database Menggunakan SQLite Immediate Transaction** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: reliabilitas | P1 | M.
-   - Dasar: `server/localDb.js:40-60`, `server/localApiHandler.js:850-930`.
-   - Masalah/peluang dan pendekatan: Mutasi majemuk yang melibatkan beberapa tabel (misal pembuatan akun employer + profil perusahaan) rentan terhadap partial failure jika terjadi crash di tengah proses. Bungkus alur multi-insert dengan `BEGIN IMMEDIATE TRANSACTION` dan `COMMIT / ROLLBACK`.
-   - Manfaat: Menjamin konsistensi ACID 100% pada transaksi pendaftaran dan persetujuan lamaran kerja.
-   - Kriteria berhasil: Gagalnya salah satu tahap dalam transaksi majemuk membatalkan seluruh perubahan secara bersih.
-   - Dependensi/risiko dan langkah pertama: Tambahkan helper `withTransaction(callback)` pada `server/localDb.js`.
+   - Dasar: `server/localDb.js:805-825`.
+   - Masalah/peluang dan pendekatan: Telah diimplementasikan helper `withTransaction(callback)` pada `server/localDb.js` yang mengunci database dengan `BEGIN IMMEDIATE;`, mengeksekusi operasi transaksi, melakukan `COMMIT;`, dan secara otomatis melakukan `ROLLBACK;` bila terjadi exception.
+   - Manfaat: Menjamin konsistensi ACID 100% dan mencegah partial mutation pada transaksi majemuk.
+   - Kriteria berhasil: Transaksi majemuk yang gagal secara otomatis dibatalkan sepenuhnya tanpa meninggalkan data orphan. Terverifikasi pada Test 46.
+   - Dependensi/risiko dan langkah pertama: Sudah aktif dan digunakan pada rotasi refresh token.
 
 6. **Implementasi Content Security Policy (CSP) Ketat pada HTML Headers**
    - Jenis / prioritas / effort: keamanan | P2 | S.
