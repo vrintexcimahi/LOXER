@@ -132,18 +132,29 @@ function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
 }
 
-function badgeRoleClass(role: UserRole) {
+function badgeRoleClass(role: UserRole | string) {
+  if (role === 'superadmin') return 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
   if (role === 'admin') return 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+  if (role === 'marketing') return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
+  if (role === 'customer_service') return 'bg-teal-500/20 text-teal-300 border border-teal-500/30';
   if (role === 'employer') return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+  if (role === 'jasa') return 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
   return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
 }
 
-function roleLabel(role: UserRole) {
-  if (role === 'seeker') return 'Seeker (Pencari Kerja)';
-  if (role === 'employer') return 'Employer (Perusahaan)';
-  if (role === 'superadmin') return 'Super Admin (Pemilik)';
-  return 'Admin (Administrator)';
+function roleLabel(role: UserRole | string) {
+  if (role === 'seeker') return 'Pencari Kerja';
+  if (role === 'employer') return 'Perusahaan';
+  if (role === 'jasa') return 'Jasa';
+  if (role === 'superadmin') return 'Super Admin';
+  if (role === 'admin') return 'Admin';
+  if (role === 'marketing') return 'Marketing';
+  if (role === 'customer_service') return 'Customer Service';
+  return 'Admin';
 }
+
+const INTERNAL_ROLES = ['superadmin', 'admin', 'marketing', 'customer_service'];
+const USER_ROLES = ['seeker', 'employer', 'jasa'];
 
 function normalizeRoleByEmail(email: string | undefined, role: UserRole): UserRole {
   if (role === 'superadmin' || isDefaultAdminEmail(email)) return 'superadmin';
@@ -1154,9 +1165,15 @@ function AdminUsers({
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'email'>('newest');
+  // 'internal' = akun pengelola web | 'user' = akun perusahaan/seeker/jasa
+  const [accountCategory, setAccountCategory] = useState<'internal' | 'user'>('internal');
   const [selected, setSelected] = useState<AdminUserRow | null>(null);
   const limitedModeWarnedRef = useRef(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  // Add Internal Account modal state
+  const [showAddInternal, setShowAddInternal] = useState(false);
+  const [addInternalForm, setAddInternalForm] = useState({ email: '', role: 'admin', name: '' });
+  const [addInternalLoading, setAddInternalLoading] = useState(false);
   const [detailData, setDetailData] = useState<{
     seeker?: Record<string, unknown> | null;
     employer?: Record<string, unknown> | null;
@@ -1175,16 +1192,23 @@ function AdminUsers({
     logs: [],
   });
 
+  // Filter rows based on account category and search query
   const filteredRows = useMemo(() => {
+    const targetRoles = accountCategory === 'internal' ? INTERNAL_ROLES : USER_ROLES;
+    let result = rows.filter((row) => targetRoles.includes(row.role));
+    if (roleFilter !== 'all') result = result.filter((r) => r.role === roleFilter);
     const query = search.trim().toLowerCase();
-    if (!query) return rows;
-    return rows.filter(
+    if (!query) return result;
+    return result.filter(
       (row) =>
         row.email.toLowerCase().includes(query) ||
         (row.full_name || '').toLowerCase().includes(query) ||
         (row.company_name || '').toLowerCase().includes(query)
     );
-  }, [rows, search]);
+  }, [rows, search, accountCategory, roleFilter]);
+
+  const internalCount = useMemo(() => rows.filter((r) => INTERNAL_ROLES.includes(r.role)).length, [rows]);
+  const userCount = useMemo(() => rows.filter((r) => USER_ROLES.includes(r.role)).length, [rows]);
 
   const loadUsersPage = useCallback(async (options?: { silent?: boolean }) => {
     if (!supabase) return;
@@ -1464,25 +1488,111 @@ function AdminUsers({
     setDetailLoading(false);
   }
 
+  async function handleAddInternalAccount() {
+    if (!supabase) return;
+    const { email, role, name } = addInternalForm;
+    if (!email || !role) return;
+    setAddInternalLoading(true);
+    try {
+      // Check if user already exists in users_meta by email
+      const { data: existing } = await supabase.from('users_meta').select('id').eq('email', email).maybeSingle();
+      if (existing) {
+        // Update role of existing user
+        const { error } = await supabase.from('users_meta').update({ role }).eq('email', email);
+        if (error) throw error;
+        onToast('success', `Role ${email} berhasil diubah ke ${role}.`);
+      } else {
+        // Insert new internal account entry (without auth — link later)
+        const { error } = await supabase.from('users_meta').insert({ email, role, id: crypto.randomUUID(), created_at: new Date().toISOString() });
+        if (error) throw error;
+        onToast('success', `Akun internal ${email} (${role}) berhasil ditambahkan.`);
+      }
+      await logAdminAction(adminId, adminEmail, 'add_internal_user', 'user', email, `Added internal account: ${email} as ${role}`);
+      setShowAddInternal(false);
+      setAddInternalForm({ email: '', role: 'admin', name: '' });
+      refreshCurrentPage();
+    } catch (err: unknown) {
+      onToast('error', `Gagal tambah akun internal: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setAddInternalLoading(false);
+    }
+  }
+
   return (
     <section className="space-y-4">
-      <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold">Manajemen Users</p>
-          <button
-            onClick={() => window.alert('Tambah Admin: daftarkan akun baru lalu ubah role jadi admin.')}
-            className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200"
-          >
-            + Tambah Admin
-          </button>
+      {/* ── Category Tab: Akun Internal vs Akun User ── */}
+      <div className="rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-md p-1 flex gap-1 shadow-xl shadow-black/20">
+        <button
+          type="button"
+          onClick={() => { setAccountCategory('internal'); setPage(1); setRoleFilter('all'); }}
+          className={classNames(
+            'flex-1 flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-bold transition-all',
+            accountCategory === 'internal'
+              ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg shadow-rose-600/30 border border-rose-400/30'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          )}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          <span>Akun Internal</span>
+          <span className={classNames(
+            'rounded-full px-2 py-0.5 text-[11px] font-bold',
+            accountCategory === 'internal' ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-300'
+          )}>{internalCount}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => { setAccountCategory('user'); setPage(1); setRoleFilter('all'); }}
+          className={classNames(
+            'flex-1 flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-bold transition-all',
+            accountCategory === 'user'
+              ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30 border border-indigo-400/30'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          )}
+        >
+          <Users className="h-4 w-4" />
+          <span>Akun User</span>
+          <span className={classNames(
+            'rounded-full px-2 py-0.5 text-[11px] font-bold',
+            accountCategory === 'user' ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-300'
+          )}>{userCount}</span>
+        </button>
+      </div>
+
+      {/* ── Category Description Banner ── */}
+      {accountCategory === 'internal' ? (
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-rose-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-rose-300">Akun Internal — Pengelola Web</p>
+            <p className="text-xs text-slate-400 mt-0.5">Daftar akun khusus pengelolaan platform: Super Admin, Admin, Marketing, dan Customer Service.</p>
+          </div>
+          {isSuperAdminUser && (
+            <button
+              onClick={() => setShowAddInternal(true)}
+              className="ml-auto shrink-0 rounded-lg border border-rose-400/30 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/25 transition-colors"
+            >
+              + Tambah Akun Internal
+            </button>
+          )}
         </div>
+      ) : (
+        <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-start gap-3">
+          <Users className="h-5 w-5 text-indigo-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-indigo-300">Akun User — Pengguna Platform</p>
+            <p className="text-xs text-slate-400 mt-0.5">Daftar akun pengguna terdaftar: Perusahaan (Employer), Pencari Kerja (Seeker), dan Penyedia Jasa.</p>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div className="relative md:col-span-2">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari email / nama / perusahaan"
+              placeholder={accountCategory === 'internal' ? 'Cari email admin / nama...' : 'Cari email / nama / perusahaan...'}
               className="w-full rounded-lg border border-white/10 bg-slate-800 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-500"
             />
           </div>
@@ -1495,9 +1605,20 @@ function AdminUsers({
             className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-200"
           >
             <option value="all">Semua Role</option>
-            <option value="seeker">Seeker (Pencari Kerja)</option>
-            <option value="employer">Employer (Perusahaan)</option>
-            <option value="admin">Admin (Administrator)</option>
+            {accountCategory === 'internal' ? (
+              <>
+                <option value="superadmin">Super Admin</option>
+                <option value="admin">Admin</option>
+                <option value="marketing">Marketing</option>
+                <option value="customer_service">Customer Service</option>
+              </>
+            ) : (
+              <>
+                <option value="employer">Perusahaan (Employer)</option>
+                <option value="seeker">Pencari Kerja (Seeker)</option>
+                <option value="jasa">Penyedia Jasa</option>
+              </>
+            )}
           </select>
           <select
             value={sortBy}
@@ -1510,6 +1631,61 @@ function AdminUsers({
           </select>
         </div>
       </div>
+
+      {/* ── Add Internal Account Modal ── */}
+      {showAddInternal && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-rose-500/20 bg-slate-900 p-6 shadow-2xl shadow-rose-900/30">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-white">Tambah Akun Internal</h3>
+                <p className="mt-1 text-xs text-slate-400">Tambah akun pengelola platform (Admin, Marketing, CS)</p>
+              </div>
+              <button onClick={() => setShowAddInternal(false)} className="text-slate-400 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-300">Email Akun</label>
+                <input
+                  type="email"
+                  value={addInternalForm.email}
+                  onChange={(e) => setAddInternalForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="contoh@loxer.web.id"
+                  className="w-full rounded-lg border border-white/10 bg-slate-800 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-rose-500/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-300">Role</label>
+                <select
+                  value={addInternalForm.role}
+                  onChange={(e) => setAddInternalForm(f => ({ ...f, role: e.target.value }))}
+                  className="w-full rounded-lg border border-white/10 bg-slate-800 px-3 py-2.5 text-sm text-slate-200 focus:border-rose-500/50 focus:outline-none"
+                >
+                  {isSuperAdminUser && <option value="superadmin">Super Admin (Pemilik)</option>}
+                  <option value="admin">Admin</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="customer_service">Customer Service</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => setShowAddInternal(false)}
+                className="flex-1 rounded-lg border border-white/10 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleAddInternalAccount}
+                disabled={addInternalLoading || !addInternalForm.email}
+                className="flex-1 rounded-lg bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-600/25 hover:from-rose-500 hover:to-pink-500 disabled:opacity-50 transition-all"
+              >
+                {addInternalLoading ? 'Menyimpan...' : 'Simpan Akun'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
         {loading ? (
