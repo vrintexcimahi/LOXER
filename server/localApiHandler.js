@@ -762,6 +762,8 @@ const ALLOWED_DB_TABLES = new Set([
   'analytics_snapshots',
   'talent_marketplace_posts',
   'direct_job_offers',
+  'jasa_ads',
+  'fb_scraped_posts',
 ]);
 
 async function handleDbQuery(req, res) {
