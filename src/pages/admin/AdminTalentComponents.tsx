@@ -25,9 +25,13 @@ import {
   Bot,
   AlertTriangle,
   ShieldCheck,
+  MessageSquare,
+  Lock,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
+import { maskPhoneNumber } from '../../lib/contactPrivacyService';
+import ProtectedTalentChatModal from '../../components/marketplace/ProtectedTalentChatModal';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -131,6 +135,7 @@ export function AdminTalentDetailModal({
   onClose: () => void;
   onTogglePublish: (talent: TalentMarketplacePost) => void;
 }) {
+  const [isChatOpen, setIsChatOpen] = useState(false);
   if (!talent) return null;
 
   const fullName = talent.seeker_profiles?.full_name || talent.headline.split(' / ')[0] || 'Kandidat Pelamar';
@@ -260,27 +265,36 @@ export function AdminTalentDetailModal({
           </div>
         )}
 
-        {/* Kontak Kandidat */}
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Phone className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Kontak & Saluran Komunikasi</span>
-          </h3>
+        {/* Kontak & Saluran Komunikasi Terproteksi */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Saluran Komunikasi Resmi (Sensor Privasi Ketat)</span>
+            </h3>
+            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Lock className="w-2.5 h-2.5" /> Sensor Shopee-Grade
+            </span>
+          </div>
+
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsChatOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 px-4 py-2 text-xs font-bold text-slate-950 transition shadow-md shadow-cyan-500/20 active:scale-[0.98]"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Buka Ruang Chat Otomatis LOXER</span>
+            </button>
+
             {talent.whatsapp_number ? (
-              <a
-                href={`https://wa.me/${talent.whatsapp_number.replace(/\D/g, '')}?text=${encodeURIComponent(
-                  `Halo ${fullName}, kami menghubungi Anda dari LOXER terkait profil lowongan kerja / biodata Anda di platform kami.`
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-4 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 transition shadow-sm"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>Hubungi WhatsApp ({talent.whatsapp_number})</span>
-              </a>
+              <span className="inline-flex items-center gap-2 rounded-xl bg-slate-800 border border-cyan-500/30 px-3.5 py-2 text-xs font-mono text-cyan-300">
+                <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{maskPhoneNumber(talent.whatsapp_number)}</span>
+                <span className="text-[10px] text-slate-400 font-sans font-medium">(Disensor)</span>
+              </span>
             ) : (
-              <span className="text-xs text-slate-500 italic">Nomor WhatsApp belum dicantumkan</span>
+              <span className="text-xs text-slate-500 italic">Kontak terproteksi sistem LOXER</span>
             )}
 
             {talent.portfolio_url && (
@@ -295,6 +309,10 @@ export function AdminTalentDetailModal({
               </a>
             )}
           </div>
+
+          <p className="text-[11px] text-slate-400 leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-white/5">
+            🛡️ <strong>Kebijakan Keamanan LOXER:</strong> Nomor HP, WhatsApp, dan email pelamar wajib disensor dari ruang publik demi privasi. Wawancara, negosiasi gaji, dan kesepakatan penawaran kerja dilakukan 100% full di dalam aplikasi melalui Ruang Chat Resmi.
+          </p>
         </div>
 
         {/* Action Footer */}
@@ -317,6 +335,13 @@ export function AdminTalentDetailModal({
             Tutup
           </button>
         </div>
+
+        {/* Modal Ruang Chat Resmi LOXER */}
+        <ProtectedTalentChatModal
+          talent={talent}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+        />
       </div>
     </div>
   );
@@ -340,6 +365,7 @@ export function AdminTalentCatalogSection({
   const [selectedCity, setSelectedCity] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [previewTalent, setPreviewTalent] = useState<TalentMarketplacePost | null>(null);
+  const [chatTalent, setChatTalent] = useState<TalentMarketplacePost | null>(null);
 
   const TALENT_CATEGORIES = [
     'Semua',
@@ -728,19 +754,14 @@ export function AdminTalentCatalogSection({
                         <span>Biodata</span>
                       </button>
 
-                      {talent.whatsapp_number && (
-                        <a
-                          href={`https://wa.me/${talent.whatsapp_number.replace(/\D/g, '')}?text=${encodeURIComponent(
-                            `Halo ${fullName}, kami dari LOXER tertarik dengan profil Anda di platform kami.`
-                          )}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/20 hover:bg-emerald-500/30 p-1.5 text-emerald-300 transition"
-                          title="Hubungi WhatsApp"
-                        >
-                          <Phone className="w-4 h-4" />
-                        </a>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setChatTalent(talent)}
+                        className="flex items-center justify-center rounded-xl border border-cyan-500/40 bg-cyan-500/20 hover:bg-cyan-500/30 p-1.5 text-cyan-300 transition"
+                        title="Buka Ruang Chat Otomatis (Shopee-Grade)"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
 
                       <button
                         onClick={() => togglePublish(talent)}
@@ -846,6 +867,14 @@ export function AdminTalentCatalogSection({
                           Biodata
                         </button>
                         <button
+                          onClick={() => setChatTalent(talent)}
+                          className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-500/20 transition flex items-center gap-1"
+                          title="Buka Ruang Chat Otomatis"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          <span>Chat</span>
+                        </button>
+                        <button
                           onClick={() => togglePublish(talent)}
                           className="rounded-lg border border-white/10 px-2 py-1 hover:bg-white/5 transition"
                           title="Ubah publikasi"
@@ -873,6 +902,14 @@ export function AdminTalentCatalogSection({
         talent={previewTalent}
         onClose={() => setPreviewTalent(null)}
         onTogglePublish={togglePublish}
+      />
+
+      {/* Ruang Chat Otomatis Terproteksi */}
+      <ProtectedTalentChatModal
+        talent={chatTalent}
+        isOpen={Boolean(chatTalent)}
+        onClose={() => setChatTalent(null)}
+        onToast={onToast}
       />
     </div>
   );
@@ -963,6 +1000,7 @@ export function SmartAddCvSection({
 
   const [skillInput, setSkillInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [testChatOpen, setTestChatOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadPdfJs = async (): Promise<PdfJsLibrary | null> => {
@@ -1248,15 +1286,15 @@ STATUS: Siap Kerja Segera (Fulltime)`);
         experience_years: Number(cv.experience_years) || 0,
         expected_salary: Number(cv.expected_salary) || 0,
         rate_type: cv.rate_type || 'monthly',
-        domicile_city: cv.domicile_city || 'Cimahi / Bandung',
+        domicile_city: cleanDomicileCity(cv.domicile_city || 'Cimahi'),
         whatsapp_number: cv.whatsapp_number || '',
         email: cv.email || '',
         bio: cv.bio || '',
         skills: Array.isArray(cv.skills) && cv.skills.length > 0 ? cv.skills : ['Komunikasi', 'Kerja Tim'],
         portfolio_url: cv.portfolio_url || '',
         badge: cv.badge || 'SIAP KERJA',
-        photo_url: cv.photo_url || filePreviewUrl || '',
-        ai_notes: cv.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER',
+        photo_url: cv.photo_url || '',
+        ai_notes: cv.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Privasi Terproteksi)',
         confidence_score: cv.confidence_score || 95,
       });
 
@@ -1661,6 +1699,24 @@ STATUS: Siap Kerja Segera (Fulltime)`);
             </span>
           </div>
 
+          {/* Privacy & Shopee-Grade Sensor Policy Banner */}
+          <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/70 via-slate-900 to-slate-950 p-4 shadow-lg flex items-start gap-3.5">
+            <div className="h-9 w-9 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <span>Standar Privasi &amp; Sensor Ketat Shopee / LOXER Aktif</span>
+                <span className="rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[9px] font-black text-emerald-300">
+                  OTOMATIS
+                </span>
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Semua nomor kontak (HP/WhatsApp), email, dan akun sosmed yang dilampirkan otomatis disensor penuh untuk privasi pelamar. Semua aktivitas komunikasi, wawancara, negosiasi gaji, dan penawaran kerja perusahaan wajib full di dalam aplikasi LOXER melalui <strong>Ruang Chat Otomatis</strong> terenkripsi.
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Form Inputs (Left: 7 cols) */}
             <div className="lg:col-span-7 space-y-4 rounded-2xl border border-white/10 bg-slate-900/90 p-5 shadow-xl">
@@ -1772,26 +1828,92 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    Kota Domisili
+                    Kota Domisili (Hanya Nama Kota)
                   </label>
                   <input
                     value={formData.domicile_city}
-                    onChange={(e) => setFormData({ ...formData, domicile_city: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, domicile_city: cleanDomicileCity(e.target.value) })}
                     placeholder="Contoh: Cimahi"
                     className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
                   />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    🔒 Detail alamat jalan/RT/nomor disensor otomatis.
+                  </span>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    Nomor WhatsApp / HP
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Nomor WhatsApp / HP
+                    </label>
+                    <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Sensor Aktif
+                    </span>
+                  </div>
                   <input
                     value={formData.whatsapp_number}
                     onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })}
                     placeholder="Contoh: 08123456789"
                     className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
                   />
+                  {formData.whatsapp_number && (
+                    <p className="mt-1 text-[10px] text-cyan-300 font-mono flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" />
+                      <span>Disensor ke Publik:</span>
+                      <strong className="underline">{maskPhoneNumber(formData.whatsapp_number)}</strong>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Email & Avatar Sensor Toggle */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Email Pelamar
+                    </label>
+                    <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Sensor Aktif
+                    </span>
+                  </div>
+                  <input
+                    value={formData.email || ''}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="Contoh: pelamar@gmail.com"
+                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                  />
+                  {formData.email && (
+                    <p className="mt-1 text-[10px] text-cyan-300 font-mono flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" />
+                      <span>Disensor ke Publik:</span>
+                      <strong className="underline">{maskEmail(formData.email)}</strong>
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Proteksi Tampilan Dokumen CV
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({
+                        ...formData,
+                        photo_url: formData.photo_url ? '' : (filePreviewUrl || ''),
+                      });
+                    }}
+                    className="w-full rounded-xl border border-cyan-500/30 bg-slate-800/80 hover:bg-slate-700/80 px-3 py-2 text-xs font-semibold text-slate-200 transition text-left flex items-center justify-between"
+                  >
+                    <span>{formData.photo_url ? '🛡️ Gunakan Inisial / Sembunyikan CV Mentah' : '🖼️ Tampilkan Lampiran Dokumen'}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${formData.photo_url ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                      {formData.photo_url ? 'Gambar CV Aktif' : 'Inisial Aman'}
+                    </span>
+                  </button>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Disarankan avatar inisial agar layout CV kertas tidak mengekspos nomor kontak langsung.
+                  </span>
                 </div>
               </div>
 
@@ -1926,11 +2048,29 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               <div className="overflow-hidden rounded-2xl border border-cyan-500/40 bg-slate-900 shadow-2xl">
                 <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-3">
                   {formData.photo_url ? (
-                    <img
-                      src={formData.photo_url}
-                      alt={formData.full_name}
-                      className="h-full w-full object-cover object-center rounded-2xl opacity-90"
-                    />
+                    <div className="relative h-full w-full overflow-hidden rounded-2xl">
+                      <img
+                        src={formData.photo_url}
+                        alt={formData.full_name}
+                        className="h-full w-full object-cover object-top rounded-2xl opacity-85"
+                      />
+                      {/* Privacy Sensor Watermark & Masking Strip over Image */}
+                      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex flex-col justify-between p-3 pointer-events-none rounded-2xl">
+                        <div className="self-end rounded-lg bg-slate-950/90 border border-emerald-500/40 px-2 py-0.5 text-[9px] font-bold text-emerald-300 flex items-center gap-1 shadow-lg">
+                          <Lock className="w-2.5 h-2.5 text-emerald-400" />
+                          <span>Kontak Disensor</span>
+                        </div>
+                        <div className="rounded-xl bg-slate-950/90 border border-cyan-500/30 p-2 backdrop-blur-md text-center shadow-lg">
+                          <p className="text-[10px] font-bold text-cyan-300 flex items-center justify-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>Dokumen Terproteksi Privasi LOXER</span>
+                          </p>
+                          <p className="text-[9px] text-slate-400">
+                            Nomor HP, WA &amp; Email pada berkas otomatis disensor ke publik
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-600/30 to-indigo-600/30 text-cyan-300 font-extrabold text-5xl">
                       {formData.full_name.charAt(0).toUpperCase()}
@@ -1996,19 +2136,56 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   </div>
 
                   <div className="pt-2 flex items-center gap-2">
-                    <div className="flex-1 text-center rounded-xl bg-cyan-500/20 border border-cyan-400/30 py-2 text-xs font-bold text-cyan-300">
-                      👁️ Pratinjau Biodata
+                    <div className="flex-1 text-center rounded-xl bg-cyan-500/20 border border-cyan-400/30 py-2 text-xs font-bold text-cyan-300 flex items-center justify-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Pratinjau Biodata</span>
                     </div>
-                    {formData.whatsapp_number && (
-                      <div className="rounded-xl bg-emerald-500/20 border border-emerald-400/30 p-2 text-emerald-300">
-                        <Phone className="w-4 h-4" />
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setTestChatOpen(true)}
+                      className="flex items-center gap-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/30 transition shadow-sm"
+                      title="Uji coba Ruang Chat Otomatis (Shopee-Grade)"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Chat di App</span>
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Modal Uji Coba Ruang Chat Otomatis LOXER */}
+          {formData && (
+            <ProtectedTalentChatModal
+              talent={{
+                id: 'preview-smart-cv',
+                seeker_id: 'skr-preview',
+                user_id: 'usr-preview',
+                headline: formData.headline,
+                category: formData.category,
+                bio: formData.bio,
+                skills: formData.skills,
+                availability: formData.availability,
+                expected_salary: formData.expected_salary,
+                rate_type: formData.rate_type,
+                domicile_city: formData.domicile_city,
+                whatsapp_number: formData.whatsapp_number,
+                badge: formData.badge,
+                photo_url: formData.photo_url,
+                is_published: 1,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                seeker_profiles: {
+                  full_name: formData.full_name,
+                  photo_url: formData.photo_url,
+                },
+              }}
+              isOpen={testChatOpen}
+              onClose={() => setTestChatOpen(false)}
+              onToast={onToast}
+            />
+          )}
         </div>
       )}
     </div>

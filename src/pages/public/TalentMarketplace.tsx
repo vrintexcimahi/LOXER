@@ -13,6 +13,7 @@ import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
 import TalentCard from '../../components/marketplace/TalentCard';
 import TalentDetailModal from '../../components/marketplace/TalentDetailModal';
+import ProtectedTalentChatModal from '../../components/marketplace/ProtectedTalentChatModal';
 import AuthModal from '../auth/AuthModal';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
 import HeroBannerSlideshow from '../../components/banner/HeroBannerSlideshow';
@@ -67,6 +68,7 @@ export default function TalentMarketplace() {
   const [selectedAvailability, setSelectedAvailability] = useState<string>(parseAvailabilityFromUrl);
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedTalent, setSelectedTalent] = useState<TalentMarketplacePost | null>(null);
+  const [chatTalent, setChatTalent] = useState<TalentMarketplacePost | null>(null);
   const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null);
   const [authInitialRole, setAuthInitialRole] = useState<UserRole>('seeker');
 
@@ -410,7 +412,7 @@ export default function TalentMarketplace() {
                   key={talent.id}
                   talent={talent}
                   onSelect={(t) => setSelectedTalent(t)}
-                  onOfferJob={(t) => setSelectedTalent(t)}
+                  onOfferJob={(t) => setChatTalent(t)}
                 />
               ))}
             </div>
@@ -423,6 +425,13 @@ export default function TalentMarketplace() {
         talent={selectedTalent}
         isOpen={Boolean(selectedTalent)}
         onClose={() => setSelectedTalent(null)}
+      />
+
+      {/* Ruang Chat Otomatis Resmi Terproteksi */}
+      <ProtectedTalentChatModal
+        talent={chatTalent}
+        isOpen={Boolean(chatTalent)}
+        onClose={() => setChatTalent(null)}
       />
 
       {/* Auth Modal for Guests */}

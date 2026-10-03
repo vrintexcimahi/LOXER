@@ -13,7 +13,8 @@ import {
   FileText,
   Clock,
   Check,
-  X
+  X,
+  Lock,
 } from 'lucide-react';
 import SeekerLayout from '../../components/layout/SeekerLayout';
 import TalentCard from '../../components/marketplace/TalentCard';
@@ -21,6 +22,7 @@ import TalentDetailModal from '../../components/marketplace/TalentDetailModal';
 import { supabase } from '../../lib/supabase';
 import { broadcastSync } from '../../lib/realtimeSync';
 import { useAuth } from '../../contexts/useAuth';
+import { maskPhoneNumber, cleanDomicileCity } from '../../lib/contactPrivacyService';
 import {
   TalentMarketplacePost,
   DirectJobOffer,
@@ -498,7 +500,7 @@ export default function SeekerMarketplace() {
                       type="text"
                       required
                       value={domicileCity}
-                      onChange={(e) => setDomicileCity(e.target.value)}
+                      onChange={(e) => setDomicileCity(cleanDomicileCity(e.target.value))}
                       placeholder="Contoh: Bandung / Jakarta"
                       className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-800/80 text-sm text-white focus:outline-none focus:border-cyan-400"
                     />
@@ -506,9 +508,14 @@ export default function SeekerMarketplace() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                    Nomor Kontak Pribadi (Disembunyikan dari Publik) *
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-300">
+                      Nomor Kontak Pribadi (Disembunyikan dari Publik) *
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Sensor Shopee-Grade Aktif
+                    </span>
+                  </div>
                   <div className="relative">
                     <Phone className="w-4 h-4 absolute left-3 top-3 text-cyan-400" />
                     <input
@@ -517,11 +524,18 @@ export default function SeekerMarketplace() {
                       value={whatsappNumber}
                       onChange={(e) => setWhatsappNumber(e.target.value)}
                       placeholder="08xxxxxxxxxx"
-                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-800/80 text-sm text-white focus:outline-none focus:border-cyan-400"
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-white/10 bg-slate-800/80 text-sm text-white focus:outline-none focus:border-cyan-400 font-mono"
                     />
                   </div>
+                  {whatsappNumber && (
+                    <p className="mt-1 text-[10px] text-cyan-300 font-mono flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" />
+                      <span>Tampilan Sensor Publik:</span>
+                      <strong className="underline">{maskPhoneNumber(whatsappNumber)}</strong>
+                    </p>
+                  )}
                   <span className="text-[10px] text-slate-400 mt-1 block">
-                    🔒 Nomor Anda 100% aman &amp; tersembunyi dari publik. Perusahaan hanya dapat berinteraksi dan mengirimkan tawaran kerja resmi melalui aplikasi LOXER.
+                    🔒 Nomor Anda 100% aman &amp; tersembunyi dari publik. Perusahaan hanya dapat berinteraksi dan mengirimkan tawaran kerja resmi melalui Ruang Chat Otomatis di aplikasi LOXER.
                   </span>
                 </div>
               </div>

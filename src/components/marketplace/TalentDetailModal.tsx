@@ -10,13 +10,16 @@ import {
   FileText,
   Building,
   Sparkles,
-  Clock
+  Clock,
+  MessageSquare,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { supabase } from '../../lib/supabase';
 import { broadcastSync } from '../../lib/realtimeSync';
+import { maskPhoneNumber, maskEmail, maskAddress } from '../../lib/contactPrivacyService';
+import ProtectedTalentChatModal from './ProtectedTalentChatModal';
 
 const AVAILABILITY_LABELS: Record<string, string> = {
   fulltime: 'Purna Waktu',
@@ -40,6 +43,7 @@ export default function TalentDetailModal({
 }: TalentDetailModalProps) {
   const { user, userMeta } = useAuth();
   const { requireApp } = useAppAccess();
+  const [showChatRoom, setShowChatRoom] = useState(false);
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [positionTitle, setPositionTitle] = useState('');
   const [offeredSalary, setOfferedSalary] = useState('');
@@ -262,25 +266,40 @@ export default function TalentDetailModal({
           {/* Protected In-App Transaction Banner & Offer CTA */}
           <div className="space-y-3">
             <div className="flex items-start gap-2.5 p-3.5 rounded-xl border border-cyan-500/20 bg-cyan-950/30 text-xs text-slate-300">
-              <Lock className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
               <div className="leading-relaxed">
                 <span className="font-bold text-cyan-300 block mb-0.5">
-                  Sistem Rekrutmen &amp; Transaksi Terproteksi LOXER
+                  Sistem Rekrutmen Terproteksi &amp; Sensor Privasi Ketat (Shopee Standard)
                 </span>
-                Demi keamanan kandidat dan perusahaan, seluruh penawaran kerja, kesepakatan honor, dan verifikasi dilakukan secara resmi di platform.
+                Nomor kontak ({maskPhoneNumber(talent.whatsapp_number)}), email, dan akun sosmed disensor ketat untuk privasi pelamar. Seluruh penawaran kerja, kesepakatan honor, dan verifikasi dilakukan full melalui Ruang Chat Otomatis di aplikasi LOXER.
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                if (!requireApp('Menawarkan Pekerjaan')) return;
-                setShowOfferForm(!showOfferForm);
-              }}
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:from-cyan-300 hover:to-teal-200 shadow-lg shadow-cyan-500/25 transition-all cursor-pointer"
-            >
-              <Send className="w-4 h-4" />
-              {showOfferForm ? 'Tutup Formulir Penawaran' : 'Tawarkan Pekerjaan Resmi di Aplikasi'}
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!requireApp('Membuka Ruang Chat')) return;
+                  setShowChatRoom(true);
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:from-cyan-300 hover:to-teal-200 shadow-lg shadow-cyan-500/25 transition-all cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Buka Ruang Chat Otomatis</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!requireApp('Menawarkan Pekerjaan')) return;
+                  setShowOfferForm(!showOfferForm);
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white bg-slate-800 hover:bg-slate-700 border border-white/10 transition-all cursor-pointer"
+              >
+                <Send className="w-4 h-4 text-cyan-400" />
+                <span>{showOfferForm ? 'Tutup Formulir' : 'Form Penawaran Kerja'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Success Alert */}
@@ -478,6 +497,13 @@ export default function TalentDetailModal({
           </div>
           <span>Dipublikasikan di Marketplace LOXER Indonesia</span>
         </div>
+
+        {/* Ruang Chat Otomatis Resmi Terproteksi */}
+        <ProtectedTalentChatModal
+          talent={talent}
+          isOpen={showChatRoom}
+          onClose={() => setShowChatRoom(false)}
+        />
       </div>
     </div>
   );

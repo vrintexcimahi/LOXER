@@ -246,6 +246,21 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
 
       const parsed = JSON.parse(cleanedJson);
 
+function cleanDomicileCity(rawCity) {
+  if (!rawCity) return 'Cimahi';
+  let str = String(rawCity).trim();
+  if (str.includes(',') || str.includes('/')) {
+    const parts = str.split(/,|\//).map((p) => p.trim()).filter(Boolean);
+    const lastPart = parts[parts.length - 1];
+    if (lastPart && !/\b(jl|jalan|rt|rw|no|gang|blok)\b/i.test(lastPart)) {
+      str = lastPart;
+    }
+  }
+  str = str.replace(/^(jl\.?|jalan|gang|gg\.?|komplek|perumahan)\s+[^,]+/i, '').trim();
+  str = str.replace(/^[,\s-]+/, '').trim();
+  return str || 'Cimahi';
+}
+
       const result = {
         full_name: (parsed.full_name || 'Pelamar Kerja').trim(),
         headline: (parsed.headline || 'Pencari Kerja Aktif').trim(),
@@ -256,7 +271,7 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
         experience_years: typeof parsed.experience_years === 'number' ? parsed.experience_years : parseInt(parsed.experience_years || '0', 10) || 0,
         expected_salary: typeof parsed.expected_salary === 'number' ? parsed.expected_salary : parseInt(String(parsed.expected_salary || '0').replace(/\D/g, ''), 10) || 0,
         rate_type: ['monthly', 'hourly', 'project'].includes(parsed.rate_type) ? parsed.rate_type : 'monthly',
-        domicile_city: (parsed.domicile_city || 'Cimahi / Bandung').trim(),
+        domicile_city: cleanDomicileCity(parsed.domicile_city),
         whatsapp_number: (parsed.whatsapp_number || '').trim(),
         email: (parsed.email || '').trim(),
         bio: (parsed.bio || '').trim(),
@@ -266,7 +281,7 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
         portfolio_url: (parsed.portfolio_url || '').trim(),
         badge: ['TOP TALENT', 'SIAP KERJA', 'FREELANCER', 'TERVERIFIKASI'].includes(parsed.badge) ? parsed.badge : 'SIAP KERJA',
         photo_url: imageBase64 ? imageBase64 : '',
-        ai_notes: (parsed.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER').trim(),
+        ai_notes: (parsed.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Kontak terproteksi privasi)').trim(),
         confidence_score: typeof parsed.confidence_score === 'number' ? parsed.confidence_score : 92,
         extracted_at: new Date().toISOString(),
         ai_model_used: model,

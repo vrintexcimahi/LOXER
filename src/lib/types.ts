@@ -7,6 +7,7 @@ export interface UserMeta {
   created_at: string;
   is_banned?: boolean;
   company_id?: string;
+  company_name?: string;
 }
 
 export interface SeekerProfile {
