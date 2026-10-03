@@ -20,6 +20,7 @@ import {
   Sparkles,
   ExternalLink,
   Upload,
+  Clipboard,
   ArrowRight,
   Bot,
   AlertTriangle,
@@ -963,13 +964,15 @@ export function SmartAddCvSection({
     });
   };
 
-  const handleProcessFile = async (file: File) => {
+  const handleProcessFile = async (file: File, isPasted: boolean = false) => {
     setExtractError(null);
-    setSelectedFileName(file.name);
+    const fileName = file.name && file.name !== 'image.png' ? file.name : `clipboard-cv-${Date.now()}.png`;
+    setSelectedFileName(fileName);
     setSelectedFileSize(`${Math.round(file.size / 1024)} KB`);
 
     if (file.type.startsWith('image/')) {
       setFileType('image');
+      setInputMode('file');
       const reader = new FileReader();
       reader.onload = () => {
         const res = reader.result as string;
@@ -977,7 +980,11 @@ export function SmartAddCvSection({
         setFileBase64(res);
       };
       reader.readAsDataURL(file);
-      onToast('info', `Berkas gambar "${file.name}" siap diekstrak.`);
+      if (isPasted) {
+        onToast('success', 'Gambar CV berhasil ditempel dari clipboard!');
+      } else {
+        onToast('info', `Berkas gambar "${fileName}" siap diekstrak.`);
+      }
       return;
     }
 
@@ -1044,6 +1051,85 @@ export function SmartAddCvSection({
     const file = e.dataTransfer.files?.[0];
     if (file) handleProcessFile(file);
   };
+
+  const handlePasteImageFromClipboard = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find((t) => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const ext = imageType.split('/')[1]?.replace('+xml', '') || 'png';
+            const file = new File(
+              [blob],
+              `clipboard-cv-${Date.now()}.${ext}`,
+              { type: imageType }
+            );
+            handleProcessFile(file, true);
+            return;
+          }
+        }
+        onToast('info', 'Tidak ditemukan gambar di clipboard. Salin gambar CV atau screenshot (Win+Shift+S) terlebih dahulu.');
+      } else {
+        onToast('info', 'Silakan gunakan shortcut keyboard Ctrl + V untuk menempelkan gambar CV dari clipboard.');
+      }
+    } catch (err: unknown) {
+      console.warn('Clipboard read error:', err);
+      onToast('info', 'Tekan tombol shortcut Ctrl + V untuk menempelkan gambar CV dari clipboard.');
+    }
+  };
+
+  const handleDropzonePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!e.clipboardData) return;
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          e.stopPropagation();
+          const ext = file.type.split('/')[1]?.replace('+xml', '') || 'png';
+          const renamed = new File(
+            [file],
+            file.name && file.name !== 'image.png' ? file.name : `screenshot-cv-${Date.now()}.${ext}`,
+            { type: file.type }
+          );
+          handleProcessFile(renamed, true);
+          return;
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!e.clipboardData) return;
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            const ext = file.type.split('/')[1]?.replace('+xml', '') || 'png';
+            const renamed = new File(
+              [file],
+              file.name && file.name !== 'image.png' ? file.name : `screenshot-cv-${Date.now()}.${ext}`,
+              { type: file.type }
+            );
+            handleProcessFile(renamed, true);
+            return;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLoadSampleCv = () => {
     setSelectedFileName('CV_Azqy_Ahmad_Saputra_2026.pdf');
@@ -1329,7 +1415,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               }`}
             >
               <FileUp className="w-3.5 h-3.5" />
-              <span>Upload Berkas (PDF / JPG)</span>
+              <span>Upload / Paste CV</span>
             </button>
             <button
               onClick={() => setInputMode('text')}
@@ -1358,27 +1444,70 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
             {!filePreviewUrl && !fileBase64 ? (
               <div
+                tabIndex={0}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
+                onPaste={handleDropzonePaste}
                 onClick={() => fileInputRef.current?.click()}
-                className="cursor-pointer border-2 border-dashed border-white/15 hover:border-cyan-400/50 rounded-2xl p-8 text-center transition group bg-slate-950/40 hover:bg-slate-950/70"
+                className="cursor-pointer border-2 border-dashed border-cyan-500/30 hover:border-cyan-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-500/20 rounded-2xl p-8 sm:p-10 text-center transition-all duration-300 group bg-slate-950/50 hover:bg-slate-950/80 focus:outline-none"
               >
-                <div className="mx-auto w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-400/20 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition">
-                  <Upload className="w-6 h-6" />
+                {/* Rounded Icon Badge like Image 1 */}
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300 group-hover:scale-110 group-hover:border-cyan-400 group-hover:shadow-lg group-hover:shadow-cyan-500/20 transition-all duration-300">
+                  <Clipboard className="w-7 h-7" />
                 </div>
-                <p className="mt-3 text-sm font-semibold text-white">
-                  Tarik & lepas berkas CV ke sini, atau <span className="text-cyan-400 underline">pilih dari perangkat</span>
+
+                {/* Primary Action Text matching Image 1: 📋 Tekan Ctrl + V untuk Paste Screenshot */}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-base sm:text-lg font-bold text-white">
+                  <span className="flex items-center gap-1.5">
+                    <span>📋 Tekan</span>
+                    <kbd className="px-2.5 py-0.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 font-mono text-xs sm:text-sm font-black shadow-inner tracking-wider">
+                      Ctrl + V
+                    </kbd>
+                    <span>untuk Paste Screenshot / Gambar</span>
+                  </span>
+                </div>
+
+                {/* Subtitle matching Image 1 */}
+                <p className="mt-2 text-xs sm:text-sm text-slate-300">
+                  Atau klik di sini untuk memilih file berkas CV dari perangkat (drag & drop didukung)
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Mendukung format <strong>PDF</strong>, <strong>JPG</strong>, <strong>PNG</strong>, atau <strong>WEBP</strong> (Maks 15MB). AI Gemini 3.8 membaca visual & teks secara presisi.
-                </p>
+
+                {/* Feature Pills */}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                    <Sparkles className="w-3 h-3 text-cyan-400" />
+                    Copy Image &gt; Paste di tempat
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    Screenshot (Win+Shift+S) &gt; Paste
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800 text-slate-400 border border-white/10">
+                    PDF, JPG, PNG, WEBP (Maks 15MB)
+                  </span>
+                </div>
+
+                {/* Direct Button for Clipboard Click */}
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePasteImageFromClipboard();
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
+                    <Clipboard className="w-3.5 h-3.5" />
+                    <span>Tempel dari Clipboard Sekarang</span>
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-cyan-500/30 bg-slate-950/70 p-4">
+              <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-cyan-500/40 bg-slate-950/80 p-4 shadow-lg">
                 {filePreviewUrl ? (
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-slate-900">
                     <img src={filePreviewUrl} alt="CV Preview" className="h-full w-full object-cover object-center" />
-                    <span className="absolute bottom-1 right-1 rounded bg-slate-950/80 px-1 text-[9px] font-bold text-cyan-300 uppercase">
+                    <span className="absolute bottom-1 right-1 rounded bg-slate-950/80 px-1 text-[9px] font-bold text-cyan-300 uppercase border border-cyan-500/20">
                       {fileType}
                     </span>
                   </div>
@@ -1399,6 +1528,15 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePasteImageFromClipboard}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 text-xs text-cyan-300 transition"
+                    title="Tempel gambar / screenshot baru dari clipboard (Ctrl+V)"
+                  >
+                    <Clipboard className="w-3.5 h-3.5" />
+                    <span>Paste Baru (Ctrl+V)</span>
+                  </button>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs text-slate-200 transition"

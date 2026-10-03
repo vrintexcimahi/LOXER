@@ -40,6 +40,7 @@ import {
   Trash2,
   Sparkles,
   Upload,
+  Clipboard,
   Image as ImageIcon,
   ArrowRight,
   Bot,
@@ -2223,38 +2224,110 @@ function SmartAddJobSection({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processPosterFile = (file: File, source: 'file' | 'drop' | 'paste' = 'file') => {
     if (!file.type.startsWith('image/')) {
-      onToast('error', 'Harap pilih berkas gambar (PNG, JPG, JPEG, WEBP).');
+      onToast('error', 'Harap gunakan berkas gambar (PNG, JPG, JPEG, WEBP).');
       return;
     }
     const reader = new FileReader();
     reader.onloadend = () => {
       setPosterBase64(reader.result as string);
-      setPosterFileName(file.name);
+      const name = file.name && file.name !== 'image.png' ? file.name : `clipboard-poster-${Date.now()}.png`;
+      setPosterFileName(name);
+      setInputMode('poster');
       setExtractError(null);
+      if (source === 'paste') {
+        onToast('success', 'Gambar poster loker berhasil ditempel dari clipboard!');
+      }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processPosterFile(file, 'file');
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      onToast('error', 'Harap drop berkas gambar poster loker.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPosterBase64(reader.result as string);
-      setPosterFileName(file.name);
-      setExtractError(null);
-    };
-    reader.readAsDataURL(file);
+    if (file) processPosterFile(file, 'drop');
   };
+
+  const handlePasteImageFromClipboard = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find((t) => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const ext = imageType.split('/')[1]?.replace('+xml', '') || 'png';
+            const file = new File([blob], `clipboard-poster-${Date.now()}.${ext}`, { type: imageType });
+            processPosterFile(file, 'paste');
+            return;
+          }
+        }
+        onToast('info', 'Tidak ditemukan gambar di clipboard. Silakan salin gambar atau screenshot (Win+Shift+S) terlebih dahulu.');
+      } else {
+        onToast('info', 'Silakan gunakan shortcut keyboard Ctrl + V untuk menempelkan gambar dari clipboard.');
+      }
+    } catch (err: unknown) {
+      console.warn('Clipboard read error:', err);
+      onToast('info', 'Tekan shortcut keyboard Ctrl + V untuk menempelkan gambar dari clipboard.');
+    }
+  };
+
+  const handleDropzonePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!e.clipboardData) return;
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          e.stopPropagation();
+          const ext = file.type.split('/')[1]?.replace('+xml', '') || 'png';
+          const renamed = new File(
+            [file],
+            file.name && file.name !== 'image.png' ? file.name : `screenshot-poster-${Date.now()}.${ext}`,
+            { type: file.type }
+          );
+          processPosterFile(renamed, 'paste');
+          return;
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!e.clipboardData) return;
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            const ext = file.type.split('/')[1]?.replace('+xml', '') || 'png';
+            const renamed = new File(
+              [file],
+              file.name && file.name !== 'image.png' ? file.name : `screenshot-poster-${Date.now()}.${ext}`,
+              { type: file.type }
+            );
+            processPosterFile(renamed, 'paste');
+            return;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSmartExtract = async () => {
     if (!posterBase64 && !postUrl.trim() && !postText.trim()) {
@@ -2444,7 +2517,7 @@ function SmartAddJobSection({
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5" />
-              <span>Upload Poster / Flyer</span>
+              <span>Upload / Paste Poster</span>
             </button>
             <button
               onClick={() => setInputMode('link')}
@@ -2473,23 +2546,66 @@ function SmartAddJobSection({
 
             {!posterBase64 ? (
               <div
+                tabIndex={0}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
+                onPaste={handleDropzonePaste}
                 onClick={() => fileInputRef.current?.click()}
-                className="group cursor-pointer rounded-2xl border-2 border-dashed border-cyan-500/30 hover:border-cyan-400/80 bg-slate-950/50 hover:bg-cyan-950/10 p-8 text-center transition-all duration-300"
+                className="group cursor-pointer rounded-2xl border-2 border-dashed border-cyan-500/30 hover:border-cyan-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-500/20 bg-slate-950/50 hover:bg-slate-950/80 p-8 sm:p-10 text-center transition-all duration-300 focus:outline-none"
               >
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform">
-                  <Upload className="w-6 h-6" />
+                {/* Rounded Icon Badge like Image 1 */}
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300 group-hover:scale-110 group-hover:border-cyan-400 group-hover:shadow-lg group-hover:shadow-cyan-500/20 transition-all duration-300">
+                  <Clipboard className="w-7 h-7" />
                 </div>
-                <h4 className="mt-4 text-sm font-semibold text-white">
-                  Tarik & lepas poster loker ke sini, atau <span className="text-cyan-400 underline underline-offset-2">pilih dari perangkat</span>
-                </h4>
-                <p className="mt-1 text-xs text-slate-400">
-                  Mendukung format PNG, JPG, JPEG, atau WEBP (Maks 10MB). AI Vision akan membaca seluruh teks flyer secara presisi.
+
+                {/* Primary Action Text matching Image 1: 📋 Tekan Ctrl + V untuk Paste Screenshot */}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-base sm:text-lg font-bold text-white">
+                  <span className="flex items-center gap-1.5">
+                    <span>📋 Tekan</span>
+                    <kbd className="px-2.5 py-0.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 font-mono text-xs sm:text-sm font-black shadow-inner tracking-wider">
+                      Ctrl + V
+                    </kbd>
+                    <span>untuk Paste Screenshot / Flyer Loker</span>
+                  </span>
+                </div>
+
+                {/* Subtitle matching Image 1 */}
+                <p className="mt-2 text-xs sm:text-sm text-slate-300">
+                  Atau klik di sini untuk memilih file berkas poster dari perangkat (drag & drop didukung)
                 </p>
+
+                {/* Feature Pills */}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                    <Sparkles className="w-3 h-3 text-cyan-400" />
+                    Copy Image &gt; Paste di tempat
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    Screenshot (Win+Shift+S) &gt; Paste
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800 text-slate-400 border border-white/10">
+                    Format: PNG, JPG, JPEG, WEBP (Maks 10MB)
+                  </span>
+                </div>
+
+                {/* Direct Button for Clipboard Click */}
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePasteImageFromClipboard();
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
+                    <Clipboard className="w-3.5 h-3.5" />
+                    <span>Tempel dari Clipboard Sekarang</span>
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-cyan-500/30 bg-slate-950/80 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="rounded-xl border border-cyan-500/40 bg-slate-950/80 p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
                   <div className="h-16 w-16 overflow-hidden rounded-xl border border-cyan-500/30 bg-black/40 flex-shrink-0">
                     <img src={posterBase64} alt="Poster loker" className="h-full w-full object-cover" />
@@ -2505,6 +2621,15 @@ function SmartAddJobSection({
                 </div>
 
                 <div className="flex items-center gap-2 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={handlePasteImageFromClipboard}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 text-xs text-cyan-300 transition"
+                    title="Tempel gambar / screenshot baru dari clipboard (Ctrl+V)"
+                  >
+                    <Clipboard className="w-3.5 h-3.5" />
+                    <span>Paste Baru (Ctrl+V)</span>
+                  </button>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700 transition"
