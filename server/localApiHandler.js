@@ -819,6 +819,8 @@ async function handleDbQuery(req, res) {
   const body = await parseJsonBody(req);
   const { table, action, data, filters = [], order, limit, range, onConflict, count } = body;
 
+  console.log('[handleDbQuery DEBUG] table:', table, 'ALLOWED_DB_TABLES size:', ALLOWED_DB_TABLES.size, 'has:', ALLOWED_DB_TABLES.has(table));
+
   if (!table || !ALLOWED_DB_TABLES.has(table)) {
     return sendJson(res, 400, { error: { message: 'Tabel tidak valid atau tidak terdaftar.' } });
   }
