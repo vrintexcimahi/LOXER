@@ -349,6 +349,32 @@ html.dark .badge {
   0%,100% { transform: translateY(0) scale(1); box-shadow: 0 8px 24px rgba(2, 132, 199, 0.10); }
   50% { transform: translateY(-3px) scale(1.01); box-shadow: 0 12px 28px rgba(34, 211, 238, 0.18); }
 }
+@keyframes ambient-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(35px, -25px) scale(1.08); }
+  66% { transform: translate(-25px, 20px) scale(0.94); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.06); }
+}
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-150%); }
+  100% { transform: translateX(250%); }
+}
+@keyframes float-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+@keyframes radar-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
 
 .animate-float { animation: float 4s ease-in-out infinite; }
 .animate-blob { animation: blob 12s linear infinite; }
@@ -357,6 +383,36 @@ html.dark .badge {
 .animate-bounce-y { animation: bounce-y 1.5s ease-in-out infinite; }
 .animate-count-up { animation: count-up 600ms ease-out forwards; }
 .animate-status-pill { animation: status-pill 3.2s ease-in-out infinite; }
+.animate-ambient-drift { animation: ambient-drift 18s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 5s ease-in-out infinite; }
+.animate-shimmer { animation: shimmer-sweep 2.8s ease-in-out infinite; }
+.animate-float-subtle { animation: float-subtle 4s ease-in-out infinite; }
+.animate-float-reverse { animation: float-reverse 4.5s ease-in-out infinite; }
+.animate-radar { animation: radar-pulse 2s cubic-bezier(0, 0.2, 0.8, 1) infinite; }
+
+.glass-panel {
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  box-shadow: 0 20px 50px -10px rgba(6, 182, 212, 0.28);
+}
+.glass-panel:focus-within {
+  border-color: rgba(34, 211, 238, 0.55);
+  box-shadow: 0 24px 60px -10px rgba(6, 182, 212, 0.42), 0 0 20px rgba(34, 211, 238, 0.2);
+}
+.glass-card-interactive {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-interactive:hover {
+  transform: translateY(-6px);
+  border-color: rgba(34, 211, 238, 0.45);
+  box-shadow: 0 20px 40px -8px rgba(6, 182, 212, 0.22);
+}
 
 .page-enter { animation: fade-slide-up 400ms ease-out forwards; }
 

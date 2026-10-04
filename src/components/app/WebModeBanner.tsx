@@ -47,8 +47,9 @@ export default function WebModeBanner() {
           <button
             type="button"
             onClick={() => openInstallModal('Melamar, Chat & Mendaftar')}
-            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-400 text-slate-950 text-xs font-extrabold shadow-md shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition cursor-pointer whitespace-nowrap"
+            className="relative overflow-hidden px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-400 text-slate-950 text-xs font-extrabold shadow-md shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer whitespace-nowrap group"
           >
+            <span className="absolute inset-0 w-1/2 h-full bg-white/30 skew-x-12 -translate-x-full group-hover:translate-x-[300%] transition-transform duration-700 pointer-events-none" />
             Download APK
           </button>
           <button
