@@ -15,6 +15,7 @@ import { AppAccessProvider, useAppAccess } from './contexts/AppAccessContext';
 import InstallAppModal from './components/app/InstallAppModal';
 import SecretAdminModal from './components/app/SecretAdminModal';
 import WebModeBanner from './components/app/WebModeBanner';
+import VisitorTracker from './components/VisitorTracker';
 
 const AuthModal = lazy(() => import('./pages/auth/AuthModal'));
 const SeekerDashboard = lazy(() => import('./pages/seeker/SeekerDashboard'));
@@ -349,6 +350,7 @@ export default function App() {
     <AuthProvider>
       <DeviceProvider>
         <AppAccessProvider>
+          <VisitorTracker />
           <Router />
         </AppAccessProvider>
       </DeviceProvider>

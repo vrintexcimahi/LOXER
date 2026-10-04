@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, type ComponentType } from 'react';
 import {
   RotateCcw,
   Lock,
-  Key,
   Sliders,
   Headphones,
   Check,
@@ -28,7 +27,6 @@ import {
   UserCheck,
   Search,
   ArrowLeft,
-  Save,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { logAdminAction } from '../../lib/adminUtils';
@@ -222,7 +220,7 @@ interface AdminRbacMatrixProps {
 export default function AdminRbacMatrix({
   adminId,
   adminEmail,
-  isSuperAdmin,
+  isSuperAdmin: _isSuperAdmin,
   onToast,
   onBackToAccounts,
 }: AdminRbacMatrixProps) {

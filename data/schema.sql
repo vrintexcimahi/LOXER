@@ -322,6 +322,33 @@ CREATE TABLE IF NOT EXISTS user_activity_logs (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- 22b. Web Traffic & Real-time Visitor Tracking Table (Guest & Registered Visitors)
+CREATE TABLE IF NOT EXISTS web_traffic_logs (
+  id TEXT PRIMARY KEY,
+  visitor_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  user_id TEXT,
+  user_email TEXT,
+  user_role TEXT DEFAULT 'guest',
+  path TEXT NOT NULL,
+  page_title TEXT,
+  referrer TEXT,
+  device_type TEXT,
+  browser TEXT,
+  os TEXT,
+  screen_res TEXT,
+  ip_address TEXT,
+  city TEXT,
+  duration_seconds INTEGER DEFAULT 0,
+  metadata TEXT DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_traffic_visitor_id ON web_traffic_logs(visitor_id);
+CREATE INDEX IF NOT EXISTS idx_traffic_session_id ON web_traffic_logs(session_id);
+CREATE INDEX IF NOT EXISTS idx_traffic_user_id ON web_traffic_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_traffic_created_at ON web_traffic_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_traffic_path ON web_traffic_logs(path);
+
 -- 23. Analytics Snapshots Table (God Mode Analytics)
 CREATE TABLE IF NOT EXISTS analytics_snapshots (
   id TEXT PRIMARY KEY,

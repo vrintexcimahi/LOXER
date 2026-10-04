@@ -971,6 +971,7 @@ const ALLOWED_DB_TABLES = new Set([
   'user_devices',
   'user_preferences',
   'user_activity_logs',
+  'web_traffic_logs',
   'analytics_snapshots',
   'talent_marketplace_posts',
   'direct_job_offers',
@@ -2792,6 +2793,335 @@ async function handleAuditLogsArchive(req, res) {
 }
 
 // ---------------------------------------------------------------------------
+// Real-Time Web Traffic & Visitor Tracking Engine (Guests & Registered Users)
+// ---------------------------------------------------------------------------
+
+async function handleTrafficTrack(req, res) {
+  try {
+    const ip = getClientIp(req) || '127.0.0.1';
+    const body = await parseJsonBody(req);
+    if (!body || typeof body !== 'object') {
+      return sendJson(res, 400, { ok: false, message: 'Invalid payload' });
+    }
+
+    const visitorId = String(body.visitor_id || body.visitorId || crypto.randomUUID()).slice(0, 100);
+    const sessionId = String(body.session_id || body.sessionId || crypto.randomUUID()).slice(0, 100);
+    const path = String(body.path || '/').slice(0, 255);
+    const pageTitle = body.page_title ? String(body.page_title).slice(0, 255) : null;
+    const referrer = body.referrer ? String(body.referrer).slice(0, 500) : null;
+    const deviceType = body.device_type ? String(body.device_type).slice(0, 32) : 'desktop';
+    const browser = body.browser ? String(body.browser).slice(0, 64) : null;
+    const os = body.os ? String(body.os).slice(0, 64) : null;
+    const screenRes = body.screen_res ? String(body.screen_res).slice(0, 32) : null;
+    const durationSeconds = Math.max(0, parseInt(body.duration_seconds || '0', 10) || 0);
+    const isHeartbeat = body.is_heartbeat === true;
+    const logId = body.log_id || null;
+
+    // Detect user authentication from token or body
+    let userId = null;
+    let userEmail = null;
+    let userRole = 'guest';
+
+    const token = parseBearerToken(req);
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded) {
+        userId = decoded.sub || decoded.userId || null;
+        userEmail = decoded.email || null;
+        userRole = decoded.role || 'seeker';
+      }
+    }
+
+    if (!userId && body.user_id) {
+      const foundUser = queryOne(
+        'SELECT u.id, u.email, um.role FROM users u LEFT JOIN users_meta um ON u.id = um.id WHERE u.id = ?',
+        [body.user_id]
+      );
+      if (foundUser) {
+        userId = foundUser.id;
+        userEmail = foundUser.email;
+        userRole = foundUser.role || 'seeker';
+      }
+    }
+
+    const now = new Date().toISOString();
+
+    // If it's a heartbeat update for existing logId or active session+path
+    if (isHeartbeat && logId) {
+      execute(
+        `UPDATE web_traffic_logs 
+         SET duration_seconds = ?,
+             user_id = COALESCE(?, user_id),
+             user_email = COALESCE(?, user_email),
+             user_role = CASE WHEN ? IS NOT NULL THEN ? ELSE user_role END
+         WHERE id = ?`,
+        [durationSeconds, userId, userEmail, userId, userRole, logId]
+      );
+      return sendJson(res, 200, { ok: true, log_id: logId, visitor_id: visitorId, session_id: sessionId });
+    }
+
+    if (isHeartbeat && !logId) {
+      const recentLog = queryOne(
+        `SELECT id FROM web_traffic_logs 
+         WHERE session_id = ? AND path = ? AND created_at >= datetime('now', '-30 minutes')
+         ORDER BY created_at DESC LIMIT 1`,
+        [sessionId, path]
+      );
+      if (recentLog) {
+        execute(
+          `UPDATE web_traffic_logs 
+           SET duration_seconds = ?,
+               user_id = COALESCE(?, user_id),
+               user_email = COALESCE(?, user_email),
+               user_role = CASE WHEN ? IS NOT NULL THEN ? ELSE user_role END
+           WHERE id = ?`,
+          [durationSeconds, userId, userEmail, userId, userRole, recentLog.id]
+        );
+        return sendJson(res, 200, { ok: true, log_id: recentLog.id, visitor_id: visitorId, session_id: sessionId });
+      }
+    }
+
+    // Otherwise, create a new web_traffic_log row
+    const newLogId = crypto.randomUUID();
+    const metadata = JSON.stringify({
+      utm_source: body.utm_source || null,
+      utm_medium: body.utm_medium || null,
+      utm_campaign: body.utm_campaign || null,
+      is_guest: !userId,
+    });
+
+    execute(
+      `INSERT INTO web_traffic_logs (
+        id, visitor_id, session_id, user_id, user_email, user_role,
+        path, page_title, referrer, device_type, browser, os,
+        screen_res, ip_address, city, duration_seconds, metadata, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newLogId,
+        visitorId,
+        sessionId,
+        userId,
+        userEmail,
+        userRole,
+        path,
+        pageTitle,
+        referrer,
+        deviceType,
+        browser,
+        os,
+        screenRes,
+        ip,
+        body.city || null,
+        durationSeconds,
+        metadata,
+        now,
+      ]
+    );
+
+    return sendJson(res, 200, {
+      ok: true,
+      log_id: newLogId,
+      visitor_id: visitorId,
+      session_id: sessionId,
+    });
+  } catch (err) {
+    console.error('[handleTrafficTrack Error]:', err.message);
+    return sendJson(res, 500, { ok: false, error: err.message });
+  }
+}
+
+async function handleTrafficStats(req, res) {
+  const adminCheck = verifyAdminRequest(req);
+  if (!adminCheck.ok) {
+    return sendJson(res, adminCheck.status || 401, { message: adminCheck.message || 'Unauthorized' });
+  }
+
+  try {
+    const urlObj = new URL(req.url, 'http://localhost');
+    const filter = urlObj.searchParams.get('filter') || 'all'; // 'all', 'guest', 'registered'
+    const search = (urlObj.searchParams.get('search') || '').trim().toLowerCase();
+    const page = Math.max(1, parseInt(urlObj.searchParams.get('page') || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(5, parseInt(urlObj.searchParams.get('page_size') || '25', 10) || 25));
+    const offset = (page - 1) * pageSize;
+
+    // 1. Core Summary Metrics
+    const totalPvRow = queryOne('SELECT COUNT(*) as c FROM web_traffic_logs');
+    const totalUvRow = queryOne('SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs');
+    const guestUvRow = queryOne("SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE user_role = 'guest' OR user_id IS NULL");
+    const registeredUvRow = queryOne("SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE user_role != 'guest' AND user_id IS NOT NULL");
+
+    // Online Now (last 5 minutes)
+    const onlineTotalRow = queryOne(
+      "SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE created_at >= datetime('now', '-5 minutes')"
+    );
+    const onlineGuestsRow = queryOne(
+      "SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE (user_role = 'guest' OR user_id IS NULL) AND created_at >= datetime('now', '-5 minutes')"
+    );
+    const onlineRegisteredRow = queryOne(
+      "SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE user_role != 'guest' AND user_id IS NOT NULL AND created_at >= datetime('now', '-5 minutes')"
+    );
+
+    // Today Metrics
+    const todayPvRow = queryOne("SELECT COUNT(*) as c FROM web_traffic_logs WHERE DATE(created_at) = DATE('now')");
+    const todayUvRow = queryOne("SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE DATE(created_at) = DATE('now')");
+    const todayGuestsRow = queryOne("SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE DATE(created_at) = DATE('now') AND (user_role = 'guest' OR user_id IS NULL)");
+
+    // 2. Traffic Growth Trend (Last 14 Days)
+    const trendRows = queryAll(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as pv,
+        COUNT(DISTINCT visitor_id) as uv,
+        COUNT(DISTINCT CASE WHEN user_role = 'guest' OR user_id IS NULL THEN visitor_id END) as guest_uv,
+        COUNT(DISTINCT CASE WHEN user_role != 'guest' AND user_id IS NOT NULL THEN visitor_id END) as registered_uv
+      FROM web_traffic_logs
+      WHERE created_at >= datetime('now', '-14 days')
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `);
+
+    // 3. Top Pages
+    const topPages = queryAll(`
+      SELECT 
+        path,
+        MAX(page_title) as title,
+        COUNT(*) as views,
+        COUNT(DISTINCT visitor_id) as unique_visitors,
+        ROUND(AVG(duration_seconds), 1) as avg_duration
+      FROM web_traffic_logs
+      GROUP BY path
+      ORDER BY views DESC
+      LIMIT 10
+    `);
+
+    // 4. Device Breakdown
+    const deviceStats = queryAll(`
+      SELECT 
+        COALESCE(device_type, 'unknown') as device,
+        COUNT(*) as count
+      FROM web_traffic_logs
+      GROUP BY device_type
+      ORDER BY count DESC
+    `);
+
+    // 5. Operating System Breakdown
+    const osStats = queryAll(`
+      SELECT 
+        COALESCE(os, 'Lainnya') as os_name,
+        COUNT(*) as count
+      FROM web_traffic_logs
+      GROUP BY os
+      ORDER BY count DESC
+      LIMIT 6
+    `);
+
+    // 6. Browser Breakdown
+    const browserStats = queryAll(`
+      SELECT 
+        COALESCE(browser, 'Lainnya') as browser_name,
+        COUNT(*) as count
+      FROM web_traffic_logs
+      GROUP BY browser
+      ORDER BY count DESC
+      LIMIT 6
+    `);
+
+    // 7. Paginated Visitor Log Table
+    const conditions = [];
+    const params = [];
+
+    if (filter === 'guest') {
+      conditions.push("(user_role = 'guest' OR user_id IS NULL)");
+    } else if (filter === 'registered') {
+      conditions.push("(user_role != 'guest' AND user_id IS NOT NULL)");
+    }
+
+    if (search) {
+      conditions.push(`(
+        LOWER(path) LIKE ? OR
+        LOWER(COALESCE(page_title, '')) LIKE ? OR
+        LOWER(COALESCE(ip_address, '')) LIKE ? OR
+        LOWER(COALESCE(user_email, '')) LIKE ? OR
+        LOWER(COALESCE(visitor_id, '')) LIKE ? OR
+        LOWER(COALESCE(browser, '')) LIKE ? OR
+        LOWER(COALESCE(os, '')) LIKE ?
+      )`);
+      const s = `%${search}%`;
+      params.push(s, s, s, s, s, s, s);
+    }
+
+    const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const countRow = queryOne(`SELECT COUNT(*) as total FROM web_traffic_logs ${whereSql}`, params);
+    const totalLogs = countRow?.total || 0;
+
+    const logs = queryAll(`
+      SELECT 
+        id, visitor_id, session_id, user_id, user_email, user_role,
+        path, page_title, referrer, device_type, browser, os, screen_res,
+        ip_address, city, duration_seconds, created_at,
+        CASE WHEN created_at >= datetime('now', '-5 minutes') THEN 1 ELSE 0 END as is_online
+      FROM web_traffic_logs
+      ${whereSql}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `, [...params, pageSize, offset]);
+
+    const formattedLogs = logs.map(l => ({
+      id: l.id,
+      visitorId: l.visitor_id,
+      sessionId: l.session_id,
+      userId: l.user_id,
+      userEmail: l.user_email,
+      userRole: l.user_role || (l.user_id ? 'seeker' : 'guest'),
+      isGuest: !l.user_id || l.user_role === 'guest',
+      path: l.path,
+      pageTitle: l.page_title || l.path,
+      referrer: l.referrer,
+      deviceType: l.device_type || 'desktop',
+      browser: l.browser || '—',
+      os: l.os || '—',
+      screenRes: l.screen_res || '—',
+      ip: l.ip_address,
+      maskedIp: maskIp(l.ip_address),
+      durationSeconds: l.duration_seconds || 0,
+      createdAt: l.created_at,
+      isOnline: Boolean(l.is_online),
+    }));
+
+    return sendJson(res, 200, {
+      stats: {
+        totalPv: totalPvRow?.c || 0,
+        totalUv: totalUvRow?.c || 0,
+        guestUv: guestUvRow?.c || 0,
+        registeredUv: registeredUvRow?.c || 0,
+        onlineNow: onlineTotalRow?.c || 0,
+        onlineGuests: onlineGuestsRow?.c || 0,
+        onlineRegistered: onlineRegisteredRow?.c || 0,
+        todayPv: todayPvRow?.c || 0,
+        todayUv: todayUvRow?.c || 0,
+        todayGuests: todayGuestsRow?.c || 0,
+      },
+      trend: trendRows,
+      topPages,
+      devices: deviceStats,
+      os: osStats,
+      browsers: browserStats,
+      logs: formattedLogs,
+      pagination: {
+        total: totalLogs,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(totalLogs / pageSize)),
+      },
+    });
+  } catch (err) {
+    console.error('[handleTrafficStats Error]:', err);
+    return sendJson(res, 500, { message: err.message || 'Gagal mengambil statistik trafik' });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main Router Middleware for Node.js http server / Vite
 // ---------------------------------------------------------------------------
 
@@ -2802,6 +3132,14 @@ export function createLocalDbMiddleware(env = {}) {
 
   return async (req, res, next) => {
     const url = req.url || '';
+
+    // Real-Time Web Traffic & Visitor Tracking (Public & Admin)
+    if (url.startsWith('/api/traffic/track') && req.method === 'POST') {
+      return handleTrafficTrack(req, res);
+    }
+    if (url.startsWith('/api/admin/traffic/stats') && req.method === 'GET') {
+      return handleTrafficStats(req, res);
+    }
 
     // Core Local API endpoints
     if (url.startsWith('/api/local/auth/signup') && req.method === 'POST') {

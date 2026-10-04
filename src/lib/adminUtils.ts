@@ -29,7 +29,7 @@ export async function logAdminAction(
   });
 }
 
-export function formatRelativeTime(isoDate?: string) {
+export function formatRelativeTime(isoDate?: string | null) {
   if (!isoDate) return '-';
   const date = new Date(isoDate);
   const now = new Date();

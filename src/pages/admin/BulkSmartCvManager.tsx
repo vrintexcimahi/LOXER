@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Upload,
-  FileText,
   Sparkles,
   Layers,
   Play,
@@ -10,27 +8,20 @@ import {
   Trash2,
   CheckCircle2,
   AlertTriangle,
-  XCircle,
   Eye,
   Send,
   FolderUp,
   FileUp,
   MapPin,
-  Briefcase,
-  GraduationCap,
   Clock,
   Lock,
   Download,
   Check,
-  ChevronRight,
-  User,
-  Sliders,
   X,
-  ExternalLink,
 } from 'lucide-react';
 import { ToastType } from './AdminTalentComponents';
 import { cropPasFotoFromImage, generateBlurredCvImage } from '../../lib/cvImageProcessor';
-import { cleanDomicileCity, maskPhoneNumber, maskEmail } from '../../lib/contactPrivacyService';
+import { cleanDomicileCity, maskPhoneNumber } from '../../lib/contactPrivacyService';
 
 interface PdfJsPage {
   getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
@@ -698,10 +689,7 @@ export function BulkSmartCvManager({
         <input
           ref={folderInputRef}
           type="file"
-          // @ts-expect-error webkitdirectory is standard in modern browsers
-          webkitdirectory=""
-          // @ts-expect-error directory is standard in modern browsers
-          directory=""
+          {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
           multiple
           onChange={(e) => e.target.files && addFilesToQueue(e.target.files)}
           className="hidden"

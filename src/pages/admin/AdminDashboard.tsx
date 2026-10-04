@@ -1494,7 +1494,7 @@ function AdminUsers({
 
   async function handleAddInternalAccount() {
     if (!supabase) return;
-    const { email, role, name } = addInternalForm;
+    const { email, role } = addInternalForm;
     if (!email || !role) return;
     setAddInternalLoading(true);
     try {
