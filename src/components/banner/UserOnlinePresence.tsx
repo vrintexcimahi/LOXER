@@ -4,8 +4,10 @@ export interface PresenceGroup {
   key: string;
   label: string;
   description: string;
+  shortDescription?: string;
   minOnline: number;
   maxOnline: number;
+  href: string;
 }
 
 export const USER_PRESENCE_GROUPS: PresenceGroup[] = [
@@ -13,22 +15,28 @@ export const USER_PRESENCE_GROUPS: PresenceGroup[] = [
     key: 'seeker',
     label: 'Seeker',
     description: 'Pencari Kerja',
+    shortDescription: 'Pencari Kerja',
     minOnline: 750,
     maxOnline: 16500,
+    href: '/browse',
   },
   {
     key: 'employer',
     label: 'Employer',
     description: 'Perusahaan',
+    shortDescription: 'Perusahaan',
     minOnline: 250,
     maxOnline: 3500,
+    href: '/talents?availability=fulltime',
   },
   {
     key: 'freelancer',
     label: 'Jasa',
     description: 'Penyedia Jasa Mandiri',
+    shortDescription: 'Jasa Mandiri',
     minOnline: 150,
     maxOnline: 1750,
+    href: '/talents?availability=freelance',
   },
 ];
 
@@ -106,25 +114,46 @@ export default function UserOnlinePresence({ className = '' }: UserOnlinePresenc
   }));
 
   return (
-    <div className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 ${className}`}>
+    <div
+      className={`w-full grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 ${className}`}
+      role="region"
+      aria-label="Statistik Pengguna Online Real-time"
+    >
       {userPresence.map((group) => (
-        <div
+        <a
           key={group.key}
-          className="animate-status-pill flex items-center gap-2.5 rounded-2xl border border-cyan-400/25 bg-slate-900/80 hover:bg-slate-900/95 hover:border-cyan-400/50 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs text-slate-100 shadow-lg shadow-cyan-950/40 backdrop-blur-md transition-all duration-200"
+          href={group.href}
+          className="animate-status-pill group relative flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-cyan-400/25 bg-slate-900/85 hover:bg-slate-900/95 hover:border-cyan-400/50 p-2 sm:px-4 sm:py-2.5 text-slate-100 shadow-lg shadow-cyan-950/40 backdrop-blur-md transition-all duration-200 min-w-0 w-full overflow-hidden active:scale-[0.98]"
+          title={`${group.label} (${group.description}) - ${group.online} online. Klik untuk membuka.`}
         >
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)] flex-shrink-0">
-            <span className="absolute inset-0 rounded-full bg-emerald-300/70 animate-ping" />
+          {/* Subtle gradient hover highlight */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+          {/* Glowing emerald ping dot */}
+          <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 flex-shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.85)]" />
           </span>
-          <div className="leading-tight text-left">
-            <p className="font-semibold text-white text-xs sm:text-[13px]">
-              {group.label} <span className="text-slate-300 font-medium text-[11px]">({group.description})</span>
+
+          {/* Text Information */}
+          <div className="leading-tight text-left min-w-0 flex-1">
+            <p className="font-bold text-white text-[11px] sm:text-xs md:text-sm truncate">
+              {group.label}
+              <span className="hidden sm:inline lg:hidden text-slate-300 font-normal text-[10px] sm:text-xs ml-1">
+                ({group.shortDescription || group.description})
+              </span>
+              <span className="hidden lg:inline text-slate-300 font-normal text-[10px] sm:text-xs ml-1">
+                ({group.description})
+              </span>
             </p>
-            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-cyan-200 font-medium mt-0.5">
-              <span className="text-cyan-100 font-bold">{group.online}</span>
-              <span>online</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs mt-0.5">
+              <span className="font-bold text-cyan-300 group-hover:text-cyan-100 transition-colors">
+                {group.online}
+              </span>
+              <span className="text-slate-400 text-[9px] sm:text-[11px]">online</span>
             </div>
           </div>
-        </div>
+        </a>
       ))}
     </div>
   );
