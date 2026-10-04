@@ -28,6 +28,7 @@ const PostJob = lazy(() => import('./pages/employer/PostJob'));
 const Applicants = lazy(() => import('./pages/employer/Applicants'));
 const CompanyProfile = lazy(() => import('./pages/employer/CompanyProfile'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminInternalLogin = lazy(() => import('./pages/admin/AdminInternalLogin'));
 const AdvancedAnalytics = lazy(() => import('./pages/admin/AdvancedAnalytics'));
 const FeatureFlags = lazy(() => import('./pages/admin/FeatureFlags'));
 const ModerationQueue = lazy(() => import('./pages/admin/ModerationQueue'));
@@ -227,6 +228,10 @@ VITE_SUPABASE_ANON_KEY=...`}
     if (path === '/employer/applicants') return isRoleAuthorized('employer') ? <Applicants /> : null;
     if (path === '/employer/company') return isRoleAuthorized('employer') ? <CompanyProfile /> : null;
 
+    if (path === '/akses/superadmin' || path === '/akses/admin' || path === '/admin-login') {
+      return <AdminInternalLogin />;
+    }
+
     if (path.startsWith('/admin/')) {
       const isSuper = isRoleAuthorized('superadmin');
       const isAdmin = isRoleAuthorized('admin') || isSuper;
@@ -280,6 +285,8 @@ VITE_SUPABASE_ANON_KEY=...`}
   if (page === null && path !== '/') {
     if ((path === '/login' || path === '/register') && !user) {
       // Allow unauthenticated visitor to view the login or register modal on homepage
+    } else if (path === '/akses/superadmin' || path === '/akses/admin' || path === '/admin-login') {
+      // Allow unauthenticated internal staff to access the portal
     } else {
       const homePath = getHomePathByRole();
       if (homePath !== path && !homePath.startsWith(path)) {

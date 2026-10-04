@@ -74,11 +74,10 @@ function getNextOnlineUsers(current: number, min: number, max: number) {
   return clampValue(current + (direction * delta), min, max);
 }
 
-export default function Navbar({ onLogin, onRegister }: NavbarProps) {
+export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: NavbarProps) {
   const { user, userMeta, signOut } = useAuth();
   const {
     isSuperAdmin,
-    requireApp,
     openInstallModal,
     openSecretAdminModal,
     lockSuperAdmin,
@@ -423,25 +422,14 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
                   )}
                 </div>
               </>
-            ) : (
-              <>
-                <button
-                  onClick={onLogin}
-                  className="text-white text-sm font-medium hover:text-cyan-400 transition-colors cursor-pointer"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => {
-                    if (!requireApp('Mendaftar Akun')) return;
-                    onRegister?.('seeker');
-                  }}
-                  className="gradient-cta text-white rounded-full px-5 py-2 text-sm font-semibold shadow-lg shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all duration-150 cursor-pointer"
-                >
-                  Get Started
-                </button>
-              </>
-            )}
+            ) : isUnlocked || isSuperAdmin ? (
+              <a
+                href="/admin/dashboard"
+                className="gradient-cta text-white rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all inline-flex items-center gap-1.5"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" /> Portal Admin
+              </a>
+            ) : null}
           </div>
 
           {/* Mobile hamburger */}
@@ -609,26 +597,15 @@ export default function Navbar({ onLogin, onRegister }: NavbarProps) {
             </>
           ) : (
             <>
-              <button onClick={onLogin} className="text-white text-sm font-medium text-left">Sign In</button>
-              <button onClick={() => {
-                setMobileOpen(false);
-                if (!requireApp('Mendaftar sebagai Perusahaan')) return;
-                onRegister?.('employer');
-              }} className="text-cyan-400 text-sm font-medium text-left">Daftar sebagai Perusahaan</button>
               {(isUnlocked || isSuperAdmin) && (
                 <a
                   href="/admin/dashboard"
                   onClick={() => setMobileOpen(false)}
-                  className="text-cyan-300 text-sm font-semibold inline-flex items-center gap-2"
+                  className="gradient-cta text-white rounded-xl px-5 py-2.5 text-sm font-semibold w-full text-center inline-flex items-center justify-center gap-2"
                 >
-                  <ShieldCheck className="w-4 h-4 text-cyan-400" /> Portal Admin (God Mode)
+                  <ShieldCheck className="w-4 h-4" /> Portal Admin
                 </a>
               )}
-              <button onClick={() => {
-                setMobileOpen(false);
-                if (!requireApp('Mendaftar Akun')) return;
-                onRegister?.('seeker');
-              }} className="gradient-cta text-white rounded-xl px-5 py-3 text-sm font-semibold w-full">Get Started Free</button>
             </>
           )}
         </div>

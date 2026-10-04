@@ -1,4 +1,4 @@
-import { Home, Search, ShoppingBag, User, Briefcase } from 'lucide-react';
+import { Home, Search, ShoppingBag, User, Briefcase, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 
 interface PublicMobileBottomNavProps {
@@ -8,7 +8,7 @@ interface PublicMobileBottomNavProps {
 
 export default function PublicMobileBottomNav({
   currentPath = typeof window !== 'undefined' ? window.location.pathname : '/',
-  onLogin,
+  onLogin: _onLogin,
 }: PublicMobileBottomNavProps) {
   const { user, userMeta } = useAuth();
 
@@ -19,7 +19,16 @@ export default function PublicMobileBottomNav({
     return '/seeker/dashboard';
   };
 
-  const navItems = [
+  interface NavItem {
+    label: string;
+    icon: typeof Home;
+    href: string;
+    active: boolean;
+    isCenterAction?: boolean;
+    onClick?: () => void;
+  }
+
+  const navItems: NavItem[] = [
     {
       label: 'Home',
       icon: Home,
@@ -46,11 +55,10 @@ export default function PublicMobileBottomNav({
       active: currentPath.startsWith('/employer'),
     },
     {
-      label: user ? 'Profil' : 'Masuk',
-      icon: User,
-      href: user ? getDashboardPath() : '#login',
-      active: false,
-      onClick: !user ? onLogin : undefined,
+      label: user ? 'Profil' : 'Bursa Talent',
+      icon: user ? User : Users,
+      href: user ? getDashboardPath() : '/talents',
+      active: currentPath.startsWith('/talents'),
     },
   ];
 
