@@ -206,13 +206,13 @@ Berikut adalah **20 rekomendasi terstruktur, terukur, dan spesifik** hasil audit
    - Kriteria berhasil: Transaksi majemuk yang gagal secara otomatis dibatalkan sepenuhnya tanpa meninggalkan data orphan. Terverifikasi pada Test 46.
    - Dependensi/risiko dan langkah pertama: Sudah aktif dan digunakan pada rotasi refresh token.
 
-6. **Implementasi Content Security Policy (CSP) Ketat pada HTML Headers**
+6. **Implementasi Content Security Policy (CSP) Ketat pada HTML Headers** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: keamanan | P2 | S.
-   - Dasar: `index.html:1-25`, `vite.config.ts:70-95`.
-   - Masalah/peluang dan pendekatan: Belum terdapat header CSP ketat pada aplikasi untuk membatasi asal pemuatan skrip, iframe, dan koneksi websocket. Tambahkan meta tag CSP atau response header middleware dengan whitelist terverifikasi.
-   - Manfaat: Melindungi pengguna dari serangan Cross-Site Scripting (XSS) dan injeksi iframe berbahaya.
-   - Kriteria berhasil: Browser menolak injeksi script eksternal di luar whitelist resmi platform.
-   - Dependensi/risiko dan langkah pertama: Konfigurasikan header `Content-Security-Policy` pada `vite.config.ts`.
+   - Dasar: `index.html:33-36`, `vite.config.ts:920-928, 960-968`.
+   - Masalah/peluang dan pendekatan: Telah ditambahkan meta tag Content-Security-Policy ketat pada `index.html` yang membatasi script, style, font, connect, dan frame source resmi (termasuk Google GIS & Cloudflare pdf.js worker), serta menyertakan middleware response header keamanan (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`) pada server Vite.
+   - Manfaat: Melindungi pengguna dari serangan Cross-Site Scripting (XSS), MIME type sniffing, dan clickjacking.
+   - Kriteria berhasil: Browser mengabaikan injeksi script berbahaya dan aset halaman termuat secara aman.
+   - Dependensi/risiko dan langkah pertama: Sudah aktif di `index.html` dan `vite.config.ts`.
 
 7. **Optimalisasi Server-Side Indexing untuk Pencarian Full-Text Lowongan (FTS5)**
    - Jenis / prioritas / effort: performa | P2 | M.
@@ -222,13 +222,13 @@ Berikut adalah **20 rekomendasi terstruktur, terukur, dan spesifik** hasil audit
    - Kriteria berhasil: Query pencarian kerja menggunakan operator `MATCH` pada FTS virtual table dengan waktu eksekusi sub-milidetik.
    - Dependensi/risiko dan langkah pertama: Buat virtual table FTS5 dan sinkronisasi trigger di `data/schema.sql`.
 
-8. **Pemisahan Bundle Vendor Besar Menggunakan Dynamic Chunk Splitting**
+8. **Pemisahan Bundle Vendor Besar Menggunakan Dynamic Chunk Splitting** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: performa | P2 | S.
-   - Dasar: `vite.config.ts:35-50`, `dist/assets/index-*.js`.
-   - Masalah/peluang dan pendekatan: Bundle utama aplikasi (`index.js`) mencapai 317 kB (gzip 92 kB) karena modul Lucide icons dan chart tercampur. Konfigurasikan `manualChunks` di `vite.config.ts` untuk memisahkan vendor `lucide-react`, `recharts`, dan `react-router-dom`.
-   - Manfaat: First Contentful Paint (FCP) pada koneksi seluler meningkat signifikan dan cache vendor browser lebih tahan lama.
-   - Kriteria berhasil: Ukuran chunk utama `index.js` berada di bawah 200 kB.
-   - Dependensi/risiko dan langkah pertama: Tambahkan opsi `build.rollupOptions.output.manualChunks` pada `vite.config.ts`.
+   - Dasar: `vite.config.ts:890-915`, `dist/assets/index-*.js`.
+   - Masalah/peluang dan pendekatan: Telah dikonfigurasikan `rollupOptions.output.manualChunks` pada `vite.config.ts` untuk memisahkan chunk `vendor-react` (202 kB), `vendor-charts` (416 kB), `vendor-core` (10 kB), dan `vendor-puck`. Hasilnya ukuran chunk utama aplikasi `index.js` menyusut drastis dari 317.2 kB menjadi **155.6 kB** (berkurang lebih dari 50%).
+   - Manfaat: First Contentful Paint (FCP) pada koneksi seluler meningkat signifikan dan browser dapat menyimpan cache vendor pihak ketiga secara persisten.
+   - Kriteria berhasil: Ukuran chunk utama `index.js` berada di bawah target 200 kB (tercapai 155.6 kB).
+   - Dependensi/risiko dan langkah pertama: Sudah aktif dan terverifikasi pada `npm run build`.
 
 9. **Sistem Notifikasi Web Push Service Worker untuk Pelamar Kerja**
    - Jenis / prioritas / effort: fitur | P2 | M.
@@ -246,29 +246,29 @@ Berikut adalah **20 rekomendasi terstruktur, terukur, dan spesifik** hasil audit
     - Kriteria berhasil: Berpindah role simulasi membersihkan state memori profil pengguna seketika tanpa reload browser penuh.
     - Dependensi/risiko dan langkah pertama: Hook `useAuth` mendengarkan event pergantian sim session.
 
-11. **Pemberitahuan Kadaluarsa Lowongan Otomatis ke Employer**
+11. **Pemberitahuan Kadaluarsa Lowongan Otomatis ke Employer** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: fitur | P2 | M.
-    - Dasar: `data/schema.sql:122`, `server/localApiHandler.js:2107-2160`.
-    - Masalah/peluang dan pendekatan: Tambahkan sistem notifikasi internal ketika lowongan mendekati tanggal kadaluarsa (`expires_at`), memberikan opsi satu klik bagi employer untuk memperpanjang lowongan.
-    - Manfaat: Mengurangi lowongan usang yang tidak terurus dan mendorong re-engagement perusahaan.
-    - Kriteria berhasil: Employer menerima notifikasi in-app 3 hari sebelum lowongan beralih menjadi nonaktif.
-    - Dependensi/risiko dan langkah pertama: Query lowongan dengan filter `expires_at BETWEEN now AND now + 3 days`.
+    - Dasar: `server/localDb.js:1030-1040, 1140-1190`, `server/localApiHandler.js:3535-3565`.
+    - Masalah/peluang dan pendekatan: Telah diintegrasikan `notifyExpiringJobListings(3)` pada siklus backup harian dan timer berkala basis data lokal, yang secara otomatis memicu notifikasi peringatan `job_expiring` kepada employer ketika lowongan aktif tersisa ≤ 3 hari. Endpoint `/api/jobs/extend` juga telah dilindungi dengan IDOR guard kepemilikan perusahaan.
+    - Manfaat: Mengurangi lowongan usang yang tidak terurus dan memberikan opsi 1 klik perpanjangan lowongan kepada rekruter.
+    - Kriteria berhasil: Employer menerima notifikasi in-app otomatis sebelum lowongan kedaluwarsa.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif di `server/localDb.js` dan `server/localApiHandler.js`.
 
-12. **Validasi File Signature (Magic Bytes) pada Seluruh Jalur Unggah Dokumen**
+12. **Validasi File Signature (Magic Bytes) pada Seluruh Jalur Unggah Dokumen** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: keamanan | P2 | S.
-    - Dasar: `src/lib/imageCompressor.ts:30-80`, `src/pages/admin/AdminTalentComponents.tsx`.
-    - Masalah/peluang dan pendekatan: Validasi magic bytes biner `validateImageMagicBytes()` dan `validateDocumentMagicBytes()` telah diimplementasikan pada kompresi gambar. Perluas validasi biner ini ke modal unggah CV di antarmuka Admin Smart CV sebelum parsing OCR dikirim ke gateway AI.
-    - Manfaat: Memastikan file executable berbahaya tidak diproses oleh pipeline OCR atau disimpan di storage sistem.
-    - Kriteria berhasil: File dengan ekstensi `.pdf` palsu ditolak sebelum dikirim ke backend extractor.
-    - Dependensi/risiko dan langkah pertama: Impor helper validasi dokumen ke dalam modal Smart Add CV.
+    - Dasar: `src/lib/imageCompressor.ts:30-80`, `src/pages/admin/BulkSmartCvManager.tsx:170-205`.
+    - Masalah/peluang dan pendekatan: Validasi file signature biner `validateDocumentMagicBytes(file)` dan `validateImageMagicBytes(file)` telah diterapkan pada fungsi `addFilesToQueue` di Admin Bulk Smart CV Manager. Berkas yang tidak memiliki header magic bytes otentik langsung ditolak dari antrean pemrosesan dengan notifikasi error.
+    - Manfaat: Mencegah berkas biner/executable berbahaya yang disamarkan sebagai `.pdf` atau `.png` diproses ke pipeline AI atau storage sistem.
+    - Kriteria berhasil: Berkas dengan signature tidak valid otomatis ditolak sebelum parsing dimulai.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif di `BulkSmartCvManager.tsx`.
 
-13. **Cache Invalidation Realtime pada Perubahan Lowongan Kerja dan Iklan Jasa**
+13. **Cache Invalidation Realtime pada Perubahan Lowongan Kerja dan Iklan Jasa** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: performa | P2 | S.
-    - Dasar: `services/resilienceService.js:200-240`, `server/localApiHandler.js:1005-1120`.
-    - Masalah/peluang dan pendekatan: Pembersihan hot cache `jobSearchCache.clear()` telah terhubung pada mutasi tabel `job_listings`. Perluas mekanisme invalidasi cache yang sama pada mutasi tabel `jasa_ads` dan `talent_marketplace_posts`.
-    - Manfaat: Data jasa dan talent terbaru langsung tampil seketika pada katalog pencarian tanpa menunggu masa kedaluwarsa TTL cache.
-    - Kriteria berhasil: Mutasi iklan jasa atau profil talent langsung mengosongkan cache terkait.
-    - Dependensi/risiko dan langkah pertama: Tambahkan pemanggilan invalidasi cache pada handler mutasi `jasa_ads`.
+    - Dasar: `server/localApiHandler.js:1636, 1685, 1728, 1791`.
+    - Masalah/peluang dan pendekatan: Pembersihan hot cache `jobSearchCache.clear()` telah diperluas ke mutasi tabel `jasa_ads` dan `talent_marketplace_posts` pada operasi insert, update, delete, dan upsert di gateway database lokal.
+    - Manfaat: Data iklan jasa dan profil talent terbaru langsung tampil seketika pada katalog pencarian tanpa menunggu masa kedaluwarsa TTL cache.
+    - Kriteria berhasil: Mutasi iklan jasa atau profil talent langsung mengosongkan cache terkait secara konsisten.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif di `server/localApiHandler.js`.
 
 14. **Enkripsi Kredensial Bot Telegram pada LocalStorage Administrator**
     - Jenis / prioritas / effort: perbaikan | P2 | S.

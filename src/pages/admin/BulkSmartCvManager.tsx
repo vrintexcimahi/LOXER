@@ -22,6 +22,7 @@ import {
 import { ToastType } from './AdminTalentComponents';
 import { cropPasFotoFromImage, generateBlurredCvImage } from '../../lib/cvImageProcessor';
 import { cleanDomicileCity, maskPhoneNumber } from '../../lib/contactPrivacyService';
+import { validateDocumentMagicBytes, validateImageMagicBytes } from '../../lib/imageCompressor';
 
 interface PdfJsPage {
   getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
@@ -166,16 +167,33 @@ export function BulkSmartCvManager({
     });
   };
 
-  // Convert files into BulkCvItem list
-  const addFilesToQueue = useCallback((newFiles: FileList | File[]) => {
+  // Convert files into BulkCvItem list with Magic Bytes signature validation
+  const addFilesToQueue = useCallback(async (newFiles: FileList | File[]) => {
     const validItems: BulkCvItem[] = [];
     const filesArray = Array.from(newFiles);
+    let rejectedCount = 0;
 
     for (let i = 0; i < filesArray.length; i++) {
       const file = filesArray[i];
       const lower = file.name.toLowerCase();
       const isPdf = file.type === 'application/pdf' || lower.endsWith('.pdf');
       const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(lower);
+
+      if (isPdf) {
+        const isValidMagic = await validateDocumentMagicBytes(file);
+        if (!isValidMagic) {
+          console.warn(`[BulkSmartCv] Magic bytes invalid for PDF: ${file.name}`);
+          rejectedCount++;
+          continue;
+        }
+      } else if (isImage) {
+        const isValidMagic = await validateImageMagicBytes(file);
+        if (!isValidMagic) {
+          console.warn(`[BulkSmartCv] Magic bytes invalid for Image: ${file.name}`);
+          rejectedCount++;
+          continue;
+        }
+      }
 
       if (isPdf || isImage) {
         validItems.push({
@@ -190,14 +208,20 @@ export function BulkSmartCvManager({
       }
     }
 
+    if (rejectedCount > 0) {
+      onToast('error', `${rejectedCount} berkas ditolak karena file signature (magic bytes) tidak valid atau rusak.`);
+    }
+
     if (validItems.length === 0) {
-      onToast('error', 'Tidak ada file PDF atau Gambar valid yang dipilih.');
+      if (rejectedCount === 0) {
+        onToast('error', 'Tidak ada file PDF atau Gambar valid yang dipilih.');
+      }
       return;
     }
 
     setItems((prev) => [...prev, ...validItems]);
     setIsQueueRunning(true);
-    onToast('success', `Berhasil menambahkan ${validItems.length} berkas CV ke antrean pemrosesan AI!`);
+    onToast('success', `Berhasil menambahkan ${validItems.length} berkas CV terverifikasi ke antrean pemrosesan AI!`);
   }, [onToast]);
 
   // Initial files if passed from parent

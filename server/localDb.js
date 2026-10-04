@@ -1033,6 +1033,9 @@ export function startAutoBackupSchedule(intervalMs = 24 * 60 * 60 * 1000) {
       console.log('[localDb] Menjalankan scheduled database snapshot otomatis...');
       createDatabaseSnapshot('cron-auto');
       pruneOldSnapshots(7);
+      purgeOldAuditLogs(90);
+      purgeOldActivityLogs(60);
+      notifyExpiringJobListings(3);
     } catch (err) {
       console.warn('[localDb] Scheduled database snapshot notice:', err.message);
     }

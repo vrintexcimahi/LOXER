@@ -888,12 +888,41 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) {
+                return 'vendor-react';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-lucide';
+              }
+              if (id.includes('recharts') || id.includes('d3-')) {
+                return 'vendor-charts';
+              }
+              if (id.includes('@measured/puck')) {
+                return 'vendor-puck';
+              }
+              if (id.includes('@supabase') || id.includes('dayjs')) {
+                return 'vendor-core';
+              }
+            }
+          },
+        },
+      },
     },
     plugins: [
       react(),
       {
         name: 'job-api-integrations-proxy',
         configureServer(server) {
+          server.middlewares.use((_req: IncomingMessage, res: ServerResponse, next: () => void) => {
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+            res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+            next();
+          });
           server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
             const urlPath = req.url?.split('?')[0];
             if (urlPath === '/downloads/loxer-app.apk') {
@@ -929,6 +958,12 @@ export default defineConfig(({ mode }) => {
           server.middlewares.use(authCapabilitiesMiddleware);
         },
         configurePreviewServer(server) {
+          server.middlewares.use((_req: IncomingMessage, res: ServerResponse, next: () => void) => {
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+            res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+            next();
+          });
           server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
             const urlPath = req.url?.split('?')[0];
             if (urlPath === '/downloads/loxer-app.apk') {

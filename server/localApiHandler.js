@@ -1633,7 +1633,7 @@ async function handleDbQuery(req, res) {
         insertedRows.push(enrichRowRelations(table, inserted));
       }
 
-      if (table === 'job_listings') jobSearchCache.clear();
+      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts') jobSearchCache.clear();
       const result = Array.isArray(data) ? insertedRows : insertedRows[0];
       return sendJson(res, 200, { data: result, error: null });
     }
@@ -1682,7 +1682,7 @@ async function handleDbQuery(req, res) {
         }
       }
 
-      if (table === 'job_listings') jobSearchCache.clear();
+      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts') jobSearchCache.clear();
       const updatedRows = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
       return sendJson(res, 200, { data: enrichRowsRelations(table, updatedRows), error: null });
     }
@@ -1725,7 +1725,7 @@ async function handleDbQuery(req, res) {
 
       execute(`DELETE FROM "${table}" ${whereSql}`, params);
 
-      if (table === 'job_listings') jobSearchCache.clear();
+      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts') jobSearchCache.clear();
       return sendJson(res, 200, { data: toDelete, error: null });
     }
 
@@ -1788,7 +1788,7 @@ async function handleDbQuery(req, res) {
         execute(sql, values);
       }
 
-      if (table === 'job_listings') jobSearchCache.clear();
+      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts') jobSearchCache.clear();
       const resRow = hasAllConflictValues
         ? queryOne(`SELECT * FROM "${table}" WHERE ${conflictWhere}`, conflictValues)
         : (record.id ? queryOne(`SELECT * FROM "${table}" WHERE id = ?`, [record.id]) : null);
