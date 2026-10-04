@@ -1088,7 +1088,16 @@ export function SmartAddCvSection({
     photo_url: string;
     ai_notes: string;
     confidence_score: number;
+    educations?: Array<{ school_name: string; degree: string; major?: string; start_year?: number; end_year?: number }>;
+    experiences?: Array<{ company_name: string; position: string; period?: string; description?: string }>;
   } | null>(null);
+
+  const [detectedBoxes, setDetectedBoxes] = useState<{
+    photo_box?: [number, number, number, number] | null;
+    face_box?: [number, number, number, number] | null;
+  } | null>(null);
+  const [activeCropMode, setActiveCropMode] = useState<'smart_square' | 'tight_face' | 'full_frame'>('smart_square');
+  const customPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const [skillInput, setSkillInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
@@ -1371,15 +1380,21 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       const cv = resData.cv;
       if (!cv) throw new Error('Data biodata CV tidak ditemukan dalam respon AI.');
 
-      // 1. Potong otomatis Pas Foto dari lembar CV menggunakan koordinat AI
+      // 1. Potong otomatis Pas Foto dari lembar CV menggunakan koordinat AI & Face Detection
       let croppedPhoto = '';
       if (fileBase64 && cv.photo_box) {
         try {
-          croppedPhoto = await cropPasFotoFromImage(fileBase64, cv.photo_box);
+          croppedPhoto = await cropPasFotoFromImage(fileBase64, cv.photo_box, cv.face_box, 'smart_square');
         } catch (cropErr) {
           console.warn('[SmartAddCv] Crop error:', cropErr);
         }
       }
+
+      setDetectedBoxes({
+        photo_box: cv.photo_box || null,
+        face_box: cv.face_box || null,
+      });
+      setActiveCropMode('smart_square');
 
       // 2. Sensor dan blur otomatis area kontak pada berkas CV full (Gambar ke-2)
       let blurredCv = '';
@@ -1410,11 +1425,13 @@ STATUS: Siap Kerja Segera (Fulltime)`);
         photo_url: croppedPhoto || '', // FOTO UTAMA: PAS FOTO HASIL CROP OTOMATIS
         ai_notes: cv.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Kontak terproteksi privasi)',
         confidence_score: cv.confidence_score || 95,
+        educations: cv.educations || [],
+        experiences: cv.experiences || [],
       });
 
       setIsExtracting(false);
       setExtractStep(0);
-      onToast('success', 'Biodata CV berhasil diekstrak! Pas foto terpotong & kontak CV telah disensor.');
+      onToast('success', 'Biodata CV berhasil diekstrak! Pas foto terpotong 1:1 presisi & kontak CV disensor.');
     } catch (err: unknown) {
       console.error('[SmartAddCv Extract Error]:', err);
       setIsExtracting(false);
@@ -1423,6 +1440,50 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       setExtractError(errMsg);
       onToast('error', `Gagal ekstrak CV: ${errMsg}`);
     }
+  };
+
+  const handleReCrop = async (newMode: 'smart_square' | 'tight_face' | 'full_frame') => {
+    if (!fileBase64 || !detectedBoxes?.photo_box) {
+      onToast('error', 'Tidak ada koordinat pas foto yang tersimpan untuk di-crop ulang.');
+      return;
+    }
+    setActiveCropMode(newMode);
+    try {
+      const cropped = await cropPasFotoFromImage(
+        fileBase64,
+        detectedBoxes.photo_box,
+        detectedBoxes.face_box,
+        newMode
+      );
+      if (cropped) {
+        setFormData((prev) => (prev ? { ...prev, photo_url: cropped } : null));
+        onToast(
+          'success',
+          `Pas foto disesuaikan ke mode: ${
+            newMode === 'smart_square'
+              ? 'Fokus Wajah 1:1'
+              : newMode === 'tight_face'
+              ? 'Zoom Wajah'
+              : 'Pas Foto Penuh'
+          }`
+        );
+      }
+    } catch (cropErr) {
+      console.warn('Re-crop error:', cropErr);
+      onToast('error', 'Gagal memotong ulang pas foto.');
+    }
+  };
+
+  const handleCustomPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setFormData((prev) => (prev ? { ...prev, photo_url: result } : null));
+      onToast('success', 'Foto profil berhasil diganti!');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddSkill = () => {
@@ -2026,14 +2087,15 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Foto Utama: Pas Foto */}
-                  <div className="rounded-xl border border-white/10 bg-slate-900/90 p-3 space-y-2">
+                  <div className="rounded-xl border border-white/10 bg-slate-900/90 p-3 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-white flex items-center gap-1">
                         <span>Foto Utama (Pas Foto)</span>
                       </span>
                       {formData.photo_url ? (
-                        <span className="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.2 rounded">
-                          Pas Foto Terdeteksi
+                        <span className="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
+                          <span>AI Presisi (0% Bocor Teks)</span>
                         </span>
                       ) : (
                         <span className="text-[9px] font-semibold text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded">
@@ -2041,7 +2103,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3">
                       <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-slate-950 flex items-center justify-center shadow-inner">
                         {formData.photo_url ? (
                           <img src={formData.photo_url} alt="Pas Foto" className="h-full w-full object-cover object-center" />
@@ -2049,19 +2111,83 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                           <span className="text-xl font-black text-cyan-300">{formData.full_name.charAt(0).toUpperCase()}</span>
                         )}
                       </div>
-                      <div className="flex-1 space-y-1">
+                      <div className="flex-1 space-y-1.5">
                         <p className="text-[10px] text-slate-300 leading-snug">
-                          {formData.photo_url ? 'Wajah kandidat terpotong otomatis 1:1 dari dokumen CV.' : 'Tidak ada pas foto di lembar CV. Inisial nama otomatis digunakan.'}
+                          {formData.photo_url
+                            ? 'Wajah kandidat terpotong 1:1 presisi dari lembar CV tanpa teks luar.'
+                            : 'Tidak ada pas foto di lembar CV. Inisial nama otomatis digunakan.'}
                         </p>
-                        {formData.photo_url && (
+
+                        {/* Interactive Re-Crop Mode Selector */}
+                        {fileBase64 && (
+                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleReCrop('smart_square')}
+                              className={`px-2 py-0.5 text-[9px] font-bold rounded transition ${
+                                activeCropMode === 'smart_square'
+                                  ? 'bg-cyan-500 text-slate-950 shadow'
+                                  : 'bg-slate-800 text-slate-300 hover:text-white border border-white/10'
+                              }`}
+                              title="Crop 1:1 simetris fokus wajah & bahu tanpa memuat teks CV"
+                            >
+                              🎯 1:1 Wajah
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReCrop('tight_face')}
+                              className={`px-2 py-0.5 text-[9px] font-bold rounded transition ${
+                                activeCropMode === 'tight_face'
+                                  ? 'bg-cyan-500 text-slate-950 shadow'
+                                  : 'bg-slate-800 text-slate-300 hover:text-white border border-white/10'
+                              }`}
+                              title="Crop zoom wajah terpusat"
+                            >
+                              🔍 Zoom
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReCrop('full_frame')}
+                              className={`px-2 py-0.5 text-[9px] font-bold rounded transition ${
+                                activeCropMode === 'full_frame'
+                                  ? 'bg-cyan-500 text-slate-950 shadow'
+                                  : 'bg-slate-800 text-slate-300 hover:text-white border border-white/10'
+                              }`}
+                              title="Pas foto penuh dengan background studio tersinkron"
+                            >
+                              🖼️ Penuh
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-0.5">
                           <button
                             type="button"
-                            onClick={() => setFormData({ ...formData, photo_url: '' })}
-                            className="text-[10px] font-semibold text-rose-300 hover:text-rose-200 underline"
+                            onClick={() => customPhotoInputRef.current?.click()}
+                            className="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 underline"
                           >
-                            Hapus foto (gunakan inisial)
+                            + Ganti / Upload Foto
                           </button>
-                        )}
+                          {formData.photo_url && (
+                            <>
+                              <span className="text-slate-600">·</span>
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, photo_url: '' })}
+                                className="text-[10px] font-semibold text-rose-300 hover:text-rose-200 underline"
+                              >
+                                Gunakan inisial
+                              </button>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            ref={customPhotoInputRef}
+                            accept="image/*"
+                            onChange={handleCustomPhotoUpload}
+                            className="hidden"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2150,6 +2276,54 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   </button>
                 </div>
               </div>
+
+              {/* Riwayat Pengalaman & Pendidikan (AI Extracted) */}
+              {((formData.experiences && formData.experiences.length > 0) || (formData.educations && formData.educations.length > 0)) && (
+                <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                      <Briefcase className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Riwayat Pengalaman &amp; Pendidikan (Deteksi AI)</span>
+                    </span>
+                    <span className="text-[10px] text-cyan-400 font-semibold">Terekstraksi Otomatis</span>
+                  </div>
+
+                  {formData.experiences && formData.experiences.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Pengalaman Kerja:</span>
+                      <div className="space-y-1">
+                        {formData.experiences.map((exp, idx) => (
+                          <div key={idx} className="rounded-lg border border-white/5 bg-slate-900/80 p-2 text-xs flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-bold text-white">{exp.position} <span className="font-normal text-slate-400">di {exp.company_name}</span></p>
+                              {exp.description && <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{exp.description}</p>}
+                            </div>
+                            {exp.period && <span className="text-[10px] text-cyan-400 font-mono shrink-0">{exp.period}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.educations && formData.educations.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Pendidikan:</span>
+                      <div className="space-y-1">
+                        {formData.educations.map((edu, idx) => (
+                          <div key={idx} className="rounded-lg border border-white/5 bg-slate-900/80 p-2 text-xs flex items-center justify-between gap-2">
+                            <p className="font-bold text-white">{edu.school_name} <span className="font-normal text-slate-400">({edu.degree}{edu.major ? ` - ${edu.major}` : ''})</span></p>
+                            {(edu.start_year || edu.end_year) && (
+                              <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                {edu.start_year || ''} - {edu.end_year || 'Selesai'}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

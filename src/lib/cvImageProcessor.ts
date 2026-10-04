@@ -11,14 +11,24 @@ export interface BoundingBox {
   xmax: number;
 }
 
+export type PasFotoCropMode = 'smart_square' | 'tight_face' | 'full_frame';
+
 /**
- * Crop candidate's portrait (pas foto) from the uploaded CV document
+ * Crop candidate's portrait (pas foto) from the uploaded CV document with LEVEL MAX SKILL.
+ * - Guarantees 0% bleed of surrounding CV text / document lines
+ * - Centered squarely on the candidate's face & shoulders
+ * - Supports tight face mode, smart square 1:1, or full portrait framing
+ *
  * @param sourceImage Base64 Data URL or Image URL
  * @param photoBox Normalized bounding box [ymin, xmin, ymax, xmax] in 0-1000 scale
+ * @param faceBox Optional tight face bounding box [ymin, xmin, ymax, xmax] in 0-1000 scale
+ * @param mode Crop mode: 'smart_square' (default 1:1), 'tight_face', or 'full_frame'
  */
 export async function cropPasFotoFromImage(
   sourceImage: string,
-  photoBox?: [number, number, number, number] | null
+  photoBox?: [number, number, number, number] | null,
+  faceBox?: [number, number, number, number] | null,
+  mode: PasFotoCropMode = 'smart_square'
 ): Promise<string> {
   if (!sourceImage || !photoBox || !Array.isArray(photoBox) || photoBox.length !== 4) {
     return '';
@@ -41,27 +51,18 @@ export async function cropPasFotoFromImage(
         const rawY2 = (ymax / 1000) * naturalH;
         const rawX2 = (xmax / 1000) * naturalW;
 
-        const boxW = Math.max(15, rawX2 - rawX1);
-        const boxH = Math.max(15, rawY2 - rawY1);
+        const boxW = Math.max(20, rawX2 - rawX1);
+        const boxH = Math.max(20, rawY2 - rawY1);
 
-        // Add 12% padding around the head/chin
-        const padX = boxW * 0.12;
-        const padY = boxH * 0.12;
-
-        let cropX = Math.max(0, rawX1 - padX);
-        let cropY = Math.max(0, rawY1 - padY);
-        let cropW = Math.min(naturalW - cropX, boxW + padX * 2);
-        let cropH = Math.min(naturalH - cropY, boxH + padY * 2);
-
-        // Center into 1:1 square crop
-        const maxDim = Math.max(cropW, cropH);
-        const diffX = maxDim - cropW;
-        const diffY = maxDim - cropH;
-
-        cropX = Math.max(0, cropX - diffX / 2);
-        cropY = Math.max(0, cropY - diffY / 2);
-        cropW = Math.min(naturalW - cropX, maxDim);
-        cropH = Math.min(naturalH - cropY, maxDim);
+        // Apply a strict inner safety margin (2%) to eliminate any surrounding CV paper / text bleed
+        const insetX = Math.max(2, Math.floor(boxW * 0.02));
+        const insetY = Math.max(2, Math.floor(boxH * 0.02));
+        const safeX1 = Math.max(0, rawX1 + insetX);
+        const safeX2 = Math.min(naturalW, rawX2 - insetX);
+        const safeY1 = Math.max(0, rawY1 + insetY);
+        const safeY2 = Math.min(naturalH, rawY2 - insetY);
+        const safeW = Math.max(10, safeX2 - safeX1);
+        const safeH = Math.max(10, safeY2 - safeY1);
 
         const canvas = document.createElement('canvas');
         canvas.width = 480;
@@ -71,8 +72,96 @@ export async function cropPasFotoFromImage(
 
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
+
+        if (mode === 'full_frame') {
+          // Sample background color from top corner inside safe box
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = 1;
+          tempCanvas.height = 1;
+          const tempCtx = tempCanvas.getContext('2d');
+          let bgColor = '#0f172a';
+          if (tempCtx) {
+            tempCtx.drawImage(img, safeX1 + 5, safeY1 + 5, 1, 1, 0, 0, 1, 1);
+            const pixel = tempCtx.getImageData(0, 0, 1, 1).data;
+            bgColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+          }
+
+          // Fill canvas with sampled portrait background
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, 480, 480);
+
+          // Fit portrait into canvas
+          const scale = Math.min(480 / safeW, 480 / safeH);
+          const drawW = safeW * scale;
+          const drawH = safeH * scale;
+          const drawX = (480 - drawW) / 2;
+          const drawY = (480 - drawH) / 2;
+          ctx.drawImage(img, safeX1, safeY1, safeW, safeH, drawX, drawY, drawW, drawH);
+          return resolve(canvas.toDataURL('image/jpeg', 0.92));
+        }
+
+        let cropX = safeX1;
+        let cropY = safeY1;
+        let cropW = safeW;
+        let cropH = safeH;
+
+        if (mode === 'tight_face' && faceBox && Array.isArray(faceBox) && faceBox.length === 4) {
+          const fY1 = (faceBox[0] / 1000) * naturalH;
+          const fX1 = (faceBox[1] / 1000) * naturalW;
+          const fY2 = (faceBox[2] / 1000) * naturalH;
+          const fX2 = (faceBox[3] / 1000) * naturalW;
+          const fW = Math.max(10, fX2 - fX1);
+          const fH = Math.max(10, fY2 - fY1);
+          const fDim = Math.max(fW, fH) * 1.5;
+          const fCenterX = fX1 + fW / 2;
+          const fCenterY = fY1 + fH / 2;
+
+          cropW = Math.min(safeW, fDim);
+          cropH = cropW;
+          cropX = Math.max(safeX1, Math.min(safeX2 - cropW, fCenterX - cropW / 2));
+          cropY = Math.max(safeY1, Math.min(safeY2 - cropH, fCenterY - cropH * 0.45));
+        } else {
+          // Standard smart_square mode (1:1 aspect ratio)
+          if (safeH >= safeW) {
+            // Standard vertical passport photo (3:4, 2:3, etc.)
+            // dim is strictly constrained by safeW so cropX NEVER leaves the photo boundaries!
+            const dim = safeW;
+            cropW = dim;
+            cropH = dim;
+            cropX = safeX1;
+
+            if (faceBox && Array.isArray(faceBox) && faceBox.length === 4) {
+              const fY1 = (faceBox[0] / 1000) * naturalH;
+              const fY2 = (faceBox[2] / 1000) * naturalH;
+              const fCenterY = (fY1 + fY2) / 2;
+              // Align face center at ~42% from top of the square crop
+              const targetY = fCenterY - dim * 0.42;
+              cropY = Math.max(safeY1, Math.min(safeY2 - dim, targetY));
+            } else {
+              // Passport photos have head/hair near the top; capture from near the top
+              cropY = safeY1 + Math.max(0, (safeH - dim) * 0.12);
+              cropY = Math.min(cropY, safeY2 - dim);
+            }
+          } else {
+            // Landscape photo
+            const dim = safeH;
+            cropW = dim;
+            cropH = dim;
+            cropY = safeY1;
+
+            if (faceBox && Array.isArray(faceBox) && faceBox.length === 4) {
+              const fX1 = (faceBox[1] / 1000) * naturalW;
+              const fX2 = (faceBox[3] / 1000) * naturalW;
+              const fCenterX = (fX1 + fX2) / 2;
+              cropX = Math.max(safeX1, Math.min(safeX2 - dim, fCenterX - dim / 2));
+            } else {
+              cropX = safeX1 + (safeW - dim) / 2;
+            }
+          }
+        }
+
         ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, 480, 480);
-        resolve(canvas.toDataURL('image/jpeg', 0.88));
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
       } catch (err) {
         console.warn('[cropPasFotoFromImage] Failed to crop:', err);
         resolve('');

@@ -113,13 +113,13 @@ export function cleanDomicileCity(rawCity) {
  * @param {string} [options.fileName] - Name of uploaded file
  */
 export async function extractSmartCv({ imageBase64, cvText, fileName }) {
-  const systemInstruction = `Anda adalah Asisten Pakar HR Talent & AI CV Parser LOXER (Platform Bursa Kerja & Rekrutmen Terpercaya).
-Tugas Anda adalah membaca dan menganalisis berkas CV / Biodata pelamar kerja (baik dari teks CV maupun visual/scan/poster CV).
+  const systemInstruction = `Anda adalah Asisten Pakar HR Talent & AI Multimodal CV Parser TERTINGGI LOXER (Platform Bursa Kerja & Rekrutmen Terpercaya).
+Tugas Anda adalah membaca, menganalisis, dan mengekstrak data dari berkas CV / Biodata pelamar kerja (baik visual scan/gambar/foto CV maupun teks) dengan LEVEL KEAHLIAN MAKSIMAL (LEVEL MAX SKILL & ACCURACY).
 
-Ekstrak dan susun seluruh informasi kandidat secara komprehensif, akurat, dan profesional ke dalam bahasa Indonesia:
-1. "full_name": Nama lengkap pencari kerja (kapitalisasi nama orang yang tepat).
-2. "headline": Posisi target atau profesi keahlian utama (contoh: "Operator Gudang & Packing", "Senior Fullstack Engineer (React & Node.js)", "Staff Administrasi & Keuangan").
-3. "category": Kategori keahlian standar LOXER (Pilih salah satu yang paling cocok dari:
+EKSTRAKSI SELURUH DATA DENGAN PRESISI MAKSIMAL KE DALAM BAHASA INDONESIA:
+1. "full_name": Nama lengkap pencari kerja yang benar. Bersihkan dari kata awalan seperti "Nama :", "Curriculum Vitae", "Biodata", atau judul dokumen. Tuliskan dengan kapitalisasi nama yang tepat.
+2. "headline": Headline profesi target yang sangat spesifik, relevan, dan memiliki daya jual tinggi di industri kerja Indonesia (contoh: "Staff Administrasi Online & Customer Service", "Teknisi Otomotif & Mekanik Sepeda Motor", "Operator Warehouse, Packing & Logistik", "Fullstack Web & Mobile Developer"). JANGAN gunakan headline generik seperti "Pencari Kerja" jika ada keahlian yang tertera.
+3. "category": Kategori keahlian standar LOXER (Pilih salah satu yang paling cocok dari 16 kategori resmi:
    - "Teknologi & IT"
    - "Servis Elektronik & Komputer"
    - "Bengkel & Otomotif"
@@ -137,23 +137,28 @@ Ekstrak dan susun seluruh informasi kandidat secara komprehensif, akurat, dan pr
    - "Operasional & Logistik"
    - "Umum & Jasa"
 ).
-4. "availability": Status ketersediaan ("fulltime", "freelance", "parttime", atau "remote"). Default "fulltime" jika tidak disebut.
-5. "experience_years": Estimasi total pengalaman kerja dalam tahun (angka bulat, minimal 0).
-6. "expected_salary": 0 (WAJIB bernilai 0. Untuk user/talent yang ditambahkan admin dari berkas CV atau tanpa akun di aplikasi, bagian tarif harus dikosongkan/diisi 0).
-7. "rate_type": Tipe tarif ("monthly" untuk bulanan, "hourly" per jam, "project" per order/proyek).
-8. "domicile_city": Kota domisili atau tempat tinggal kandidat (contoh: "Cimahi", "Kota Bandung", "Kabupaten Bandung", "Jakarta Selatan", dll.).
-9. "whatsapp_number": Nomor telepon atau WhatsApp (format diawali 08... atau 62...).
-10. "email": Alamat email kandidat jika ada.
-11. "bio": Paragraf ringkasan profil profesional kandidat yang menarik, ramah, dan meyakinkan bagi calon perusahaan perekrut (2-4 kalimat).
-12. "skills": Daftar 4 sampai 10 keahlian utama (array of strings, contoh: ["Packing Barang", "Stock Opname", "Microsoft Excel", "Forklift"]).
-13. "educations": Array riwayat pendidikan dengan struktur [{"school_name": "...", "degree": "SMA / SMK / D3 / S1", "major": "...", "start_year": 2018, "end_year": 2021}].
-14. "experiences": Array riwayat pengalaman kerja dengan struktur [{"company_name": "...", "position": "...", "period": "2021 - 2023", "description": "..."}].
+4. "availability": Status ketersediaan kerja ("fulltime", "freelance", "parttime", atau "remote"). Default "fulltime".
+5. "experience_years": Estimasi total pengalaman kerja nyata dalam tahun (angka bulat, minimal 0). Hitung dari rentang tahun pada riwayat pengalaman kerja. Jika fresh graduate, isi 0.
+6. "expected_salary": 0 (WAJIB bernilai 0. Bagian tarif dikosongkan/diisi 0 untuk pelamar yang ditambahkan admin).
+7. "rate_type": Tipe tarif ("monthly" untuk bulanan, "hourly" per jam, "project" per proyek). Default "monthly".
+8. "domicile_city": HANYA nama Kota atau Kabupaten tempat tinggal kandidat (contoh: "Bandung Barat", "Kota Cimahi", "Kota Bandung", "Jakarta Selatan", "Surabaya", "Bekasi", "Tangerang"). ATURAN KETAT: JANGAN mencantumkan nama jalan, RT/RW, nama desa/kelurahan/kecamatan, atau kode pos!
+9. "whatsapp_number": Nomor WhatsApp / HP kandidat yang valid (format terstandar diawali 08... tanpa spasi atau tanda minus, contoh: "087820070258").
+10. "email": Alamat email aktif kandidat (koreksi typo OCR jika ada, contoh: ".con" menjadi ".com", "gmai.com" menjadi "gmail.com").
+11. "bio": Paragraf ringkasan profil profesional kandidat yang meyakinkan, berbobot, ramah, dan berdaya pikat tinggi bagi perusahaan perekrut (2-3 kalimat padat). Soroti pengalaman utama, etos kerja (disiplin, teliti, adaptif, komunikatif), dan kesiapan memberikan kontribusi positif.
+12. "skills": Array 6 sampai 12 keahlian spesifik kandidat (kombinasi hard skill dan soft skill relevan, contoh: ["Administrasi Online", "Pelayanan Pelanggan", "Pengelolaan Dokumen", "Komunikasi Efektif", "Manajemen Waktu", "Ketelitian & Akurasi", "Kerja Tim"]).
+13. "educations": Array riwayat pendidikan terstruktur: [{"school_name": "...", "degree": "SMA / SMK / D3 / S1", "major": "...", "start_year": 2018, "end_year": 2021}].
+14. "experiences": Array riwayat pengalaman kerja: [{"company_name": "...", "position": "...", "period": "2021 - 2023", "description": "..."}].
 15. "portfolio_url": Tautan LinkedIn, GitHub, atau portfolio jika tercantum.
 16. "badge": Label badge kandidat ("SIAP KERJA", "TOP TALENT", "FREELANCER", atau "TERVERIFIKASI").
-17. "ai_notes": Catatan singkat evaluasi kecocokan AI (kelebihan pelamar, kesiapan kerja, dan integritas berkas).
-18. "confidence_score": Nilai keyakinan kelengkapan data (angka 70 - 99).
-19. "photo_box": Koordinat kotak pembatas (bounding box) dari PAS FOTO / FOTO WAJAH kandidat pelamar yang ada di lembar CV dalam format array integer [ymin, xmin, ymax, xmax] dengan skala 0 sampai 1000 (contoh: [45, 90, 305, 435]). Jika berkas tidak memuat foto wajah/pas foto, isi null.
-20. "contact_boxes": Array kotak pembatas (bounding boxes) [ [ymin, xmin, ymax, xmax], ... ] dari seluruh AREA KONTAK pelamar pada lembar CV (seperti bagian yang memuat nomor HP, WhatsApp, email, alamat rumah detail, media sosial, atau seluruh kolom blok 'KONTAK'). Skala integer 0 sampai 1000 (contoh: [[340, 70, 520, 410]]).
+17. "ai_notes": Catatan singkat evaluasi kecocokan AI: kelebihan utama pelamar, etos kerja, dan kesiapan penempatan kerja.
+18. "confidence_score": Nilai keyakinan kelengkapan data (angka 85 - 99).
+19. "photo_box": Koordinat kotak pembatas (bounding box) SANGAT PRESISI DAN KETAT dari PAS FOTO / FOTO WAJAH FORMAL kandidat pelamar pada lembar CV dalam format [ymin, xmin, ymax, xmax] skala 0 sampai 1000 (contoh: [50, 60, 310, 240]).
+   *** ATURAN KRUSIAL PAS FOTO ***:
+   - Kotak HARUS HANYA mencakup batas bingkai pas foto (background studio merah/biru/putih/abu-abu dan kepala/bahu kandidat).
+   - JANGAN PERNAH memperlebar kotak ke arah kanan, kiri, atau bawah yang memuat teks CV (seperti nama, no HP, judul "Curriculum Vitae", kolom kontak, dll).
+   - Jika berkas tidak memuat foto wajah/pas foto, isi null.
+20. "face_box": Koordinat kotak pembatas KETAT dari WAJAH kandidat (dari puncak rambut/dahi hingga dagu) dalam format [ymin, xmin, ymax, xmax] skala 0 sampai 1000. Jika tidak ada foto wajah, isi null.
+21. "contact_boxes": Array kotak pembatas [ [ymin, xmin, ymax, xmax], ... ] dari SELURUH AREA KONTAK pelamar pada lembar CV (bagian nomor HP, WhatsApp, email, alamat rumah detail, media sosial, barcode/QR, atau blok kolom 'KONTAK'). Skala integer 0 sampai 1000 (contoh: [[340, 70, 520, 410]]). Berikan batas sedikit lebih longgar agar tidak ada 1 digit nomor HP atau karakter email yang bocor tanpa sensor privasi.
 
 Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
 {
@@ -161,7 +166,7 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
   "headline": "...",
   "category": "...",
   "availability": "fulltime",
-  "experience_years": 2,
+  "experience_years": 1,
   "expected_salary": 0,
   "rate_type": "monthly",
   "domicile_city": "...",
@@ -179,7 +184,8 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
   "badge": "SIAP KERJA",
   "ai_notes": "...",
   "confidence_score": 95,
-  "photo_box": [45, 90, 305, 435],
+  "photo_box": [50, 60, 310, 240],
+  "face_box": [75, 90, 230, 210],
   "contact_boxes": [[340, 70, 520, 410]]
 }`;
 
@@ -272,6 +278,10 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
         ? parsed.photo_box.map((n) => Math.max(0, Math.min(1000, parseInt(n, 10) || 0)))
         : null;
 
+      const parsedFaceBox = Array.isArray(parsed.face_box) && parsed.face_box.length === 4
+        ? parsed.face_box.map((n) => Math.max(0, Math.min(1000, parseInt(n, 10) || 0)))
+        : null;
+
       const parsedContactBoxes = Array.isArray(parsed.contact_boxes)
         ? parsed.contact_boxes
             .filter((b) => Array.isArray(b) && b.length === 4)
@@ -298,6 +308,7 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
         portfolio_url: (parsed.portfolio_url || '').trim(),
         badge: ['TOP TALENT', 'SIAP KERJA', 'FREELANCER', 'TERVERIFIKASI'].includes(parsed.badge) ? parsed.badge : 'SIAP KERJA',
         photo_box: parsedPhotoBox,
+        face_box: parsedFaceBox,
         contact_boxes: parsedContactBoxes,
         raw_image_url: imageBase64 ? imageBase64 : '',
         photo_url: '', // Akan diisi pas foto hasil crop di frontend / canvas
