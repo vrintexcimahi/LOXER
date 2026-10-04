@@ -1,12 +1,43 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+function findChromeExecutable() {
+  if (process.platform === 'win32') {
+    const candidates = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return 'chrome';
+  }
+  const candidates = [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return 'chromium-browser';
+}
 
 async function main() {
-  const chrome = spawn('chromium-browser', [
+  const chromePath = findChromeExecutable();
+  const testProfileDir = path.join(os.tmpdir(), 'chrome_test_profile_apps');
+  const chrome = spawn(chromePath, [
     '--headless',
     '--disable-gpu',
     '--remote-debugging-port=9224',
-    '--user-data-dir=/tmp/chrome_test_profile_apps',
+    `--user-data-dir=${testProfileDir}`,
     '--no-sandbox',
     '--window-size=1440,1100',
   ]);
@@ -72,17 +103,21 @@ async function main() {
     }
 
     // 1. Data Pelamar Kerja
-    await capturePage('http://127.0.0.1:3035/admin/applications?sim_role=admin', '/tmp/admin_app_pelamar.png');
+    await capturePage('http://127.0.0.1:3035/admin/applications?sim_role=admin', path.join(os.tmpdir(), 'admin_app_pelamar.png'));
 
     // 2. Katalog Iklan Loker
-    await capturePage('http://127.0.0.1:3035/admin/applications?sim_role=admin&view=iklan', '/tmp/admin_app_iklan.png');
+    await capturePage('http://127.0.0.1:3035/admin/applications?sim_role=admin&view=iklan', path.join(os.tmpdir(), 'admin_app_iklan.png'));
 
     // 3. Smart Add Iklan [Gemini 3.8]
-    await capturePage('http://127.0.0.1:3035/admin/applications?sim_role=admin&view=smart-add', '/tmp/admin_app_smart_add.png');
+    await capturePage('http://127.0.0.1:3035/admin/applications?sim_role=admin&view=smart-add', path.join(os.tmpdir(), 'admin_app_smart_add.png'));
 
     console.log('All 3 screenshots captured successfully!');
   } finally {
-    chrome.kill('SIGKILL');
+    try {
+      chrome.kill('SIGKILL');
+    } catch {
+      try { chrome.kill(); } catch {}
+    }
   }
 }
 

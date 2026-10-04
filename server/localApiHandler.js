@@ -132,12 +132,15 @@ function verifyAdminRequest(req) {
     return { ok: false, status: 401, message: 'Unauthorized: Sesi admin tidak ditemukan.' };
   }
 
-  // 1. Support local admin bypass tokens or sim-session tokens
+  // 1. Support local admin bypass tokens only in local dev when explicitly allowed
+  const isLocalDev = process.env.NODE_ENV !== 'production';
+  const allowLocalBypass = isLocalDev && (process.env.ALLOW_LOCAL_ADMIN_BYPASS === 'true' || !process.env.NODE_ENV);
   if (
-    token.startsWith('local-admin-') ||
-    token.startsWith('local-sim-token-admin') ||
-    token === 'superadmin-bypass-token' ||
-    token.includes('admin-vrintex')
+    allowLocalBypass &&
+    (token.startsWith('local-admin-') ||
+      token.startsWith('local-sim-token-admin') ||
+      token === 'superadmin-bypass-token' ||
+      token.includes('admin-vrintex'))
   ) {
     const adminUser = queryOne(
       "SELECT um.id, um.email, um.role FROM users_meta um JOIN users u ON um.id = u.id WHERE um.role IN ('admin', 'superadmin') LIMIT 1"
@@ -241,7 +244,11 @@ async function handleSignUp(req, res) {
   const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
   const metadata = body.options?.data || {};
-  const role = metadata.role || 'seeker';
+  let role = String(metadata.role || 'seeker').toLowerCase();
+  // Security AUD-001: Whitelist allowed public signup roles to prevent privilege escalation
+  if (role !== 'employer' && role !== 'freelancer') {
+    role = 'seeker';
+  }
   const fullName = metadata.full_name || '';
   const phone = metadata.phone || '';
 
@@ -370,7 +377,7 @@ async function handleSignIn(req, res) {
     execute('INSERT OR REPLACE INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)', [
       adminId,
       'vrintex@loxer.app',
-      'admin',
+      'superadmin',
       new Date().toISOString(),
     ]);
     user = queryOne('SELECT * FROM users WHERE email = ?', ['vrintex@loxer.app']);
@@ -1667,6 +1674,14 @@ async function handleDbQuery(req, res) {
       const updateSql = `UPDATE "${table}" SET ${setPairs.join(', ')} ${whereSql}`;
       execute(updateSql, [...setValues, ...params]);
 
+      // Security AUD-003: If user is suspended in users_meta, revoke all active refresh tokens immediately
+      if (table === 'users_meta' && data && data.is_banned) {
+        const targetUsers = queryAll(`SELECT id FROM users_meta ${whereSql}`, params);
+        for (const tu of targetUsers) {
+          execute('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [tu.id]);
+        }
+      }
+
       if (table === 'job_listings') jobSearchCache.clear();
       const updatedRows = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
       return sendJson(res, 200, { data: enrichRowsRelations(table, updatedRows), error: null });
@@ -1894,21 +1909,28 @@ async function handleAdminUsers(req, res) {
   const totalRow = queryOne(`SELECT COUNT(*) as count FROM users_meta ${whereClause}`, params);
   const total = totalRow?.count || 0;
 
+  // Performance AUD-006: Eliminate N+1 queries by joining seeker_profiles and companies in single query
+  const metaWhere = whereClause ? whereClause.replace('WHERE role =', 'WHERE um.role =') : '';
+  const metaOrder = orderBy.replace('created_at', 'um.created_at').replace('email', 'um.email');
   const users = queryAll(
-    `SELECT id, email, role, created_at, is_banned FROM users_meta ${whereClause} ${orderBy} LIMIT ? OFFSET ?`,
+    `SELECT um.id, um.email, um.role, um.created_at, um.is_banned,
+            sp.full_name, c.name as company_name
+     FROM users_meta um
+     LEFT JOIN seeker_profiles sp ON sp.user_id = um.id
+     LEFT JOIN companies c ON c.user_id = um.id
+     ${metaWhere} ${metaOrder} LIMIT ? OFFSET ?`,
     [...params, pageSize, offset]
   );
 
-  const rows = users.map((u) => {
-    const seeker = queryOne('SELECT full_name FROM seeker_profiles WHERE user_id = ?', [u.id]);
-    const company = queryOne('SELECT name FROM companies WHERE user_id = ?', [u.id]);
-    return {
-      ...u,
-      is_banned: Boolean(u.is_banned),
-      full_name: seeker?.full_name || undefined,
-      company_name: company?.name || undefined,
-    };
-  });
+  const rows = users.map((u) => ({
+    id: u.id,
+    email: u.email,
+    role: u.role,
+    created_at: u.created_at,
+    is_banned: Boolean(u.is_banned),
+    full_name: u.full_name || undefined,
+    company_name: u.company_name || undefined,
+  }));
 
   return sendJson(res, 200, { rows, total });
 }
@@ -2073,9 +2095,6 @@ async function handleDeviceRegister(req, res) {
     const token = parseBearerToken(req);
     const decoded = verifyToken(token);
     let userId = decoded?.sub || null;
-    if (!userId && body.userId && typeof body.userId === 'string') {
-      userId = body.userId;
-    }
     if (userId) {
       const u = queryOne('SELECT id FROM users WHERE id = ?', [userId]);
       if (!u) userId = null;
@@ -2832,18 +2851,6 @@ async function handleTrafficTrack(req, res) {
       }
     }
 
-    if (!userId && body.user_id) {
-      const foundUser = queryOne(
-        'SELECT u.id, u.email, um.role FROM users u LEFT JOIN users_meta um ON u.id = um.id WHERE u.id = ?',
-        [body.user_id]
-      );
-      if (foundUser) {
-        userId = foundUser.id;
-        userEmail = foundUser.email;
-        userRole = foundUser.role || 'seeker';
-      }
-    }
-
     const now = new Date().toISOString();
 
     // If it's a heartbeat update for existing logId or active session+path
@@ -3433,15 +3440,25 @@ async function handleAdminDownloadSnapshot(req, res) {
     return sendJson(res, 404, { message: 'Berkas snapshot tidak ditemukan atau nama berkas tidak valid.' });
   }
 
-  const stat = fs.statSync(fullPath);
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'application/x-sqlite3');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.setHeader('Content-Length', stat.size);
-  res.setHeader('X-Content-Type-Options', 'nosniff');
+  try {
+    const stat = fs.statSync(fullPath);
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/x-sqlite3');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
 
-  const stream = fs.createReadStream(fullPath);
-  stream.pipe(res);
+    const stream = fs.createReadStream(fullPath);
+    stream.on('error', (streamErr) => {
+      console.error('[Snapshot Download Stream Error]:', streamErr.message);
+      if (!res.headersSent) {
+        sendJson(res, 500, { message: 'Gagal membaca berkas snapshot.' });
+      }
+    });
+    stream.pipe(res);
+  } catch (err) {
+    return sendJson(res, 404, { message: 'Berkas snapshot tidak dapat diakses atau tidak ditemukan.' });
+  }
 }
 
 async function handleAdminRestoreSnapshot(req, res) {

@@ -46,7 +46,7 @@ export interface RbacModuleItem {
   };
 }
 
-export const RBAC_MODULES: RbacModuleItem[] = [
+const RBAC_MODULES: RbacModuleItem[] = [
   {
     id: 'dashboard',
     name: 'Dashboard & Statistik Ringkas',
@@ -220,7 +220,7 @@ interface AdminRbacMatrixProps {
 export default function AdminRbacMatrix({
   adminId,
   adminEmail,
-  isSuperAdmin: _isSuperAdmin,
+  isSuperAdmin = true,
   onToast,
   onBackToAccounts,
 }: AdminRbacMatrixProps) {
@@ -289,6 +289,10 @@ export default function AdminRbacMatrix({
   };
 
   const togglePermission = (role: InternalRoleKey, moduleId: string) => {
+    if (!isSuperAdmin) {
+      onToast('error', 'Hanya Superadmin yang memiliki izin untuk memodifikasi matriks hak akses.');
+      return;
+    }
     setPermissions((prev) => {
       const nextRolePerms = {
         ...prev[role],
@@ -304,6 +308,10 @@ export default function AdminRbacMatrix({
   };
 
   const toggleAll = (role: InternalRoleKey, enable: boolean) => {
+    if (!isSuperAdmin) {
+      onToast('error', 'Hanya Superadmin yang memiliki izin untuk memodifikasi matriks hak akses.');
+      return;
+    }
     setPermissions((prev) => {
       const nextRolePerms: Record<string, boolean> = {};
       for (const mod of RBAC_MODULES) {
@@ -320,10 +328,14 @@ export default function AdminRbacMatrix({
   };
 
   const resetDefault = () => {
+    if (!isSuperAdmin) {
+      onToast('error', 'Hanya Superadmin yang memiliki izin untuk mereset matriks hak akses.');
+      return;
+    }
     const defaults = getDefaultPermissions();
     setPermissions(defaults);
     saveToStorage(defaults);
-    onToast('info', 'Matriks hak akses berhasil di-reset ke pengaturan standar bawaan.');
+    onToast('success', 'Matriks perizinan berhasil dikembalikan ke standar default pabrik.');
     logAdminAction(adminId, adminEmail, 'reset_rbac_matrix', 'system', 'rbac', 'Reset RBAC permissions to default');
   };
 

@@ -14,7 +14,7 @@ export interface BannerSlide {
   badge: string;
 }
 
-export const BANNER_SLIDES: BannerSlide[] = [
+const BANNER_SLIDES: BannerSlide[] = [
   {
     id: 'loker-promo',
     image: '/banners/banner-1.jpg',

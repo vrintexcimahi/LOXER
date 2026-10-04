@@ -208,7 +208,7 @@ export function BulkSmartCvManager({
   }, [initialFiles, addFilesToQueue]);
 
   // Process a single CV item through the full AI Pipeline
-  const processSingleItem = async (item: BulkCvItem) => {
+  const processSingleItem = useCallback(async (item: BulkCvItem) => {
     // 1. Reading file
     setItems((prev) =>
       prev.map((it) => (it.id === item.id ? { ...it, status: 'reading', progress: 20 } : it))
@@ -367,7 +367,7 @@ export function BulkSmartCvManager({
         )
       );
     }
-  };
+  }, []);
 
   // Queue runner effect
   useEffect(() => {
@@ -393,7 +393,7 @@ export function BulkSmartCvManager({
     };
 
     runWorker();
-  }, [items, isQueueRunning, concurrency]);
+  }, [items, isQueueRunning, concurrency, processSingleItem]);
 
   // Retry a failed item
   const handleRetryItem = (id: string) => {

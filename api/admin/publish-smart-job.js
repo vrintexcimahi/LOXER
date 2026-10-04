@@ -8,11 +8,14 @@ function getBearerToken(req) {
 async function verifyAdmin(adminClient, token) {
   if (!token) return { error: { status: 401, message: 'Unauthorized: Sesi admin tidak ditemukan.' } };
 
+  const isLocalDev = process.env.NODE_ENV !== 'production';
+  const allowLocalBypass = isLocalDev && (process.env.ALLOW_LOCAL_ADMIN_BYPASS === 'true' || !process.env.NODE_ENV);
   if (
-    token.startsWith('local-admin-') ||
-    token.startsWith('local-sim-token-admin') ||
-    token === 'superadmin-bypass-token' ||
-    token.includes('admin-vrintex')
+    allowLocalBypass &&
+    (token.startsWith('local-admin-') ||
+      token.startsWith('local-sim-token-admin') ||
+      token === 'superadmin-bypass-token' ||
+      token.includes('admin-vrintex'))
   ) {
     try {
       const { data: adminRows } = await adminClient

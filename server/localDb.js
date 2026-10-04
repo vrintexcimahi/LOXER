@@ -85,6 +85,18 @@ export function getLocalDb() {
             const schemaSql = fs.readFileSync(SCHEMA_FILE, 'utf8');
             db.exec(schemaSql);
           }
+
+          // Self-healing: Clean any orphaned rows from tables that reference users or companies
+          try {
+            db.exec(`
+              DELETE FROM company_members WHERE user_id NOT IN (SELECT id FROM users) OR company_id NOT IN (SELECT id FROM companies);
+              DELETE FROM notifications WHERE user_id NOT IN (SELECT id FROM users);
+              DELETE FROM jasa_ads WHERE user_id NOT IN (SELECT id FROM users);
+              DELETE FROM direct_job_offers WHERE company_id NOT IN (SELECT id FROM companies);
+            `);
+          } catch {
+            // non-blocking
+          }
           pendingDb = null;
           return db;
         } catch (e) {
@@ -739,6 +751,12 @@ export function rotateRefreshToken(rawToken) {
 
     const user = queryOne('SELECT id, email, created_at FROM users WHERE id = ?', [existing.user_id]);
     const userMeta = queryOne('SELECT role, is_banned FROM users_meta WHERE id = ?', [existing.user_id]);
+
+    // Security AUD-003: Check if account is suspended / banned
+    if (userMeta?.is_banned) {
+      execute('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [existing.user_id]);
+      return null;
+    }
 
     const accessToken = generateToken({
       sub: existing.user_id,

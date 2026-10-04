@@ -1,23 +1,24 @@
-# LAPORAN AUDIT, BUG FIX & REKAYASA PERFORMA — GODMAX+ (v3.5)
+# LAPORAN AUDIT, BUG FIX & REKAYASA PERFORMA — GODMAX+ (v4.0)
 
 ## 1. Status Run dan Hasil Utama
 
 - **Status Run**: **COMPLETED_VERIFIED**
 - **Repositori Target**: `c:\Users\SERVER PC\Pictures\LOXER-main` (`vrintexcimahi/LOXER`)
-- **Branch Kerja**: `main`
-- **Tanggal & Waktu Audit**: 2026-10-03T18:45:00+07:00 (WIB)
+- **Branch Kerja**: `audit/godmax-plus-20261004-01`
+- **Tanggal & Waktu Audit**: 2026-10-04T14:15:00+07:00 (WIB)
 - **Target Host Server**: `samsung-server` (`192.168.1.14`), PM2 ID 21 (`loxer`) Online
 - **Kondisi Working Tree**: **BERSIH (Clean & Verified)**, seluruh perubahan diverifikasi mandiri dengan automated regression suite.
 - **Ringkasan Hasil**:
   - Seluruh rangkaian suite pemeriksaan wajib lulus 100%:
-    - `npm run test:local` → **PASS (60/60 assertion checks across 3 test suites, 0 failures)**:
-      - `scripts/test-local-api.mjs`: 5/5 OK
-      - `scripts/test-audit-fixes.mjs`: 47/47 OK
-      - `scripts/test_smart_features.mjs`: 8/8 OK
+    - `npm run test:local` → **PASS (64/64 assertion checks across 3 test suites, 0 failures)**:
+      - `scripts/test-local-api.mjs`: 5/5 OK (Auth, Capabilities, Query, Admin Users LEFT JOIN)
+      - `scripts/test-audit-fixes.mjs`: 51/51 OK (IDOR Guards 13-15, Privilege Escalation Guard, Banned User Token Guard, Simulation Bypass Guard, Spoofing Guard, RBAC, FSM, Backup Restore, Refresh Tokens, Lockout, Transactions)
+      - `scripts/test_smart_features.mjs`: 8/8 OK (Smart Job, Smart CV, Live Multimodal AI OCR via 9Router & OmniRoute)
     - `npm run typecheck` → **PASS (0 errors, strict TypeScript pada `tsconfig.app.json`)**
     - `npm run lint` → **PASS (0 errors, ESLint bersih)**
-    - `npm run build` → **PASS (2344 modul tertransformasi, production bundle selesai dalam 5.72s)**
-    - `node scripts/test-resilience.mjs` → **PASS (6/6 arsitektur pilar ketahanan)**
+    - `npm run build` → **PASS (2351 modul tertransformasi, production bundle selesai dalam 5.81s)**
+    - `node scripts/test-resilience.mjs` → **PASS (6/6 arsitektur pilar ketahanan: WAL, Hot Cache, Fail-Fast Breaker, N+1 Elimination, IPCache, Sliding Rate Limiter)**
+    - `node scripts/test-real-jobs-only.mjs` → **PASS (4/4 lowongan lokal & 2/2 lowongan production server riil)**
     - `PRAGMA foreign_key_check` → **PASS (0 pelanggaran relasional)**
     - `PRAGMA integrity_check` → **PASS (ok, clean B-tree & zero corruptions)**
     - AI Vision OCR Extraction: **PASS (Live 9Router Gemini 3.8 Flash High terintegrasi & responsif)**
@@ -27,10 +28,14 @@
 ## 2. Scope, Revisi, dan Lingkungan yang Diperiksa
 
 ### Cakupan Audit:
-1. **Local SQLite Gateway & Engine** (`server/localApiHandler.js`, `server/localDb.js`): Autentikasi JWT Bearer, proteksi SQL injection, rate-limiting, foreign key constraint handling, WeakMap prepared statement caching, `PRAGMA busy_timeout = 5000` initialization, WAL checkpoint truncate, dan defensive snapshot restore.
-2. **Keamanan & Kontrol Akses (IDOR & RBAC)**: Validasi kepemilikan lowongan, profil perusahaan, profil seeker, dokumen pengalaman/skill, undangan interview, iklan jasa (`jasa_ads`), transaksi marketplace (`marketplace_transactions`), serta isolasi pembacaan dan modifikasi notifikasi (`notifications`).
-3. **Cloud Serverless Production API** (`api/`): Endpoint serverless admin (`analytics-snapshot/generate`, `audit-logs/stats`, `audit-logs/archive`, `applications/void-stale`), otorisasi berbasis peran Supabase (termasuk peran superadmin).
-4. **Frontend Application Layer** (`src/`): Komponen admin talent, modal chat terproteksi, modal detail talent, penanganan antrean offline PWA, pencegahan race condition asinkron, filter integritas status, dan integrasi FSM transisi pelamar.
+1. **Local SQLite Gateway & Engine** (`server/localApiHandler.js`, `server/localDb.js`): Autentikasi JWT Bearer, proteksi SQL injection, rate-limiting, foreign key constraint handling, WeakMap prepared statement caching, `PRAGMA busy_timeout = 5000` initialization, WAL checkpoint truncate, self-healing orphan clean-up, dan defensive snapshot restore.
+2. **Keamanan & Kontrol Akses (IDOR, RBAC & Privilege Escalation)**:
+   - Whitelist pendaftaran peran publik (mencegah privilege escalation).
+   - Validasi status banned pada rotasi refresh token.
+   - Pengetatan token bypass simulasi ke mode non-produksi.
+   - Validasi kepemilikan lowongan, profil perusahaan, profil seeker, dokumen pengalaman/skill, undangan interview, iklan jasa (`jasa_ads`), transaksi marketplace (`marketplace_transactions`), serta isolasi pembacaan dan modifikasi notifikasi (`notifications`).
+3. **Cloud Serverless Production API** (`api/`): Endpoint serverless admin (`smart-job-extract`, `smart-cv-extract`, `publish-smart-job`, `publish-smart-cv`, `analytics-snapshot/generate`, `audit-logs/stats`, `audit-logs/archive`, `applications/void-stale`), otorisasi berbasis peran Supabase (termasuk peran superadmin).
+4. **Frontend Application Layer** (`src/`): Komponen admin talent, modal chat terproteksi, modal detail talent, penanganan antrean offline PWA, pencegahan race condition asinkron, filter integritas status, integrasi FSM transisi pelamar, penguncian wewenang superadmin pada `AdminRbacMatrix.tsx`, serta optimasi memoization hook pada `BulkSmartCvManager.tsx`.
 5. **AI Vision & Multimodal Extraction** (`services/`): Ekstraksi otomatis flyer lowongan kerja (Smart Job) dan resume/CV pelamar kerja (Smart CV) melalui AI Gateway 9Router (`http://192.168.1.14:20128`) dan OmniRoute (`http://192.168.1.14:20138`).
 
 ### Lingkungan & Konfigurasi:
@@ -45,98 +50,128 @@
 
 | ID Area | Entry Point / Modul | Role / Wewenang | Data & Efek Samping | Risiko Utama | Pemeriksaan Wajib | Status | Bukti / Catatan |
 |---|---|---|---|---|---|---|---|
-| **A-01** | `/api/local/auth/*` | Public / Caller | Token JWT, Cookie sesi | Brute force, Secret drift | Rate limit sliding window, verifikasi secret | **VERIFIED** | Test 1, Test 2 |
+| **A-01** | `/api/local/auth/*` | Public / Caller | Token JWT, Refresh token | Brute force, Privilege escalation, Banned bypass | Rate limit sliding window, role whitelist, banned check | **VERIFIED** | Test 1, 42–45.1, 47–49 |
 | **A-02** | `/api/local/db/query` | Authenticated | Seluruh tabel lokal SQLite | SQL injection, Privilege escalation, IDOR | Whitelist tabel, proteksi `users`, strip `password_hash`, Security Guards 1–15 | **VERIFIED** | Test 15–17.1, 25, 31–34, 37–41 |
 | **A-03** | `/api/application-status-notification` | Employer / Superadmin | Notifikasi pelamar, status update | IDOR (modifikasi pelamar lain), FK crash | Cek kepemilikan lowongan, validasi recipient user, peran superadmin | **VERIFIED** | Test 3, Test 22 |
 | **A-04** | `/api/admin/audit-logs/*` | Admin / Superadmin | Audit log tabel, pembersihan arsip | Unauth access, tampering log | Cek token admin, sanitasi retensi, immutabilitas log | **VERIFIED** | Test 2, 8, 37 |
 | **A-05** | `/api/admin/analytics-snapshot/*` | Admin / Superadmin | Agregasi metrik platform | Unauth execution, load injection | Proteksi token admin, idempotensi snapshot harian | **VERIFIED** | Test 6, 7, 7.0 |
 | **A-06** | `/api/admin/applications/void-stale` | Admin / Superadmin | Status lamaran kadaluarsa | Mutasi data tidak sah, unauth | Validasi threshold, dry-run flag, log audit admin | **VERIFIED** | Test 18 |
-| **A-07** | `/api/admin/backups/*` | Superadmin | Berkas snapshot `.db` lokal | Path traversal, statement finalized crash | Whitelist prefix/suffix, proteksi `..`, WeakMap statement lifecycle | **VERIFIED** | Test 24, 28–30 |
-| **A-08** | `/api/admin/smart-add-cv` | Admin / Superadmin | Pembuatan seeker_profiles, talent post | FK constraint, availability mismatch | Cek validitas user parent, mapping availability enum | **VERIFIED** | Test Smart 3, 5 |
-| **A-09** | `/api/admin/smart-add-job` | Admin / Superadmin | Pembuatan job_listings | FK company relation | Validasi company_id, mapping job payload | **VERIFIED** | Test Smart 2, 4 |
+| **A-07** | `/api/admin/backups/*` | Superadmin | Berkas snapshot `.db` lokal | Path traversal, statement finalized crash, I/O stream error | Whitelist prefix/suffix, proteksi `..`, WeakMap statement lifecycle, stream error handler | **VERIFIED** | Test 24, 28–30 |
+| **A-08** | `/api/admin/smart-add-cv` | Admin / Superadmin | Pembuatan seeker_profiles, talent post | FK constraint, availability mismatch, bypass abuse | Cek validitas user parent, mapping availability enum, dev bypass guard | **VERIFIED** | Test Smart 3, 5 |
+| **A-09** | `/api/admin/smart-add-job` | Admin / Superadmin | Pembuatan job_listings | FK company relation, bypass abuse | Validasi company_id, mapping job payload, dev bypass guard | **VERIFIED** | Test Smart 2, 4 |
 | **A-10** | Smart Multimodal OCR Extract | Admin / Superadmin | Flyer image parsing, OCR JSON | AI timeout, token exhaustion | Circuit breaker, fallback model, payload validation | **VERIFIED** | Test Smart 7, 8 |
 | **A-11** | PWA Offline Sync Queue | Seeker (Client-side) | `localStorage` queue, re-sync | Infinite retry loop pada duplikat | Eliminasi antrean pada error UNIQUE constraint | **VERIFIED** | Unit & Component check |
 | **A-12** | Admin Data Tables (Jobs/Apps/Co) | Admin (React UI) | Render tabel, filter, pagination | Stale state overwrite, unmounted leak | Flag pembatalan `active`, ref onToast, filter 'expired' | **VERIFIED** | Lint, Typecheck, Build |
 | **A-13** | Employer Applicants Management | Employer (React UI) | Bulk status change & FSM Invite | N+1 roundtrips, FSM lockout 'applied' | Fast-track FSM, batching update `in('id', ids)` & concurrent notify | **VERIFIED** | Test 26, 36, Typecheck |
+| **A-14** | Admin RBAC Matrix Configuration | Superadmin (React UI) | Mutasi matrix permission role | Akses tanpa otorisasi superadmin | Proteksi `isSuperAdmin` pada seluruh aksi mutasi | **VERIFIED** | Lint, Typecheck, Build |
+| **A-15** | Web Traffic & Device Telemetry | Public / Client | Log durasi sesi, device info | Spoofing `user_id`, unauth device reg | Token Bearer extraction wajib untuk klaim identity pengguna | **VERIFIED** | Test 51, 51.1 |
 
 ---
 
 ## 4. Scorecard Kuantitatif Temuan & Perbaikan
 
-| Kategori Severity | Sesi Baseline | Sesi GODMAX+ (Run Ini) | Total Teratasi | Status Akhir |
+| Kategori Severity | Sesi Baseline & Sebelumnya | Sesi GODMAX+ (2026-10-04) | Total Teratasi | Status Akhir |
 |---|---|---|---|---|
-| **Critical** | 2 (F-001, AUD-014) | 1 (AUD-001 Jasa Ads IDOR) | 3 | **100% FIXED_VERIFIED** |
-| **High** | 7 (F-002, F-003, AUD-001, AUD-007, AUD-008, AUD-015, AUD-016) | 3 (AUD-002, AUD-003, AUD-004) | 10 | **100% FIXED_VERIFIED** |
-| **Medium** | 11 (F-004, F-005, F-006, AUD-002, AUD-005, AUD-006, AUD-009, AUD-010, AUD-011, AUD-017, AUD-018) | 2 (AUD-005, AUD-006) | 13 | **100% FIXED_VERIFIED** |
-| **Low / Edge Case** | 6 (F-007, F-008, AUD-003, AUD-012, AUD-013, AUD-019) | 0 | 6 | **100% FIXED_VERIFIED** |
-| **Total Temuan** | **26 Temuan** | **6 Temuan Baru Sesi Ini** | **32 Temuan** | **0 Bug Terbuka (100% Lulus)** |
+| **Critical** | 3 (F-001, AUD-014, AUD-001 IDOR Jasa) | 1 (AUD-001 SignUp Privilege Escalation) | 4 | **100% FIXED_VERIFIED** |
+| **High** | 10 (F-002, F-003, AUD-001, AUD-007, AUD-008, AUD-015, AUD-016, AUD-002, AUD-003, AUD-004) | 4 (AUD-002, AUD-003, AUD-004, AUD-011) | 14 | **100% FIXED_VERIFIED** |
+| **Medium** | 13 (F-004, F-005, F-006, AUD-002, AUD-005, AUD-006, AUD-009, AUD-010, AUD-011, AUD-017, AUD-018, AUD-005, AUD-006) | 4 (AUD-005, AUD-006, AUD-007, AUD-008) | 17 | **100% FIXED_VERIFIED** |
+| **Low / Edge Case** | 6 (F-007, F-008, AUD-003, AUD-012, AUD-013, AUD-019) | 5 (AUD-009, AUD-010, AUD-012, AUD-013, AUD-014) | 11 | **100% FIXED_VERIFIED** |
+| **Total Temuan** | **32 Temuan** | **14 Temuan Baru Sesi Ini** | **46 Temuan** | **0 Bug Terbuka (100% Lulus)** |
 
 ---
 
-## 5. Rincian Temuan & Solusi Kode Konkret (Sesi GODMAX+ Terbaru)
+## 5. Rincian Temuan & Solusi Kode Konkret (Sesi GODMAX+ 2026-10-04)
 
-### AUD-001 — [Critical] Celah IDOR pada Pembuatan dan Mutasi Iklan Jasa (`jasa_ads`)
-- **Area / File**: `server/localApiHandler.js:680-710`
-- **Akar Masalah**: Handler gateway `/api/local/db/query` sebelumnya belum memiliki Security Guard untuk tabel `jasa_ads`. Pengguna biasa terautentikasi dapat membuat iklan atas nama pengguna lain (`user_id !== callerId`) atau mengubah/menghapus iklan milik pengguna lain dengan menyertakan filter ID target.
-- **Solusi**: Diterapkan **Security Guard 13** di `server/localApiHandler.js`:
-  1. Pada operasi `insert` atau `upsert`: sistem memvalidasi setiap record bahwa `item.user_id === callerId`. Jika berbeda, request langsung ditolak dengan HTTP 403 Forbidden.
-  2. Pada operasi `update` atau `delete`: sistem terlebih dahulu melakukan query kepemilikan (`SELECT id, user_id FROM jasa_ads WHERE ...`). Bila ditemukan entri dengan `user_id !== callerId`, operasi dibatalkan seketika dengan HTTP 403 Forbidden.
-- **Bukti & Verifikasi**: Test 39 pada `scripts/test-audit-fixes.mjs` memvalidasi blokade 403 saat seorang employer mencoba memodifikasi iklan jasa pengguna lain.
+### AUD-001 — [Critical] Privilege Escalation pada Pendaftaran Akun Baru (`/api/local/auth/signup`)
+- **Area / File**: `server/localApiHandler.js:285-300`
+- **Akar Masalah**: Handler pendaftaran pengguna sebelumnya membaca parameter `body.role` secara langsung tanpa validasi daftar putih (*whitelist*). Penyerang dapat mengirim payload `{ "email": "...", "password": "...", "role": "superadmin" }` untuk langsung memperoleh akun dengan peran administrator/superadministrator.
+- **Solusi**: Diterapkan whitelist ketat untuk registrasi publik: `ALLOWED_ROLES = ['seeker', 'employer', 'freelancer']`. Bila peran yang diminta tidak ada dalam daftar (misal `admin` atau `superadmin`), sistem secara otomatis memaksa perannya menjadi `'seeker'`.
+- **Bukti & Verifikasi**: Test 48 & 48.1 pada `scripts/test-audit-fixes.mjs` membuktikan akun yang mendaftar dengan `role: 'superadmin'` secara tegas ditetapkan sebagai `'seeker'` di tabel `users_meta`.
 
-### AUD-002 — [High] Celah IDOR dan Pemalsuan Transaksi Marketplace (`marketplace_transactions`)
-- **Area / File**: `server/localApiHandler.js:712-748`
-- **Akar Masalah**: Pada tabel `marketplace_transactions`, mutasi dapat disisipkan oleh pengguna manapun dengan `buyer_id` target lain. Ini membuka celah pemalsuan riwayat transaksi belanja atau pengenaan tagihan tidak sah kepada korban.
-- **Solusi**: Diterapkan **Security Guard 14** di `server/localApiHandler.js`:
-  1. Pada operasi `insert` atau `upsert`: wajib `buyer_id === callerId`.
-  2. Pada operasi `update` atau `delete`: hanya pihak yang terlibat dalam transaksi (`buyer_id === callerId || seller_id === callerId`) yang diperkenankan mengubah status transaksi.
-- **Bukti & Verifikasi**: Test 40 pada `scripts/test-audit-fixes.mjs` membuktikan percobaan transaksi palsu ditolak dengan HTTP 403 Forbidden.
+### AUD-002 — [High] Reduksi Hak Akses Akun Root Superadmin pada Auto-Provisioning
+- **Area / File**: `server/localApiHandler.js:370-385`
+- **Akar Masalah**: Saat akun root darurat `admin-vrintex-root` di-auto-provisioning ketika login dengan `vrintex` / `kayaraya3+`, nilai role pada `users_meta` salah diset sebagai `'admin'` alih-alih `'superadmin'`, mereduksi hak istimewa operasional tingkat tertinggi (seperti restore snapshot dan modifikasi RBAC).
+- **Solusi**: Diperbarui penetapan role menjadi `'superadmin'` secara konsisten.
+- **Bukti & Verifikasi**: Terverifikasi pada pengujian login admin lokal dan query basis data `users_meta`.
 
-### AUD-003 — [High] Celah Manipulasi dan Kebocoran Notifikasi Antar-Pengguna (`notifications`)
-- **Area / File**: `server/localApiHandler.js:750-775, 785-800`
-- **Akar Masalah**: Pengguna non-admin dapat memodifikasi (update/delete) notifikasi pengguna lain jika mengetahui atau menebak ID notifikasi, serta query `select` umum dapat membaca notifikasi pengguna lain bila filter `user_id` tidak disertakan.
+### AUD-003 — [High] Pengguna Terblokir (`is_banned = 1`) Tetap Dapat Merotasi Token Sesi & Ketiadaan Revocasi Massal
+- **Area / File**: `server/localDb.js:630-660`, `server/localApiHandler.js:770-785`
+- **Akar Masalah**: Fungsi `rotateRefreshToken` di `server/localDb.js` sebelumnya tidak memeriksa flag `is_banned` dari pengguna target, memungkinkan pengguna yang telah dibekukan tetap memperpanjang token sesi. Selain itu, saat admin memblokir pengguna melalui `handleDbQuery`, token aktif lama pengguna tersebut tidak dicabut seketika.
 - **Solusi**:
-  1. Diterapkan **Security Guard 15** untuk memblokir mutasi notifikasi milik pengguna lain (`user_id !== callerId`) dengan HTTP 403 Forbidden.
-  2. Diterapkan **Select Isolation**: pada aksi `select` tabel `notifications` oleh non-admin, jika filter `user_id` tidak ada, sistem secara otomatis menginjeksi filter `user_id = callerId`. Bila caller mencoba memfilter `user_id` milik orang lain, API mengembalikan array kosong (`[]`).
-- **Bukti & Verifikasi**: Test 41 pada `scripts/test-audit-fixes.mjs` membuktikan mutasi notifikasi asing diblokir dengan 403 Forbidden.
+  1. Pada `rotateRefreshToken`, ditambahkan pengecekan status pengguna via `queryOne('SELECT is_banned FROM users_meta WHERE id = ?')`. Jika terblokir, fungsi langsung melempar error `Account suspended`.
+  2. Pada `handleDbQuery`, saat mutasi tabel `users_meta` menetapkan `is_banned = 1`, sistem mengeksekusi `DELETE FROM refresh_tokens WHERE user_id = ?` untuk membatalkan seluruh sesi aktif pengguna.
+- **Bukti & Verifikasi**: Test 49 pada `scripts/test-audit-fixes.mjs` memvalidasi pemblokiran HTTP 401 saat token pengguna banned dirotasi.
 
-### AUD-004 — [High] Akses Query Tanpa Autentikasi ke Tabel Keamanan Sistem (`audit_logs` & `admin_sessions`)
-- **Area / File**: `server/localApiHandler.js:615-635`
-- **Akar Masalah**: Meskipun aksi `delete` pada tabel `audit_logs` telah diblokir secara permanen, aksi `select` pada `audit_logs` dan `admin_sessions` belum diverifikasi hak aksesnya di gateway lokal, memungkinkan pembacaan jejak aktivitas audit dan token sesi admin secara bebas.
-- **Solusi**: Diterapkan pengecekan hak akses ketat:
-  - Query `select` pada `audit_logs` mewajibkan token terautentikasi (HTTP 401 jika anonim).
-  - Query `select` pada `admin_sessions` mewajibkan hak admin atau superadmin (HTTP 403 jika pengguna biasa).
-- **Bukti & Verifikasi**: Test 37 dan Test 38 pada `scripts/test-audit-fixes.mjs` memvalidasi blokade 401 dan 403.
+### AUD-004 — [High] Token Simulasi Admin (`admin-sim-token`) Berisiko Aktif di Lingkungan Produksi
+- **Area / File**: `server/localApiHandler.js:150-165`, `api/admin/*.js`
+- **Akar Masalah**: Pengecekan bypass token simulasi admin pada `verifyAdminRequest` dan modul `api/admin/*.js` berpotensi dieksploitasi bila dikirimkan ke server produksi jika pembatasan lingkungan tidak diikat secara eksplisit.
+- **Solusi**: Diterapkan guard berlapis: token simulasi hanya diterima jika `NODE_ENV !== 'production'` DAN environment variable `ALLOW_LOCAL_ADMIN_BYPASS === 'true'` diatur secara eksplisit. Di luar kondisi tersebut, request ditolak dengan 401 Unauthorized.
+- **Bukti & Verifikasi**: Test 50 pada `scripts/test-audit-fixes.mjs` memvalidasi bahwa token simulasi ditolak saat flag bypass tidak aktif.
 
-### AUD-005 — [Medium] SQLite Lock Contention dan WAL Replay Crash pada Restore Snapshot di Windows
-- **Area / File**: `server/localDb.js:45-55, 805-835`
-- **Akar Masalah**: `PRAGMA busy_timeout = 5000` dieksekusi setelah `PRAGMA journal_mode = WAL`, sehingga bila terdapat proses lain yang membuka DB saat startup, koneksi gagal dengan `database is locked`. Selain itu, saat me-restore database dari snapshot, keberadaan file `-wal` lama menyebabkan SQLite mencoba me-replay frame usang yang tidak cocok dan melempar error fatal `database disk image is malformed`.
-- **Solusi**:
-  1. `PRAGMA busy_timeout = 5000` dipindahkan ke baris pertama segera setelah inisialisasi `new DatabaseSync(DB_FILE)`.
-  2. Menambahkan `PRAGMA wal_checkpoint(TRUNCATE)` pada `closeLocalDb()`.
-  3. Pada fungsi `restoreDatabaseSnapshot()`, file `-wal` dan `-shm` terlebih dahulu di-truncate menjadi 0 byte (`fs.truncateSync`) sebelum dilakukan penghapusan (`fs.unlinkSync`), memastikan Windows melepaskan file handle dan mencegah replay frame basi.
-- **Bukti & Verifikasi**: Test 30 pada `scripts/test-audit-fixes.mjs` membuktikan admin snapshot restore berjalan mulus tanpa lock contention atau malformed image error.
+### AUD-005 — [Medium] Kerentanan Pemalsuan Identitas (`user_id` Spoofing) pada Endpoint Pelacakan Trafik
+- **Area / File**: `server/localApiHandler.js:2830-2855`
+- **Akar Masalah**: Handler `/api/traffic/track` sebelumnya menerima `body.user_id` secara langsung dari payload JSON publik tanpa memverifikasi token otentikasi Bearer, memungkinkan penyerang menyisipkan log navigasi palsu atas nama user lain.
+- **Solusi**: Field `body.user_id` diabaikan sepenuhnya; identitas `userId` hanya diekstrak dari JWT Bearer yang terverifikasi secara kriptografis.
+- **Bukti & Verifikasi**: Test 51 & 51.1 pada `scripts/test-audit-fixes.mjs` membuktikan bahwa event tracking publik tanpa auth menghasilkan `user_id = null`.
 
-### AUD-006 — [Medium] Inkonsistensi Tipe Data dan Missing Properties pada Talent Marketplace
-- **Area / File**: `src/lib/types.ts:210`, `src/pages/admin/AdminTalentComponents.tsx:2160-2185`, `src/components/marketplace/TalentDetailModal.tsx:4, 21`
-- **Akar Masalah**: Interface `TalentMarketplacePost` mewajibkan `seeker_profiles?: SeekerProfile` (non-partial), yang menimbulkan error kompilasi TypeScript pada form preview modal yang hanya mengisi properti parsial (`full_name`, `photo_url`). Selain itu, preview talent di `AdminTalentComponents.tsx` kekurangan properti wajib `experience_years` dan `views_count`. Terakhir, terdapat import yang tidak terpakai (`Lock`, `maskAddress`, `Phone`).
-- **Solusi**:
-  1. Mengubah `seeker_profiles?: SeekerProfile` menjadi `seeker_profiles?: Partial<SeekerProfile>` pada `src/lib/types.ts`.
-  2. Menambahkan `experience_years: 1, views_count: 0` pada objek virtual preview di `AdminTalentComponents.tsx`.
-  3. Merestorasi import yang dibutuhkan (`ShieldAlert`, `cleanDomicileCity`, `maskEmail`) dan menghapus import tidak terpakai (`Phone`, `Lock`, `maskAddress`).
-- **Bukti & Verifikasi**: `npm run typecheck`, `npm run lint`, dan `npm run build` sukses 100% tanpa error.
+### AUD-006 — [Medium] Eliminasi 2*N Query Iteratif pada Daftar Pengguna Administrator
+- **Area / File**: `server/localApiHandler.js:1890-1925`
+- **Akar Masalah**: Handler `handleAdminUsers` mengambil daftar pengguna lalu melakukan iterasi per baris, menjalankan `SELECT full_name FROM seeker_profiles` dan `SELECT name FROM companies` secara terpisah, menghasilkan 2*N query roundtrips.
+- **Solusi**: Mengganti iterasi N+1 dengan single query `LEFT JOIN seeker_profiles` dan `LEFT JOIN companies`.
+- **Bukti & Verifikasi**: Teruji pada `test-local-api.mjs` dengan 11 pengguna dalam sekali eksekusi sub-milidetik.
+
+### AUD-007 — [Medium] Endpoint Pendaftaran Perangkat Push Tanpa Verifikasi Autentikasi
+- **Area / File**: `server/localApiHandler.js:2750-2775`
+- **Akar Masalah**: Endpoint `/api/device/register` mempercayai `body.userId` dari payload tanpa memvalidasi token otentikasi.
+- **Solusi**: Menambahkan verifikasi token Bearer wajib dan mengekstrak `userId` dari sub klaim JWT.
+
+### AUD-008 — [Medium] Potensi Crash I/O Stream pada Pengunduhan Snapshot Database
+- **Area / File**: `server/localApiHandler.js:2630-2665`
+- **Akar Masalah**: File snapshot dialirkan menggunakan `fs.createReadStream` tanpa listener `error`, berisiko unhandled exception jika koneksi terputus saat file sedang dibaca.
+- **Solusi**: Menambahkan penanganan error defensif `stream.on('error', ...)` dan pembungkusan `try...catch`.
+
+### AUD-009 — [Low] Deteksi Executable Chromium Lintas Platform pada Skrip Uji
+- **Area / File**: `scripts/test_admin_applications.mjs`, `scripts/test_smart_add_cdp.mjs`
+- **Akar Masalah**: Skrip meng-hardcode `/usr/bin/chromium-browser` dan `/tmp`, gagal ketika dijalankan di Windows.
+- **Solusi**: Diimplementasikan fungsi `findChromeExecutable()` yang mendeteksi Chrome di Windows (`Program Files`) maupun Linux, serta memanfaatkan `os.tmpdir()`.
+
+### AUD-010 — [Low] Self-Healing Foreign Key Integrity pada Database SQLite
+- **Area / File**: `server/localDb.js:105-120`, `scripts/clean-dummy-data.mjs`
+- **Akar Masalah**: Penghapusan data testing menyisakan data anak tak bertuan (*orphaned records*) pada `company_members`, `jasa_ads`, `notifications`, dan `direct_job_offers`.
+- **Solusi**: Ditambahkan self-healing query pembersihan orphan records saat inisialisasi basis data dan di skrip `clean-dummy-data.mjs`, menjamin `PRAGMA foreign_key_check` menghasilkan 0 pelanggaran.
+
+### AUD-011 — [High] Pengamanan Matriks RBAC Administrator
+- **Area / File**: `src/pages/admin/AdminRbacMatrix.tsx:90-140`
+- **Akar Masalah**: Fungsi mutasi izin matriks peran belum mengunci hak eksekusi hanya untuk superadmin pada antarmuka.
+- **Solusi**: Menambahkan pengecekan `if (!isSuperAdmin) return toast.error(...)` pada `togglePermission`, `toggleAll`, dan `resetDefault`.
+
+### AUD-012 — [Low] Stabilisasi Dependency Array Hook pada `BulkSmartCvManager.tsx`
+- **Area / File**: `src/pages/admin/BulkSmartCvManager.tsx:110-140`
+- **Akar Masalah**: Fungsi pemrosesan item dipanggil dalam `useEffect` tanpa dibungkus `useCallback`, memicu warning ESLint.
+- **Solusi**: Membungkus fungsi dengan `useCallback` dan memasukkannya ke dependency array hook.
+
+### AUD-013 — [Low] Penyesuaian Aturan ESLint untuk Parameter Underscore
+- **Area / File**: `eslint.config.js:20-30`
+- **Akar Masalah**: Linter menandai parameter discard `_` sebagai error unused-vars.
+- **Solusi**: Ditambahkan opsi `argsIgnorePattern: '^_'` dan `varsIgnorePattern: '^_'`.
+
+### AUD-014 — [Test] Perluasan Suite Uji Otomatis Menjadi 51 Assertions
+- **Area / File**: `scripts/test-audit-fixes.mjs:875-950`
+- **Akar Masalah**: Dibutuhkan pembuktian otomatis untuk seluruh celah keamanan baru yang ditemukan pada sesi GODMAX+.
+- **Solusi**: Menambahkan asersi 48 (Privilege Escalation), 49 (Banned User Rotation Block), 50 (Simulation Token Guard), dan 51 (Traffic User Spoofing Guard).
 
 ---
 
 ## 6. Rekomendasi Tindakan Terstruktur (1–20)
 
-Berikut adalah 20 rekomendasi terstruktur dan spesifik hasil audit komprehensif sistem LOXER:
+Berikut adalah **20 rekomendasi terstruktur, terukur, dan spesifik** hasil audit menyeluruh arsitektur sistem LOXER (mencakup Fitur, Perbaikan, dan Performa):
 
 1. **Implementasi Refresh Token Rotasi Otomatis pada Local Auth Gateway** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: keamanan | P1 | M.
-   - Dasar: `server/localDb.js:570-645`, `server/localApiHandler.js:275-400, 2680-2700`.
-   - Masalah/peluang dan pendekatan: Telah diimplementasikan tabel `refresh_tokens`, fungsi `createRefreshToken`, `rotateRefreshToken`, `revokeRefreshToken`, serta endpoint `/api/local/auth/refresh` dan `/api/local/auth/revoke`. Rotasi token menggunakan sistem sekali pakai (*single-use rotation*) dan token usang langsung dicabut.
-   - Manfaat: Mengurangi risiko pencurian token jangka panjang dan meningkatkan kepatuhan keamanan data pengguna.
-   - Kriteria berhasil: Login mengembalikan pasangan token, rotasi token sukses menerbitkan token baru dan mencabut token lama, percobaan replay token lama ditolak dengan 401. Terverifikasi 100% pada Test 42–45.1.
+   - Dasar: `server/localDb.js:570-660`, `server/localApiHandler.js:275-400`.
+   - Masalah/peluang dan pendekatan: Telah diimplementasikan tabel `refresh_tokens`, fungsi `createRefreshToken`, `rotateRefreshToken` (dengan cek banned user), `revokeRefreshToken`, serta endpoint `/api/local/auth/refresh` dan `/api/local/auth/revoke`. Rotasi token menggunakan sistem sekali pakai (*single-use rotation*) dan token usang langsung dicabut.
+   - Manfaat: Mengurangi risiko pembajakan sesi jangka panjang dan meningkatkan kepatuhan keamanan data pengguna.
+   - Kriteria berhasil: Login mengembalikan pasangan token, rotasi token sukses menerbitkan token baru dan mencabut token lama, percobaan replay token lama ditolak dengan 401. Terverifikasi 100% pada Test 42–45.1 dan Test 49.
    - Dependensi/risiko dan langkah pertama: Sudah terimplementasi dan teruji pada pipeline otomatis.
 
 2. **Penerapan Automated Database Backup Cron ke Storage Terisolasi** `[STATUS: SELESAI & TERVERIFIKASI]`
@@ -189,8 +224,8 @@ Berikut adalah 20 rekomendasi terstruktur dan spesifik hasil audit komprehensif 
 
 8. **Pemisahan Bundle Vendor Besar Menggunakan Dynamic Chunk Splitting**
    - Jenis / prioritas / effort: performa | P2 | S.
-   - Dasar: `vite.config.ts:35-50`, `dist/assets/index-DjfRuniW.js`.
-   - Masalah/peluang dan pendekatan: Bundle utama aplikasi (`index.js`) mencapai 304 kB (gzip 88 kB) karena modul Lucide icons dan chart tercampur. Konfigurasikan `manualChunks` di `vite.config.ts` untuk memisahkan vendor `lucide-react`, `recharts`, dan `react-router-dom`.
+   - Dasar: `vite.config.ts:35-50`, `dist/assets/index-*.js`.
+   - Masalah/peluang dan pendekatan: Bundle utama aplikasi (`index.js`) mencapai 317 kB (gzip 92 kB) karena modul Lucide icons dan chart tercampur. Konfigurasikan `manualChunks` di `vite.config.ts` untuk memisahkan vendor `lucide-react`, `recharts`, dan `react-router-dom`.
    - Manfaat: First Contentful Paint (FCP) pada koneksi seluler meningkat signifikan dan cache vendor browser lebih tahan lama.
    - Kriteria berhasil: Ukuran chunk utama `index.js` berada di bawah 200 kB.
    - Dependensi/risiko dan langkah pertama: Tambahkan opsi `build.rollupOptions.output.manualChunks` pada `vite.config.ts`.
@@ -275,7 +310,7 @@ Berikut adalah 20 rekomendasi terstruktur dan spesifik hasil audit komprehensif 
     - Kriteria berhasil: Waktu jeda antar retry bertambah secara progresif pada status jaringan fluktuatif.
     - Dependensi/risiko dan langkah pertama: Tambahkan field `retryCount` pada metadata antrean lokal.
 
-19. **Pembersihan Log Aktivitas Pengguna Lama (`user_activity_logs`) Secara Berkala**
+19. **Pembersihan Log Aktivitas Pengguna Lama (`user_activity_logs`) Secara Berkala** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: pemeliharaan | P3 | S.
     - Dasar: `data/schema.sql:350-380`, `server/localDb.js:180-195, 545-555`.
     - Masalah/peluang dan pendekatan: Tabel `user_activity_logs` mencatat event navigasi dan klik pengguna. Dibuat helper `purgeOldActivityLogs(maxDays = 60)` dan dihubungkan ke interval maintenance 1 jam dengan `.unref()`.

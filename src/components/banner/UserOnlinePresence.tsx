@@ -10,7 +10,7 @@ export interface PresenceGroup {
   href: string;
 }
 
-export const USER_PRESENCE_GROUPS: PresenceGroup[] = [
+const USER_PRESENCE_GROUPS: PresenceGroup[] = [
   {
     key: 'seeker',
     label: 'Seeker',

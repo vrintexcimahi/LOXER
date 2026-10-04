@@ -74,11 +74,24 @@ try {
   const delScraped = db.prepare("DELETE FROM fb_scraped_posts WHERE post_url LIKE '%test_azqy%' OR post_url NOT LIKE 'http%'").run();
   console.log(`- Histori fb_scraped_posts tes simulasi dibersihkan: ${delScraped.changes} baris`);
 
+  // 7. Clean any orphaned foreign key records (AUD-010 Data Integrity Guard)
+  const delOrphanMembers = db.prepare('DELETE FROM company_members WHERE user_id NOT IN (SELECT id FROM users) OR company_id NOT IN (SELECT id FROM companies)').run();
+  const delOrphanNotifs = db.prepare('DELETE FROM notifications WHERE user_id NOT IN (SELECT id FROM users)').run();
+  const delOrphanJasa = db.prepare('DELETE FROM jasa_ads WHERE user_id NOT IN (SELECT id FROM users)').run();
+  const delOrphanOffers = db.prepare('DELETE FROM direct_job_offers WHERE company_id NOT IN (SELECT id FROM companies)').run();
+  console.log(`- Data yatim piatu (orphaned records) dibersihkan: ${delOrphanMembers.changes + delOrphanNotifs.changes + delOrphanJasa.changes + delOrphanOffers.changes} baris`);
+
+  // 8. Assert zero foreign key violations
+  const fkViolations = db.prepare('PRAGMA foreign_key_check').all();
+  if (fkViolations.length > 0) {
+    throw new Error(`Integritas relasional gagal: ${fkViolations.length} pelanggaran foreign key terdeteksi.`);
+  }
+
   db.exec('COMMIT;');
   db.exec('REINDEX;');
   db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
   db.exec('VACUUM;');
-  console.log('✅ [BERHASIL] Seluruh data dummy telah bersih dari database dan basis data berhasil direindex!');
+  console.log('✅ [BERHASIL] Seluruh data dummy telah bersih dari database, integritas foreign key 100% valid, dan basis data berhasil direindex!');
 } catch (err) {
   db.exec('ROLLBACK;');
   console.error('❌ [GAGAL] Gagal membersihkan data dummy:', err);

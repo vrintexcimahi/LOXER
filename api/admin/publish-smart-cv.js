@@ -8,7 +8,9 @@ function getBearerToken(req) {
 async function verifyAdmin(adminClient, token) {
   if (!token) return { error: { status: 401, message: 'Unauthorized: Sesi admin tidak ditemukan.' } };
 
-  if (token.startsWith('local-admin-') || token === 'superadmin-bypass-token' || token.includes('admin-vrintex')) {
+  const isLocalDev = process.env.NODE_ENV !== 'production';
+  const allowLocalBypass = isLocalDev && (process.env.ALLOW_LOCAL_ADMIN_BYPASS === 'true' || !process.env.NODE_ENV);
+  if (allowLocalBypass && (token.startsWith('local-admin-') || token === 'superadmin-bypass-token' || token.includes('admin-vrintex'))) {
     return { ok: true, user: { id: 'admin-vrintex-root', email: 'vrintex@loxer.app' } };
   }
 

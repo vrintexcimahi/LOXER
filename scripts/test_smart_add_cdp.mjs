@@ -1,12 +1,43 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+function findChromeExecutable() {
+  if (process.platform === 'win32') {
+    const candidates = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return 'chrome';
+  }
+  const candidates = [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return 'chromium-browser';
+}
 
 async function main() {
-  const chrome = spawn('chromium-browser', [
+  const chromePath = findChromeExecutable();
+  const testProfileDir = path.join(os.tmpdir(), 'chrome_test_profile');
+  const chrome = spawn(chromePath, [
     '--headless',
     '--disable-gpu',
     '--remote-debugging-port=9223',
-    '--user-data-dir=/tmp/chrome_test_profile',
+    `--user-data-dir=${testProfileDir}`,
     '--no-sandbox',
     '--window-size=1440,1200',
   ]);
@@ -95,11 +126,11 @@ async function main() {
     });
     await new Promise((r) => setTimeout(r, 1500));
 
-    // Capture screenshot
     const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
     if (shot?.data) {
-      fs.writeFileSync('/home/vrintex/smart_add_extracted.png', Buffer.from(shot.data, 'base64'));
-      console.log('Screenshot saved to /home/vrintex/smart_add_extracted.png');
+      const outImg = path.join(os.tmpdir(), 'smart_add_extracted.png');
+      fs.writeFileSync(outImg, Buffer.from(shot.data, 'base64'));
+      console.log('Screenshot saved to', outImg);
     }
 
     ws.close();

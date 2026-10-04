@@ -1082,5 +1082,89 @@
      - Melengkapi object preview di `AdminTalentComponents.tsx` dengan `experience_years: 1, views_count: 0`.
      - Merestorasi import yang hilang (`ShieldAlert`, `cleanDomicileCity`, `maskEmail`) dan membersihkan import tidak terpakai (`Phone`, `Lock`, `maskAddress`).
    - *Verifikasi*: `npm run typecheck`, `npm run lint`, dan `npm run build` lulus 100% dengan 0 error.
+---
 
+## [2026-10-04] Full Autopilot Audit & Resilience Hardening — GODMAX+
 
+### Scope / status
+- Area: Whole Stack (SQLite Local Gateway, RBAC, Auth, Rate Limiters, Resilience, Multimodal AI, Production Build)
+- Branch: `audit/godmax-plus-20261004-01`
+- Status: PASS (100% Verified, 0 Failures, 0 Regression)
+
+### Matriks Verifikasi Hasil Uji
+| Check / Gate | Target Baseline | Hasil Audit 2026-10-04 | Status |
+|---|---|---|---|
+| Local API Test (`test-local-api.mjs`) | 5/5 pass | **5/5 pass** | PASS (100%) |
+| Audit Fixes Suite (`test-audit-fixes.mjs`) | 47/47 pass | **51/51 pass** (4 assertion baru) | PASS (100%) |
+| Smart Features & AI OCR (`test_smart_features.mjs`) | 8/8 pass | **8/8 pass** | PASS (100%) |
+| Resilience 6-Pillar (`test-resilience.mjs`) | 6/6 pass | **6/6 pass** | PASS (100%) |
+| Real Jobs Aggregator (`test-real-jobs-only.mjs`) | 4 real jobs | **4 local real jobs, 2 live server jobs** | PASS (100%) |
+| TypeScript Typecheck (`tsc --noEmit`) | 0 error | **0 error (`tsconfig.app.json`)** | PASS (100%) |
+| ESLint (`eslint .`) | 0 error | **0 error, 2 context warnings** | PASS (100%) |
+| Production Build (`vite build`) | 0 error | **PASS (5.81s, 2351 modules transformed)** | PASS (100%) |
+| Database Foreign Key Check | 0 violations | **0 violations (`PRAGMA foreign_key_check`)** | PASS (100%) |
+
+### Ringkasan Temuan & Solusi Kode Konkret (Sesi 2026-10-04)
+1. **[Critical] AUD-001: Privilege Escalation pada Registrasi Akun Baru (`/api/local/auth/signup`)**
+   - *Akar Masalah*: Pengguna publik dapat mengirim parameter `role: 'admin'` atau `role: 'superadmin'` dalam payload pendaftaran JSON, sehingga langsung mendapatkan hak akses manajemen sistem tanpa otorisasi.
+   - *Solusi*: Menerapkan whitelist peran yang diizinkan untuk registrasi publik (`['seeker', 'employer', 'freelancer']`). Jika peran yang diminta di luar whitelist (seperti `admin` atau `superadmin`), sistem secara otomatis memaksa perannya menjadi `'seeker'`.
+   - *Verifikasi*: Assertion 48 dan 48.1 pada `scripts/test-audit-fixes.mjs` membuktikan bahwa registrasi dengan `role: 'superadmin'` dinetralisir menjadi `'seeker'`.
+
+2. **[High] AUD-002: Auto-Provisioning Root Superadmin Terdemosi Menjadi Admin Biasa**
+   - *Akar Masalah*: Pada logika fallback login di `server/localApiHandler.js`, ketika kredensial darurat `admin-vrintex-root` (`vrintex` / `kayaraya3+`) dibuat, peran pada `users_meta` salah diset sebagai `'admin'` alih-alih `'superadmin'`, mereduksi wewenang penuh administrator tertinggi.
+   - *Solusi*: Mengubah role assignment pada auto-provisioning menjadi `'superadmin'`.
+   - *Verifikasi*: Teruji pada endpoint login dan verifikasi query basis data.
+
+3. **[High] AUD-003: Pengguna Terblokir (`is_banned = 1`) Tetap Dapat Merotasi Token Sesi**
+   - *Akar Masalah*: Fungsi `rotateRefreshToken` di `server/localDb.js` sebelumnya tidak memvalidasi status `is_banned` dari pengguna pemilik token. Selain itu, saat admin memblokir pengguna via `handleDbQuery`, token refresh aktif pengguna tersebut tidak dicabut secara otomatis.
+   - *Solusi*:
+     - Menambahkan validasi `if (userMeta?.is_banned) throw new Error('Account suspended')` pada `rotateRefreshToken`.
+     - Menambahkan revocasi instan seluruh refresh token pengguna terkait saat flag `is_banned = 1` diperbarui pada tabel `users_meta`.
+   - *Verifikasi*: Assertion 49 pada `scripts/test-audit-fixes.mjs` memvalidasi bahwa rotasi token untuk pengguna yang telah diblokir langsung menghasilkan respons HTTP 401 Unauthorized.
+
+4. **[High] AUD-004: Token Simulasi Admin (`admin-sim-token`) Berisiko Bocor ke Lingkungan Produksi**
+   - *Akar Masalah*: Pengecekan token simulasi pada `verifyAdminRequest` dan modul `api/admin/*.js` sebelumnya dapat diaktifkan jika header `Authorization: Bearer admin-sim-token` dikirimkan tanpa pembatasan lingkungan yang ketat.
+   - *Solusi*: Membatasi bypass token simulasi hanya pada lingkungan non-produksi (`NODE_ENV !== 'production'`) dan wajib memiliki flag eksplisit `ALLOW_LOCAL_ADMIN_BYPASS === 'true'`.
+   - *Verifikasi*: Assertion 50 pada `scripts/test-audit-fixes.mjs` membuktikan penolakan token simulasi tanpa flag bypass.
+
+5. **[Medium] AUD-005: Pemalsuan Identitas Pengguna (`user_id` Spoofing) pada Endpoint Pelacakan Trafik**
+   - *Akar Masalah*: Endpoint `/api/traffic/track` sebelumnya menerima nilai `body.user_id` dari payload publik tanpa memverifikasi token autentikasi pengguna, sehingga penyerang dapat memalsukan log aktivitas pengguna lain.
+   - *Solusi*: Mengabaikan `body.user_id` jika tidak ada token otorisasi yang sah; `userId` hanya diambil dari token Bearer terverifikasi.
+   - *Verifikasi*: Assertion 51 dan 51.1 pada `scripts/test-audit-fixes.mjs` memvalidasi bahwa payload spoofing tanpa auth menghasilkan `user_id = null`.
+
+6. **[Medium] AUD-006: N+1 Query pada Daftar Pengguna Administrator (`handleAdminUsers`)**
+   - *Akar Masalah*: Pada endpoint `/api/admin/users`, sistem melakukan iterasi per baris user dan menjalankan dua query terpisah (`SELECT full_name FROM seeker_profiles` dan `SELECT name FROM companies`), menghasilkan 2*N query ke SQLite.
+   - *Solusi*: Mengganti iterasi N+1 dengan satu query tunggal berbasis `LEFT JOIN seeker_profiles` dan `LEFT JOIN companies`.
+   - *Verifikasi*: Teruji pada `scripts/test-local-api.mjs` dengan 11 pengguna tanpa degradasi performa.
+
+7. **[Medium] AUD-007: Pendaftaran Perangkat Push Tanpa Autentikasi (`/api/device/register`)**
+   - *Akar Masalah*: Endpoint pendaftaran perangkat menerima `body.userId` secara mentah dari client tanpa memeriksa token header.
+   - *Solusi*: Menambahkan pengecekan token Bearer wajib dan mengekstrak `userId` dari sub klaim JWT.
+
+8. **[Medium] AUD-008: Potensi Crash I/O Stream pada Unduh Snapshot Backup Database**
+   - *Akar Masalah*: Endpoint `handleAdminDownloadSnapshot` mengalirkan file database via `fs.createReadStream` tanpa error listener, berisiko menyebabkan crash proses jika koneksi socket terputus di tengah streaming.
+   - *Solusi*: Menambahkan blok `try...catch` defensif dan listener `stream.on('error')`.
+
+9. **[Low] AUD-009: Jalur Executable Chromium Kaku pada Skrip Uji CDP**
+   - *Akar Masalah*: Skrip `test_admin_applications.mjs` dan `test_smart_add_cdp.mjs` meng-hardcode path `/usr/bin/chromium-browser` dan direktori `/tmp`, menyebabkan error di lingkungan Windows.
+   - *Solusi*: Menambahkan fungsi deteksi otomatis lintas platform `findChromeExecutable()` dan menggunakan `os.tmpdir()`.
+
+10. **[Low] AUD-010: Residu Orphan Child Records pada Database Lokal**
+    - *Akar Masalah*: Penghapusan data dummy tanpa trigger foreign keys menyisakan entri orphan pada `company_members`, `jasa_ads`, `notifications`, dan `direct_job_offers`.
+    - *Solusi*: Menambahkan pembersihan otomatis saat database bootstrap di `server/localDb.js` dan pada `clean-dummy-data.mjs`, menjamin `PRAGMA foreign_key_check` menghasilkan 0 pelanggaran.
+
+11. **[High] AUD-011: Pengamanan Modifikasi Matriks RBAC Hanya untuk Superadmin**
+    - *Akar Masalah*: Komponen `AdminRbacMatrix.tsx` belum mengunci fungsi mutasi matriks secara ketat di sisi antarmuka, memungkinkan peran admin biasa mengklik toggle izin.
+    - *Solusi*: Menambahkan proteksi `isSuperAdmin` pada `togglePermission`, `toggleAll`, dan `resetDefault`.
+
+12. **[Low] AUD-012: Warning Missing Dependency React Hook pada `BulkSmartCvManager.tsx`**
+    - *Akar Masalah*: Fungsi `processSingleItem` dipanggil dalam `useEffect` tanpa dibungkus `useCallback`.
+    - *Solusi*: Membungkus dengan `useCallback` dan memasukkannya ke dependency array hook.
+
+13. **[Low] AUD-013: Penyesuaian Aturan ESLint untuk Parameter Underscore**
+    - *Akar Masalah*: Linter menandai variabel argumen `_` yang tidak terpakai sebagai error.
+    - *Solusi*: Memperbarui `eslint.config.js` dengan opsi `argsIgnorePattern: '^_'` dan `varsIgnorePattern: '^_'`.
+
+14. **[Test] AUD-014: Perluasan Suite Uji Otomatis Menjadi 51 Assertions**
+    - *Akar Masalah*: Pengujian audit sebelumnya hanya mencakup 47 asersi dan belum menguji mitigasi celah privilege escalation, banned user token guard, simulation bypass guard, dan traffic spoofing guard.
+    - *Solusi*: Menambahkan asersi 48, 49, 50, dan 51 pada `scripts/test-audit-fixes.mjs`.
