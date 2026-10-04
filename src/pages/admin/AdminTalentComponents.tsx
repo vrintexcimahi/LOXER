@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   MessageSquare,
   Lock,
+  Layers,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
@@ -34,6 +35,7 @@ import { checkIsSuperAdmin } from '../../lib/constants';
 import { maskPhoneNumber, maskEmail, cleanDomicileCity } from '../../lib/contactPrivacyService';
 import { cropPasFotoFromImage, generateBlurredCvImage } from '../../lib/cvImageProcessor';
 import ProtectedTalentChatModal from '../../components/marketplace/ProtectedTalentChatModal';
+import { BulkSmartCvManager } from './BulkSmartCvManager';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -1057,6 +1059,8 @@ export function SmartAddCvSection({
   onToast: (type: ToastType, message: string) => void;
   onSaved: () => void;
 }) {
+  const [mainMode, setMainMode] = useState<'single' | 'bulk'>('single');
+  const [pendingBulkFiles, setPendingBulkFiles] = useState<File[]>([]);
   const [inputMode, setInputMode] = useState<'file' | 'text'>('file');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [selectedFileSize, setSelectedFileSize] = useState('');
@@ -1206,12 +1210,26 @@ export function SmartAddCvSection({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 1) {
+      const filesArr = Array.from(e.target.files);
+      setPendingBulkFiles(filesArr);
+      setMainMode('bulk');
+      onToast('info', `Terdeteksi ${filesArr.length} berkas! Beralih otomatis ke Mode Massal (Bulk Upload).`);
+      return;
+    }
     const file = e.target.files?.[0];
     if (file) handleProcessFile(file);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 1) {
+      const filesArr = Array.from(e.dataTransfer.files);
+      setPendingBulkFiles(filesArr);
+      setMainMode('bulk');
+      onToast('info', `Terdeteksi ${filesArr.length} berkas! Beralih otomatis ke Mode Massal (Bulk Upload).`);
+      return;
+    }
     const file = e.dataTransfer.files?.[0];
     if (file) handleProcessFile(file);
   };
@@ -1593,8 +1611,49 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Top Banner: AI Smart Add CV Engine */}
-      <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950/40 p-6 shadow-xl backdrop-blur-md">
+      {/* Mode Switcher: Single vs Bulk */}
+      <div className="flex flex-col sm:flex-row items-center gap-2 p-1.5 bg-slate-900/90 border border-white/10 rounded-2xl backdrop-blur-md shadow-lg">
+        <button
+          type="button"
+          onClick={() => setMainMode('single')}
+          className={`flex-1 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            mainMode === 'single'
+              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Mode Satuan (Single CV / Paste)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainMode('bulk')}
+          className={`flex-1 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            mainMode === 'bulk'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Mode Massal / Bulk Upload (Puluhan &amp; Ratusan PDF)</span>
+          <span className="ml-1.5 px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/30">
+            Multi-Worker AI
+          </span>
+        </button>
+      </div>
+
+      {mainMode === 'bulk' ? (
+        <BulkSmartCvManager
+          onToast={onToast}
+          onSaved={onSaved}
+          onSwitchToSingleMode={() => setMainMode('single')}
+          initialFiles={pendingBulkFiles}
+        />
+      ) : (
+        <>
+          {/* Top Banner: AI Smart Add CV Engine */}
+          <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950/40 p-6 shadow-xl backdrop-blur-md">
         <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
         <div className="absolute left-1/3 bottom-0 -mb-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
@@ -1672,6 +1731,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
               onChange={handleFileChange}
               className="hidden"
@@ -1722,8 +1782,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   </span>
                 </div>
 
-                {/* Direct Button for Clipboard Click */}
-                <div className="mt-5">
+                {/* Direct Action Buttons */}
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1734,6 +1794,18 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   >
                     <Clipboard className="w-3.5 h-3.5" />
                     <span>Tempel dari Clipboard Sekarang</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMainMode('bulk');
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Mode Massal (Upload Puluhan CV Sekaligus)</span>
                   </button>
                 </div>
               </div>
@@ -2561,6 +2633,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
             />
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );
