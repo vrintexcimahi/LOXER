@@ -104,7 +104,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
     <div className="overflow-x-hidden">
 
       {/* ─── HERO ─────────────────────────────────────────── */}
-      <section className="relative flex flex-col items-center justify-start pt-16 sm:pt-22 pb-6 sm:pb-10 gradient-hero overflow-hidden px-3 sm:px-4">
+      <section className="relative flex flex-col items-center justify-start pt-20 sm:pt-24 lg:pt-28 pb-6 sm:pb-10 gradient-hero overflow-hidden px-3 sm:px-4">
         {/* Blob decorations */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-cyan-500 rounded-full opacity-[0.08] blur-3xl animate-blob" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-sky-400 rounded-full opacity-[0.08] blur-3xl animate-blob" style={{ animationDelay: '-4s' }} />

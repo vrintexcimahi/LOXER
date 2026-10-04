@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { UserRole } from '../../lib/types';
+import UserOnlinePresence from './UserOnlinePresence';
 
 export interface BannerSlide {
   id: string;
@@ -63,6 +64,7 @@ export interface HeroBannerSlideshowProps {
   initialSlide?: number;
   variant?: 'embedded' | 'standalone';
   className?: string;
+  showOnlinePresence?: boolean;
 }
 
 export default function HeroBannerSlideshow({
@@ -70,6 +72,7 @@ export default function HeroBannerSlideshow({
   initialSlide = 0,
   variant = 'embedded',
   className = '',
+  showOnlinePresence = true,
 }: HeroBannerSlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(
     initialSlide >= 0 && initialSlide < BANNER_SLIDES.length ? initialSlide : 0
@@ -131,18 +134,25 @@ export default function HeroBannerSlideshow({
   if (variant === 'embedded') {
     return (
       <div
-        className={`relative w-full select-none ${className}`}
+        className={`w-full select-none ${className}`}
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Glow ambient background behind the card */}
-        <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500/20 via-sky-500/10 to-teal-500/20 blur-xl opacity-75 group-hover:opacity-100 transition duration-1000 -z-10" />
+        {/* User Online Presence Indicator Bar above Carousel */}
+        {showOnlinePresence && (
+          <UserOnlinePresence className="mb-3 sm:mb-4 animate-fade-up" />
+        )}
 
-        {/* Outer Frame with glassy border - Large hero display */}
-        <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-cyan-400/30 bg-slate-950 shadow-2xl shadow-cyan-950/60 ring-1 ring-white/10 w-full aspect-[16/9]">
+        {/* Carousel Frame Container */}
+        <div className="relative w-full">
+          {/* Glow ambient background behind the card */}
+          <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500/20 via-sky-500/10 to-teal-500/20 blur-xl opacity-75 group-hover:opacity-100 transition duration-1000 -z-10" />
+
+          {/* Outer Frame with glassy border - Large hero display */}
+          <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-cyan-400/30 bg-slate-950 shadow-2xl shadow-cyan-950/60 ring-1 ring-white/10 w-full aspect-[16/9]">
           {/* Slides Track */}
           <div
             className="flex h-full w-full transition-transform duration-700 ease-out"
@@ -229,19 +239,23 @@ export default function HeroBannerSlideshow({
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // Standalone Variant (Full Width)
   return (
     <div
-      className={`relative w-full max-w-5xl mx-auto mb-3 sm:mb-5 px-1 sm:px-4 select-none animate-fade-up ${className}`}
+      className={`w-full max-w-5xl mx-auto mb-3 sm:mb-5 px-1 sm:px-4 select-none animate-fade-up ${className}`}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {showOnlinePresence && (
+        <UserOnlinePresence className="mb-3 sm:mb-4 animate-fade-up" />
+      )}
       <div className="relative group overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-400/25 bg-slate-900 shadow-2xl shadow-cyan-500/20 ring-1 ring-white/10 aspect-[16/9] w-full">
         <div
           className="flex h-full w-full transition-transform duration-700 ease-out"

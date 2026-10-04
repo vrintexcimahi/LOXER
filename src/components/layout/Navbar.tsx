@@ -15,64 +15,6 @@ interface NavbarProps {
   onRegister?: (role?: UserRole) => void;
 }
 
-const userPresenceGroups = [
-  {
-    key: 'seeker',
-    label: 'Seeker',
-    description: 'Pencari Kerja',
-    minOnline: 750,
-    maxOnline: 16500,
-  },
-  {
-    key: 'employer',
-    label: 'Employer',
-    description: 'Perusahaan',
-    minOnline: 250,
-    maxOnline: 3500,
-  },
-  {
-    key: 'freelancer',
-    label: 'Jasa',
-    description: 'Penyedia Jasa Mandiri',
-    minOnline: 150,
-    maxOnline: 1750,
-  },
-];
-
-function formatOnlineCount(value: number) {
-  return value.toLocaleString('id-ID');
-}
-
-function getRandomOnlineUsers(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function clampValue(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function getStepSize(current: number, min: number, max: number) {
-  const range = max - min;
-  const progress = range === 0 ? 0 : (current - min) / range;
-
-  if (progress < 0.2) return Math.max(6, Math.round(range * 0.018));
-  if (progress < 0.5) return Math.max(8, Math.round(range * 0.014));
-  if (progress < 0.8) return Math.max(6, Math.round(range * 0.01));
-  return Math.max(4, Math.round(range * 0.006));
-}
-
-function getNextOnlineUsers(current: number, min: number, max: number) {
-  const range = max - min;
-  const upwardBias = current < min + range * 0.72;
-  const direction = upwardBias
-    ? (Math.random() < 0.82 ? 1 : -1)
-    : (Math.random() < 0.64 ? -1 : 1);
-  const baseStep = getStepSize(current, min, max);
-  const variance = Math.max(6, Math.round(baseStep * 0.35));
-  const delta = baseStep + Math.floor(Math.random() * variance);
-
-  return clampValue(current + (direction * delta), min, max);
-}
 
 export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: NavbarProps) {
   const { user, userMeta, signOut } = useAuth();
@@ -131,66 +73,12 @@ export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: N
 
   const isMarketplaceActive =
     currentPath === '/marketplace' || currentPath === '/products';
-  const [onlineUsersByGroup, setOnlineUsersByGroup] = useState<Record<string, number>>(() =>
-    Object.fromEntries(
-      userPresenceGroups.map((group) => [
-        group.key,
-        getRandomOnlineUsers(group.minOnline, group.maxOnline),
-      ]),
-    ),
-  );
-
-  useEffect(() => {
-    if (!userMenuOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setUserMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setUserMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [userMenuOpen]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setOnlineUsersByGroup((current) =>
-        Object.fromEntries(
-          userPresenceGroups.map((group) => [
-            group.key,
-            getNextOnlineUsers(
-              current[group.key] ?? group.minOnline,
-              group.minOnline,
-              group.maxOnline,
-            ),
-          ]),
-        ),
-      );
-    }, 4000);
-
-    return () => window.clearInterval(intervalId);
-  }, []);
-
-  const userPresence = userPresenceGroups.map((group) => {
-    return {
-      ...group,
-      online: formatOnlineCount(onlineUsersByGroup[group.key] ?? group.minOnline),
-    };
-  });
 
   const getDashboardPath = () => {
     if (!userMeta) return '/';
@@ -310,26 +198,7 @@ export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: N
             )}
           </div>
 
-          {!user ? (
-            <div className="hidden xl:flex items-center gap-2">
-              {userPresence.map((group) => (
-                <div
-                  key={group.key}
-                  className="animate-status-pill flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-white/8 px-3 py-2 text-xs text-slate-100 shadow-lg shadow-sky-950/10 backdrop-blur-sm transition-transform"
-                >
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]">
-                    <span className="absolute inset-0 rounded-full bg-emerald-300/70 animate-ping" />
-                  </span>
-                  <div className="leading-tight">
-                    <p className="font-semibold text-white">{group.label} <span className="text-slate-300 font-medium">({group.description})</span></p>
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="text-cyan-100">{group.online} online</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
+
 
           {/* Right Actions */}
           <div className="hidden md:flex items-center gap-3">
@@ -449,24 +318,7 @@ export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: N
           <div className="flex justify-start">
             <ThemeToggle />
           </div>
-          {!user ? (
-            <div className="flex flex-col gap-2">
-              {userPresence.map((group) => (
-                <div
-                  key={group.key}
-                  className="animate-status-pill inline-flex w-fit items-center gap-2 rounded-2xl border border-cyan-300/20 bg-white/5 px-3 py-2 text-xs text-slate-100"
-                >
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.65)]">
-                    <span className="absolute inset-0 rounded-full bg-emerald-300/70 animate-ping" />
-                  </span>
-                  <div className="leading-tight">
-                    <p className="font-semibold text-white">{group.label} <span className="text-slate-300 font-medium">({group.description})</span></p>
-                    <p className="text-[11px] text-slate-300">{group.online} online</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
+
           {/* Menu Data Tampilan (1 Baris 3 Grid) & Marketplace */}
           <div className="flex flex-col gap-2.5">
             <div className="grid grid-cols-3 gap-2">
