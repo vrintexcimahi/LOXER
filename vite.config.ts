@@ -973,6 +973,27 @@ export default defineConfig(({ mode }) => {
                 }
               }
             }
+            if (urlPath === '/downloads/loxer-admin.apk' || urlPath === '/loxer-admin.apk') {
+              const candidatePaths = [
+                path.resolve(process.cwd(), 'dist/downloads/loxer-admin.apk'),
+                path.resolve(process.cwd(), 'public/downloads/loxer-admin.apk'),
+                path.resolve(process.cwd(), 'dist/loxer-admin.apk'),
+                path.resolve(process.cwd(), 'public/loxer-admin.apk'),
+              ];
+              for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                  const stat = fs.statSync(p);
+                  res.writeHead(200, {
+                    'Content-Type': 'application/vnd.android.package-archive',
+                    'Content-Disposition': 'attachment; filename="loxer-admin.apk"',
+                    'Content-Length': stat.size,
+                    'Cache-Control': 'public, max-age=86400',
+                  });
+                  fs.createReadStream(p).pipe(res);
+                  return;
+                }
+              }
+            }
             next();
           });
           server.middlewares.use(tenantMiddleware);
@@ -1028,6 +1049,27 @@ export default defineConfig(({ mode }) => {
                   res.writeHead(200, {
                     'Content-Type': 'application/vnd.android.package-archive',
                     'Content-Disposition': 'attachment; filename="loxer-mitra.apk"',
+                    'Content-Length': stat.size,
+                    'Cache-Control': 'public, max-age=86400',
+                  });
+                  fs.createReadStream(p).pipe(res);
+                  return;
+                }
+              }
+            }
+            if (urlPath === '/downloads/loxer-admin.apk' || urlPath === '/loxer-admin.apk') {
+              const candidatePaths = [
+                path.resolve(process.cwd(), 'dist/downloads/loxer-admin.apk'),
+                path.resolve(process.cwd(), 'public/downloads/loxer-admin.apk'),
+                path.resolve(process.cwd(), 'dist/loxer-admin.apk'),
+                path.resolve(process.cwd(), 'public/loxer-admin.apk'),
+              ];
+              for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                  const stat = fs.statSync(p);
+                  res.writeHead(200, {
+                    'Content-Type': 'application/vnd.android.package-archive',
+                    'Content-Disposition': 'attachment; filename="loxer-admin.apk"',
                     'Content-Length': stat.size,
                     'Cache-Control': 'public, max-age=86400',
                   });

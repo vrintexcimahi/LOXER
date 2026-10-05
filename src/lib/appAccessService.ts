@@ -19,47 +19,118 @@ export const SECRET_PASSKEYS = [
 
 export const SUPER_ADMIN_STORAGE_KEY = 'loxer_super_admin_bypass';
 export const APP_FORCE_STORAGE_KEY = 'loxer_is_app';
+export const APP_COOKIE_KEY = 'loxer_is_app';
+export const HIDE_INSTALL_BANNER_KEY = 'loxer_hide_install_banner';
+
+/**
+ * Simpan status aplikasi secara persisten (localStorage, sessionStorage, dan cookie)
+ */
+export function markAsAppClient(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(APP_FORCE_STORAGE_KEY, 'true');
+    sessionStorage.setItem(APP_FORCE_STORAGE_KEY, 'true');
+    (window as unknown as { isLoxerApp?: boolean; isNativeApp?: boolean }).isLoxerApp = true;
+    (window as unknown as { isLoxerApp?: boolean; isNativeApp?: boolean }).isNativeApp = true;
+    // Set 1-year persistent cookie
+    document.cookie = `${APP_COOKIE_KEY}=true; path=/; max-age=31536000; SameSite=Lax`;
+  } catch {
+    // Ignore storage/cookie quota errors
+  }
+}
 
 /**
  * Smart Deteksi: Memeriksa apakah client berjalan di dalam Aplikasi LOXER
  * Mendeteksi:
- * 1. PWA Standalone Mode (Desktop / Mobile PWA)
- * 2. iOS Home Screen WebClip Standalone
- * 3. Android Trusted Web Activity (TWA) - id.web.loxer.app
- * 4. Android WebView / Custom In-App Container (UserAgent LoxerApp, wv)
- * 5. Query parameter ?app=true / ?source=app / ?mode=app (yang dipersist ke localStorage)
- * 6. Global JS Bridge window.isLoxerApp atau window.AndroidBridge
+ * 1. Global JS Bridge (window.isLoxerApp, window.AndroidBridge, window.LoxerNative, window.Android)
+ * 2. Persistent Storage (localStorage, sessionStorage, document.cookie)
+ * 3. URL search params / hash (?source=app, ?source=apk, ?platform=apk, ?client=android, ?app=true, ?mode=app, dll)
+ * 4. PWA Standalone Mode & Fullscreen (display-mode: standalone / fullscreen / minimal-ui / iOS standalone)
+ * 5. Document Referrer (android-app://)
+ * 6. User-Agent Tokens (LoxerApp, id.web.loxer.app, LoxerNative, wv, Android WebView)
  */
 export function detectIsAppClient(): boolean {
   if (typeof window === 'undefined') return false;
 
   try {
-    // 1. Check persistent App override flag (e.g. launched with ?app=true)
-    const storedAppFlag = localStorage.getItem(APP_FORCE_STORAGE_KEY);
-    if (storedAppFlag === 'true') {
-      return true;
-    }
-
-    // 2. Check URL search params for app query
-    const params = new URLSearchParams(window.location.search);
+    // 0. Check in-memory global bridge
+    const win = window as unknown as {
+      isLoxerApp?: boolean;
+      isNativeApp?: boolean;
+      AndroidBridge?: unknown;
+      LoxerNative?: unknown;
+      Android?: unknown;
+    };
     if (
-      params.get('app') === 'true' ||
-      params.get('app') === '1' ||
-      params.get('source') === 'app' ||
-      params.get('source') === 'twa' ||
-      params.get('client') === 'android' ||
-      params.get('mode') === 'app'
+      win.isLoxerApp === true ||
+      win.isNativeApp === true ||
+      win.LoxerNative !== undefined ||
+      win.AndroidBridge !== undefined ||
+      win.Android !== undefined
     ) {
-      try {
-        localStorage.setItem(APP_FORCE_STORAGE_KEY, 'true');
-      } catch {
-        // ignore storage errors
-      }
+      markAsAppClient();
       return true;
     }
 
-    // 3. Check Document Referrer for Android TWA package id (Official APK)
-    if (document.referrer && document.referrer.includes('android-app://id.web.loxer.app')) {
+    // 1. Check persistent App override flags in localStorage or sessionStorage
+    const storedAppFlag = localStorage.getItem(APP_FORCE_STORAGE_KEY);
+    const sessionAppFlag = sessionStorage.getItem(APP_FORCE_STORAGE_KEY);
+    if (storedAppFlag === 'true' || sessionAppFlag === 'true') {
+      markAsAppClient();
+      return true;
+    }
+
+    // 2. Check Cookie
+    if (document.cookie && document.cookie.includes(`${APP_COOKIE_KEY}=true`)) {
+      markAsAppClient();
+      return true;
+    }
+
+    // 3. Check URL search params for app query
+    const search = window.location.search || '';
+    const hash = window.location.hash || '';
+    const fullQuery = search + (hash.includes('?') ? '&' + hash.split('?')[1] : '');
+    const params = new URLSearchParams(fullQuery);
+
+    const appFlag = params.get('app');
+    const sourceFlag = (params.get('source') || '').toLowerCase();
+    const platformFlag = (params.get('platform') || '').toLowerCase();
+    const clientFlag = (params.get('client') || '').toLowerCase();
+    const modeFlag = (params.get('mode') || '').toLowerCase();
+    const isAppParam = params.get('is_app') || params.get('native');
+
+    if (
+      appFlag === 'true' ||
+      appFlag === '1' ||
+      isAppParam === 'true' ||
+      isAppParam === '1' ||
+      ['app', 'apk', 'twa', 'android', 'mobile'].includes(sourceFlag) ||
+      ['apk', 'android', 'app', 'mobile'].includes(platformFlag) ||
+      ['android', 'app', 'mobile', 'apk'].includes(clientFlag) ||
+      ['app', 'standalone', 'fullscreen'].includes(modeFlag)
+    ) {
+      markAsAppClient();
+      return true;
+    }
+
+    // 4. Check Display Mode (PWA Standalone, Fullscreen, Minimal-UI)
+    if (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true
+    ) {
+      markAsAppClient();
+      return true;
+    }
+
+    // 5. Check Document Referrer for Android package id (Official APK or Android app link)
+    if (
+      document.referrer &&
+      (document.referrer.includes('android-app://id.web.loxer.app') ||
+       document.referrer.startsWith('android-app://'))
+    ) {
+      markAsAppClient();
       return true;
     }
 
@@ -68,14 +139,11 @@ export function detectIsAppClient(): boolean {
     if (
       /LoxerApp/i.test(ua) ||
       /id\.web\.loxer\.app/i.test(ua) ||
-      (/Android/i.test(ua) && /Version\/[\d.]+/i.test(ua) && /Chrome\/[\d.]+/i.test(ua) && /wv/i.test(ua))
+      /LoxerNative/i.test(ua) ||
+      (/Android/i.test(ua) && /wv/i.test(ua)) ||
+      (/Android/i.test(ua) && /Version\/[\d.]+/i.test(ua) && /Chrome\/[\d.]+/i.test(ua) && !/Mobile Safari/i.test(ua))
     ) {
-      return true;
-    }
-
-    // 7. Check Custom JS Injection Bridge
-    const win = window as unknown as { isLoxerApp?: boolean; AndroidBridge?: unknown; LoxerNative?: unknown };
-    if (win.isLoxerApp === true || win.AndroidBridge !== undefined || win.LoxerNative !== undefined) {
+      markAsAppClient();
       return true;
     }
 

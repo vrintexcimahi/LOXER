@@ -10,6 +10,8 @@ import {
   ArrowRight,
   KeyRound,
   ExternalLink,
+  Smartphone,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
@@ -147,8 +149,34 @@ export default function AdminInternalLogin() {
         </a>
       </div>
 
-      {/* Main Login Card */}
-      <div className="max-w-md mx-auto w-full my-auto py-8">
+      {/* Main Login Card with APK Admin Pill */}
+      <div className="max-w-md mx-auto w-full my-auto py-6 space-y-3">
+        {/* Dedicated Admin APK Download Banner */}
+        <div className="rounded-2xl border border-cyan-500/40 bg-slate-900/90 p-3 sm:px-4 sm:py-3 backdrop-blur-xl shadow-lg shadow-cyan-950/50 flex items-center justify-between gap-3 group hover:border-cyan-400/60 transition-all">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 to-teal-500/10 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-sm shrink-0 group-hover:scale-105 transition-transform">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white tracking-wide truncate">Aplikasi Khusus Admin</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shrink-0">
+                  APK
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">Akses instan Portal Super Admin via HP</p>
+            </div>
+          </div>
+          <a
+            href="/downloads/loxer-admin.apk"
+            download="loxer-admin.apk"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 hover:from-cyan-400 hover:to-teal-300 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/25 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Download</span>
+          </a>
+        </div>
+
         <div className="rounded-3xl border border-cyan-500/30 bg-slate-900/80 p-6 sm:p-8 backdrop-blur-xl shadow-[0_0_80px_rgba(6,182,212,0.15)] relative overflow-hidden">
           {/* Decorative Corner Glow */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -191,6 +219,17 @@ export default function AdminInternalLogin() {
                 Buka Dashboard Admin
                 <ArrowRight className="w-4 h-4" />
               </button>
+              <div className="pt-2 border-t border-emerald-500/20 flex items-center justify-between text-xs text-slate-400">
+                <span>Versi Mobile Super Admin:</span>
+                <a
+                  href="/downloads/loxer-admin.apk"
+                  download="loxer-admin.apk"
+                  className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1"
+                >
+                  <Download className="w-3 h-3" />
+                  Unduh APK (1.6 MB)
+                </a>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleLogin} className="space-y-4">
@@ -273,6 +312,17 @@ export default function AdminInternalLogin() {
                   </>
                 )}
               </button>
+
+              <div className="pt-2 text-center">
+                <a
+                  href="/downloads/loxer-admin.apk"
+                  download="loxer-admin.apk"
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-cyan-300 transition-colors"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Ingin buka di smartphone? <strong className="text-cyan-400 underline font-semibold">Download APK Admin</strong></span>
+                </a>
+              </div>
             </form>
           )}
         </div>

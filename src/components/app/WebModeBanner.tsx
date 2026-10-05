@@ -1,12 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Smartphone, X, Eye } from 'lucide-react';
 import { useAppAccess } from '../../contexts/AppAccessContext';
+import { HIDE_INSTALL_BANNER_KEY } from '../../lib/appAccessService';
 
 export default function WebModeBanner() {
   const { isViewOnlyWeb, openInstallModal } = useAppAccess();
-  const [minimized, setMinimized] = useState(false);
+  const [isDismissed, setIsDismissed] = useState<boolean>(true);
+  const [minimized, setMinimized] = useState<boolean>(false);
 
-  if (!isViewOnlyWeb) return null;
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const dismissed = localStorage.getItem(HIDE_INSTALL_BANNER_KEY) === 'true';
+      setIsDismissed(dismissed);
+    }
+  }, []);
+
+  // Suppress completely if running in App, Super Admin, or user permanently dismissed
+  if (!isViewOnlyWeb || isDismissed) return null;
+
+  const handlePermanentClose = () => {
+    setIsDismissed(true);
+    try {
+      localStorage.setItem(HIDE_INSTALL_BANNER_KEY, 'true');
+    } catch {
+      // ignore
+    }
+  };
 
   if (minimized) {
     return (
@@ -54,9 +73,10 @@ export default function WebModeBanner() {
           </button>
           <button
             type="button"
-            onClick={() => setMinimized(true)}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
-            title="Sembunyikan"
+            onClick={handlePermanentClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+            title="Sembunyikan permanen"
+            aria-label="Tutup notifikasi"
           >
             <X className="w-4 h-4" />
           </button>

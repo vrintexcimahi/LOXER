@@ -49,17 +49,26 @@ export function AppAccessProvider({ children }: { children: ReactNode }) {
   );
 
   const isSuperAdmin = isSuperAdminBypass || isActualAdminUser;
-  // User via Web biasa hanya bisa View Only KECUALI Super Admin (dengan akses rahasia)
+  // User via Web biasa hanya bisa View Only KECUALI Super Admin (dengan akses rahasia) atau Aplikasi
   const isViewOnlyWeb = !isApp && !isSuperAdmin;
 
   // Sync detection on mount & event listeners
   useEffect(() => {
     const checkAppClient = () => {
-      setIsApp(detectIsAppClient());
+      const detected = detectIsAppClient();
+      setIsApp(detected);
       setIsSuperAdminBypass(detectIsSuperAdminBypass());
+      if (detected) {
+        setInstallModalOpen(false);
+      }
     };
 
     checkAppClient();
+
+    // Listen to changes in navigation or storage
+    window.addEventListener('storage', checkAppClient);
+    window.addEventListener('popstate', checkAppClient);
+    window.addEventListener('hashchange', checkAppClient);
 
     // Secret Global Keyboard Shortcut: Ctrl + Shift + A or Cmd + Shift + A
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -80,11 +89,16 @@ export function AppAccessProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
+      window.removeEventListener('storage', checkAppClient);
+      window.removeEventListener('popstate', checkAppClient);
+      window.removeEventListener('hashchange', checkAppClient);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
   const openInstallModal = useCallback((actionTitle?: string) => {
+    // Never open modal if app is detected
+    if (detectIsAppClient()) return;
     setInstallModalAction(actionTitle || 'Mengakses Layanan Lengkap');
     setInstallModalOpen(true);
   }, []);
@@ -108,7 +122,7 @@ export function AppAccessProvider({ children }: { children: ReactNode }) {
    */
   const requireApp = useCallback(
     (actionTitle?: string): boolean => {
-      if (isApp || isSuperAdmin) {
+      if (isApp || isSuperAdmin || detectIsAppClient()) {
         return true;
       }
       openInstallModal(actionTitle);

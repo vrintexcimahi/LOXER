@@ -13,6 +13,7 @@ import {
   Menu,
   LogOut,
   Wrench,
+  Download,
 } from 'lucide-react';
 import BrandText from '../../components/ui/BrandText';
 import ThemeToggle from '../../components/ui/ThemeToggle';
@@ -301,6 +302,16 @@ export default function GodModeLayout({ title, description, actions, children }:
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 shrink-0 self-end sm:self-auto">
+                <a
+                  href="/downloads/loxer-admin.apk"
+                  download="loxer-admin.apk"
+                  title="Download Aplikasi LOXER Admin APK (Android)"
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-400 transition cursor-pointer shrink-0 shadow-sm shadow-cyan-500/10"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>APK Admin</span>
+                  <Download className="w-3 h-3 text-cyan-400 opacity-80" />
+                </a>
                 {actions}
                 <ThemeToggle compact variant="dark" />
                 <NotificationBell variant="dark" compact />
