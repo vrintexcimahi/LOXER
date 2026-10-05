@@ -3131,6 +3131,90 @@ async function handleTrafficStats(req, res) {
 // Main Router Middleware for Node.js http server / Vite
 // ---------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------
+// Mobile Native Shell Endpoints (Master Prompt Section H & AK)
+// ---------------------------------------------------------------------------
+function handleMobileConfig(req, res) {
+  const config = {
+    web_url: process.env.VITE_APP_URL || "https://app.loxer.id",
+    web_version: "2.7.2",
+    maintenance: false,
+    maintenance_message: "LOXER sedang melakukan peningkatan sistem untuk stabilitas dan keamanan yang lebih baik. Silakan coba kembali beberapa saat lagi.",
+    minimum_android_version: "1.0.0",
+    minimum_ios_version: "1.0.0",
+    recommended_android_version: "1.2.0",
+    recommended_ios_version: "1.2.0",
+    force_native_update: false,
+    update_url_android: "https://play.google.com/store/apps/details?id=id.web.loxer.app",
+    update_url_ios: "https://apps.apple.com/app/id.web.loxer.app",
+    allowed_hosts: [
+      "app.loxer.id",
+      "loxer.id",
+      "loxer.web.id",
+      "api.loxer.id",
+      "dev-app.loxer.id",
+      "staging-app.loxer.id",
+      "localhost",
+      "127.0.0.1"
+    ],
+    features: {
+      biometric_auth: true,
+      push_notifications: true,
+      child_panel_routing: true,
+      native_camera: true,
+      file_download: true,
+      safe_revalidation: true
+    }
+  };
+  return sendJson(res, 200, config);
+}
+
+async function handleMobileDevice(req, res) {
+  try {
+    const body = (req.body && typeof req.body === 'object') ? req.body : await parseJsonBody(req);
+    const platform = String(body.platform || 'unknown').toLowerCase();
+    const deviceId = String(body.device_id || body.deviceId || '').trim().slice(0, 128);
+    const pushToken = String(body.push_token || body.pushToken || '').trim();
+    const appVersion = String(body.app_version || body.appVersion || '1.0.0').slice(0, 32);
+    const tenant = body.tenant ? String(body.tenant).slice(0, 64) : null;
+    const userId = body.user_id ? String(body.user_id) : null;
+
+    if (!deviceId) {
+      return sendJson(res, 400, { error: { message: 'device_id wajib diisi' } });
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const ip = req.socket?.remoteAddress || '127.0.0.1';
+      execute(
+        `INSERT INTO user_devices (id, device_id, user_id, platform, os_version, last_ip, last_seen_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(device_id) DO UPDATE SET
+           user_id = COALESCE(excluded.user_id, user_devices.user_id),
+           platform = excluded.platform,
+           os_version = excluded.os_version,
+           last_ip = excluded.last_ip,
+           last_seen_at = excluded.last_seen_at,
+           updated_at = excluded.updated_at`,
+        [crypto.randomUUID(), deviceId, userId, platform, appVersion, ip, now, now]
+      );
+    } catch {
+      // non-blocking
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      registered: true,
+      device_id: deviceId,
+      platform,
+      push_token_registered: Boolean(pushToken)
+    });
+  } catch (err) {
+    return sendJson(res, 500, { error: { message: err.message || 'Gagal meregistrasi device' } });
+  }
+}
+
 export function createLocalDbMiddleware(env = {}) {
   getLocalDb(); // ensure initialized
 
@@ -3140,6 +3224,14 @@ export function createLocalDbMiddleware(env = {}) {
     const url = req.url || '';
 
     // Real-Time Web Traffic & Visitor Tracking (Public & Admin)
+    // Mobile Shell endpoints (Master Prompt Section H & AK)
+    if (url.startsWith('/api/mobile/config') && req.method === 'GET') {
+      return handleMobileConfig(req, res);
+    }
+    if (url.startsWith('/api/mobile/device') && req.method === 'POST') {
+      return handleMobileDevice(req, res);
+    }
+
     if (url.startsWith('/api/traffic/track') && req.method === 'POST') {
       return handleTrafficTrack(req, res);
     }

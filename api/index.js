@@ -21,6 +21,8 @@ import integrationsStatus from '../api-legacy/integrations-status.js';
 import jsearch from '../api-legacy/integrations/jsearch.js';
 import jobs from '../api-legacy/jobs.js';
 import userDevices from '../api-legacy/user/devices.js';
+import mobileConfig from '../api-legacy/mobile/config.js';
+import mobileDevice from '../api-legacy/mobile/device.js';
 import partnerPlatform from '../api/partner-platform/[...path].js';
 
 const ROUTES = [
@@ -44,6 +46,8 @@ const ROUTES = [
   ['/integrations/jsearch', jsearch],
   ['/jobs', jobs],
   ['/user/devices', userDevices],
+  ['/mobile/config', mobileConfig],
+  ['/mobile/device', mobileDevice],
 ];
 
 function routeFromRequest(req) {

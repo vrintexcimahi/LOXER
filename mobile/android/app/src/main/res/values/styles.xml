@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Loxer" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/loxer_navy_dark</item>
+        <item name="android:navigationBarColor">@color/loxer_navy_slate</item>
+        <item name="android:windowBackground">@color/loxer_navy_slate</item>
+        <item name="colorPrimary">@color/loxer_cyan_primary</item>
+    </style>
+</resources>

@@ -1,0 +1,23 @@
+## User-specific
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserdatad/
+
+## Build generated
+build/
+DerivedData/
+*.moved-aside
+
+## CocoaPods & Carthage
+Pods/
+Carthage/Build/
+
+## Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+## Swift Package Manager
+.build/
+.swiftpm/

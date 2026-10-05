@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LOXER</string>
+    <string name="app_launcher_name">LOXER</string>
+    <string name="loading_message">Menyiapkan LOXER…</string>
+    <string name="offline_title">Koneksi Bermasalah</string>
+    <string name="offline_subtitle">Tidak dapat terhubung ke server LOXER. Periksa jaringan internet Anda lalu coba lagi.</string>
+    <string name="retry_button">Coba Lagi</string>
+    <string name="maintenance_title">Peningkatan Sistem</string>
+    <string name="maintenance_default_msg">LOXER sedang melakukan peningkatan sistem untuk pengalaman yang lebih baik. Silakan coba kembali sesaat lagi.</string>
+    <string name="update_required_title">Pembaruan Wajib Tersedia</string>
+    <string name="update_required_msg">Versi aplikasi Anda sudah tidak didukung. Silakan perbarui ke versi terbaru untuk melanjutkan.</string>
+    <string name="update_button">Perbarui Sekarang</string>
+    <string name="soft_update_msg">Versi baru LOXER telah tersedia dengan peningkatan fitur dan performa.</string>
+    <string name="later_button">Nanti Saja</string>
+</resources>

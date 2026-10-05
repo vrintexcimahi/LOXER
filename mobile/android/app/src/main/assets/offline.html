@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Offline — LOXER</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    body {
+      background: linear-gradient(135deg, #0B132B 0%, #0F172A 100%);
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      box-shadow: 0 0 50px rgba(2, 132, 199, 0.25);
+      border-radius: 28px;
+      padding: 40px 28px;
+      max-width: 400px;
+      width: 100%;
+    }
+    .icon-badge {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.25), rgba(0, 229, 255, 0.1));
+      border: 1px solid rgba(0, 229, 255, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+    }
+    h1 { font-size: 20px; font-weight: 800; margin-bottom: 12px; color: #FFFFFF; letter-spacing: -0.5px; }
+    p { font-size: 14px; color: #94A3B8; line-height: 1.6; margin-bottom: 30px; }
+    button {
+      width: 100%;
+      padding: 16px 20px;
+      background: linear-gradient(90deg, #00E5FF, #0284C7);
+      color: #0F172A;
+      font-weight: 800;
+      font-size: 15px;
+      border: none;
+      border-radius: 18px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 229, 255, 0.35);
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    button:active { transform: scale(0.98); opacity: 0.9; }
+    .status {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #64748B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #EF4444; }
+    .dot.online { background: #10B981; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-badge">📡</div>
+    <h1>Tidak Ada Koneksi Internet</h1>
+    <p>Periksa koneksi WiFi atau paket data seluler Anda, lalu tekan tombol di bawah untuk membuka LOXER kembali.</p>
+    <button id="retryBtn" onclick="handleRetry()">Coba Lagi</button>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Mode Offline</span>
+    </div>
+  </div>
+
+  <script>
+    function handleRetry() {
+      var btn = document.getElementById('retryBtn');
+      btn.innerText = 'Menghubungkan...';
+      btn.disabled = true;
+      if (window.LoxerNative && typeof window.LoxerNative.retryConnection === 'function') {
+        window.LoxerNative.retryConnection();
+      } else {
+        setTimeout(function() {
+          window.location.reload();
+        }, 800);
+      }
+    }
+
+    window.addEventListener('online', function() {
+      var dot = document.getElementById('statusDot');
+      if (dot) dot.className = 'dot online';
+      var txt = document.getElementById('statusText');
+      if (txt) txt.innerText = 'Jaringan Terdeteksi, Memuat...';
+      handleRetry();
+    });
+  </script>
+</body>
+</html>
