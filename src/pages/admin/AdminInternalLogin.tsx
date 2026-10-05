@@ -8,8 +8,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
-  Sparkles,
-  Server,
   KeyRound,
   ExternalLink,
 } from 'lucide-react';
@@ -129,18 +127,6 @@ export default function AdminInternalLogin() {
     }
   };
 
-  const handleQuickSuperAdminFill = () => {
-    setEmailOrUsername('vrintex');
-    setPassword('kayaraya3+');
-    setError('');
-  };
-
-  const handleQuickRootAdminFill = () => {
-    setEmailOrUsername('vrintex@loxer.app');
-    setPassword('kayaraya3+');
-    setError('');
-  };
-
   return (
     <div className="min-h-screen bg-[#070d1a] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(6,182,212,0.15),rgba(255,255,255,0))] text-white flex flex-col justify-between p-4 sm:p-8">
       {/* Top Bar Security Notification */}
@@ -172,14 +158,19 @@ export default function AdminInternalLogin() {
             <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-lg shadow-cyan-500/20 mb-2">
               <ShieldCheck className="w-9 h-9" />
             </div>
-            <span className="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-3 py-1 text-[11px] font-mono font-semibold text-cyan-300 tracking-wider uppercase">
-              RESTRICTED INTERNAL ACCESS
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap justify-center">
+              <span className="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-3 py-1 text-[11px] font-mono font-semibold text-cyan-300 tracking-wider uppercase">
+                RESTRICTED INTERNAL ACCESS
+              </span>
+              <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-[11px] font-mono font-bold text-emerald-300">
+                loxer.web.id/superadmin
+              </span>
+            </div>
             <h1 className="text-2xl font-black text-white tracking-tight">
               Portal Akses Super Admin
             </h1>
             <p className="text-xs text-slate-400 max-w-sm">
-              Area khusus pengelolaan platform LOXER. Seluruh otentikasi diawasi dan tercatat dalam sistem audit keamanan.
+              Area khusus pengelolaan platform LOXER. Akses aman dan terverifikasi untuk Super Administrator dan tim internal.
             </p>
           </div>
 
@@ -222,9 +213,8 @@ export default function AdminInternalLogin() {
 
               {/* Username / Email */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                  <span>Username / Email Admin</span>
-                  <span className="text-[10px] text-slate-500 font-mono">vrintex / @loxer.app</span>
+                <label className="text-xs font-semibold text-slate-300">
+                  Username / Email Admin
                 </label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -233,7 +223,7 @@ export default function AdminInternalLogin() {
                     required
                     value={emailOrUsername}
                     onChange={(e) => setEmailOrUsername(e.target.value)}
-                    placeholder="vrintex atau vrintex@loxer.app"
+                    placeholder="Masukkan username atau email admin"
                     className="w-full rounded-xl border border-white/10 bg-slate-950/80 pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all font-mono"
                   />
                 </div>
@@ -283,35 +273,6 @@ export default function AdminInternalLogin() {
                   </>
                 )}
               </button>
-
-              {/* Quick Fill Credentials Shortcut */}
-              <div className="pt-3 border-t border-white/5 space-y-2">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold text-center">
-                  Bantuan Akses Cepat Super Admin:
-                </span>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={handleQuickSuperAdminFill}
-                    className="rounded-xl border border-white/10 bg-slate-950/70 p-2 text-slate-300 hover:border-cyan-500/50 hover:text-white transition-all text-left"
-                  >
-                    <div className="font-bold text-cyan-300 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-cyan-400" /> vrintex
-                    </div>
-                    <div className="text-[10px] text-slate-500 font-mono">Password: kayaraya3+</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleQuickRootAdminFill}
-                    className="rounded-xl border border-white/10 bg-slate-950/70 p-2 text-slate-300 hover:border-cyan-500/50 hover:text-white transition-all text-left"
-                  >
-                    <div className="font-bold text-cyan-300 flex items-center gap-1">
-                      <Server className="w-3 h-3 text-cyan-400" /> @loxer.app
-                    </div>
-                    <div className="text-[10px] text-slate-500 font-mono">Password: kayaraya3+</div>
-                  </button>
-                </div>
-              </div>
             </form>
           )}
         </div>

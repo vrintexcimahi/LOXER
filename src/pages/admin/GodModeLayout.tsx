@@ -312,7 +312,7 @@ export default function GodModeLayout({ title, description, actions, children }:
                 </div>
                 <button
                   onClick={() => {
-                    void signOut().then(() => window.location.assign('/'));
+                    void signOut().then(() => window.location.assign('/superadmin'));
                   }}
                   title="Logout"
                   className="rounded-xl border border-red-500/30 bg-red-500/15 p-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-red-200 hover:bg-red-500/25 transition cursor-pointer shrink-0"

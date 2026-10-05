@@ -370,7 +370,7 @@ async function testAuditFixes() {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         testNotifId,
-        seeker?.user_id || 'test_user',
+        seeker?.user_id || 'admin-vrintex-root',
         'Penawaran Kerja Baru',
         'PT Inovasi Digital mengirimkan tawaran pekerjaan langsung.',
         'direct_offer',

@@ -37,13 +37,13 @@ async function test() {
     const capData = await capRes.json();
     console.log('1. Capabilities:', capData.emailAuthEnabled ? 'OK' : 'FAIL');
 
-    // 2. Test /api/local/auth/login with seeded admin
+    // 2. Test /api/local/auth/login with superadmin
     const loginRes = await safeFetch(`${baseUrl}/api/local/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'loxer-admin-1776448925326@example.com',
-        password: 'admin123',
+        email: 'vrintex@loxer.app',
+        password: 'kayaraya3+',
       }),
     });
     const loginData = await loginRes.json();
@@ -69,20 +69,19 @@ async function test() {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
     const usersData = await usersRes.json();
-    console.log('4. Admin Users status:', usersRes.status, 'body:', JSON.stringify(usersData));
     console.log('4. Admin Users Endpoint:', usersData.rows?.length > 0 ? `OK (${usersData.rows.length} users)` : 'FAIL');
 
-    // 5. Test Seeker login
-    const seekerLogin = await safeFetch(`${baseUrl}/api/local/auth/login`, {
+    // 5. Test Auth rejection for unknown user
+    const badLogin = await safeFetch(`${baseUrl}/api/local/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'seeker@demo.com',
-        password: 'seeker123',
+        email: 'nonexistent@test.com',
+        password: 'wrongpassword',
       }),
     });
-    const seekerData = await seekerLogin.json();
-    console.log('5. Seeker Login:', seekerData.data?.session?.access_token ? 'OK' : 'FAIL');
+    const badData = await badLogin.json();
+    console.log('5. Auth Guard for Unregistered User:', badLogin.status === 400 || badData.error ? 'OK' : 'FAIL');
 
     console.log('All local tests passed successfully!');
   } finally {

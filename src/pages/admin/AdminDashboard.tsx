@@ -317,7 +317,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
   const handleSignOut = async () => {
     closeMobile();
     await signOut();
-    window.location.assign('/');
+    window.location.assign('/superadmin');
   };
 
   if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'superadmin')) {

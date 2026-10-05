@@ -120,7 +120,6 @@ function isAllowedAdminEmail(email) {
     norm === 'vrintex' ||
     norm === 'vrintex@loxer.app' ||
     norm === 'admin@loxer.app' ||
-    norm === 'loxer-admin-1776448925326@example.com' ||
     norm.startsWith('vrintex@') ||
     norm.startsWith('admin@')
   );
@@ -3833,44 +3832,27 @@ async function handleAdminPublishSmartCv(req, res) {
       finalPhotoUrl = isFemale ? `/avatars/pixar_female_${variant}.jpg` : `/avatars/pixar_male_${variant}.jpg`;
     }
 
-    // 2. Multi-key Candidate Deduplication
-    // Check by email, whatsapp_number, or candidate full_name
-    let user = null;
+    // 2. Candidate Deduplication (Mencari profil seeker non-user berdasarkan nama dan nomor kontak)
     let seeker = null;
-
-    if (email && String(email).includes('@')) {
-      const cleanEmail = String(email).trim().toLowerCase();
-      user = queryOne('SELECT id, email FROM users WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
-      if (user) {
-        seeker = queryOne('SELECT id, user_id FROM seeker_profiles WHERE user_id = ?', [user.id]);
+    if (cleanName) {
+      if (whatsapp_number && String(whatsapp_number).trim().length >= 8) {
+        seeker = queryOne(
+          'SELECT id, user_id FROM seeker_profiles WHERE user_id IS NULL AND LOWER(TRIM(full_name)) = LOWER(?) AND phone = ?',
+          [cleanName, String(whatsapp_number).trim()]
+        );
+      }
+      if (!seeker) {
+        seeker = queryOne(
+          'SELECT id, user_id FROM seeker_profiles WHERE user_id IS NULL AND LOWER(TRIM(full_name)) = LOWER(?)',
+          [cleanName]
+        );
       }
     }
 
-    if (!seeker && whatsapp_number && String(whatsapp_number).trim().length >= 8) {
-      const cleanPhone = String(whatsapp_number).trim();
-      seeker = queryOne('SELECT id, user_id FROM seeker_profiles WHERE phone = ?', [cleanPhone]);
-    }
-
-    if (!seeker && cleanName) {
-      seeker = queryOne('SELECT id, user_id FROM seeker_profiles WHERE LOWER(TRIM(full_name)) = LOWER(?)', [cleanName]);
-    }
-
-    let userIdToUse = seeker ? seeker.user_id : (user ? user.id : null);
-    if (!userIdToUse) {
-      userIdToUse = crypto.randomUUID();
-      const generatedEmail = email && String(email).includes('@')
-        ? String(email).trim().toLowerCase()
-        : `cv_${crypto.randomUUID().slice(0, 8)}@loxer.local`;
-      const dummyPasswordHash = hashPassword(crypto.randomUUID());
-      execute(
-        'INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)',
-        [userIdToUse, generatedEmail, dummyPasswordHash, now]
-      );
-      execute(
-        'INSERT INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)',
-        [userIdToUse, generatedEmail, 'seeker', now]
-      );
-    }
+    // Kebijakan LOXER: Fitur Smart Add CV HANYA menerbitkan profil & postingan ke Bursa Talent LOXER.
+    // TIDAK otomatis menambahkan akun user baru ke tabel users atau users_meta.
+    // Data user terdaftar murni khusus untuk pengguna yang mendaftar mandiri / manual.
+    const userIdToUse = null;
 
     let seekerIdToUse = seeker ? seeker.id : null;
     if (!seekerIdToUse) {
@@ -3896,13 +3878,14 @@ async function handleAdminPublishSmartCv(req, res) {
       execute(
         `UPDATE seeker_profiles
          SET full_name = COALESCE(NULLIF(?, ''), full_name),
+             user_id = ?,
              photo_url = COALESCE(NULLIF(?, ''), photo_url),
              domicile_city = COALESCE(NULLIF(?, ''), domicile_city),
              about = COALESCE(NULLIF(?, ''), about),
              phone = COALESCE(NULLIF(?, ''), phone),
              updated_at = ?
          WHERE id = ?`,
-        [cleanName, finalPhotoUrl, domicile_city || '', bio || '', whatsapp_number || '', now, seekerIdToUse]
+        [cleanName, userIdToUse, finalPhotoUrl, domicile_city || '', bio || '', whatsapp_number || '', now, seekerIdToUse]
       );
     }
 
@@ -3922,9 +3905,9 @@ async function handleAdminPublishSmartCv(req, res) {
     // Check if talent post already exists for this seeker
     const existingTalentPost = queryOne(
       `SELECT id, headline, photo_url, portfolio_url FROM talent_marketplace_posts
-       WHERE seeker_id = ? OR user_id = ?
+       WHERE seeker_id = ?
        ORDER BY created_at DESC LIMIT 1`,
-      [seekerIdToUse, userIdToUse]
+      [seekerIdToUse]
     );
 
     let talentPostId;
@@ -3936,6 +3919,7 @@ async function handleAdminPublishSmartCv(req, res) {
       isUpdated = true;
       execute(
         `UPDATE talent_marketplace_posts SET
+           user_id = ?,
            headline = ?,
            category = ?,
            bio = ?,
@@ -3954,6 +3938,7 @@ async function handleAdminPublishSmartCv(req, res) {
            updated_at = ?
          WHERE id = ?`,
         [
+          userIdToUse,
           headline.trim(),
           category || 'Umum & Jasa',
           bio || '',

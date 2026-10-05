@@ -89,7 +89,22 @@ export default async function handler(req, res) {
 
     const cleanName = String(full_name).trim();
     const now = new Date().toISOString();
-    const candidateUserId = `usr_cv_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    
+    // Fitur Smart Add CV TIDAK otomatis menambahkan akun user baru ke users/users_meta.
+    // Jika kandidat sudah mendaftar mandiri sebelumnya dengan email yang sama, hubungkan ID-nya.
+    let candidateUserId = null;
+    if (email && String(email).includes('@')) {
+      const cleanEmail = String(email).trim().toLowerCase();
+      const { data: existingUser } = await adminClient
+        .from('users_meta')
+        .select('id')
+        .ilike('email', cleanEmail)
+        .maybeSingle();
+      if (existingUser?.id) {
+        candidateUserId = existingUser.id;
+      }
+    }
+
     const candidateSeekerId = `skr_cv_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
     // 1. Create seeker profile

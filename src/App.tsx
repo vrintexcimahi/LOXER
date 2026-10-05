@@ -233,7 +233,20 @@ VITE_SUPABASE_ANON_KEY=...`}
     if (path === '/employer/applicants') return isRoleAuthorized('employer') ? <Applicants /> : null;
     if (path === '/employer/company') return isRoleAuthorized('employer') ? <CompanyProfile /> : null;
 
-    if (path === '/akses/superadmin' || path === '/akses/admin' || path === '/admin-login') {
+    const normalizedPath = path.toLowerCase().replace(/\/+$/, '') || '/';
+
+    if (
+      normalizedPath === '/superadmin' ||
+      normalizedPath === '/super-admin' ||
+      normalizedPath === '/admin' ||
+      normalizedPath === '/akses/superadmin' ||
+      normalizedPath === '/akses/admin' ||
+      normalizedPath === '/admin-login'
+    ) {
+      if (normalizedPath === '/admin' && (isRoleAuthorized('admin') || isRoleAuthorized('superadmin'))) {
+        window.location.href = '/admin/dashboard';
+        return null;
+      }
       return <AdminInternalLogin />;
     }
 
@@ -287,11 +300,19 @@ VITE_SUPABASE_ANON_KEY=...`}
   };
 
   const page = renderPage();
+  const normalizedCurrentPath = path.toLowerCase().replace(/\/+$/, '') || '/';
 
   if (page === null && path !== '/') {
     if ((path === '/login' || path === '/register') && !user) {
       // Allow unauthenticated visitor to view the login or register modal on homepage
-    } else if (path === '/akses/superadmin' || path === '/akses/admin' || path === '/admin-login') {
+    } else if (
+      normalizedCurrentPath === '/superadmin' ||
+      normalizedCurrentPath === '/super-admin' ||
+      normalizedCurrentPath === '/admin' ||
+      normalizedCurrentPath === '/akses/superadmin' ||
+      normalizedCurrentPath === '/akses/admin' ||
+      normalizedCurrentPath === '/admin-login'
+    ) {
       // Allow unauthenticated internal staff to access the portal
     } else {
       const homePath = getHomePathByRole();

@@ -6,7 +6,8 @@ import {
   hashPassword,
 } from '../server/localDb.js';
 
-const DEFAULT_ADMIN_EMAIL = 'loxer-admin-1776448925326@example.com';
+// KEBIJAKAN: Hanya user yang mendaftar mandiri yang boleh ada di tabel users.
+// Akun dummy/demo tidak lagi dibuat oleh seed script.
 
 export async function seedDatabase() {
   console.log('🌱 Menyiapkan seeder database lokal LOXER...');
@@ -49,79 +50,13 @@ export async function seedDatabase() {
     ['admin-vrintex-root', 'vrintex@loxer.app', now]
   );
 
-  // Also ensure legacy/fallback admin exists
-  const adminHash = hashPassword('admin123');
-  let adminUser = queryOne('SELECT id FROM users WHERE email = ?', [DEFAULT_ADMIN_EMAIL]);
-  if (!adminUser) {
-    const adminId = crypto.randomUUID();
-    execute('INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)', [
-      adminId,
-      DEFAULT_ADMIN_EMAIL,
-      adminHash,
-      now,
-    ]);
-    execute('INSERT INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)', [
-      adminId,
-      DEFAULT_ADMIN_EMAIL,
-      'admin',
-      now,
-    ]);
-  } else {
-    execute('UPDATE users SET password_hash = ? WHERE email = ?', [adminHash, DEFAULT_ADMIN_EMAIL]);
-    execute("UPDATE users_meta SET role = 'admin' WHERE id = ?", [adminUser.id]);
-  }
+  // DIHAPUS: Akun admin legacy (loxer-admin-*@example.com) tidak lagi dibuat.
+  // Hanya user yang mendaftar mandiri yang boleh ada di tabel users.
 
-  // 2. Seed Demo Employer & Company
-  const employerEmail = 'employer@demo.com';
-  let employerUser = queryOne('SELECT id FROM users WHERE email = ?', [employerEmail]);
-  let companyId = null;
-
-  if (!employerUser) {
-    const empId = crypto.randomUUID();
-    const hash = hashPassword('employer123');
-    execute('INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)', [
-      empId,
-      employerEmail,
-      hash,
-      now,
-    ]);
-    execute('INSERT INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)', [
-      empId,
-      employerEmail,
-      'employer',
-      now,
-    ]);
-
-    companyId = crypto.randomUUID();
-    execute(
-      `INSERT INTO companies (id, user_id, name, industry, city, description, website, employee_count, logo_url, verified, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-      [
-        companyId,
-        empId,
-        'PT Vrintex Solusi Teknologi',
-        'Technology',
-        'Jakarta Selatan',
-        'Perusahaan teknologi pengembang platform enterprise dan talenta digital terdepan di Indonesia.',
-        'https://vrintex.co.id',
-        '51-200',
-        '',
-        now,
-        now,
-      ]
-    );
-
-    execute(
-      'INSERT INTO company_members (id, company_id, user_id, role, created_at) VALUES (?, ?, ?, ?, ?)',
-      [crypto.randomUUID(), companyId, empId, 'owner', now]
-    );
-
-    console.log(`✅ Employer demo dibuat: ${employerEmail} (password: employer123)`);
-  } else {
-    const comp = queryOne('SELECT id FROM companies WHERE user_id = ?', [employerUser.id]);
-    companyId = comp?.id;
-    console.log(`ℹ️ Employer demo sudah ada: ${employerEmail}`);
-  }
+  // DIHAPUS: Akun demo employer (employer@demo.com) tidak lagi dibuat.
+  // Hanya user yang mendaftar mandiri yang boleh ada di tabel users.
+  // Jika perlu demo, gunakan script --demo secara terpisah.
+  const companyId = null;
 
   // 3. Seed Demo Job Listings (Hanya jika flag --demo disertakan)
   const isDemoEnabled = process.argv.includes('--demo');
@@ -189,69 +124,9 @@ export async function seedDatabase() {
     }
   }
 
-  // 4. Seed Demo Seeker
-  const seekerEmail = 'seeker@demo.com';
-  let seekerUser = queryOne('SELECT id FROM users WHERE email = ?', [seekerEmail]);
-  if (!seekerUser) {
-    const seekerId = crypto.randomUUID();
-    const hash = hashPassword('seeker123');
-    execute('INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)', [
-      seekerId,
-      seekerEmail,
-      hash,
-      now,
-    ]);
-    execute('INSERT INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)', [
-      seekerId,
-      seekerEmail,
-      'seeker',
-      now,
-    ]);
-
-    const profileId = crypto.randomUUID();
-    execute(
-      `INSERT INTO seeker_profiles (id, user_id, full_name, domicile_city, about, phone, expected_salary_min, expected_salary_max, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        profileId,
-        seekerId,
-        'Budi Santoso',
-        'Jakarta Selatan',
-        'Software Engineer antusias dengan spesialisasi frontend modern dan backend TypeScript.',
-        '081234567890',
-        12000000,
-        18000000,
-        now,
-        now,
-      ]
-    );
-
-    execute(
-      'INSERT INTO seeker_education (id, seeker_id, school_name, degree, major, start_year, end_year, is_current, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [crypto.randomUUID(), profileId, 'Universitas Indonesia', 'S1', 'Ilmu Komputer', 2018, 2022, 0, now]
-    );
-
-    const skills = ['React', 'TypeScript', 'Node.js', 'SQL', 'Tailwind CSS'];
-    for (const skill of skills) {
-      execute(
-        'INSERT INTO seeker_skills (id, seeker_id, skill_name, created_at) VALUES (?, ?, ?, ?)',
-        [crypto.randomUUID(), profileId, skill, now]
-      );
-    }
-
-    // Connect 1 application
-    const firstJob = queryOne('SELECT id FROM job_listings LIMIT 1');
-    if (firstJob) {
-      execute(
-        'INSERT INTO applications (id, job_id, seeker_id, status, applied_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), firstJob.id, profileId, 'reviewed', now, now]
-      );
-    }
-
-    console.log(`✅ Seeker demo dibuat: ${seekerEmail} (password: seeker123)`);
-  } else {
-    console.log(`ℹ️ Seeker demo sudah ada: ${seekerEmail}`);
-  }
+  // DIHAPUS: Akun demo seeker (seeker@demo.com) tidak lagi dibuat.
+  // Hanya user yang mendaftar mandiri yang boleh ada di tabel users.
+  // Data talent di Bursa (seeker_profiles) bisa diisi via fitur Smart Add CV tanpa membuat akun user.
 
   // 5. Seed Initial CMS Homepage if empty
   const homepage = queryOne("SELECT id FROM pages WHERE slug = 'homepage'");

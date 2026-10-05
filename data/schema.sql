@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS users_meta (
 -- 3. Seeker Profiles Table
 CREATE TABLE IF NOT EXISTS seeker_profiles (
   id TEXT PRIMARY KEY,
-  user_id TEXT UNIQUE NOT NULL,
+  user_id TEXT UNIQUE,
   full_name TEXT NOT NULL DEFAULT '',
   photo_url TEXT NOT NULL DEFAULT '',
   domicile_city TEXT NOT NULL DEFAULT '',
@@ -370,7 +370,7 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
 CREATE TABLE IF NOT EXISTS talent_marketplace_posts (
   id TEXT PRIMARY KEY,
   seeker_id TEXT NOT NULL,
-  user_id TEXT NOT NULL,
+  user_id TEXT,
   headline TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT '',
   bio TEXT NOT NULL DEFAULT '',

@@ -324,7 +324,87 @@ export function getLocalDb() {
       // ignore
     }
 
-    // Auto-heal missing parent user references for orphan profiles to satisfy FK constraints
+    // 30. Migration: Allow NULL user_id for Smart Add CV talents (users table is strictly for manual/self-registration)
+    try {
+      const seekerTableInfo = dbInstance.prepare("PRAGMA table_info(seeker_profiles)").all();
+      const userIdCol = seekerTableInfo.find((c) => c.name === 'user_id');
+      if (userIdCol && userIdCol.notnull === 1) {
+        dbInstance.exec('PRAGMA foreign_keys = OFF;');
+        dbInstance.exec(`
+          CREATE TABLE seeker_profiles_new (
+            id TEXT PRIMARY KEY,
+            user_id TEXT UNIQUE,
+            full_name TEXT NOT NULL DEFAULT '',
+            photo_url TEXT NOT NULL DEFAULT '',
+            domicile_city TEXT NOT NULL DEFAULT '',
+            domicile_lat REAL,
+            domicile_lng REAL,
+            about TEXT NOT NULL DEFAULT '',
+            phone TEXT NOT NULL DEFAULT '',
+            expected_salary_min INTEGER NOT NULL DEFAULT 0,
+            expected_salary_max INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          );
+          INSERT INTO seeker_profiles_new SELECT id, user_id, full_name, photo_url, domicile_city, domicile_lat, domicile_lng, about, phone, expected_salary_min, expected_salary_max, created_at, updated_at FROM seeker_profiles;
+          DROP TABLE seeker_profiles;
+          ALTER TABLE seeker_profiles_new RENAME TO seeker_profiles;
+          CREATE INDEX IF NOT EXISTS idx_seeker_profiles_user_id ON seeker_profiles(user_id);
+        `);
+        dbInstance.exec('PRAGMA foreign_keys = ON;');
+      }
+    } catch (e) {
+      console.warn('[localDb] seeker_profiles nullable user_id migration notice:', e.message);
+    }
+
+    try {
+      const talentTableInfo = dbInstance.prepare("PRAGMA table_info(talent_marketplace_posts)").all();
+      const talentUserIdCol = talentTableInfo.find((c) => c.name === 'user_id');
+      if (talentUserIdCol && talentUserIdCol.notnull === 1) {
+        dbInstance.exec('PRAGMA foreign_keys = OFF;');
+        dbInstance.exec(`
+          CREATE TABLE talent_marketplace_posts_new (
+            id TEXT PRIMARY KEY,
+            seeker_id TEXT NOT NULL,
+            user_id TEXT,
+            headline TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT '',
+            bio TEXT NOT NULL DEFAULT '',
+            bio_summary TEXT NOT NULL DEFAULT '',
+            skills TEXT NOT NULL DEFAULT '[]',
+            experience_years INTEGER NOT NULL DEFAULT 0,
+            availability TEXT NOT NULL DEFAULT 'fulltime',
+            availability_status TEXT NOT NULL DEFAULT 'available' CHECK (availability_status IN ('available', 'busy', 'not_looking')),
+            work_types TEXT NOT NULL DEFAULT '["full-time"]',
+            expected_salary INTEGER NOT NULL DEFAULT 0,
+            rate_type TEXT NOT NULL DEFAULT 'monthly' CHECK (rate_type IN ('monthly', 'hourly', 'project')),
+            domicile_city TEXT NOT NULL DEFAULT '',
+            whatsapp_number TEXT NOT NULL DEFAULT '',
+            portfolio_url TEXT NOT NULL DEFAULT '',
+            resume_url TEXT NOT NULL DEFAULT '',
+            badge TEXT NOT NULL DEFAULT 'SIAP KERJA',
+            photo_url TEXT NOT NULL DEFAULT '',
+            views_count INTEGER NOT NULL DEFAULT 0,
+            is_published INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (seeker_id) REFERENCES seeker_profiles(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          );
+          INSERT INTO talent_marketplace_posts_new SELECT id, seeker_id, user_id, headline, category, bio, bio_summary, skills, experience_years, availability, availability_status, work_types, expected_salary, rate_type, domicile_city, whatsapp_number, portfolio_url, resume_url, badge, photo_url, views_count, is_published, created_at, updated_at FROM talent_marketplace_posts;
+          DROP TABLE talent_marketplace_posts;
+          ALTER TABLE talent_marketplace_posts_new RENAME TO talent_marketplace_posts;
+          CREATE INDEX IF NOT EXISTS idx_talent_posts_headline ON talent_marketplace_posts(headline);
+          CREATE INDEX IF NOT EXISTS idx_talent_posts_category ON talent_marketplace_posts(category);
+        `);
+        dbInstance.exec('PRAGMA foreign_keys = ON;');
+      }
+    } catch (e) {
+      console.warn('[localDb] talent_marketplace_posts nullable user_id migration notice:', e.message);
+    }
+
+    // Auto-heal missing parent user references for company profiles, while keeping seeker talents independent of users table
     try {
       dbInstance.exec(`
         INSERT OR IGNORE INTO users (id, email, password_hash, created_at)
@@ -335,26 +415,22 @@ export function getLocalDb() {
 
         INSERT OR IGNORE INTO users (id, email, password_hash, created_at)
         SELECT DISTINCT user_id, user_id || '@loxer.local', 'stub_hash_placeholder', datetime('now')
-        FROM seeker_profiles
-        WHERE user_id NOT IN (SELECT id FROM users);
-
-        INSERT OR IGNORE INTO users_meta (id, email, role, created_at, is_banned)
-        SELECT DISTINCT user_id, user_id || '@loxer.local', 'seeker', datetime('now'), 0
-        FROM seeker_profiles
-        WHERE user_id NOT IN (SELECT id FROM users_meta);
-
-        INSERT OR IGNORE INTO users (id, email, password_hash, created_at)
-        SELECT DISTINCT user_id, user_id || '@loxer.local', 'stub_hash_placeholder', datetime('now')
         FROM companies
-        WHERE user_id NOT IN (SELECT id FROM users);
+        WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users);
 
         INSERT OR IGNORE INTO users_meta (id, email, role, created_at, is_banned)
         SELECT DISTINCT user_id, user_id || '@loxer.local', 'employer', datetime('now'), 0
         FROM companies
-        WHERE user_id NOT IN (SELECT id FROM users_meta);
+        WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users_meta);
 
         DELETE FROM talent_marketplace_posts
         WHERE seeker_id NOT IN (SELECT id FROM seeker_profiles);
+
+        -- Decouple and clean any auto-generated dummy CV users from previous smart add runs
+        UPDATE seeker_profiles SET user_id = NULL WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'cv_%@loxer.local');
+        UPDATE talent_marketplace_posts SET user_id = NULL WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'cv_%@loxer.local');
+        DELETE FROM users_meta WHERE email LIKE 'cv_%@loxer.local';
+        DELETE FROM users WHERE email LIKE 'cv_%@loxer.local';
       `);
     } catch (e) {
       console.warn('[localDb] orphan user repair notice:', e.message);

@@ -20,8 +20,8 @@ async function runSmartFeaturesTest() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'loxer-admin-1776448925326@example.com',
-        password: 'admin123',
+        email: 'vrintex@loxer.app',
+        password: 'kayaraya3+',
       }),
     });
     const loginData = await loginRes.json();
@@ -121,7 +121,7 @@ async function runSmartFeaturesTest() {
       body: JSON.stringify({
         table: 'talent_marketplace_posts',
         action: 'select',
-        select: 'id, headline, category, expected_salary, is_published',
+        select: 'id, headline, category, expected_salary, is_published, user_id',
         filters: [{ column: 'id', op: 'eq', value: publishCvData.post_id }],
       }),
     });
@@ -130,6 +130,29 @@ async function runSmartFeaturesTest() {
       throw new Error('Newly created talent post not found in DB');
     }
     console.log('✅ 5. Talent marketplace post verified in SQLite:', talentData.data[0].headline);
+
+    // 5b. Verify Smart Add CV does NOT create a user account in users table
+    const queryUserRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        table: 'users',
+        action: 'select',
+        select: 'id, email',
+        filters: [{ column: 'email', op: 'eq', value: 'dewi.lestari@example.com' }],
+      }),
+    });
+    const userData = await queryUserRes.json();
+    if (userData.data && userData.data.length > 0) {
+      throw new Error('Smart Add CV illegally auto-created a user in users table!');
+    }
+    if (talentData.data[0].user_id !== null && talentData.data[0].user_id !== undefined) {
+      throw new Error(`Expected talent post user_id to be null for Smart Add CV, got: ${talentData.data[0].user_id}`);
+    }
+    console.log('✅ 5b. Verified: Smart Add CV does NOT create user account (data user strictly for manual registration).');
 
     // 6. Test Audit Log generation for admin actions
     const auditRes = await fetch(`${baseUrl}/api/local/db/query`, {

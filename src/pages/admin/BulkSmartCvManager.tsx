@@ -18,12 +18,14 @@ import {
   Download,
   Check,
   X,
+  Scissors,
 } from 'lucide-react';
 import { ToastType } from './AdminTalentComponents';
 import { cropPasFotoFromImage, generateBlurredCvImage, autoEnhanceImageDataUrl } from '../../lib/cvImageProcessor';
 import { cleanDomicileCity, maskPhoneNumber } from '../../lib/contactPrivacyService';
 import { validateDocumentMagicBytes, validateImageMagicBytes } from '../../lib/imageCompressor';
 import { getDefaultPixarAvatar } from '../../lib/avatarService';
+import { PdfDocumentSplitter } from './PdfDocumentSplitter';
 
 interface PdfJsPage {
   getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
@@ -142,6 +144,7 @@ export function BulkSmartCvManager({
   const [editActiveCropMode, setEditActiveCropMode] = useState<'smart_square' | 'tight_face' | 'full_frame'>('smart_square');
   const [isBulkPublishing, setIsBulkPublishing] = useState<boolean>(false);
   const [bulkPublishProgress, setBulkPublishProgress] = useState<{ current: number; total: number } | null>(null);
+  const [showPdfSplitter, setShowPdfSplitter] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -859,6 +862,32 @@ export function BulkSmartCvManager({
         </div>
       </div>
 
+      {/* ── Pecah Dokumen CTA (muncul ketika ada PDF di queue) ───────────── */}
+      {items.some((it) => it.fileType === 'pdf') && (
+        <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-950/40 to-slate-950 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-300">
+              <Lock className="w-3 h-3 text-violet-400" />
+              <span>Fitur Baru • Smart PDF Splitter & Galeri Berkas</span>
+            </div>
+            <h4 className="text-sm font-bold text-white">📂 Pecah &amp; Arsipkan Berkas PDF Pelamar</h4>
+            <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+              Setelah scan selesai, pecah setiap halaman PDF pelamar menjadi berkas individual.
+              AI otomatis mengklasifikasikan (KTP, Ijazah, SKCK, CV, dll.) dan menyensor dokumen sensitif secara penuh.
+            </p>
+          </div>
+          <button
+            id="bulk-cv-open-splitter-btn"
+            type="button"
+            onClick={() => setShowPdfSplitter((v) => !v)}
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-violet-500 hover:bg-violet-400 text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Scissors className="w-4 h-4" />
+            {showPdfSplitter ? 'Sembunyikan' : 'Buka Pecah Dokumen'}
+          </button>
+        </div>
+      )}
+
       {/* Progress & Live Control Bar */}
       {totalCount > 0 && (
         <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5 shadow-lg space-y-4">
@@ -988,6 +1017,46 @@ export function BulkSmartCvManager({
               style={{ width: `${overallPercent}%` }}
             />
           </div>
+
+          {/* ── Banner Selesai Scan: Pecah Dokumen PDF Siap ───────────── */}
+          {totalCount > 0 && processingCount === 0 && pendingCount === 0 && items.some((it) => it.fileType === 'pdf') && (
+            <div className="rounded-2xl border-2 border-violet-500/60 bg-gradient-to-r from-violet-950/90 via-slate-900 to-indigo-950/90 p-4 sm:p-5 shadow-2xl flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
+              <div className="flex items-start gap-3.5">
+                <div className="h-10 w-10 rounded-2xl bg-violet-500/20 border border-violet-400/40 flex items-center justify-center shrink-0">
+                  <Scissors className="w-5 h-5 text-violet-300" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/20 px-2.5 py-0.5 text-xs font-black text-violet-200">
+                    <Sparkles className="w-3.5 h-3.5 text-violet-400 animate-spin" />
+                    <span>AI SCAN SELESAI • PECAH DOKUMEN SIAP</span>
+                  </div>
+                  <h4 className="text-sm sm:text-base font-bold text-white">
+                    Pecah Berkas PDF Multi-Halaman &amp; Arsipkan ke Galeri Berkas
+                  </h4>
+                  <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                    Pemindaian seluruh berkas CV telah selesai! Ditemukan{' '}
+                    <strong className="text-violet-300">
+                      {items.filter((it) => it.fileType === 'pdf').length} berkas PDF
+                    </strong>{' '}
+                    yang dapat dipecah menjadi berkas individual (KTP, Ijazah, SKCK, Sertifikat, dll.) dan diarsipkan otomatis ke Galeri Berkas Pelamar dengan sensor privasi penuh pada berkas sensitif.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPdfSplitter(true);
+                  setTimeout(() => {
+                    document.getElementById('pdf-splitter-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }, 100);
+                }}
+                className="shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-xl shadow-violet-500/30 transition-all hover:scale-[1.03] active:scale-[0.98]"
+              >
+                <Scissors className="w-4 h-4" />
+                <span>Pecah Dokumen Sekarang</span>
+              </button>
+            </div>
+          )}
 
           {/* Stats Badges & Filter Tabs */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/10">
@@ -1623,6 +1692,27 @@ export function BulkSmartCvManager({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── PDF Document Splitter Panel ───────────────────────────────────────── */}
+      {showPdfSplitter && (
+        <div id="pdf-splitter-section" className="rounded-2xl border border-violet-500/20 bg-slate-950/80 p-1 shadow-2xl">
+          <PdfDocumentSplitter
+            initialFiles={items
+              .filter((it) => it.fileType === 'pdf' && it.file)
+              .map((it) => it.file)}
+            candidateName={
+              items.find((it) => it.data?.full_name)?.data?.full_name || undefined
+            }
+            onToast={onToast}
+            onArchived={(pages) => {
+              onToast(
+                'success',
+                `📁 ${pages.length} halaman berkas pelamar berhasil diarsipkan ke Galeri Berkas.`
+              );
+            }}
+          />
         </div>
       )}
     </div>

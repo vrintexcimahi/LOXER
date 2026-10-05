@@ -30,6 +30,8 @@ import {
   Layers,
   Maximize2,
   ZoomIn,
+  Scissors,
+  Archive,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
@@ -41,6 +43,7 @@ import ProtectedTalentChatModal from '../../components/marketplace/ProtectedTale
 import ImageViewerModal from '../../components/ui/ImageViewerModal';
 import { openImageSafelyInNewTab } from '../../lib/imageViewerHelper';
 import { BulkSmartCvManager } from './BulkSmartCvManager';
+import { PdfDocumentSplitter } from './PdfDocumentSplitter';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -484,6 +487,7 @@ export function AdminTalentCatalogSection({
   const [cardImageMode, setCardImageMode] = useState<Record<string, 'photo' | 'cv'>>({});
   const [previewTalent, setPreviewTalent] = useState<TalentMarketplacePost | null>(null);
   const [chatTalent, setChatTalent] = useState<TalentMarketplacePost | null>(null);
+  const [showGalleryModal, setShowGalleryModal] = useState<boolean>(false);
 
   const TALENT_CATEGORIES = [
     'Semua',
@@ -612,6 +616,15 @@ export function AdminTalentCatalogSection({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowGalleryModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-violet-500/20 transition hover:scale-[1.02]"
+              title="Buka Galeri Berkas Pelamar (KTP, Ijazah, SKCK, Sertifikat, dll)"
+            >
+              <Archive className="w-4 h-4" />
+              <span>Galeri Berkas</span>
+            </button>
+
             <button
               onClick={onNavigateToSmartAdd}
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-emerald-500/20 transition hover:scale-[1.02]"
@@ -1072,6 +1085,38 @@ export function AdminTalentCatalogSection({
         onClose={() => setChatTalent(null)}
         onToast={onToast}
       />
+
+      {/* Modal Galeri Berkas Pelamar */}
+      {showGalleryModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+          <div className="relative w-full max-w-5xl my-6 rounded-3xl border border-violet-500/30 bg-slate-950 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-violet-500/20 text-violet-400">
+                  <Archive className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Galeri Berkas Pelamar Kerja</h3>
+                  <p className="text-xs text-slate-400">
+                    Arsip seluruh halaman berkas yang dipecah dari PDF (KTP, Ijazah, SKCK, Sertifikat) dengan sensor dokumen sensitif
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGalleryModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <PdfDocumentSplitter
+              defaultTab="gallery"
+              onToast={onToast}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1142,6 +1187,11 @@ export function SmartAddCvSection({
   const [extractStep, setExtractStep] = useState(0);
   const [extractError, setExtractError] = useState<string | null>(null);
 
+  // Splitter & Multi-Page PDF State
+  const [selectedRawPdf, setSelectedRawPdf] = useState<File | null>(null);
+  const [pdfPageCount, setPdfPageCount] = useState<number>(0);
+  const [showSplitterModal, setShowSplitterModal] = useState<boolean>(false);
+
   // Form State
   const [formData, setFormData] = useState<{
     full_name: string;
@@ -1210,6 +1260,8 @@ export function SmartAddCvSection({
     if (file.type.startsWith('image/')) {
       setFileType('image');
       setInputMode('file');
+      setSelectedRawPdf(null);
+      setPdfPageCount(0);
       const reader = new FileReader();
       reader.onload = () => {
         const res = reader.result as string;
@@ -1227,11 +1279,13 @@ export function SmartAddCvSection({
 
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       setFileType('pdf');
+      setSelectedRawPdf(file);
       try {
         const pdfjs = await loadPdfJs();
         if (pdfjs) {
           const arrayBuffer = await file.arrayBuffer();
           const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+          setPdfPageCount(pdf.numPages);
 
           let extractedFullText = '';
           const pagesToRead = Math.min(pdf.numPages, 3);
@@ -1652,7 +1706,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
           const now = new Date().toISOString();
           const pId = `post_${Date.now()}`;
           const sId = `skr_${Date.now()}`;
-          const uId = `usr_${Date.now()}`;
+          const uId = null;
 
           await supabase.from('seeker_profiles').insert([
             {
@@ -1940,6 +1994,17 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {fileType === 'pdf' && selectedRawPdf && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSplitterModal(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/20 hover:bg-violet-500/30 px-3 py-1.5 text-xs text-violet-200 transition font-bold"
+                      title="Pecah berkas PDF multi-halaman & arsipkan ke galeri"
+                    >
+                      <Scissors className="w-3.5 h-3.5 text-violet-300" />
+                      <span>Pecah Dokumen {pdfPageCount > 1 ? `(${pdfPageCount} Hal)` : ''}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={handlePasteImageFromClipboard}
@@ -1961,6 +2026,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                       setFileBase64('');
                       setSelectedFileName('');
                       setCvText('');
+                      setSelectedRawPdf(null);
+                      setPdfPageCount(0);
                     }}
                     className="rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 text-xs transition"
                   >
@@ -2050,6 +2117,38 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               Keyakinan AI: {formData.confidence_score}%
             </span>
           </div>
+
+          {/* Banner Pecah Dokumen PDF Multi-Halaman */}
+          {selectedRawPdf && (
+            <div className="rounded-2xl border-2 border-violet-500/50 bg-gradient-to-r from-violet-950/80 via-slate-900 to-indigo-950/80 p-4 shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-xl bg-violet-500/20 border border-violet-400/40 flex items-center justify-center shrink-0">
+                  <Scissors className="w-5 h-5 text-violet-300" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/20 px-2.5 py-0.5 text-xs font-bold text-violet-300">
+                    <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                    <span>Dokumen PDF Terdeteksi {pdfPageCount > 1 ? `(${pdfPageCount} Halaman)` : ''}</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-white">
+                    Pecah Dokumen &amp; Arsipkan ke Galeri Berkas Pelamar
+                  </h4>
+                  <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                    Setelah scan selesai, pecah setiap halaman berkas pelamar (KTP, Ijazah, SKCK, Sertifikat, dll).
+                    Sistem otomatis mengklasifikasikan dokumen dan menerapkan <strong>sensor penuh</strong> pada dokumen sensitif (KTP, Ijazah, SKCK).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSplitterModal(true)}
+                className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Scissors className="w-4 h-4" />
+                <span>Pecah Dokumen Sekarang</span>
+              </button>
+            </div>
+          )}
 
           {/* Privacy & Shopee-Grade Sensor Policy Banner */}
           <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/70 via-slate-900 to-slate-950 p-4 shadow-lg flex items-start gap-3.5">
@@ -2752,6 +2851,42 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               onClose={() => setTestChatOpen(false)}
               onToast={onToast}
             />
+          )}
+
+          {/* Modal Pemecah Dokumen PDF & Galeri Berkas */}
+          {showSplitterModal && (
+            <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+              <div className="relative w-full max-w-5xl my-6 rounded-3xl border border-violet-500/40 bg-slate-950 p-6 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-violet-500/20 text-violet-400">
+                      <Scissors className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">Smart PDF Multi-Page Splitter &amp; Galeri Berkas</h3>
+                      <p className="text-xs text-slate-400">
+                        Pecah halaman berkas pelamar &amp; klasifikasikan ke arsip dengan sensor penuh otomatis
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSplitterModal(false)}
+                    className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <PdfDocumentSplitter
+                  initialFiles={selectedRawPdf ? [selectedRawPdf] : []}
+                  candidateName={formData?.full_name}
+                  onToast={onToast}
+                  onArchived={(pages) => {
+                    onToast('success', `📁 ${pages.length} berkas berhasil diarsipkan ke Galeri Berkas Pelamar.`);
+                  }}
+                />
+              </div>
+            </div>
           )}
         </div>
       )}
