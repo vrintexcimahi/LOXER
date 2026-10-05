@@ -7,6 +7,9 @@ import { createClient } from '@supabase/supabase-js';
 import { searchUnifiedJobs } from './services/unifiedJobService.js';
 import { buildApplicationStatusNotification } from './services/applicationStatusNotification.js';
 import { createLocalDbMiddleware } from './server/localApiHandler.js';
+import { createLocalTenantHandler } from './server/tenancy/local.js';
+import { createCloudTenantHandler } from './server/tenancy/cloud.js';
+import { getLocalDb, verifyToken, hashPassword, verifyPassword } from './server/localDb.js';
 import { getPublicIp, apiRateLimiter } from './services/resilienceService.js';
 
 function getForwardedIp(req: IncomingMessage) {
@@ -862,6 +865,7 @@ function createAuthCapabilitiesMiddleware(env: Record<string, string>) {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  if (env.JWT_SECRET) process.env.JWT_SECRET = env.JWT_SECRET;
   const apiJobsMiddleware = createApiJobsMiddleware(env);
   const integrationsStatusMiddleware = createIntegrationsStatusMiddleware(env);
   const adminUsersMiddleware = createAdminUsersMiddleware(env);
@@ -872,6 +876,10 @@ export default defineConfig(({ mode }) => {
   const smartJobExtractMiddleware = createSmartJobExtractMiddleware(env);
   const smartCvExtractMiddleware = createSmartCvExtractMiddleware(env);
   const localDbMiddleware = createLocalDbMiddleware(env);
+  const tenantEnv = { ...process.env, ...env };
+  const tenantMiddleware = env.VITE_USE_LOCAL_DB === 'true' || !env.VITE_SUPABASE_URL
+    ? createLocalTenantHandler(tenantEnv, { getDb: getLocalDb, verifyToken, hashPassword, verifyPassword })
+    : createCloudTenantHandler(tenantEnv);
 
   const configuredPort = Number(process.env.PORT || env.PORT || 3035);
 
@@ -944,8 +952,30 @@ export default defineConfig(({ mode }) => {
                 }
               }
             }
+            if (urlPath === '/downloads/loxer-mitra.apk' || urlPath === '/loxer-mitra.apk') {
+              const candidatePaths = [
+                path.resolve(process.cwd(), 'dist/downloads/loxer-mitra.apk'),
+                path.resolve(process.cwd(), 'public/downloads/loxer-mitra.apk'),
+                path.resolve(process.cwd(), 'dist/loxer-mitra.apk'),
+                path.resolve(process.cwd(), 'public/loxer-mitra.apk'),
+              ];
+              for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                  const stat = fs.statSync(p);
+                  res.writeHead(200, {
+                    'Content-Type': 'application/vnd.android.package-archive',
+                    'Content-Disposition': 'attachment; filename="loxer-mitra.apk"',
+                    'Content-Length': stat.size,
+                    'Cache-Control': 'public, max-age=86400',
+                  });
+                  fs.createReadStream(p).pipe(res);
+                  return;
+                }
+              }
+            }
             next();
           });
+          server.middlewares.use(tenantMiddleware);
           server.middlewares.use(localDbMiddleware);
           server.middlewares.use(smartJobExtractMiddleware);
           server.middlewares.use(smartCvExtractMiddleware);
@@ -985,8 +1015,30 @@ export default defineConfig(({ mode }) => {
                 }
               }
             }
+            if (urlPath === '/downloads/loxer-mitra.apk' || urlPath === '/loxer-mitra.apk') {
+              const candidatePaths = [
+                path.resolve(process.cwd(), 'dist/downloads/loxer-mitra.apk'),
+                path.resolve(process.cwd(), 'public/downloads/loxer-mitra.apk'),
+                path.resolve(process.cwd(), 'dist/loxer-mitra.apk'),
+                path.resolve(process.cwd(), 'public/loxer-mitra.apk'),
+              ];
+              for (const p of candidatePaths) {
+                if (fs.existsSync(p)) {
+                  const stat = fs.statSync(p);
+                  res.writeHead(200, {
+                    'Content-Type': 'application/vnd.android.package-archive',
+                    'Content-Disposition': 'attachment; filename="loxer-mitra.apk"',
+                    'Content-Length': stat.size,
+                    'Cache-Control': 'public, max-age=86400',
+                  });
+                  fs.createReadStream(p).pipe(res);
+                  return;
+                }
+              }
+            }
             next();
           });
+          server.middlewares.use(tenantMiddleware);
           server.middlewares.use(localDbMiddleware);
           server.middlewares.use(smartJobExtractMiddleware);
           server.middlewares.use(smartCvExtractMiddleware);

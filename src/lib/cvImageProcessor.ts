@@ -28,7 +28,8 @@ export async function cropPasFotoFromImage(
   sourceImage: string,
   photoBox?: [number, number, number, number] | null,
   faceBox?: [number, number, number, number] | null,
-  mode: PasFotoCropMode = 'smart_square'
+  mode: PasFotoCropMode = 'smart_square',
+  rotationAngle: number = 0
 ): Promise<string> {
   if (!sourceImage || !photoBox || !Array.isArray(photoBox) || photoBox.length !== 4) {
     return '';
@@ -105,40 +106,55 @@ export async function cropPasFotoFromImage(
         let cropW = safeW;
         let cropH = safeH;
 
-        if (mode === 'tight_face' && faceBox && Array.isArray(faceBox) && faceBox.length === 4) {
-          const fY1 = (faceBox[0] / 1000) * naturalH;
-          const fX1 = (faceBox[1] / 1000) * naturalW;
-          const fY2 = (faceBox[2] / 1000) * naturalH;
-          const fX2 = (faceBox[3] / 1000) * naturalW;
-          const fW = Math.max(10, fX2 - fX1);
-          const fH = Math.max(10, fY2 - fY1);
-          const fDim = Math.max(fW, fH) * 1.5;
-          const fCenterX = fX1 + fW / 2;
-          const fCenterY = fY1 + fH / 2;
+        const hasFaceBox = faceBox && Array.isArray(faceBox) && faceBox.length === 4;
+        let fX1 = 0, fY1 = 0, fX2 = 0, fY2 = 0, fW = 0, fH = 0, fCenterX = 0, fCenterY = 0;
+        if (hasFaceBox) {
+          fY1 = (faceBox[0] / 1000) * naturalH;
+          fX1 = (faceBox[1] / 1000) * naturalW;
+          fY2 = (faceBox[2] / 1000) * naturalH;
+          fX2 = (faceBox[3] / 1000) * naturalW;
+          fW = Math.max(10, fX2 - fX1);
+          fH = Math.max(10, fY2 - fY1);
+          fCenterX = fX1 + fW / 2;
+          fCenterY = fY1 + fH / 2;
+        }
 
+        // Circular badge / Canva frame detector:
+        // When aspect ratio is near 1:1, or face is small relative to box (fH / safeH < 0.45)
+        const isNearSquare = Math.abs(safeW - safeH) / Math.max(safeW, safeH) < 0.18;
+        const isSmallFaceInBigFrame = hasFaceBox && fH / safeH < 0.44;
+
+        if (mode === 'tight_face' && hasFaceBox) {
+          const fDim = Math.max(fW, fH) * 1.5;
           cropW = Math.min(safeW, fDim);
           cropH = cropW;
           cropX = Math.max(safeX1, Math.min(safeX2 - cropW, fCenterX - cropW / 2));
           cropY = Math.max(safeY1, Math.min(safeY2 - cropH, fCenterY - cropH * 0.45));
+        } else if (hasFaceBox && (isNearSquare || isSmallFaceInBigFrame)) {
+          // Precise inner crop for circular / Canva badge photos:
+          // Inscribe square tightly inside the circle (radius * sqrt(2) ~= 0.707)
+          // To eliminate 100% of outer paper color, circle stroke lines, and dark corner bleeds!
+          const targetDim = Math.max(fH * 2.1, fW * 2.3);
+          const maxInscribed = Math.min(safeW, safeH) * 0.70;
+          const dim = Math.max(Math.min(targetDim, maxInscribed), Math.min(safeW, safeH) * 0.52);
+
+          cropW = dim;
+          cropH = dim;
+          cropX = Math.max(safeX1, Math.min(safeX2 - dim, fCenterX - dim / 2));
+          cropY = Math.max(safeY1, Math.min(safeY2 - dim, fCenterY - dim * 0.40));
         } else {
           // Standard smart_square mode (1:1 aspect ratio)
           if (safeH >= safeW) {
             // Standard vertical passport photo (3:4, 2:3, etc.)
-            // dim is strictly constrained by safeW so cropX NEVER leaves the photo boundaries!
             const dim = safeW;
             cropW = dim;
             cropH = dim;
             cropX = safeX1;
 
-            if (faceBox && Array.isArray(faceBox) && faceBox.length === 4) {
-              const fY1 = (faceBox[0] / 1000) * naturalH;
-              const fY2 = (faceBox[2] / 1000) * naturalH;
-              const fCenterY = (fY1 + fY2) / 2;
-              // Align face center at ~42% from top of the square crop
+            if (hasFaceBox) {
               const targetY = fCenterY - dim * 0.42;
               cropY = Math.max(safeY1, Math.min(safeY2 - dim, targetY));
             } else {
-              // Passport photos have head/hair near the top; capture from near the top
               cropY = safeY1 + Math.max(0, (safeH - dim) * 0.12);
               cropY = Math.min(cropY, safeY2 - dim);
             }
@@ -149,10 +165,7 @@ export async function cropPasFotoFromImage(
             cropH = dim;
             cropY = safeY1;
 
-            if (faceBox && Array.isArray(faceBox) && faceBox.length === 4) {
-              const fX1 = (faceBox[1] / 1000) * naturalW;
-              const fX2 = (faceBox[3] / 1000) * naturalW;
-              const fCenterX = (fX1 + fX2) / 2;
+            if (hasFaceBox) {
               cropX = Math.max(safeX1, Math.min(safeX2 - dim, fCenterX - dim / 2));
             } else {
               cropX = safeX1 + (safeW - dim) / 2;
@@ -160,7 +173,24 @@ export async function cropPasFotoFromImage(
           }
         }
 
-        ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, 480, 480);
+        const angle = ((Math.round(rotationAngle || 0) % 360) + 360) % 360;
+        if (angle > 0) {
+          ctx.save();
+          ctx.translate(240, 240);
+          ctx.rotate((angle * Math.PI) / 180);
+          ctx.drawImage(img, cropX, cropY, cropW, cropH, -240, -240, 480, 480);
+          ctx.restore();
+        } else {
+          ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, 480, 480);
+        }
+
+        // Automatic HD Portrait Enhancement: Auto-levels, clarity, & crisp unsharp masking
+        enhancePortraitCanvas(ctx, 480, 480, {
+          sharpenStrength: 0.60,
+          contrastBoost: 1.18,
+          vibrancyBoost: 1.12,
+        });
+
         resolve(canvas.toDataURL('image/jpeg', 0.92));
       } catch (err) {
         console.warn('[cropPasFotoFromImage] Failed to crop:', err);
@@ -169,6 +199,125 @@ export async function cropPasFotoFromImage(
     };
     img.onerror = () => resolve('');
     img.src = sourceImage;
+  });
+}
+
+/**
+ * Auto-enhance portrait sharpness, contrast, and color richness.
+ * Transforms blurry, low-contrast, or hazy photos into crisp, studio-grade portraits.
+ */
+export function enhancePortraitCanvas(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  options?: { sharpenStrength?: number; contrastBoost?: number; vibrancyBoost?: number }
+): void {
+  try {
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
+    const len = data.length;
+
+    const contrast = options?.contrastBoost ?? 1.18;
+    const vibrancy = options?.vibrancyBoost ?? 1.12;
+    const sharpen = options?.sharpenStrength ?? 0.60;
+
+    // 1. Contrast expansion & Auto-Levels
+    const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+
+    for (let i = 0; i < len; i += 4) {
+      let r = data[i];
+      let g = data[i + 1];
+      let b = data[i + 2];
+
+      // Contrast stretch
+      r = factor * (r - 128) + 128;
+      g = factor * (g - 128) + 128;
+      b = factor * (b - 128) + 128;
+
+      // Vibrancy boost
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = gray + vibrancy * (r - gray);
+      g = gray + vibrancy * (g - gray);
+      b = gray + vibrancy * (b - gray);
+
+      data[i] = Math.max(0, Math.min(255, r));
+      data[i + 1] = Math.max(0, Math.min(255, g));
+      data[i + 2] = Math.max(0, Math.min(255, b));
+    }
+
+    // 2. Unsharp Masking / Laplacian high-pass edge sharpening
+    if (sharpen > 0) {
+      const srcCopy = new Uint8ClampedArray(data);
+      const w = sharpen;
+      const center = 1 + 4 * w;
+
+      for (let y = 1; y < height - 1; y++) {
+        const rowOffset = y * width * 4;
+        const topRow = (y - 1) * width * 4;
+        const btmRow = (y + 1) * width * 4;
+
+        for (let x = 1; x < width - 1; x++) {
+          const idx = rowOffset + x * 4;
+          const topIdx = topRow + x * 4;
+          const btmIdx = btmRow + x * 4;
+          const leftIdx = idx - 4;
+          const rightIdx = idx + 4;
+
+          const rVal =
+            srcCopy[idx] * center -
+            w * (srcCopy[topIdx] + srcCopy[btmIdx] + srcCopy[leftIdx] + srcCopy[rightIdx]);
+          data[idx] = Math.max(0, Math.min(255, rVal));
+
+          const gVal =
+            srcCopy[idx + 1] * center -
+            w * (srcCopy[topIdx + 1] + srcCopy[btmIdx + 1] + srcCopy[leftIdx + 1] + srcCopy[rightIdx + 1]);
+          data[idx + 1] = Math.max(0, Math.min(255, gVal));
+
+          const bVal =
+            srcCopy[idx + 2] * center -
+            w * (srcCopy[topIdx + 2] + srcCopy[btmIdx + 2] + srcCopy[leftIdx + 2] + srcCopy[rightIdx + 2]);
+          data[idx + 2] = Math.max(0, Math.min(255, bVal));
+        }
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+  } catch (err) {
+    console.warn('[enhancePortraitCanvas] Skipping canvas filter:', err);
+  }
+}
+
+/**
+ * Re-sharpen and enhance an existing base64/image URL on demand
+ */
+export async function autoEnhanceImageDataUrl(
+  dataUrl: string,
+  options?: { sharpenStrength?: number; contrastBoost?: number; vibrancyBoost?: number }
+): Promise<string> {
+  if (!dataUrl) return '';
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 480;
+        canvas.height = img.naturalHeight || 480;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(dataUrl);
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        enhancePortraitCanvas(ctx, canvas.width, canvas.height, options);
+        resolve(canvas.toDataURL('image/jpeg', 0.94));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
   });
 }
 

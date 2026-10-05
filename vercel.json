@@ -20,6 +20,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/partner-platform/:path*",
+      "destination": "/api/index?path=/partner-platform/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?path=/:path*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

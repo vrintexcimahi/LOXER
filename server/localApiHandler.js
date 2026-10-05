@@ -3823,32 +3823,57 @@ async function handleAdminPublishSmartCv(req, res) {
 
     const cleanName = String(full_name).trim();
     const now = new Date().toISOString();
-    const cleanEmail = email && String(email).includes('@')
-      ? String(email).trim().toLowerCase()
-      : `cv_${crypto.randomUUID().slice(0, 8)}@loxer.local`;
 
-    let user = queryOne('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
-    let userIdToUse;
+    // 1. Avatar fallback if no photo is provided
+    let finalPhotoUrl = photo_url || '';
+    if (!finalPhotoUrl) {
+      const nLower = cleanName.toLowerCase();
+      const isFemale = /(siti|nur|wati|yani|aeni|tari|yuli|yusni|meis|seli|indri|saskia|putri|dewi|ayu|lia|wulan|fitri|diah|indah|rahayu|novi|kartika|dian|retno|dwi|lestari|tika|widya|ratna|maya|mega|amelia|fadila|fatimah|aulia|safitri|anisa|annisa|mutiara|bella|shinta|intan|desy|desi|vina|eka|anggi|nadia)/i.test(nLower);
+      const variant = (cleanName.length % 2) + 1;
+      finalPhotoUrl = isFemale ? `/avatars/pixar_female_${variant}.jpg` : `/avatars/pixar_male_${variant}.jpg`;
+    }
 
-    if (!user) {
+    // 2. Multi-key Candidate Deduplication
+    // Check by email, whatsapp_number, or candidate full_name
+    let user = null;
+    let seeker = null;
+
+    if (email && String(email).includes('@')) {
+      const cleanEmail = String(email).trim().toLowerCase();
+      user = queryOne('SELECT id, email FROM users WHERE LOWER(email) = LOWER(?)', [cleanEmail]);
+      if (user) {
+        seeker = queryOne('SELECT id, user_id FROM seeker_profiles WHERE user_id = ?', [user.id]);
+      }
+    }
+
+    if (!seeker && whatsapp_number && String(whatsapp_number).trim().length >= 8) {
+      const cleanPhone = String(whatsapp_number).trim();
+      seeker = queryOne('SELECT id, user_id FROM seeker_profiles WHERE phone = ?', [cleanPhone]);
+    }
+
+    if (!seeker && cleanName) {
+      seeker = queryOne('SELECT id, user_id FROM seeker_profiles WHERE LOWER(TRIM(full_name)) = LOWER(?)', [cleanName]);
+    }
+
+    let userIdToUse = seeker ? seeker.user_id : (user ? user.id : null);
+    if (!userIdToUse) {
       userIdToUse = crypto.randomUUID();
+      const generatedEmail = email && String(email).includes('@')
+        ? String(email).trim().toLowerCase()
+        : `cv_${crypto.randomUUID().slice(0, 8)}@loxer.local`;
       const dummyPasswordHash = hashPassword(crypto.randomUUID());
       execute(
         'INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)',
-        [userIdToUse, cleanEmail, dummyPasswordHash, now]
+        [userIdToUse, generatedEmail, dummyPasswordHash, now]
       );
       execute(
         'INSERT INTO users_meta (id, email, role, created_at, is_banned) VALUES (?, ?, ?, ?, 0)',
-        [userIdToUse, cleanEmail, 'seeker', now]
+        [userIdToUse, generatedEmail, 'seeker', now]
       );
-    } else {
-      userIdToUse = user.id;
     }
 
-    let seeker = queryOne('SELECT id FROM seeker_profiles WHERE user_id = ?', [userIdToUse]);
-    let seekerIdToUse;
-
-    if (!seeker) {
+    let seekerIdToUse = seeker ? seeker.id : null;
+    if (!seekerIdToUse) {
       seekerIdToUse = crypto.randomUUID();
       execute(
         `INSERT INTO seeker_profiles (id, user_id, full_name, photo_url, domicile_city, about, phone, expected_salary_min, expected_salary_max, created_at, updated_at)
@@ -3857,7 +3882,7 @@ async function handleAdminPublishSmartCv(req, res) {
           seekerIdToUse,
           userIdToUse,
           cleanName,
-          photo_url || '',
+          finalPhotoUrl,
           domicile_city || 'Cimahi / Bandung',
           bio || '',
           whatsapp_number || '',
@@ -3868,7 +3893,6 @@ async function handleAdminPublishSmartCv(req, res) {
         ]
       );
     } else {
-      seekerIdToUse = seeker.id;
       execute(
         `UPDATE seeker_profiles
          SET full_name = COALESCE(NULLIF(?, ''), full_name),
@@ -3878,11 +3902,11 @@ async function handleAdminPublishSmartCv(req, res) {
              phone = COALESCE(NULLIF(?, ''), phone),
              updated_at = ?
          WHERE id = ?`,
-        [cleanName, photo_url || '', domicile_city || '', bio || '', whatsapp_number || '', now, seekerIdToUse]
+        [cleanName, finalPhotoUrl, domicile_city || '', bio || '', whatsapp_number || '', now, seekerIdToUse]
       );
     }
 
-    // 2. Insert into talent_marketplace_posts
+    // 3. Prevent duplicate talent_marketplace_posts
     let availabilityStatus = 'available';
     const availLower = String(availability || '').toLowerCase();
     if (availLower.includes('busy') || availLower.includes('sibuk')) {
@@ -3893,37 +3917,95 @@ async function handleAdminPublishSmartCv(req, res) {
       availabilityStatus = 'available';
     }
 
-    const talentPostId = crypto.randomUUID();
     const skillsJson = Array.isArray(skills) ? JSON.stringify(skills) : JSON.stringify([skills || 'Keahlian']);
-    execute(
-      `INSERT INTO talent_marketplace_posts (
-        id, seeker_id, user_id, headline, category, bio, bio_summary, skills, experience_years,
-        availability, availability_status, expected_salary, rate_type, domicile_city, whatsapp_number,
-        portfolio_url, badge, photo_url, views_count, is_published, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
-      [
-        talentPostId,
-        seekerIdToUse,
-        userIdToUse,
-        headline.trim(),
-        category || 'Umum & Jasa',
-        bio || '',
-        bio ? bio.slice(0, 200) : '',
-        skillsJson,
-        parseInt(experience_years || '0', 10) || 0,
-        availability || 'full-time',
-        availabilityStatus,
-        parseInt(expected_salary || '0', 10) || 0,
-        rate_type || 'monthly',
-        domicile_city || 'Cimahi / Bandung',
-        whatsapp_number || '',
-        portfolio_url || '',
-        badge || 'SIAP KERJA',
-        photo_url || '',
-        now,
-        now,
-      ]
+
+    // Check if talent post already exists for this seeker
+    const existingTalentPost = queryOne(
+      `SELECT id, headline, photo_url, portfolio_url FROM talent_marketplace_posts
+       WHERE seeker_id = ? OR user_id = ?
+       ORDER BY created_at DESC LIMIT 1`,
+      [seekerIdToUse, userIdToUse]
     );
+
+    let talentPostId;
+    let isUpdated = false;
+
+    if (existingTalentPost) {
+      // UPDATE EXISTING POST INSTEAD OF DUPLICATING!
+      talentPostId = existingTalentPost.id;
+      isUpdated = true;
+      execute(
+        `UPDATE talent_marketplace_posts SET
+           headline = ?,
+           category = ?,
+           bio = ?,
+           bio_summary = ?,
+           skills = ?,
+           experience_years = ?,
+           availability = ?,
+           availability_status = ?,
+           expected_salary = ?,
+           rate_type = ?,
+           domicile_city = ?,
+           whatsapp_number = ?,
+           portfolio_url = COALESCE(NULLIF(?, ''), portfolio_url),
+           badge = ?,
+           photo_url = COALESCE(NULLIF(?, ''), photo_url),
+           updated_at = ?
+         WHERE id = ?`,
+        [
+          headline.trim(),
+          category || 'Umum & Jasa',
+          bio || '',
+          bio ? bio.slice(0, 200) : '',
+          skillsJson,
+          parseInt(experience_years || '0', 10) || 0,
+          availability || 'full-time',
+          availabilityStatus,
+          parseInt(expected_salary || '0', 10) || 0,
+          rate_type || 'monthly',
+          domicile_city || 'Cimahi / Bandung',
+          whatsapp_number || '',
+          portfolio_url || '',
+          badge || 'SIAP KERJA',
+          finalPhotoUrl,
+          now,
+          talentPostId,
+        ]
+      );
+    } else {
+      // INSERT NEW TALENT POST
+      talentPostId = crypto.randomUUID();
+      execute(
+        `INSERT INTO talent_marketplace_posts (
+          id, seeker_id, user_id, headline, category, bio, bio_summary, skills, experience_years,
+          availability, availability_status, expected_salary, rate_type, domicile_city, whatsapp_number,
+          portfolio_url, badge, photo_url, views_count, is_published, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
+        [
+          talentPostId,
+          seekerIdToUse,
+          userIdToUse,
+          headline.trim(),
+          category || 'Umum & Jasa',
+          bio || '',
+          bio ? bio.slice(0, 200) : '',
+          skillsJson,
+          parseInt(experience_years || '0', 10) || 0,
+          availability || 'full-time',
+          availabilityStatus,
+          parseInt(expected_salary || '0', 10) || 0,
+          rate_type || 'monthly',
+          domicile_city || 'Cimahi / Bandung',
+          whatsapp_number || '',
+          portfolio_url || '',
+          badge || 'SIAP KERJA',
+          finalPhotoUrl,
+          now,
+          now,
+        ]
+      );
+    }
 
     try {
       execute(
@@ -3944,10 +4026,13 @@ async function handleAdminPublishSmartCv(req, res) {
 
     return sendJson(res, 200, {
       ok: true,
-      message: 'Biodata pelamar kerja berhasil diterbitkan ke Bursa Talent LOXER!',
+      message: isUpdated
+        ? `Data kandidat ${cleanName} sudah terdaftar, berhasil diperbarui tanpa duplikasi!`
+        : `Biodata pelamar kerja ${cleanName} berhasil diterbitkan ke Bursa Talent LOXER!`,
       talent_id: talentPostId,
       seeker_id: seekerIdToUse,
       post_id: talentPostId,
+      updated: isUpdated,
     });
   } catch (err) {
     console.error('[handleAdminPublishSmartCv Error]:', err);

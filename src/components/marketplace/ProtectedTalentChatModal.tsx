@@ -19,6 +19,7 @@ import {
   maskPhoneNumber,
   maskEmail,
 } from '../../lib/contactPrivacyService';
+import { getDefaultPixarAvatar } from '../../lib/avatarService';
 import { useAuth } from '../../contexts/useAuth';
 
 interface ChatMessage {
@@ -207,17 +208,14 @@ export default function ProtectedTalentChatModal({
         <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/80 px-4 py-3 sm:px-6 sm:py-3.5">
           <div className="flex items-center gap-3">
             <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-cyan-600/30 to-indigo-600/30">
-              {talent.photo_url ? (
-                <img
-                  src={talent.photo_url}
-                  alt={fullName}
-                  className="h-full w-full object-cover object-center"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center font-black text-cyan-300">
-                  {fullName.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <img
+                src={talent.photo_url || getDefaultPixarAvatar(fullName, undefined, talent.bio)}
+                alt={fullName}
+                className="h-full w-full object-cover object-center"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = getDefaultPixarAvatar(fullName, undefined, talent.bio);
+                }}
+              />
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-950 bg-emerald-400 animate-pulse" />
             </div>
 

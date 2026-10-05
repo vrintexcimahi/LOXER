@@ -51,6 +51,24 @@ Status repo saat ini:
 - `lint`: pass tanpa error
 - `build`: pass
 
+## Child Panel Mitra (pilot)
+
+Fondasi Master–Child tersedia di `docs/PROMPT_MASTER_CHILD_TECHNICAL.md`, dengan migration cloud `supabase/migrations/20261004000000_partner_tenant_foundation.sql` dan route `/api/partner-platform/*`. Fitur ini tetap mati sampai migration diterapkan, secret sesi lokal disiapkan, dan pengujian isolasi tenant selesai.
+
+Untuk pilot lokal, tambahkan pada `.env`:
+
+```text
+PARTNER_CHILD_PANEL_ENABLED=true
+APP_BASE_DOMAIN=localhost
+APP_PUBLIC_ORIGIN=http://localhost:3035
+JWT_SECRET=<random-minimal-32-karakter>
+PARTNER_MASTER_USER_IDS=<id-akun-admin-yang-ditunjuk>
+```
+
+Setelah login sebagai administrator master, buka `/admin/partners` untuk membuat dan mengaktifkan Child. Fallback URL Child adalah `/p/<slug>`, sementara subdomain memerlukan wildcard DNS/proxy yang diarahkan ke aplikasi.
+
+Endpoint production legacy tetap memakai path publik yang sama, tetapi dirutekan melalui `api/index.js` agar deployment Vercel Hobby tidak melewati batas 12 Serverless Functions. Implementasi handler tersimpan di `api-legacy/` dan tidak boleh dipanggil langsung dari browser.
+
 ## Setup Database
 
 Jalankan migration Supabase yang ada di folder:

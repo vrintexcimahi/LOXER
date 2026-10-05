@@ -153,12 +153,16 @@ EKSTRAKSI SELURUH DATA DENGAN PRESISI MAKSIMAL KE DALAM BAHASA INDONESIA:
 17. "ai_notes": Catatan singkat evaluasi kecocokan AI: kelebihan utama pelamar, etos kerja, dan kesiapan penempatan kerja.
 18. "confidence_score": Nilai keyakinan kelengkapan data (angka 85 - 99).
 19. "photo_box": Koordinat kotak pembatas (bounding box) SANGAT PRESISI DAN KETAT dari PAS FOTO / FOTO WAJAH FORMAL kandidat pelamar pada lembar CV dalam format [ymin, xmin, ymax, xmax] skala 0 sampai 1000 (contoh: [50, 60, 310, 240]).
-   *** ATURAN KRUSIAL PAS FOTO ***:
-   - Kotak HARUS HANYA mencakup batas bingkai pas foto (background studio merah/biru/putih/abu-abu dan kepala/bahu kandidat).
-   - JANGAN PERNAH memperlebar kotak ke arah kanan, kiri, atau bawah yang memuat teks CV (seperti nama, no HP, judul "Curriculum Vitae", kolom kontak, dll).
+   *** FILTER KETAT & ATURAN KRUSIAL PAS FOTO ***:
+   - BINGKAI LINGKARAN / BULAT / CANVA BADGE: Jika pas foto diletakkan di dalam bingkai lingkaran (circle mask) atau stiker bulat, photo_box WAJIB dipusatkan dan dipotong KETAT DI BAGIAN DALAM LINGKARAN (inscribed inner crop / zoom in ke area kepala & bahu) sehingga TIDAK MENGIKUTSERTAKAN sudut kertas luar, garis bingkai melengkung, atau warna background dokumen luar sama sekali!
+   - KOMPOSISI WAJAH FORMAL: Jangan biarkan kepala terlalu kecil atau jauh di bawah. Pusatkan kepala sehingga wajah mengisi 45-55% tinggi frame pas foto.
+   - JANGAN PERNAH menyertakan teks CV, judul dokumen, atau margin luar kertas.
    - Jika berkas tidak memuat foto wajah/pas foto, isi null.
 20. "face_box": Koordinat kotak pembatas KETAT dari WAJAH kandidat (dari puncak rambut/dahi hingga dagu) dalam format [ymin, xmin, ymax, xmax] skala 0 sampai 1000. Jika tidak ada foto wajah, isi null.
 21. "contact_boxes": Array kotak pembatas [ [ymin, xmin, ymax, xmax], ... ] dari SELURUH AREA KONTAK pelamar pada lembar CV (bagian nomor HP, WhatsApp, email, alamat rumah detail, media sosial, barcode/QR, atau blok kolom 'KONTAK'). Skala integer 0 sampai 1000 (contoh: [[340, 70, 520, 410]]). Berikan batas sedikit lebih longgar agar tidak ada 1 digit nomor HP atau karakter email yang bocor tanpa sensor privasi.
+22. "gender": Jenis kelamin pelamar ("pria" atau "wanita") berdasarkan analisis foto visual wajah, nama pelamar, atau teks biodata CV.
+23. "photo_rotation": Sudut putar searah jarum jam (0, 90, 180, atau 270) yang dibutuhkan agar pas foto berdiri tegak lurus sempurna (kepala di atas, dagu/bahu di bawah). Jika posisi foto pada dokumen miring ke samping (sideways / landscape), deteksi arah kemiringannya dan tentukan sudut putar yang tepat (90, 180, atau 270) agar pas foto terkoreksi tegak. Jika pas foto sudah tegak lurus normal atau tidak ada foto, isi 0.
+24. "photo_quality": Kualitas ketajaman foto ("hd" jika tajam dan jelas, "blurry" jika buram/pecah/beresolusi rendah).
 
 Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
 {
@@ -186,7 +190,10 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
   "confidence_score": 95,
   "photo_box": [50, 60, 310, 240],
   "face_box": [75, 90, 230, 210],
-  "contact_boxes": [[340, 70, 520, 410]]
+  "contact_boxes": [[340, 70, 520, 410]],
+  "gender": "wanita",
+  "photo_rotation": 0,
+  "photo_quality": "hd"
 }`;
 
   const userContent = [];
@@ -312,6 +319,9 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
         contact_boxes: parsedContactBoxes,
         raw_image_url: imageBase64 ? imageBase64 : '',
         photo_url: '', // Akan diisi pas foto hasil crop di frontend / canvas
+        gender: parsed.gender && /^(pria|male|laki)/i.test(String(parsed.gender).trim()) ? 'male' : 'female',
+        photo_rotation: [0, 90, 180, 270].includes(parseInt(parsed.photo_rotation, 10)) ? parseInt(parsed.photo_rotation, 10) : 0,
+        photo_quality: parsed.photo_quality === 'blurry' ? 'blurry' : 'hd',
         ai_notes: (parsed.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Kontak terproteksi privasi)').trim(),
         confidence_score: typeof parsed.confidence_score === 'number' ? parsed.confidence_score : 92,
         extracted_at: new Date().toISOString(),

@@ -22,6 +22,7 @@ import Footer from '../../components/layout/Footer';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
 import HeroBannerSlideshow from '../../components/banner/HeroBannerSlideshow';
 import AuthModal from '../auth/AuthModal';
+import ImageViewerModal from '../../components/ui/ImageViewerModal';
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import {
@@ -88,6 +89,10 @@ export default function ProductMarketplace() {
   const [formStock, setFormStock] = useState('1');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState('');
+  const [viewerProductImage, setViewerProductImage] = useState<{
+    url: string;
+    title: string;
+  } | null>(null);
 
   // Transactions State
   const [myTransactions, setMyTransactions] = useState<MarketplaceTransaction[]>([]);
@@ -664,11 +669,23 @@ export default function ProductMarketplace() {
             </button>
 
             {/* Modal Image - Ratio 1:1 Penuh */}
-            <div className="relative aspect-square max-h-[380px] w-full rounded-2xl overflow-hidden bg-slate-800 mx-auto">
+            <div
+              className="relative aspect-square max-h-[380px] w-full rounded-2xl overflow-hidden bg-slate-800 mx-auto cursor-zoom-in group"
+              onClick={() => {
+                const img = selectedProduct.images[0] || PRESET_IMAGES[0].url;
+                if (img) {
+                  setViewerProductImage({
+                    url: img,
+                    title: selectedProduct.title,
+                  });
+                }
+              }}
+              title="Klik untuk memperbesar gambar produk (Zoom & Unduh)"
+            >
               <img
                 src={selectedProduct.images[0] || PRESET_IMAGES[0].url}
                 alt={selectedProduct.title}
-                className="w-full h-full object-cover object-center"
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform"
               />
               <div className="absolute top-3 left-3 flex gap-2">
                 <span className="px-3 py-1 rounded-xl text-xs font-black uppercase bg-cyan-500 text-slate-950 shadow-md">
@@ -1232,6 +1249,16 @@ export default function ProductMarketplace() {
 
       {/* Mobile Bottom Navigation */}
       <PublicMobileBottomNav />
+
+      {/* Product Image Lightbox Modal */}
+      <ImageViewerModal
+        isOpen={Boolean(viewerProductImage)}
+        onClose={() => setViewerProductImage(null)}
+        imageUrl={viewerProductImage?.url || null}
+        title={viewerProductImage?.title}
+        subtitle="Foto Produk Marketplace LOXER"
+        downloadFilename={`Produk-${viewerProductImage?.title?.replace(/\s+/g, '_') || 'foto'}.jpg`}
+      />
     </div>
   );
 }

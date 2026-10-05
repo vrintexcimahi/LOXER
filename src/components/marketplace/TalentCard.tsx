@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MapPin, Send, Eye, ShieldCheck, Pin, Lock, ArrowUpRight } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
+import { getDefaultPixarAvatar } from '../../lib/avatarService';
 
 interface TalentCardProps {
   talent: TalentMarketplacePost;
@@ -59,20 +60,17 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
     >
       {/* 1:1 Aspect Ratio Photo Header (Ratio 1:1) */}
       <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-1.5 sm:p-3">
-        {currentDisplayUrl ? (
-          <img
-            src={currentDisplayUrl}
-            alt={fullName}
-            className={`h-full w-full rounded-lg sm:rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105 ${
-              activeMedia === 'cv' ? 'object-contain bg-slate-950/90' : 'object-cover object-center'
-            }`}
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center rounded-lg sm:rounded-2xl bg-gradient-to-tr from-cyan-600/30 to-indigo-600/30 text-cyan-300 font-extrabold text-2xl sm:text-5xl">
-            {fullName.charAt(0).toUpperCase()}
-          </div>
-        )}
+        <img
+          src={currentDisplayUrl || getDefaultPixarAvatar(fullName, undefined, talent.bio)}
+          alt={fullName}
+          className={`h-full w-full rounded-lg sm:rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105 ${
+            activeMedia === 'cv' ? 'object-contain bg-slate-950/90' : 'object-cover object-center'
+          }`}
+          loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = getDefaultPixarAvatar(fullName, undefined, talent.bio);
+          }}
+        />
 
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none rounded-lg sm:rounded-2xl m-1.5 sm:m-3" />
 

@@ -11,6 +11,8 @@ import {
   Sparkles,
   Clock,
   MessageSquare,
+  ZoomIn,
+  Maximize2,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { useAuth } from '../../contexts/useAuth';
@@ -18,7 +20,9 @@ import { useAppAccess } from '../../contexts/AppAccessContext';
 import { supabase } from '../../lib/supabase';
 import { broadcastSync } from '../../lib/realtimeSync';
 import { maskPhoneNumber } from '../../lib/contactPrivacyService';
+import { getDefaultPixarAvatar } from '../../lib/avatarService';
 import ProtectedTalentChatModal from './ProtectedTalentChatModal';
+import ImageViewerModal from '../ui/ImageViewerModal';
 
 const AVAILABILITY_LABELS: Record<string, string> = {
   fulltime: 'Purna Waktu',
@@ -51,6 +55,12 @@ export default function TalentDetailModal({
   const [submitting, setSubmitting] = useState(false);
   const [offerSuccess, setOfferSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [viewerImage, setViewerImage] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+    downloadFilename?: string;
+  } | null>(null);
 
   if (!isOpen || !talent) return null;
 
@@ -186,19 +196,30 @@ export default function TalentDetailModal({
 
           {/* Profile Identity Bar (1:1 Ratio Avatar) */}
           <div className="flex items-end gap-4 z-10 translate-y-8">
-            <div className="relative aspect-square h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-2xl overflow-hidden border-4 border-slate-900 shadow-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-3xl font-black text-white">
-              {photoUrl ? (
-                <img
-                  src={photoUrl}
-                  alt={fullName}
-                  className="h-full w-full object-cover object-center aspect-square"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-              ) : (
-                fullName.slice(0, 2).toUpperCase()
-              )}
+            <div
+              className="relative aspect-square h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-2xl overflow-hidden border-4 border-slate-900 shadow-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-3xl font-black text-white cursor-pointer group"
+              onClick={() => {
+                const avatar = photoUrl || getDefaultPixarAvatar(fullName, undefined, talent.bio);
+                setViewerImage({
+                  url: avatar,
+                  title: `Pas Foto - ${fullName}`,
+                  subtitle: talent.headline,
+                  downloadFilename: `Foto-${fullName.replace(/\s+/g, '_')}.jpg`,
+                });
+              }}
+              title="Klik untuk memperbesar foto kandidat"
+            >
+              <img
+                src={photoUrl || getDefaultPixarAvatar(fullName, undefined, talent.bio)}
+                alt={fullName}
+                className="h-full w-full object-cover object-center aspect-square group-hover:scale-105 transition-transform"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = getDefaultPixarAvatar(fullName, undefined, talent.bio);
+                }}
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Maximize2 className="w-5 h-5 text-white drop-shadow" />
+              </div>
             </div>
 
             <div className="flex-1 pb-1">
@@ -463,20 +484,52 @@ export default function TalentDetailModal({
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2.5 py-0.5 text-[10px] font-bold text-cyan-300">
-                  🔒 Kontak Diblur Otomatis
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-2.5 py-0.5 text-[10px] font-bold text-cyan-300">
+                    🔒 Kontak Diblur Otomatis
+                  </span>
+                  {Boolean(talent.portfolio_url && (talent.portfolio_url.startsWith('data:image') || /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(talent.portfolio_url))) && (
+                    <button
+                      type="button"
+                      onClick={() => setViewerImage({
+                        url: talent.portfolio_url!,
+                        title: `Berkas CV Lengkap - ${fullName}`,
+                        subtitle: 'Kontak telah disensor secara otomatis demi keamanan & privasi',
+                        downloadFilename: `CV-${fullName.replace(/\s+/g, '_')}.jpg`,
+                      })}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-[11px] font-bold text-cyan-300 transition cursor-pointer"
+                      title="Buka dokumen ukuran penuh dengan fitur zoom & putar"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>Buka Ukuran Penuh</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {(talent.portfolio_url && (talent.portfolio_url.startsWith('data:image') || /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(talent.portfolio_url))) ? (
-                <div className="relative flex justify-center rounded-xl bg-slate-900/90 border border-white/10 p-2 sm:p-4 overflow-hidden">
+                <div
+                  className="group relative flex justify-center rounded-xl bg-slate-900/90 border border-white/10 p-2 sm:p-4 overflow-hidden cursor-zoom-in"
+                  onClick={() => setViewerImage({
+                    url: talent.portfolio_url!,
+                    title: `Berkas CV Lengkap - ${fullName}`,
+                    subtitle: 'Kontak telah disensor secara otomatis demi keamanan & privasi',
+                    downloadFilename: `CV-${fullName.replace(/\s+/g, '_')}.jpg`,
+                  })}
+                  title="Klik untuk membuka dokumen ukuran penuh & zoom"
+                >
                   <img
                     src={talent.portfolio_url}
                     alt="Berkas CV Lengkap Kandidat (Kontak Terproteksi)"
-                    className="max-h-[600px] w-auto rounded-lg shadow-xl object-contain border border-white/5 cursor-zoom-in hover:brightness-105 transition-all"
-                    onClick={() => window.open(talent.portfolio_url, '_blank')}
-                    title="Klik untuk membuka dokumen ukuran penuh"
+                    className="max-h-[600px] w-auto rounded-lg shadow-xl object-contain border border-white/5 transition-all group-hover:brightness-105 group-hover:scale-[1.01]"
                   />
+                  {/* Floating Action Badge on Hover */}
+                  <div className="absolute inset-0 bg-slate-950/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/50 text-xs font-bold text-cyan-300 shadow-2xl backdrop-blur-md">
+                      <ZoomIn className="w-4 h-4 text-cyan-400" />
+                      <span>Klik untuk memperbesar & membaca dokumen</span>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <a
@@ -510,6 +563,23 @@ export default function TalentDetailModal({
                 </span>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
               </a>
+            ) : talent.portfolio_url ? (
+              <button
+                type="button"
+                onClick={() => setViewerImage({
+                  url: talent.portfolio_url!,
+                  title: `Berkas CV Lengkap - ${fullName}`,
+                  subtitle: 'Kontak telah disensor secara otomatis demi keamanan & privasi',
+                  downloadFilename: `CV-${fullName.replace(/\s+/g, '_')}.jpg`,
+                })}
+                className="flex items-center justify-between p-3 rounded-xl border border-cyan-500/20 bg-slate-800/40 hover:bg-slate-800/80 transition-colors text-xs text-cyan-300 text-left cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-cyan-400" />
+                  Portofolio via dokumen CV (Klik untuk lihat)
+                </span>
+                <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
+              </button>
             ) : (
               <div className="flex items-center gap-2 p-3 rounded-xl border border-white/5 bg-slate-800/20 text-xs text-slate-500">
                 <Briefcase className="w-4 h-4" />
@@ -553,6 +623,16 @@ export default function TalentDetailModal({
           talent={talent}
           isOpen={showChatRoom}
           onClose={() => setShowChatRoom(false)}
+        />
+
+        {/* Fullscreen Image Lightbox Modal */}
+        <ImageViewerModal
+          isOpen={Boolean(viewerImage)}
+          onClose={() => setViewerImage(null)}
+          imageUrl={viewerImage?.url || null}
+          title={viewerImage?.title}
+          subtitle={viewerImage?.subtitle}
+          downloadFilename={viewerImage?.downloadFilename}
         />
       </div>
     </div>

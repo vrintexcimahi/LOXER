@@ -12,7 +12,7 @@ const DB_FILE = path.join(DATA_DIR, 'loxer.db');
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 const SCHEMA_FILE = path.join(DATA_DIR, 'schema.sql');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'loxer-local-jwt-secret-key-2026';
+const getJwtSecret = () => process.env.JWT_SECRET || 'loxer-local-jwt-secret-key-2026';
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
   console.warn('[SECURITY WARNING] Running in production without a custom JWT_SECRET! Using insecure default fallback.');
 }
@@ -657,7 +657,7 @@ export function generateToken(payload) {
   const encodedHeader = base64UrlEncode(JSON.stringify(header));
   const encodedPayload = base64UrlEncode(JSON.stringify(fullPayload));
   const signature = crypto
-    .createHmac('sha256', JWT_SECRET)
+    .createHmac('sha256', getJwtSecret())
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest('base64')
     .replace(/=/g, '')
@@ -674,7 +674,7 @@ export function verifyToken(token) {
 
   const [encodedHeader, encodedPayload, signature] = parts;
   const expectedSignature = crypto
-    .createHmac('sha256', JWT_SECRET)
+    .createHmac('sha256', getJwtSecret())
     .update(`${encodedHeader}.${encodedPayload}`)
     .digest('base64')
     .replace(/=/g, '')

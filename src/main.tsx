@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext.tsx';
 import { registerServiceWorker } from './registerSW.ts';
 import { initGlobalErrorInterceptor } from './lib/logService.ts';
 import './index.css';
+import TenantGateway from './components/app/TenantGateway.tsx';
 
 registerServiceWorker();
 initGlobalErrorInterceptor();
@@ -12,7 +13,7 @@ initGlobalErrorInterceptor();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <App />
+      <TenantGateway><App /></TenantGateway>
     </ThemeProvider>
   </StrictMode>
 );

@@ -20,9 +20,10 @@ import {
   X,
 } from 'lucide-react';
 import { ToastType } from './AdminTalentComponents';
-import { cropPasFotoFromImage, generateBlurredCvImage } from '../../lib/cvImageProcessor';
+import { cropPasFotoFromImage, generateBlurredCvImage, autoEnhanceImageDataUrl } from '../../lib/cvImageProcessor';
 import { cleanDomicileCity, maskPhoneNumber } from '../../lib/contactPrivacyService';
 import { validateDocumentMagicBytes, validateImageMagicBytes } from '../../lib/imageCompressor';
+import { getDefaultPixarAvatar } from '../../lib/avatarService';
 
 interface PdfJsPage {
   getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
@@ -61,6 +62,8 @@ export interface BulkCandidateData {
   photo_url: string;
   ai_notes: string;
   confidence_score: number;
+  gender?: 'male' | 'female';
+  photo_rotation?: number;
   educations?: Array<{ school_name: string; degree: string; major?: string; start_year?: number; end_year?: number }>;
   experiences?: Array<{ company_name: string; position: string; period?: string; description?: string }>;
 }
@@ -79,6 +82,8 @@ export interface BulkCvItem {
   rawFaceBox?: [number, number, number, number] | null;
   rawImageBase64?: string;
   publishedAt?: string;
+  isDuplicate?: boolean;
+  duplicateReason?: string;
 }
 
 const LOXER_STANDARD_CATEGORIES = [
@@ -219,7 +224,28 @@ export function BulkSmartCvManager({
       return;
     }
 
-    setItems((prev) => [...prev, ...validItems]);
+    setItems((prev) => {
+      const existingSignatures = new Set(prev.map((it) => `${it.fileName}_${it.file.size}`));
+      const nonDuplicateItems: BulkCvItem[] = [];
+      let dupeCount = 0;
+
+      for (const it of validItems) {
+        const sig = `${it.fileName}_${it.file.size}`;
+        if (existingSignatures.has(sig)) {
+          dupeCount++;
+        } else {
+          existingSignatures.add(sig);
+          nonDuplicateItems.push(it);
+        }
+      }
+
+      if (dupeCount > 0) {
+        onToast('info', `${dupeCount} berkas duplikat diabaikan karena sudah ada di antrean.`);
+      }
+
+      return [...prev, ...nonDuplicateItems];
+    });
+
     setIsQueueRunning(true);
     onToast('success', `Berhasil menambahkan ${validItems.length} berkas CV terverifikasi ke antrean pemrosesan AI!`);
   }, [onToast]);
@@ -318,7 +344,7 @@ export function BulkSmartCvManager({
       const cv = resData.cv;
       if (!cv) throw new Error('Biodata CV tidak ditemukan dalam respon AI.');
 
-      // 3. Cropping Pas Foto (Level MAX Presisi 1:1)
+      // 3. Cropping Pas Foto (Level MAX Presisi 1:1 & Auto-Rotate)
       let croppedPhoto = '';
       if (imageBase64 && cv.photo_box) {
         try {
@@ -326,7 +352,8 @@ export function BulkSmartCvManager({
             imageBase64,
             cv.photo_box,
             cv.face_box,
-            'smart_square'
+            'smart_square',
+            cv.photo_rotation || 0
           );
         } catch (cropErr) {
           console.warn('[BulkSmartCv] Crop photo error:', cropErr);
@@ -344,9 +371,12 @@ export function BulkSmartCvManager({
         }
       }
 
-      // 5. Structure Candidate Data
+      // 5. Structure Candidate Data & Assign 3D Pixar Avatar if photo absent
+      const candidateName = cv.full_name || item.fileName.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+      const defaultPixar = getDefaultPixarAvatar(candidateName, cv.gender, cv.bio);
+
       const structuredData: BulkCandidateData = {
-        full_name: cv.full_name || item.fileName.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
+        full_name: candidateName,
         headline: cv.headline || 'Pencari Kerja Aktif',
         category: cv.category || 'Umum & Jasa',
         availability: cv.availability || 'fulltime',
@@ -360,28 +390,42 @@ export function BulkSmartCvManager({
         skills: Array.isArray(cv.skills) && cv.skills.length > 0 ? cv.skills : ['Komunikasi', 'Kerja Tim'],
         portfolio_url: blurredCv || imageBase64,
         badge: cv.badge || 'SIAP KERJA',
-        photo_url: croppedPhoto || '',
+        photo_url: croppedPhoto || defaultPixar,
+        gender: cv.gender,
+        photo_rotation: cv.photo_rotation || 0,
         ai_notes: cv.ai_notes || 'Ekstraksi otomatis oleh Bulk AI Gemini 3.8 LOXER',
         confidence_score: cv.confidence_score || 95,
         educations: cv.educations || [],
         experiences: cv.experiences || [],
       };
 
-      // 6. Complete
-      setItems((prev) =>
-        prev.map((it) =>
+      // 6. Complete & Duplicate Check in Queue
+      setItems((prev) => {
+        const isDupe = prev.some(
+          (it) =>
+            it.id !== item.id &&
+            it.data &&
+            (it.data.full_name.trim().toLowerCase() === structuredData.full_name.trim().toLowerCase() ||
+              (Boolean(structuredData.whatsapp_number) &&
+                Boolean(it.data.whatsapp_number) &&
+                it.data.whatsapp_number === structuredData.whatsapp_number))
+        );
+
+        return prev.map((it) =>
           it.id === item.id
             ? {
                 ...it,
                 status: 'ready',
                 progress: 100,
                 data: structuredData,
+                isDuplicate: isDupe,
+                duplicateReason: isDupe ? 'Kandidat dengan nama atau kontak serupa sudah ada di antrean' : undefined,
                 rawPhotoBox: cv.photo_box || null,
                 rawFaceBox: cv.face_box || null,
               }
             : it
-        )
-      );
+        );
+      });
     } catch (err: unknown) {
       console.error(`[BulkSmartCv Error] file ${item.fileName}:`, err);
       const msg = err instanceof Error ? err.message : 'Gagal memproses berkas';
@@ -601,6 +645,36 @@ export function BulkSmartCvManager({
       onToast('success', 'Foto profil berhasil diganti!');
     };
     reader.readAsDataURL(file);
+  };
+
+  // Auto-sharpen current photo in modal
+  const handleModalAutoSharpen = async () => {
+    if (!editFormData || !editFormData.photo_url) {
+      onToast('error', 'Tidak ada foto yang dapat dipertajam.');
+      return;
+    }
+    try {
+      const sharpened = await autoEnhanceImageDataUrl(editFormData.photo_url, {
+        sharpenStrength: 0.85,
+        contrastBoost: 1.22,
+        vibrancyBoost: 1.15,
+      });
+      if (sharpened) {
+        setEditFormData({ ...editFormData, photo_url: sharpened });
+        onToast('success', '✨ Foto berhasil dipertajam & ditingkatkan ke kualitas HD!');
+      }
+    } catch (err) {
+      console.warn('Auto sharpen error:', err);
+      onToast('error', 'Gagal mempertajam foto.');
+    }
+  };
+
+  // Switch to Pixar 3D Avatar in modal
+  const handleModalPixarAvatar = () => {
+    if (!editFormData) return;
+    const avatar = getDefaultPixarAvatar(editFormData.full_name, editFormData.gender, editFormData.bio);
+    setEditFormData({ ...editFormData, photo_url: avatar });
+    onToast('success', '🎨 Berhasil menggunakan 3D Pixar Avatar!');
   };
 
   // Save Modal Edits back to item
@@ -1034,13 +1108,18 @@ export function BulkSmartCvManager({
                               src={data.photo_url}
                               alt={data.full_name}
                               className="h-full w-full object-cover object-center"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = getDefaultPixarAvatar(data.full_name, data.gender, data.bio);
+                              }}
                             />
                           ) : isWorking ? (
                             <RefreshCw className="w-5 h-5 text-amber-400 animate-spin" />
                           ) : (
-                            <span className="text-lg font-black text-amber-300">
-                              {(data?.full_name || item.fileName).charAt(0).toUpperCase()}
-                            </span>
+                            <img
+                              src={getDefaultPixarAvatar(data?.full_name || item.fileName, data?.gender, data?.bio)}
+                              alt={data?.full_name || item.fileName}
+                              className="h-full w-full object-cover object-center"
+                            />
                           )}
 
                           {/* Mini file type badge */}
@@ -1073,7 +1152,12 @@ export function BulkSmartCvManager({
                           </p>
 
                           {/* Status Pill */}
-                          <div className="mt-1.5 flex items-center gap-1.5">
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            {item.isDuplicate && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30" title="Data kandidat serupa terdeteksi di antrean">
+                                ⚠️ Duplikat Antrean
+                              </span>
+                            )}
                             {isReady && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                 <CheckCircle2 className="w-2.5 h-2.5" /> Siap Diterbitkan
@@ -1230,13 +1314,14 @@ export function BulkSmartCvManager({
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="h-9 w-9 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-slate-950 flex items-center justify-center">
-                              {data?.photo_url ? (
-                                <img src={data.photo_url} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <span className="font-bold text-amber-300">
-                                  {(data?.full_name || item.fileName).charAt(0).toUpperCase()}
-                                </span>
-                              )}
+                              <img
+                                src={data?.photo_url || getDefaultPixarAvatar(data?.full_name || item.fileName, data?.gender, data?.bio)}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = getDefaultPixarAvatar(data?.full_name || item.fileName, data?.gender, data?.bio);
+                                }}
+                              />
                             </div>
                             <div>
                               <p className="font-bold text-white">{data?.full_name || item.fileName}</p>
@@ -1349,13 +1434,14 @@ export function BulkSmartCvManager({
               </span>
               <div className="flex items-start gap-4">
                 <div className="h-20 w-20 shrink-0 rounded-xl overflow-hidden border border-white/20 bg-slate-900 shadow-inner flex items-center justify-center">
-                  {editFormData.photo_url ? (
-                    <img src={editFormData.photo_url} alt="" className="h-full w-full object-cover object-center" />
-                  ) : (
-                    <span className="text-2xl font-black text-cyan-400">
-                      {editFormData.full_name.charAt(0).toUpperCase()}
-                    </span>
-                  )}
+                  <img
+                    src={editFormData.photo_url || getDefaultPixarAvatar(editFormData.full_name, editFormData.gender, editFormData.bio)}
+                    alt=""
+                    className="h-full w-full object-cover object-center"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = getDefaultPixarAvatar(editFormData.full_name, editFormData.gender, editFormData.bio);
+                    }}
+                  />
                 </div>
                 <div className="space-y-2 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -1391,6 +1477,22 @@ export function BulkSmartCvManager({
                       }`}
                     >
                       🖼️ Penuh
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleModalAutoSharpen}
+                      className="px-2 py-1 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-400/30 transition flex items-center gap-1"
+                      title="Pertajam otomatis foto buram menggunakan filter HD"
+                    >
+                      ✨ Pertajam HD
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleModalPixarAvatar}
+                      className="px-2 py-1 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 hover:bg-violet-500/30 border border-violet-400/30 transition flex items-center gap-1"
+                      title="Gunakan ilustrasi 3D Pixar Avatar sesuai gender"
+                    >
+                      🎨 3D Avatar
                     </button>
                   </div>
                   <div className="flex items-center gap-2">

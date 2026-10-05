@@ -40,6 +40,9 @@ const DeveloperWorkbench = lazy(() => import('./pages/admin/DeveloperWorkbench')
 const TalentMarketplace = lazy(() => import('./pages/public/TalentMarketplace'));
 const SeekerMarketplace = lazy(() => import('./pages/seeker/SeekerMarketplace'));
 const ProductMarketplace = lazy(() => import('./pages/public/ProductMarketplace'));
+const AdminPartners = lazy(() => import('./pages/admin/AdminPartners'));
+const PartnerAccess = lazy(() => import('./pages/partner/PartnerAccess'));
+const PartnerProgram = lazy(() => import('./pages/partner/PartnerProgram'));
 
 type AuthMode = 'login' | 'register' | null;
 
@@ -200,6 +203,8 @@ VITE_SUPABASE_ANON_KEY=...`}
   };
 
   const renderPage = () => {
+    if (path === '/mitra' || path.startsWith('/mitra/')) return <PartnerProgram />;
+    if (path === '/portal-mitra' || path === '/mitra/masuk') return <PartnerAccess />;
     // Mode Web View-Only: akses portal dashboard Seeker/Employer dialihkan dengan popup edukasi
     if (isViewOnlyWeb) {
       if (
@@ -237,6 +242,7 @@ VITE_SUPABASE_ANON_KEY=...`}
       const isAdmin = isRoleAuthorized('admin') || isSuper;
 
       if (!isAdmin) return null;
+      if (path === '/admin/partners') return <AdminPartners />;
 
       const adminPages: Record<string, JSX.Element> = {
         '/admin/dashboard': <AdminDashboard tab="overview" />,
