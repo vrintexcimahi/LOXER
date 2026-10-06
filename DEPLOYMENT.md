@@ -1,104 +1,229 @@
-# Deployment Guide
+# Panduan Deployment LOXER ke Linux VPS (Via Pull GitHub)
 
-## Rekomendasi Hosting
+Dokumentasi ini adalah panduan resmi untuk men-deploy aplikasi **LOXER** ke server Linux VPS menggunakan alur **Git Pull dari GitHub**.
 
-Gunakan `Vercel`.
+---
 
-Alasannya:
+## 1. Informasi Server & Lingkungan
 
-- frontend Vite SPA sudah cocok
-- folder `api/` sudah disiapkan untuk serverless function
-- rewrite SPA sudah disediakan lewat `vercel.json`
+Berdasarkan konfigurasi server aktif (referensi: `akses-ssh-server.md`):
 
-## Checklist Sebelum Deploy
+| Parameter | Konfigurasi Server |
+| :--- | :--- |
+| **Hostname** | `samsung-server` |
+| **IP Server (LAN)** | `192.168.1.14` |
+| **Port SSH** | `22` |
+| **User SSH** | `vrintex` |
+| **Password** | `kayaraya3+` |
+| **SSH Key (Windows)** | `C:\Users\SERVER PC\.ssh\id_ed25519_antigravity` (atau default `id_ed25519`) |
+| **OS** | Ubuntu 22.04 LTS |
+| **Path Project di VPS** | `/home/vrintex/loxer` |
+| **GitHub Repository** | `git@github.com:vrintexcimahi/LOXER.git` |
+| **Port Aplikasi** | `3035` (`0.0.0.0:3035`) |
+| **Process Manager** | PM2 (`pm2`) |
+| **Runtime** | Node.js v22.x + NPM v10.x |
 
-1. Pastikan command berikut lolos:
+---
 
-```bash
-npm run typecheck
-npm run lint
-npm run build
+## 2. Arsitektur Deployment di VPS
+
+- **Frontend & Fullstack Middleware**: Menggunakan **Vite Preview** yang membungkus antarmuka React SPA sekaligus backend API middleware (SQLite local handler, Smart CV/Job extractor, partner tenancy, otentikasi admin, dan static file downloads APK).
+- **Database**: SQLite lokal persisten yang tersimpan di `/home/vrintex/loxer/data/loxer.db`.
+- **Manajemen Proses**: PM2 berjalan di background dengan auto-restart dan log management.
+- **Reverse Proxy**: Nginx (opsional jika diarahkan ke domain publik/subdomain) meneruskan port 80/443 ke port internal `3035`.
+
+---
+
+## 3. Alur Singkat: 1-Command Deploy dari Windows PC
+
+Setelah Anda selesai melakukan perubahan kode di laptop/PC Windows:
+
+### Langkah A: Push ke GitHub dari PC Lokal
+Buka terminal PowerShell di folder project:
+```powershell
+git add .
+git commit -m "Update fitur dan perbaikan"
+git push origin main
 ```
 
-2. Jalankan semua migration Supabase.
+### Langkah B: Trigger Deploy ke Server via SSH (1 Perintah)
+Cukup jalankan satu perintah berikut langsung dari PowerShell Windows:
 
-Minimal pastikan migration berikut sudah ter-apply:
+**Dengan SSH Key (Otomatis tanpa input password):**
+```powershell
+ssh -i "C:\Users\SERVER PC\.ssh\id_ed25519_antigravity" vrintex@192.168.1.14 "cd /home/vrintex/loxer && bash deploy.sh"
+```
 
-- `20260410065102_create_joob_schema_v1.sql`
-- `20260410104000_add_pages_cms.sql`
-- `20260411130000_add_admin_role_and_audit_logs.sql`
-- `20260417090000_harden_production_policies.sql`
+**Atau dengan Password biasa:**
+```powershell
+ssh vrintex@192.168.1.14 "cd /home/vrintex/loxer && bash deploy.sh"
+```
+*(Ketik password `kayaraya3+` saat diminta)*
 
-3. Siapkan environment variable di hosting.
+Script `deploy.sh` akan otomatis:
+1. Mem-backup database SQLite `data/loxer.db` ke folder `data/backups/`.
+2. Melakukan `git pull origin main`.
+3. Menjalankan `npm install --prefer-offline`.
+4. Mengompilasi bundle produksi (`npm run build`).
+5. Merestart proses PM2 `loxer`.
+6. Melakukan health-check HTTP 200 di port 3035.
 
-## Environment Variables
+---
 
-Wajib:
+## 4. Alur Manual di VPS (Jika Menggunakan Terminal SSH Langsung)
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `VITE_DEFAULT_ADMIN_EMAIL`
-- `DEFAULT_ADMIN_EMAIL`
+Jika Anda sedang membuka SSH terminal ke server (`ssh vrintex@192.168.1.14`):
 
-Opsional:
+```bash
+# 1. Pindah ke folder project
+cd /home/vrintex/loxer
 
-- `CAREERJET_API_KEY`
-- `RAPIDAPI_KEY`
+# 2. (Opsional) Cadangkan database manual
+mkdir -p data/backups
+cp data/loxer.db data/backups/loxer_$(date +%Y%m%d_%H%M%S).db
 
-Rekomendasi:
+# 3. Ambil perubahan terbaru dari GitHub
+git pull origin main
 
-- isi `VITE_DEFAULT_ADMIN_EMAIL` dan `DEFAULT_ADMIN_EMAIL` dengan email yang sama
-- gunakan template siap-copy dari [VERCEL_ENV_TEMPLATE.txt](./VERCEL_ENV_TEMPLATE.txt)
+# 4. Install paket dependensi baru (bila ada)
+npm install
 
-## Urutan Migration Supabase
+# 5. Build bundle Vite untuk production
+npm run build
 
-Gunakan urutan yang sudah disiapkan di [SUPABASE_MIGRATION_ORDER.md](./SUPABASE_MIGRATION_ORDER.md).
+# 6. Restart proses PM2
+pm2 restart loxer
 
-## Langkah Deploy ke Vercel
+# 7. Cek status aplikasi
+pm2 status
+curl -I http://127.0.0.1:3035
+```
 
-1. Import repository ini ke Vercel.
-2. Framework preset: `Vite`.
-3. Tambahkan semua environment variable di Project Settings.
-4. Deploy.
+---
 
-File `vercel.json` sudah menangani rewrite SPA agar route seperti:
+## 5. Konfigurasi Environment (`.env`) di Server
 
-- `/seeker/browse`
-- `/employer/dashboard`
-- `/admin/dashboard`
+File `.env` di VPS berlokasi di `/home/vrintex/loxer/.env`. File ini **tidak boleh di-commit ke Git** agar konfigurasi lokal dan rahasia tetap aman.
 
-tetap bisa dibuka langsung.
+Contoh konfigurasi standar production di server:
+```env
+# Mode Database Lokal (SQLite)
+VITE_USE_LOCAL_DB=true
 
-## Endpoint Production yang Wajib Tersedia
+# Akun Admin Utama
+VITE_DEFAULT_ADMIN_EMAIL=vrintex
+DEFAULT_ADMIN_EMAIL=vrintex
 
-Route berikut sudah disiapkan di folder `api/`:
+# Google OAuth 2.0 (Login Google)
+VITE_GOOGLE_CLIENT_ID=662697453086-6ck31s04jn29r8ii58k88jq11id5071k.apps.googleusercontent.com
 
-- `/api/jobs`
-- `/api/integrations-status`
-- `/api/application-status-notification`
-- `/api/admin-audit-log`
-- `/api/admin/users`
-- `/api/admin/ensure-default-admin`
+# Partner / Subdomain Tenancy
+PARTNER_CHILD_PANEL_ENABLED=false
+APP_BASE_DOMAIN=192.168.1.14
+APP_PUBLIC_ORIGIN=http://192.168.1.14:3035
+JWT_SECRET=b63c87f9024e4f9b8175d71c6183ef99ac483719b0271ca7832ef8a174092b31
 
-## Catatan Penting Production
+# Integrasi Eksternal (Opsional)
+CAREERJET_API_KEY=
+JOOBLE_API_KEY=
+RAPIDAPI_KEY=
+```
 
-- `SUPABASE_SERVICE_ROLE_KEY` hanya untuk serverless/backend, jangan pernah expose ke client.
-- Homepage publik sudah dipisah dari runtime editor, jadi payload public lebih ringan.
-- Notifikasi status lamaran dan audit log sudah dipindahkan ke server-side.
-- Policy database yang baru harus aktif sebelum go-live agar akses data seeker tetap aman.
+---
 
-## Verifikasi Setelah Deploy
+## 6. Perintah Manajemen PM2
 
-1. Buka `/`
-2. Buka `/seeker/browse`
-3. Login admin lalu buka `/admin/dashboard`
-4. Buka `/admin/integrations`
-5. Uji update status pelamar di dashboard employer
-6. Pastikan audit log masuk
-7. Pastikan notifikasi pelamar masuk
+Gunakan perintah PM2 berikut untuk memonitor jalannya aplikasi di VPS:
 
-## Risiko Yang Masih Perlu Dipantau
+| Tindakan | Perintah Terminal |
+| :--- | :--- |
+| **Lihat status semua proses** | `pm2 list` |
+| **Lihat detail proses LOXER** | `pm2 show loxer` |
+| **Pantau log real-time** | `pm2 logs loxer` |
+| **Lihat 50 log terakhir tanpa streaming** | `pm2 logs loxer --lines 50 --nostream` |
+| **Restart aplikasi** | `pm2 restart loxer` |
+| **Stop aplikasi** | `pm2 stop loxer` |
+| **Start manual aplikasi pertama kali** | `pm2 start npm --name "loxer" -- run preview` *(atau `pm2 start ecosystem.config.cjs`)* |
+| **Simpan daftar proses saat ini** | `pm2 save` |
+| **Monitoring CPU / RAM interaktif** | `pm2 monit` |
 
-- chunk `vendor-charts` masih besar karena `recharts`
-- observability production seperti error tracking dan alerting belum ditambahkan
+---
+
+## 7. Konfigurasi Nginx Reverse Proxy (Domain / Subdomain)
+
+Jika ingin mengakses LOXER menggunakan nama domain (misalnya `loxer.vrintex.id` atau `loxer.vrintex.co.id`) dengan SSL HTTPS:
+
+### Buat file Nginx site:
+```bash
+sudo nano /etc/nginx/sites-available/loxer.vrintex.id.conf
+```
+
+### Masukkan konfigurasi berikut:
+```nginx
+server {
+    listen 80;
+    server_name loxer.vrintex.id;
+
+    # Batas ukuran upload (untuk file CV dan file APK Android)
+    client_max_body_size 100M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3035;
+        proxy_http_version 1.1;
+
+        # Header WebSocket & upgrade
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+
+        # Header identitas client
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeout proxy untuk request berat/analisis AI
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+```
+
+### Aktifkan dan restart Nginx:
+```bash
+sudo ln -sf /etc/nginx/sites-available/loxer.vrintex.id.conf /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Pasang SSL Gratis (Certbot Let's Encrypt):
+```bash
+sudo certbot --nginx -d loxer.vrintex.id
+```
+
+---
+
+## 8. Pemulihan & Rollback (Jika Ada Error Pasca-Deploy)
+
+Jika setelah pull kode baru aplikasi mengalami error:
+
+1. **Cek Log PM2 untuk melihat letak error:**
+   ```bash
+   pm2 logs loxer --lines 100 --nostream
+   ```
+
+2. **Rollback Git ke commit stabil sebelumnya:**
+   ```bash
+   cd /home/vrintex/loxer
+   git reset --hard HEAD~1
+   npm run build
+   pm2 restart loxer
+   ```
+
+3. **Restore Database SQLite dari cadangan jika terjadi masalah data:**
+   ```bash
+   cd /home/vrintex/loxer
+   # Pilih file backup terbaru di data/backups/
+   ls -lt data/backups/
+   cp data/backups/loxer_YYYYMMDD_HHMMSS.db data/loxer.db
+   pm2 restart loxer
+   ```

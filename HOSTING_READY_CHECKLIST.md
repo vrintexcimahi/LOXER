@@ -1,10 +1,12 @@
-# Hosting Ready Checklist
+# VPS Hosting Ready Checklist
 
-Gunakan checklist ini tepat sebelum deploy ke hosting production.
+Gunakan checklist ini sebelum dan sesudah deploy update ke Linux VPS (`samsung-server`).
 
-## 1. Verifikasi Lokal
+---
 
-Jalankan:
+## 1. Verifikasi Lokal (Sebelum Git Push)
+
+Jalankan di terminal lokal Windows PC:
 
 ```bash
 npm install
@@ -12,93 +14,59 @@ npm run check:prod
 ```
 
 Hasil yang diharapkan:
-
 - `typecheck` pass
 - `lint` pass
 - `build` pass
 
-## 2. Siapkan Supabase Production
+---
 
-Ikuti urutan file di [SUPABASE_MIGRATION_ORDER.md](./SUPABASE_MIGRATION_ORDER.md).
+## 2. Commit & Push ke GitHub
 
-Setelah selesai, cek:
+Pastikan cabang `main` sudah sinkron dengan origin GitHub:
 
-- tabel `pages` ada
-- tabel `audit_logs` ada
-- kolom `users_meta.is_banned` ada
-- policy hardening terbaru sudah aktif
+```bash
+git add .
+git commit -m "Deskripsi perubahan"
+git push origin main
+```
 
-## 3. Siapkan Environment Variable di Vercel
+---
 
-Copy isi dari [VERCEL_ENV_TEMPLATE.txt](./VERCEL_ENV_TEMPLATE.txt).
+## 3. Verifikasi Konfigurasi di VPS (`/home/vrintex/loxer/.env`)
 
-Wajib terisi:
+Pastikan variabel penting pada VPS sudah terpasang:
+- `VITE_USE_LOCAL_DB=true` (atau konfigurasi Supabase jika mode Cloud)
+- `VITE_DEFAULT_ADMIN_EMAIL=vrintex`
+- `DEFAULT_ADMIN_EMAIL=vrintex`
+- `APP_PUBLIC_ORIGIN=http://192.168.1.14:3035` (atau URL domain Anda)
+- `JWT_SECRET` terisi dengan string acak (minimal 32 karakter)
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `VITE_DEFAULT_ADMIN_EMAIL`
-- `DEFAULT_ADMIN_EMAIL`
+---
 
-Opsional:
+## 4. Eksekusi Deploy ke VPS
 
-- `CAREERJET_API_KEY`
-- `RAPIDAPI_KEY`
+Jalankan perintah auto-deploy via SSH dari Windows:
 
-## 4. Konfigurasi Project di Vercel
+```powershell
+ssh -i "C:\Users\SERVER PC\.ssh\id_ed25519_antigravity" vrintex@192.168.1.14 "cd /home/vrintex/loxer && bash deploy.sh"
+```
 
-Saat import repository:
+---
 
-- Framework Preset: `Vite`
-- Root Directory: `.`
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Install Command: `npm install`
+## 5. Smoke Test & Health Check
 
-`vercel.json` sudah ada untuk SPA rewrite.
+Setelah script deploy selesai, verifikasi:
 
-## 5. Deploy
-
-Klik `Deploy`.
-
-Setelah build selesai, buka domain preview/production lalu cek:
-
-- `/`
-- `/seeker/browse`
-- `/login`
-- `/admin/dashboard`
-- `/admin/integrations`
-
-## 6. Smoke Test Setelah Deploy
-
-Lakukan minimal:
-
-1. Login dengan akun seeker.
-2. Buka halaman browse lowongan.
-3. Login dengan akun employer.
-4. Ubah status lamaran kandidat.
-5. Pastikan notifikasi kandidat masuk.
-6. Login admin.
-7. Pastikan audit log muncul.
-8. Buka editor homepage dan publish perubahan kecil.
-9. Refresh homepage dan pastikan perubahan tampil.
-
-## 7. Go-Live Gate
-
-Anggap aman go-live hanya jika semua ini benar:
-
-- `npm run check:prod` pass
-- migration Supabase selesai
-- env Vercel lengkap
-- route admin dan API serverless bekerja
-- smoke test berhasil
-
-## 8. Jika Deploy Gagal
-
-Urutan cek tercepat:
-
-1. env Vercel belum lengkap
-2. migration Supabase belum dijalankan
-3. `DEFAULT_ADMIN_EMAIL` dan `VITE_DEFAULT_ADMIN_EMAIL` tidak sama
-4. `SUPABASE_SERVICE_ROLE_KEY` salah
-5. route `/api/*` gagal karena env server belum tersedia
+1. **Koneksi HTTP Port 3035:**
+   ```bash
+   curl -I http://127.0.0.1:3035
+   ```
+2. **Status Proses PM2:**
+   ```bash
+   pm2 show loxer
+   ```
+3. **Uji Fungsional di Browser:**
+   - Akses antarmuka: `http://192.168.1.14:3035/`
+   - Buka halaman lowongan: `http://192.168.1.14:3035/seeker/browse`
+   - Buka login & dashboard admin: `http://192.168.1.14:3035/admin/internal-login`
+   - Pastikan database SQLite tidak ter-reset dan data tersimpan dengan aman.

@@ -67,7 +67,9 @@ PARTNER_MASTER_USER_IDS=<id-akun-admin-yang-ditunjuk>
 
 Setelah login sebagai administrator master, buka `/admin/partners` untuk membuat dan mengaktifkan Child. Fallback URL Child adalah `/p/<slug>`, sementara subdomain memerlukan wildcard DNS/proxy yang diarahkan ke aplikasi.
 
-Endpoint production legacy tetap memakai path publik yang sama, tetapi dirutekan melalui `api/index.js` agar deployment Vercel Hobby tidak melewati batas 12 Serverless Functions. Implementasi handler tersimpan di `api-legacy/` dan tidak boleh dipanggil langsung dari browser.
+Untuk panduan deployment ke Linux VPS via Git Pull GitHub, lihat dokumentasi lengkap di [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+Endpoint production legacy tetap memakai path publik yang sama dan di-route melalui API middleware di `vite.config.ts` saat server dijalankan di Linux VPS (PM2). Implementasi handler tersimpan di `api-legacy/` dan tidak boleh dipanggil langsung dari browser.
 
 ## Setup Database
 
