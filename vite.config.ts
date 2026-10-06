@@ -888,11 +888,13 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: configuredPort,
       strictPort: true,
+      allowedHosts: true,
     },
     preview: {
       host: '0.0.0.0',
       port: configuredPort,
       strictPort: true,
+      allowedHosts: true,
     },
     build: {
       chunkSizeWarningLimit: 1000,
