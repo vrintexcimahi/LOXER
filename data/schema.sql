@@ -515,6 +515,7 @@ CREATE TABLE IF NOT EXISTS partner_applications (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX IF NOT EXISTS partner_apps_status ON partner_applications(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_partner_apps_slug ON partner_applications(suggested_slug);
 
 
 

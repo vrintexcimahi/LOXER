@@ -667,6 +667,7 @@ export function getLocalDb() {
           created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
         );
         CREATE INDEX IF NOT EXISTS partner_apps_status ON partner_applications(status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_partner_apps_slug ON partner_applications(suggested_slug);
       `);
     } catch (e) {
       console.warn('[localDb] partner_applications setup notice:', e.message);
@@ -1318,8 +1319,33 @@ export function insertPartnerApplication({ id, business_name, suggested_slug, ci
   ).run(id, business_name, suggested_slug, city, pic_phone, notes, owner_user_id ?? null);
 }
 
+export function getPartnerApplicationById(id) {
+  const db = getLocalDb();
+  return db.prepare(`SELECT * FROM partner_applications WHERE id = ?`).get(id) || null;
+}
+
+export function getPartnerApplicationBySlug(slug) {
+  const db = getLocalDb();
+  return db.prepare(
+    `SELECT * FROM partner_applications WHERE LOWER(suggested_slug) = LOWER(?) AND status != 'rejected' LIMIT 1`
+  ).get(slug) || null;
+}
+
+export function countPartnerApplications(status = null) {
+  const db = getLocalDb();
+  if (!status || status === 'all') {
+    return db.prepare(`SELECT COUNT(*) as total FROM partner_applications`).get()?.total || 0;
+  }
+  return db.prepare(`SELECT COUNT(*) as total FROM partner_applications WHERE status = ?`).get(status)?.total || 0;
+}
+
 export function listPartnerApplications(status = 'pending', limit = 50, offset = 0) {
   const db = getLocalDb();
+  if (!status || status === 'all') {
+    return db.prepare(
+      `SELECT * FROM partner_applications ORDER BY created_at DESC LIMIT ? OFFSET ?`
+    ).all(limit, offset);
+  }
   return db.prepare(
     `SELECT * FROM partner_applications WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
   ).all(status, limit, offset);
@@ -1327,7 +1353,9 @@ export function listPartnerApplications(status = 'pending', limit = 50, offset =
 
 export function updatePartnerApplicationStatus(id, status, reviewed_by) {
   const db = getLocalDb();
-  db.prepare(
+  const res = db.prepare(
     `UPDATE partner_applications SET status=?, reviewed_by=?, reviewed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?`
   ).run(status, reviewed_by, id);
+  return res.changes > 0;
 }
+

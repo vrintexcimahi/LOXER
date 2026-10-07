@@ -35,15 +35,12 @@ export default function PartnerProgram() {
   const [activeMitraCount, setActiveMitraCount] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch('/api/partner-platform/capabilities')
+    fetch('/api/local/partner/applications?status=approved')
       .then((r) => r.json())
-      .then((data) => {
-        if (data.enabled) {
-          // Fetch tenant list count jika enabled
-          fetch('/api/local/partner/applications?status=approved')
-            .then((r) => r.json())
-            .then((d) => setActiveMitraCount(d.rows?.length ?? 0))
-            .catch(() => {});
+      .then((d) => {
+        const count = typeof d.count === 'number' ? d.count : (d.rows?.length ?? 0);
+        if (count > 0) {
+          setActiveMitraCount(count);
         }
       })
       .catch(() => {});

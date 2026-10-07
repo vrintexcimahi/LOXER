@@ -1168,3 +1168,67 @@
 14. **[Test] AUD-014: Perluasan Suite Uji Otomatis Menjadi 51 Assertions**
     - *Akar Masalah*: Pengujian audit sebelumnya hanya mencakup 47 asersi dan belum menguji mitigasi celah privilege escalation, banned user token guard, simulation bypass guard, dan traffic spoofing guard.
     - *Solusi*: Menambahkan asersi 48, 49, 50, dan 51 pada `scripts/test-audit-fixes.mjs`.
+
+---
+
+## [2026-10-07] Audit & Bug Fix (GODMAX+ v3.5 / v4.0 — Partner Applications & Security Hardening)
+
+### Scope / status
+- Area: LOXER Partner Program & Applications Lifecycle, Multi-tenant Child Portal, Mobile Device Security, Web Worker CSP, Component Decoupling
+- Status: PASS (100% Tuntas, 78/78 Test Assertions Lulus, 0 Error, Zero Regression)
+- Branch: `audit/godmax-plus-20261007-01`
+- Baseline Commit: `d5b6c5a` -> Preserved User Changes: `adc6247`
+
+### Fixes & Enhancements
+1. **[High] AUD-015: PII Leak pada Direktori Publik Pengajuan Mitra (`/api/local/partner/applications?status=approved`)**
+   - *Akar Masalah*: Handler publik mengembalikan seluruh kolom baris data dari SQLite (`SELECT *`), membocorkan nomor WhatsApp pribadi penanggung jawab (`pic_phone`), catatan internal pelamar (`notes`), dan `owner_user_id` kepada siapapun yang memanggil endpoint direktori tanpa token.
+   - *Solusi*: Pada `server/localApiHandler.js`, ketika diakses oleh pemanggil non-admin, respon disanitasi secara ketat dan hanya mengekspos field direktori publik aman (`id`, `business_name`, `suggested_slug`, `city`, `status`, `created_at`). Permintaan status selain `approved` tanpa token admin ditolak dengan HTTP 401 Unauthorized.
+   - *Verifikasi*: Asersi 9.1, 9.2, dan 10 pada `scripts/test_partner_applications.mjs` memvalidasi bahwa `pic_phone` dan `notes` di-strip total untuk publik dan query non-approved ditolak 401.
+
+2. **[High] AUD-016: Rute Admin Review Tidak Terkoneksi & Ketiadaan Workflow Manajemen Mitra**
+   - *Akar Masalah*: Fungsi `updatePartnerApplicationStatus` di `server/localDb.js` telah dibuat tetapi belum memiliki endpoint HTTP handler, menyebabkan aplikasi mitra menggantung permanen dalam status `pending`. Di samping itu, antarmuka admin `AdminPartners.tsx` tidak memiliki tab untuk meninjau dan mengubah status pengajuan.
+   - *Solusi*:
+     - Mengimplementasikan endpoint `PATCH /api/local/partner/applications` di `server/localApiHandler.js` dengan validasi token admin, verifikasi status target (`pending`, `approved`, `rejected`), dan pencatatan riwayat audit tak terhapuskan pada tabel `audit_logs` (`partner_application.approved` / `rejected`).
+     - Memperbarui komponen `src/pages/admin/AdminPartners.tsx` dengan tab navigasi (`Semua Mitra Aktif` vs `Pengajuan Baru`), modal detail pengajuan, tombol aksi Cepat Setujui / Tolak, dan integrasi tombol "Konversi Jadi Tenant" untuk onboarding instan Child tenant.
+   - *Verifikasi*: Asersi 12, 12.1, 12.2, dan 12.3 pada `scripts/test_partner_applications.mjs` memverifikasi pengubahan status pengajuan dan pencatatan audit log di SQLite.
+
+3. **[High] AUD-017: Kerusakan Autentikasi Admin pada Antarmuka Mitra Mode SQLite Lokal**
+   - *Akar Masalah*: Halaman `AdminPartners.tsx` hanya mengandalkan pemanggilan `supabase.auth.getSession()`. Ketika dijalankan dalam mode lokal offline (SQLite), session Supabase bernilai `null` sehingga antarmuka memblokir admin dengan pesan *"Masuk dengan akun superadmin yang ditunjuk"*.
+   - *Solusi*: Menambahkan fallback pembacaan token sesi admin lokal dari `localStorage` (`loxer_local_auth_token_admin`, `loxer_admin_session`, `loxer_local_auth_token`), menyelaraskan perilakunya dengan halaman admin lainnya (`AdminDashboard`, `LogMonitoring`, `DatabaseBackup`).
+   - *Verifikasi*: Pengujian akses lokal dan render `AdminPartners.tsx` berhasil memuat data mitra tanpa blokir otorisasi.
+
+4. **[Medium] AUD-018: Risiko Spamming dan Tabrakan Routing Subdomain / Slug Mitra**
+   - *Akar Masalah*: Endpoint `POST /api/local/partner/apply` sebelumnya tidak memiliki pembatas frekuensi panggilan (rate limiter), tidak memeriksa kata kunci slug terlarang (reserved slugs), dan tidak memblokir duplikasi slug yang dapat menimpa rute sistem utama.
+   - *Solusi*:
+     - Menerapkan IP rate limiting (maksimal 5 pengajuan per 15 menit per IP).
+     - Menambahkan blacklist kata kunci terlarang sistem (`admin`, `master`, `api`, `portal-mitra`, `seeker`, `employer`, `freelancer`, `dashboard`, `auth`, `app`, `login`, `signup`, `root`, `test`, `dev`, `status`).
+     - Menolak pengajuan dengan slug yang telah ada di database dengan status HTTP 409 Conflict.
+     - Menambahkan indeks basis data `idx_partner_apps_slug` pada `data/schema.sql`.
+   - *Verifikasi*: Asersi 4, 7, dan 8 pada `scripts/test_partner_applications.mjs` membuktikan penolakan slug terlarang, penolakan slug duplikat (409), dan penolakan spamming (429).
+
+5. **[Medium] AUD-019: Kebijakan Keamanan Konten (CSP) Memblokir Web Worker PDF.js**
+   - *Akar Masalah*: File `index.html` memiliki deklarasi CSP ketat yang belum menyertakan direktif `worker-src`, menyebabkan browser memblokir inisialisasi PDF.js Web Worker dari `blob:` dan CDN `https://cdnjs.cloudflare.com` saat membuka fitur Smart PDF Multi-Page Splitter.
+   - *Solusi*: Menambahkan direktif `worker-src 'self' blob: https://cdnjs.cloudflare.com;` pada tag meta CSP di `index.html`.
+   - *Verifikasi*: Asersi 14 pada `scripts/test_partner_applications.mjs` memvalidasi kehadiran direktif `worker-src` yang valid pada `index.html`.
+
+6. **[Low] AUD-020: Peringatan Fast Refresh Vite & Kopling Komponen Partner**
+   - *Akar Masalah*: File `PartnerBannerCarousel.tsx` mengekspor array data statis bersama dengan komponen React, memicu peringatan ESLint `react-refresh/only-export-components`. Selain itu, `PdfDocumentSplitter.tsx` mendefinisikan helper IndexedDB di dalam berkas komponen UI.
+   - *Solusi*:
+     - Mengekstrak data slide banner ke `src/components/partner/partnerSlidesData.ts`.
+     - Memindahkan helper IndexedDB ke `src/lib/pdfDocumentSplitter.ts`.
+     - Mendekopel query jumlah mitra pada `PartnerProgram.tsx` agar melakukan fetch langsung secara independen.
+   - *Verifikasi*: `npm run check:prod` lulus bersih tanpa peringatan fast refresh pada berkas-berkas tersebut.
+
+7. **[Medium] AUD-021: Celah Spoofing Identitas Pengguna pada Endpoint Pendaftaran Perangkat Seluler**
+   - *Akar Masalah*: Endpoint `handleMobileDevice` di `server/localApiHandler.js` menerima `body.user_id` dari client tanpa memverifikasi keabsahan token JWT Bearer, memungkinkan penyerang mengaitkan token push perangkat dengan ID pengguna lain.
+   - *Solusi*: Mengabaikan `body.user_id` mentah jika tidak disertai token Bearer terverifikasi; `userId` hanya diambil dari klaim token pengguna yang sah.
+   - *Verifikasi*: Asersi 13 dan 13.1 pada `scripts/test_partner_applications.mjs` mengonfirmasi bahwa pendaftaran perangkat tanpa token menghasilkan `user_id = null`.
+
+### Verification Summary
+- `npm run test:local` — PASS (78/78 assertions across 4 suites: `test-local-api.mjs`, `test-audit-fixes.mjs`, `test_smart_features.mjs`, `test_partner_applications.mjs`).
+- `npm run typecheck` — PASS (0 errors pada `tsconfig.app.json`).
+- `npm run lint` — PASS (0 errors pada `eslint .`).
+- `npm run check:prod` — PASS (Typecheck + Lint + Vite Production Build selesai dalam 6.47s).
+- `node scripts/test-resilience.mjs` — PASS (6/6 pilar arsitektur lulus).
+- `node scripts/test-real-jobs-only.mjs` — PASS (16/16 lowongan lokal & 2/2 lowongan production server riil).
+- `PRAGMA integrity_check` & `PRAGMA foreign_key_check` — PASS (`ok`, 0 pelanggaran).

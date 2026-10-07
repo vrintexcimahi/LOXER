@@ -21,6 +21,9 @@ import {
   insertPartnerApplication,
   listPartnerApplications,
   updatePartnerApplicationStatus,
+  getPartnerApplicationById,
+  getPartnerApplicationBySlug,
+  countPartnerApplications,
 } from './localDb.js';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -3180,8 +3183,20 @@ async function handleMobileDevice(req, res) {
     const deviceId = String(body.device_id || body.deviceId || '').trim().slice(0, 128);
     const pushToken = String(body.push_token || body.pushToken || '').trim();
     const appVersion = String(body.app_version || body.appVersion || '1.0.0').slice(0, 32);
-    const tenant = body.tenant ? String(body.tenant).slice(0, 64) : null;
-    const userId = body.user_id ? String(body.user_id) : null;
+    let userId = null;
+
+    // AUD-021: Verify token if user_id is claimed to prevent device spoofing
+    const token = parseBearerToken(req);
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded && (decoded.sub || decoded.userId)) {
+        const callerId = decoded.sub || decoded.userId;
+        const u = queryOne('SELECT id FROM users WHERE id = ?', [callerId]);
+        if (u && (!body.user_id || body.user_id === callerId)) {
+          userId = callerId;
+        }
+      }
+    }
 
     if (!deviceId) {
       return sendJson(res, 400, { error: { message: 'device_id wajib diisi' } });
@@ -3190,20 +3205,25 @@ async function handleMobileDevice(req, res) {
     try {
       const now = new Date().toISOString();
       const ip = req.socket?.remoteAddress || '127.0.0.1';
-      execute(
-        `INSERT INTO user_devices (id, device_id, user_id, platform, os_version, last_ip, last_seen_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(device_id) DO UPDATE SET
-           user_id = COALESCE(excluded.user_id, user_devices.user_id),
-           platform = excluded.platform,
-           os_version = excluded.os_version,
-           last_ip = excluded.last_ip,
-           last_seen_at = excluded.last_seen_at,
-           updated_at = excluded.updated_at`,
-        [crypto.randomUUID(), deviceId, userId, platform, appVersion, ip, now, now]
-      );
-    } catch {
-      // non-blocking
+      const existing = queryOne('SELECT * FROM user_devices WHERE device_id = ?', [deviceId]);
+
+      if (existing) {
+        const nextUserId = userId || existing.user_id;
+        execute(
+          `UPDATE user_devices SET
+             user_id = ?, platform = ?, os_version = ?, last_ip = ?, last_seen_at = ?, updated_at = ?
+           WHERE device_id = ?`,
+          [nextUserId, platform, appVersion, ip, now, now, deviceId]
+        );
+      } else {
+        execute(
+          `INSERT INTO user_devices (id, device_id, user_id, platform, os_version, last_ip, first_seen_at, last_seen_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [crypto.randomUUID(), deviceId, userId, platform, appVersion, ip, now, now, now]
+        );
+      }
+    } catch (e) {
+      console.warn('[handleMobileDevice] Storage warning:', e.message);
     }
 
     return sendJson(res, 200, {
@@ -3218,8 +3238,44 @@ async function handleMobileDevice(req, res) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Rate Limiter for Partner Applications (in-memory, sliding window - AUD-018)
+// ---------------------------------------------------------------------------
+const PARTNER_APPLY_ATTEMPTS = new Map();
+const PARTNER_APPLY_MAX = 5;
+const PARTNER_APPLY_WINDOW = 15 * 60 * 1000;
+
+function checkPartnerApplyRateLimit(ip, increment = false) {
+  const now = Date.now();
+  const entry = PARTNER_APPLY_ATTEMPTS.get(ip);
+  if (!entry || now - entry.firstAt > PARTNER_APPLY_WINDOW) {
+    if (increment) PARTNER_APPLY_ATTEMPTS.set(ip, { count: 1, firstAt: now });
+    return { blocked: false };
+  }
+  if (entry.count >= PARTNER_APPLY_MAX) {
+    return { blocked: true, retryAfter: Math.ceil((entry.firstAt + PARTNER_APPLY_WINDOW - now) / 1000) };
+  }
+  if (increment) entry.count += 1;
+  return { blocked: false };
+}
+
+const RESERVED_SLUGS = new Set([
+  'master', 'admin', 'api', 'portal-mitra', 'mitra', 'seeker', 'employer',
+  'downloads', 'login', 'signup', 'auth', 'public', 'system', 'root',
+  'settings', 'profile', 'dashboard', 'jobs', 'companies', 'static', 'assets'
+]);
+
 async function handlePartnerApply(req, res) {
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+
+  // Rate Limiting (AUD-018)
+  const clientIp = req.socket?.remoteAddress || '127.0.0.1';
+  const limitCheck = checkPartnerApplyRateLimit(clientIp, false);
+  if (limitCheck.blocked) {
+    return sendJson(res, 429, {
+      error: `Terlalu banyak pengajuan. Silakan tunggu ${limitCheck.retryAfter} detik sebelum mencoba kembali.`
+    });
+  }
 
   let body;
   try {
@@ -3232,23 +3288,53 @@ async function handlePartnerApply(req, res) {
 
   const { business_name, suggested_slug, city, pic_phone, notes, owner_user_id } = body;
 
-  if (!business_name?.trim() || business_name.trim().length > 100)
+  const cleanBusinessName = String(business_name || '').trim().slice(0, 100);
+  const cleanSlug = String(suggested_slug || '').trim().toLowerCase();
+  const cleanCity = String(city || '').trim().slice(0, 100);
+  const cleanPhone = String(pic_phone || '').trim().replace(/\D/g, '').slice(0, 16);
+  const cleanNotes = String(notes || '').trim().slice(0, 500);
+
+  if (!cleanBusinessName) {
     return sendJson(res, 400, { error: 'Nama usaha wajib diisi (maks 100 karakter).' });
-  if (!suggested_slug?.trim() || !/^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(suggested_slug.trim()))
-    return sendJson(res, 400, { error: 'Slug tidak valid. Gunakan huruf kecil, angka, dan tanda hubung.' });
-  if (!city?.trim() || city.trim().length > 100)
+  }
+  if (!cleanSlug || !/^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(cleanSlug)) {
+    return sendJson(res, 400, { error: 'Slug tidak valid. Gunakan 3-48 karakter huruf kecil, angka, dan tanda hubung.' });
+  }
+  if (RESERVED_SLUGS.has(cleanSlug)) {
+    return sendJson(res, 400, { error: 'Slug tidak dapat digunakan karena merupakan kata kunci sistem.' });
+  }
+  if (!cleanCity) {
     return sendJson(res, 400, { error: 'Kota wajib diisi.' });
-  if (!pic_phone?.trim() || !/^\d{8,16}$/.test(pic_phone.trim()))
+  }
+  if (!cleanPhone || cleanPhone.length < 8 || cleanPhone.length > 16) {
     return sendJson(res, 400, { error: 'Nomor WhatsApp tidak valid (8-16 digit).' });
+  }
+
+  // Check collision in tenants and partner_applications (AUD-018)
+  try {
+    const existingTenant = queryOne('SELECT id FROM tenants WHERE LOWER(slug) = LOWER(?)', [cleanSlug]);
+    if (existingTenant) {
+      return sendJson(res, 409, { error: `Slug '/p/${cleanSlug}' sudah digunakan oleh cabang lain. Silakan pilih slug alternatif.` });
+    }
+  } catch {
+    // If tenants table not yet initialized, ignore
+  }
+
+  const existingApp = getPartnerApplicationBySlug(cleanSlug);
+  if (existingApp) {
+    return sendJson(res, 409, { error: `Slug '/p/${cleanSlug}' sudah terdaftar dalam pengajuan sebelumnya. Silakan pilih slug alternatif.` });
+  }
+
+  checkPartnerApplyRateLimit(clientIp, true);
 
   const id = crypto.randomUUID();
   insertPartnerApplication({
     id,
-    business_name: business_name.trim(),
-    suggested_slug: suggested_slug.trim(),
-    city: city.trim(),
-    pic_phone: pic_phone.trim(),
-    notes: (notes || '').slice(0, 500),
+    business_name: cleanBusinessName,
+    suggested_slug: cleanSlug,
+    city: cleanCity,
+    pic_phone: cleanPhone,
+    notes: cleanNotes,
     owner_user_id: owner_user_id || null,
   });
 
@@ -3258,11 +3344,11 @@ async function handlePartnerApply(req, res) {
   if (botToken && chatId) {
     const msg = encodeURIComponent(
       `🏢 *Pengajuan Mitra Baru — LOXER*\n\n` +
-      `📛 Nama: ${business_name.trim()}\n` +
-      `🔗 Slug: /p/${suggested_slug.trim()}\n` +
-      `📍 Kota: ${city.trim()}\n` +
-      `📱 WA PIC: ${pic_phone.trim()}\n` +
-      `📝 Catatan: ${(notes || '-').slice(0, 200)}\n\n` +
+      `📛 Nama: ${cleanBusinessName}\n` +
+      `🔗 Slug: /p/${cleanSlug}\n` +
+      `📍 Kota: ${cleanCity}\n` +
+      `📱 WA PIC: ${cleanPhone}\n` +
+      `📝 Catatan: ${(cleanNotes || '-').slice(0, 200)}\n\n` +
       `ID: \`${id}\`\n` +
       `_Approve via Admin Panel → Mitra_`
     );
@@ -3274,20 +3360,104 @@ async function handlePartnerApply(req, res) {
 }
 
 async function handlePartnerApplicationsList(req, res) {
+  if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
   const url = new URL(req.url, 'http://local');
-  const status = url.searchParams.get('status') || 'pending';
+  const status = url.searchParams.get('status') || 'all';
 
-  // Hanya admin/superadmin untuk status selain approved
   const authHeader = req.headers?.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (status !== 'approved') {
-    if (!token) return sendJson(res, 401, { error: 'Unauthorized' });
-    const user = verifyToken(token);
-    if (!user || !['admin', 'superadmin'].includes(user.role)) return sendJson(res, 403, { error: 'Forbidden' });
+  const user = token ? verifyToken(token) : null;
+  const isAdmin = user && ['admin', 'superadmin'].includes(user.role);
+
+  // AUD-015: Public unauthenticated requests MUST ONLY see sanitized approved rows
+  if (!isAdmin) {
+    if (status !== 'approved') {
+      return sendJson(res, 401, { error: 'Unauthorized. Akses khusus administrator.' });
+    }
+    const approvedRows = listPartnerApplications('approved', 50, 0);
+    const sanitizedRows = approvedRows.map(r => ({
+      id: r.id,
+      business_name: r.business_name,
+      suggested_slug: r.suggested_slug,
+      city: r.city,
+      status: r.status,
+      created_at: r.created_at,
+    }));
+    return sendJson(res, 200, { count: sanitizedRows.length, rows: sanitizedRows });
   }
 
-  const rows = listPartnerApplications(status, 50, 0);
-  return sendJson(res, 200, { rows });
+  // Admin access: return complete rows with full details
+  const targetStatus = status === 'all' ? null : status;
+  const rows = listPartnerApplications(targetStatus, 100, 0);
+  const total = countPartnerApplications(targetStatus);
+  return sendJson(res, 200, { count: total, rows });
+}
+
+async function handlePartnerApplicationStatus(req, res) {
+  if (req.method !== 'PATCH' && req.method !== 'POST') {
+    return sendJson(res, 405, { error: 'Method not allowed' });
+  }
+
+  const authHeader = req.headers?.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!token) return sendJson(res, 401, { error: 'Unauthorized' });
+  const user = verifyToken(token);
+  if (!user || !['admin', 'superadmin'].includes(user.role)) {
+    return sendJson(res, 403, { error: 'Forbidden' });
+  }
+
+  let body;
+  try {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(Buffer.from(chunk));
+    body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+  } catch {
+    return sendJson(res, 400, { error: 'Body tidak valid.' });
+  }
+
+  const { id, status, reason } = body;
+  if (!id) return sendJson(res, 400, { error: 'ID pengajuan wajib diisi.' });
+  if (!['pending', 'approved', 'rejected'].includes(status)) {
+    return sendJson(res, 400, { error: 'Status harus salah satu dari: pending, approved, rejected.' });
+  }
+
+  const existing = getPartnerApplicationById(id);
+  if (!existing) return sendJson(res, 404, { error: 'Pengajuan tidak ditemukan.' });
+
+  const adminIdentifier = user.sub || user.email || 'admin';
+  updatePartnerApplicationStatus(id, status, adminIdentifier);
+
+  // Record audit log entry
+  try {
+    execute(
+      `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      [
+        crypto.randomUUID(),
+        adminIdentifier,
+        user.email || '',
+        `partner_application.${status}`,
+        'partner_application',
+        id,
+        JSON.stringify({
+          business_name: existing.business_name,
+          suggested_slug: existing.suggested_slug,
+          previous_status: existing.status,
+          new_status: status,
+          reason: reason || '',
+        }),
+      ]
+    );
+  } catch (err) {
+    console.warn('[handlePartnerApplicationStatus] Failed to write audit log:', err.message);
+  }
+
+  return sendJson(res, 200, {
+    ok: true,
+    id,
+    status,
+    message: `Status pengajuan berhasil diubah menjadi ${status}.`,
+  });
 }
 
 export function createLocalDbMiddleware(env = {}) {
@@ -3300,7 +3470,12 @@ export function createLocalDbMiddleware(env = {}) {
     const path = url.split('?')[0];
 
     if (path === '/api/local/partner/apply') return handlePartnerApply(req, res);
-    if (path === '/api/local/partner/applications') return handlePartnerApplicationsList(req, res);
+    if (path === '/api/local/partner/applications' || path.startsWith('/api/local/partner/applications/')) {
+      if (req.method === 'PATCH' || (req.method === 'POST' && (path.endsWith('/status') || path !== '/api/local/partner/applications'))) {
+        return handlePartnerApplicationStatus(req, res);
+      }
+      return handlePartnerApplicationsList(req, res);
+    }
 
     // Real-Time Web Traffic & Visitor Tracking (Public & Admin)
     // Mobile Shell endpoints (Master Prompt Section H & AK)

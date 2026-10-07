@@ -529,3 +529,92 @@ export async function splitAndClassifyPdf(
 
   return results;
 }
+
+// ─── Persistent Gallery Store (IndexedDB + In-Memory) ─────────────────────────
+const DB_NAME = 'loxer_documents_db';
+const DB_STORE = 'applicant_docs';
+
+let _globalGallery: SplitDocumentPage[] = [];
+
+function openDocDb(): Promise<IDBDatabase | null> {
+  if (typeof window === 'undefined' || !window.indexedDB) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) {
+          db.createObjectStore(DB_STORE, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export async function loadGalleryFromDb(): Promise<SplitDocumentPage[]> {
+  const db = await openDocDb();
+  if (!db) return _globalGallery;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const store = tx.objectStore(DB_STORE);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const items = req.result as SplitDocumentPage[];
+        if (items && items.length > 0) {
+          _globalGallery = items;
+          resolve(items);
+        } else {
+          resolve(_globalGallery);
+        }
+      };
+      req.onerror = () => resolve(_globalGallery);
+    } catch {
+      resolve(_globalGallery);
+    }
+  });
+}
+
+export async function saveGalleryToDb(pages: SplitDocumentPage[]): Promise<void> {
+  const db = await openDocDb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    const store = tx.objectStore(DB_STORE);
+    for (const p of pages) {
+      store.put(p);
+    }
+  } catch (e) {
+    console.warn('[DocDb] save error:', e);
+  }
+}
+
+export async function clearGalleryFromDb(): Promise<void> {
+  const db = await openDocDb();
+  if (!db) return;
+  try {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    const store = tx.objectStore(DB_STORE);
+    store.clear();
+  } catch (e) {
+    console.warn('[DocDb] clear error:', e);
+  }
+}
+
+export function getDocumentGallery(): SplitDocumentPage[] {
+  return _globalGallery;
+}
+
+export function appendToGallery(pages: SplitDocumentPage[]): void {
+  _globalGallery = [..._globalGallery, ...pages];
+  saveGalleryToDb(pages);
+}
+
+export function clearGallery(): void {
+  _globalGallery = [];
+  clearGalleryFromDb();
+}

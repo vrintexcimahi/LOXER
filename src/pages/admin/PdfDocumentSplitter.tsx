@@ -21,11 +21,14 @@ import {
   DOCUMENT_CLASS_META,
   DocumentClass,
   censorFullPage,
+  loadGalleryFromDb,
+  getDocumentGallery,
+  appendToGallery,
+  clearGallery,
 } from '../../lib/pdfDocumentSplitter';
 import { ToastType } from './AdminTalentComponents';
 
-export type { SplitDocumentPage };
-export { DOCUMENT_CLASS_META };
+
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -39,95 +42,6 @@ export interface PdfDocumentSplitterProps {
   onToast: (type: ToastType, message: string) => void;
   /** Called when gallery has been updated / pages archived */
   onArchived?: (pages: SplitDocumentPage[]) => void;
-}
-
-// ─── Persistent Gallery Store (IndexedDB + In-Memory) ─────────────────────────
-const DB_NAME = 'loxer_documents_db';
-const DB_STORE = 'applicant_docs';
-
-let _globalGallery: SplitDocumentPage[] = [];
-
-function openDocDb(): Promise<IDBDatabase | null> {
-  if (typeof window === 'undefined' || !window.indexedDB) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    try {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains(DB_STORE)) {
-          db.createObjectStore(DB_STORE, { keyPath: 'id' });
-        }
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
-    } catch {
-      resolve(null);
-    }
-  });
-}
-
-export async function loadGalleryFromDb(): Promise<SplitDocumentPage[]> {
-  const db = await openDocDb();
-  if (!db) return _globalGallery;
-  return new Promise((resolve) => {
-    try {
-      const tx = db.transaction(DB_STORE, 'readonly');
-      const store = tx.objectStore(DB_STORE);
-      const req = store.getAll();
-      req.onsuccess = () => {
-        const items = req.result as SplitDocumentPage[];
-        if (items && items.length > 0) {
-          _globalGallery = items;
-          resolve(items);
-        } else {
-          resolve(_globalGallery);
-        }
-      };
-      req.onerror = () => resolve(_globalGallery);
-    } catch {
-      resolve(_globalGallery);
-    }
-  });
-}
-
-export async function saveGalleryToDb(pages: SplitDocumentPage[]): Promise<void> {
-  const db = await openDocDb();
-  if (!db) return;
-  try {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    const store = tx.objectStore(DB_STORE);
-    for (const p of pages) {
-      store.put(p);
-    }
-  } catch (e) {
-    console.warn('[DocDb] save error:', e);
-  }
-}
-
-export async function clearGalleryFromDb(): Promise<void> {
-  const db = await openDocDb();
-  if (!db) return;
-  try {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    const store = tx.objectStore(DB_STORE);
-    store.clear();
-  } catch (e) {
-    console.warn('[DocDb] clear error:', e);
-  }
-}
-
-export function getDocumentGallery(): SplitDocumentPage[] {
-  return _globalGallery;
-}
-
-export function appendToGallery(pages: SplitDocumentPage[]): void {
-  _globalGallery = [..._globalGallery, ...pages];
-  saveGalleryToDb(pages);
-}
-
-export function clearGallery(): void {
-  _globalGallery = [];
-  clearGalleryFromDb();
 }
 
 // ─── Helper: download a base64 image as file ────────────────────────────────
@@ -149,7 +63,7 @@ export function PdfDocumentSplitter({
   onArchived,
 }: PdfDocumentSplitterProps) {
   const [pages, setPages] = useState<SplitDocumentPage[]>([]);
-  const [gallery, setGallery] = useState<SplitDocumentPage[]>(_globalGallery);
+  const [gallery, setGallery] = useState<SplitDocumentPage[]>(() => getDocumentGallery());
   const [isSplitting, setIsSplitting] = useState(false);
   const [splitProgress, setSplitProgress] = useState<{ current: number; total: number } | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>(initialFiles || []);
@@ -246,7 +160,6 @@ export function PdfDocumentSplitter({
 
     appendToGallery(pages);
     const updated = getDocumentGallery();
-    _globalGallery = updated;
     setGallery([...updated]);
     setActiveTab('gallery');
     onArchived?.(pages);
@@ -291,7 +204,6 @@ export function PdfDocumentSplitter({
   const handleClearGallery = () => {
     if (!confirm('Kosongkan seluruh galeri berkas pelamar? Tindakan ini tidak dapat dibatalkan.')) return;
     clearGallery();
-    _globalGallery = [];
     setGallery([]);
     onToast('info', 'Galeri berkas pelamar dikosongkan.');
   };
