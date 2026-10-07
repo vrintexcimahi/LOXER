@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowRight,
   BarChart3,
@@ -17,7 +17,6 @@ import {
   ChevronDown,
   Layers,
   Smartphone,
-  Download,
 } from 'lucide-react';
 import BrandText from '../../components/ui/BrandText';
 import PartnerBannerCarousel from '../../components/partner/PartnerBannerCarousel';
@@ -30,6 +29,56 @@ export default function PartnerProgram() {
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [copied, setCopied] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [activeMitraCount, setActiveMitraCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch('/api/partner-platform/capabilities')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.enabled) {
+          // Fetch tenant list count jika enabled
+          fetch('/api/local/partner/applications?status=approved')
+            .then((r) => r.json())
+            .then((d) => setActiveMitraCount(d.rows?.length ?? 0))
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!businessName.trim() || !suggestedSlug.trim() || !city.trim() || !phone.trim()) {
+      setSubmitError('Lengkapi semua field wajib sebelum mengirim.');
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const res = await fetch('/api/local/partner/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_name: businessName,
+          suggested_slug: suggestedSlug,
+          city,
+          pic_phone: phone.replace(/\D/g, ''),
+          notes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan pengajuan.');
+      setSubmitted(true);
+      // Buka WA setelah berhasil simpan
+      window.open(`https://wa.me/6287820070258?text=${generateWaMessage()}`, '_blank', 'noopener,noreferrer');
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : 'Terjadi kesalahan. Coba lagi.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Profit Calculator State
   const [jobPostCount, setJobPostCount] = useState(20);
@@ -148,15 +197,6 @@ export default function PartnerProgram() {
 
           <div className="flex items-center gap-2.5">
             <a
-              href="/downloads/loxer-mitra.apk"
-              download="loxer-mitra.apk"
-              className="rounded-xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/15 to-teal-500/15 hover:from-emerald-500/25 hover:to-teal-500/25 text-emerald-300 hover:text-white px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-sm hover:shadow-emerald-500/20 group"
-              title="Unduh Aplikasi Android Khusus Mitra LOXER (.apk)"
-            >
-              <Smartphone className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span>Unduh APK Mitra</span>
-            </a>
-            <a
               href="/portal-mitra"
               className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 px-4 py-2 text-xs font-bold transition flex items-center gap-1.5"
             >
@@ -217,7 +257,9 @@ export default function PartnerProgram() {
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white">Bagi Hasil Adil</p>
+              <p className="text-sm font-bold text-white">
+                {activeMitraCount !== null ? `${activeMitraCount}+ Cabang Aktif` : 'Bagi Hasil Adil'}
+              </p>
               <p className="text-xs text-slate-400">Monetisasi Mandiri</p>
             </div>
           </div>
@@ -424,31 +466,14 @@ export default function PartnerProgram() {
                 </p>
               </div>
 
-              {/* Box Unduh APK Khusus Mitra */}
-              <div className="rounded-xl border border-emerald-400/40 bg-gradient-to-br from-emerald-950/50 to-slate-900 p-4 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400">
-                      <Smartphone className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white">Aplikasi Android Khusus Mitra</h4>
-                      <p className="text-[10px] text-emerald-400 font-medium">Versi 1.0.0 • Ukuran 1.6 MB</p>
-                    </div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">APK Resmi</span>
+              <div className="rounded-xl border border-sky-400/40 bg-sky-500/10 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-sky-400" />
+                  <h4 className="text-xs font-bold text-white">Akses via Browser Mobile</h4>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Kelola cabang digital Anda secara praktis langsung dari smartphone. Pantau pendaftar dan lowongan tanpa perlu browser URL bar.
+                  Buka portal mitra di browser smartphone Anda dan pilih <strong>"Tambahkan ke Layar Utama"</strong> untuk pengalaman seperti aplikasi native — tanpa install APK.
                 </p>
-                <a
-                  href="/downloads/loxer-mitra.apk"
-                  download="loxer-mitra.apk"
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs py-2.5 px-4 shadow-md transition"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Unduh File .APK Mitra (1.6 MB)</span>
-                </a>
               </div>
             </div>
 
@@ -543,15 +568,15 @@ export default function PartnerProgram() {
 
                 {/* Action Buttons */}
                 <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-                  <a
-                    href={`https://wa.me/6287820070258?text=${generateWaMessage()}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 px-5 py-3 font-bold text-center flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition transform hover:-translate-y-0.5 active:translate-y-0"
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={submitting || submitted}
+                    className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 px-5 py-3 font-bold text-center flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <MessageSquare className="w-4 h-4 fill-slate-950" />
-                    <span>Kirim Pengajuan via WhatsApp Resmi</span>
-                  </a>
+                    <span>{submitting ? 'Menyimpan...' : submitted ? '✓ Pengajuan Terkirim!' : 'Kirim Pengajuan via WhatsApp Resmi'}</span>
+                  </button>
 
                   <button
                     type="button"
@@ -571,6 +596,15 @@ export default function PartnerProgram() {
                     )}
                   </button>
                 </div>
+
+                {submitError && (
+                  <p className="text-xs text-red-400 text-center">{submitError}</p>
+                )}
+                {submitted && (
+                  <p className="text-xs text-emerald-400 text-center">
+                    ✓ Pengajuan tersimpan. WhatsApp sudah dibuka — konfirmasi ke tim kami untuk mempercepat verifikasi.
+                  </p>
+                )}
 
                 <p className="text-[11px] text-slate-400 text-center pt-1">
                   🔒 Data Anda hanya digunakan untuk verifikasi kemitraan resmi LOXER. Tim kami akan menghubungi Anda melalui nomor WhatsApp yang dicantumkan.

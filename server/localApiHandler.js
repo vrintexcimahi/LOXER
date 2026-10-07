@@ -18,6 +18,9 @@ import {
   restoreDatabaseSnapshot,
   extendJobListing,
   notifyExpiringJobListings,
+  insertPartnerApplication,
+  listPartnerApplications,
+  updatePartnerApplicationStatus,
 } from './localDb.js';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -3215,6 +3218,78 @@ async function handleMobileDevice(req, res) {
   }
 }
 
+async function handlePartnerApply(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+
+  let body;
+  try {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(Buffer.from(chunk));
+    body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+  } catch {
+    return sendJson(res, 400, { error: 'Body tidak valid.' });
+  }
+
+  const { business_name, suggested_slug, city, pic_phone, notes, owner_user_id } = body;
+
+  if (!business_name?.trim() || business_name.trim().length > 100)
+    return sendJson(res, 400, { error: 'Nama usaha wajib diisi (maks 100 karakter).' });
+  if (!suggested_slug?.trim() || !/^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/.test(suggested_slug.trim()))
+    return sendJson(res, 400, { error: 'Slug tidak valid. Gunakan huruf kecil, angka, dan tanda hubung.' });
+  if (!city?.trim() || city.trim().length > 100)
+    return sendJson(res, 400, { error: 'Kota wajib diisi.' });
+  if (!pic_phone?.trim() || !/^\d{8,16}$/.test(pic_phone.trim()))
+    return sendJson(res, 400, { error: 'Nomor WhatsApp tidak valid (8-16 digit).' });
+
+  const id = crypto.randomUUID();
+  insertPartnerApplication({
+    id,
+    business_name: business_name.trim(),
+    suggested_slug: suggested_slug.trim(),
+    city: city.trim(),
+    pic_phone: pic_phone.trim(),
+    notes: (notes || '').slice(0, 500),
+    owner_user_id: owner_user_id || null,
+  });
+
+  // Kirim notifikasi Telegram ke admin jika token tersedia
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+  if (botToken && chatId) {
+    const msg = encodeURIComponent(
+      `🏢 *Pengajuan Mitra Baru — LOXER*\n\n` +
+      `📛 Nama: ${business_name.trim()}\n` +
+      `🔗 Slug: /p/${suggested_slug.trim()}\n` +
+      `📍 Kota: ${city.trim()}\n` +
+      `📱 WA PIC: ${pic_phone.trim()}\n` +
+      `📝 Catatan: ${(notes || '-').slice(0, 200)}\n\n` +
+      `ID: \`${id}\`\n` +
+      `_Approve via Admin Panel → Mitra_`
+    );
+    fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${msg}&parse_mode=Markdown`)
+      .catch(() => {}); // fire-and-forget, jangan block response
+  }
+
+  return sendJson(res, 201, { ok: true, id, message: 'Pengajuan berhasil disimpan. Tim kami akan menghubungi Anda.' });
+}
+
+async function handlePartnerApplicationsList(req, res) {
+  const url = new URL(req.url, 'http://local');
+  const status = url.searchParams.get('status') || 'pending';
+
+  // Hanya admin/superadmin untuk status selain approved
+  const authHeader = req.headers?.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (status !== 'approved') {
+    if (!token) return sendJson(res, 401, { error: 'Unauthorized' });
+    const user = verifyToken(token);
+    if (!user || !['admin', 'superadmin'].includes(user.role)) return sendJson(res, 403, { error: 'Forbidden' });
+  }
+
+  const rows = listPartnerApplications(status, 50, 0);
+  return sendJson(res, 200, { rows });
+}
+
 export function createLocalDbMiddleware(env = {}) {
   getLocalDb(); // ensure initialized
 
@@ -3222,6 +3297,10 @@ export function createLocalDbMiddleware(env = {}) {
 
   return async (req, res, next) => {
     const url = req.url || '';
+    const path = url.split('?')[0];
+
+    if (path === '/api/local/partner/apply') return handlePartnerApply(req, res);
+    if (path === '/api/local/partner/applications') return handlePartnerApplicationsList(req, res);
 
     // Real-Time Web Traffic & Visitor Tracking (Public & Admin)
     // Mobile Shell endpoints (Master Prompt Section H & AK)

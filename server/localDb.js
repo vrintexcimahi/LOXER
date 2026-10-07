@@ -650,6 +650,28 @@ export function getLocalDb() {
       console.warn('[localDb] marketplace tables setup notice:', e.message);
     }
 
+    // Partner applications table
+    try {
+      dbInstance.exec(`
+        CREATE TABLE IF NOT EXISTS partner_applications (
+          id TEXT PRIMARY KEY,
+          business_name TEXT NOT NULL,
+          suggested_slug TEXT NOT NULL,
+          city TEXT NOT NULL,
+          pic_phone TEXT NOT NULL,
+          notes TEXT NOT NULL DEFAULT '',
+          owner_user_id TEXT,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+          reviewed_by TEXT,
+          reviewed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+        );
+        CREATE INDEX IF NOT EXISTS partner_apps_status ON partner_applications(status, created_at DESC);
+      `);
+    } catch (e) {
+      console.warn('[localDb] partner_applications setup notice:', e.message);
+    }
+
     // Auto-record today's analytics snapshot on initialization
     try {
       recordDailyAnalyticsSnapshot();
@@ -1288,3 +1310,24 @@ export function extendJobListing(jobId, daysToAdd = 30) {
   return res.changes > 0;
 }
 
+export function insertPartnerApplication({ id, business_name, suggested_slug, city, pic_phone, notes, owner_user_id }) {
+  const db = getLocalDb();
+  db.prepare(
+    `INSERT INTO partner_applications (id, business_name, suggested_slug, city, pic_phone, notes, owner_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, business_name, suggested_slug, city, pic_phone, notes, owner_user_id ?? null);
+}
+
+export function listPartnerApplications(status = 'pending', limit = 50, offset = 0) {
+  const db = getLocalDb();
+  return db.prepare(
+    `SELECT * FROM partner_applications WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  ).all(status, limit, offset);
+}
+
+export function updatePartnerApplicationStatus(id, status, reviewed_by) {
+  const db = getLocalDb();
+  db.prepare(
+    `UPDATE partner_applications SET status=?, reviewed_by=?, reviewed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?`
+  ).run(status, reviewed_by, id);
+}

@@ -500,5 +500,21 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash);
 
+-- 29. Partner Applications
+CREATE TABLE IF NOT EXISTS partner_applications (
+  id TEXT PRIMARY KEY,
+  business_name TEXT NOT NULL,
+  suggested_slug TEXT NOT NULL,
+  city TEXT NOT NULL,
+  pic_phone TEXT NOT NULL,
+  notes TEXT NOT NULL DEFAULT '',
+  owner_user_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+  reviewed_by TEXT,
+  reviewed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS partner_apps_status ON partner_applications(status, created_at DESC);
+
 
 
