@@ -334,9 +334,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    const handleSimChange = async () => {
+      setUserMeta(null);
+      try {
+        const { data } = await supabase.auth.getSession();
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+        if (data.session?.user) {
+          await fetchUserMeta(data.session.user);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('loxer:sim-session-switched', handleSimChange);
+      window.addEventListener('loxer:sim-session-cleared', handleSimChange);
+    }
+
     return () => {
       clearTimeout(safetyTimer);
       subscription.unsubscribe();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('loxer:sim-session-switched', handleSimChange);
+        window.removeEventListener('loxer:sim-session-cleared', handleSimChange);
+      }
     };
   }, [fetchUserMeta]);
 

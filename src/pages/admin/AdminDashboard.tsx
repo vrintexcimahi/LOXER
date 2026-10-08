@@ -4712,6 +4712,10 @@ function AdminApplications({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [voidLoading, setVoidLoading] = useState(false);
+  const [voidModalOpen, setVoidModalOpen] = useState(false);
+  const [voidDays, setVoidDays] = useState(30);
+  const [voidPreview, setVoidPreview] = useState<{ stale_count: number; cutoff_date: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -4845,24 +4849,48 @@ function AdminApplications({
     onToast('success', 'CSV berhasil diekspor.');
   }
 
-  async function voidStaleApplications() {
-    const daysInput = window.prompt('Tandai lamaran sebagai kadaluarsa jika lebih dari N hari tanpa tindakan dari employer.\nMasukkan jumlah hari (default: 30):', '30');
-    if (daysInput === null) return;
-    const days = Math.max(1, parseInt(daysInput || '30', 10));
-    if (!window.confirm(`Yakin ingin membatalkan semua lamaran 'applied'/'reviewed' yang sudah lebih dari ${days} hari? Aksi ini tidak dapat diurungkan.`)) return;
+  const fetchVoidPreview = async (days: number) => {
+    setPreviewLoading(true);
+    try {
+      const token = session?.access_token || localStorage.getItem('loxer_local_auth_token') || '';
+      const resp = await fetch('/api/admin/applications/void-stale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ days_threshold: days, dry_run: true }),
+      });
+      const result = await resp.json();
+      if (resp.ok && result.ok) {
+        setVoidPreview({ stale_count: result.stale_count, cutoff_date: result.cutoff_date });
+      } else {
+        onToast('error', result.message || 'Gagal memeriksa pratinjau lamaran.');
+      }
+    } catch {
+      onToast('error', 'Gagal terhubung ke server.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
+  const handleOpenVoidModal = () => {
+    setVoidModalOpen(true);
+    void fetchVoidPreview(voidDays);
+  };
+
+  const executeVoidStale = async () => {
     setVoidLoading(true);
     try {
       const token = session?.access_token || localStorage.getItem('loxer_local_auth_token') || '';
       const resp = await fetch('/api/admin/applications/void-stale', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ days_threshold: days }),
+        body: JSON.stringify({ days_threshold: voidDays, dry_run: false }),
       });
       const result = await resp.json();
       if (resp.ok && result.ok) {
         onToast('success', `${result.voided} lamaran telah ditandai kadaluarsa.`);
+        setVoidModalOpen(false);
         setPage(1);
+        fetchApplications();
       } else {
         onToast('error', result.message || 'Gagal membatalkan lamaran kadaluarsa.');
       }
@@ -4871,7 +4899,7 @@ function AdminApplications({
     } finally {
       setVoidLoading(false);
     }
-  }
+  };
 
   const reviewCount = useMemo(() => {
     return rows.filter((r) => r.status === 'applied' || r.status === 'reviewed').length;
@@ -5007,11 +5035,11 @@ function AdminApplications({
               <p className="text-sm font-semibold text-white">Monitoring Lamaran</p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={voidStaleApplications}
-                  disabled={voidLoading}
-                  className="rounded-lg border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-xs text-orange-200 hover:bg-orange-500/20 disabled:opacity-50 transition"
+                  onClick={handleOpenVoidModal}
+                  className="rounded-lg border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-xs text-orange-200 hover:bg-orange-500/20 transition flex items-center gap-1.5"
                 >
-                  {voidLoading ? 'Memproses...' : 'Void Kadaluarsa'}
+                  <Clock className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Void Kadaluarsa</span>
                 </button>
                 <button
                   onClick={exportCSV}
@@ -5166,6 +5194,114 @@ function AdminApplications({
             handleSubTabChange('talents');
           }}
         />
+      )}
+
+      {/* Interactive Auto-Void Stale Applications Modal */}
+      {voidModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 text-orange-400 font-bold text-sm">
+                <Clock className="w-4 h-4" />
+                <span>Auto-Void Lamaran Kadaluarsa</span>
+              </div>
+              <button
+                onClick={() => setVoidModalOpen(false)}
+                className="text-slate-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-300 font-medium">Batas Waktu Tanpa Tindakan:</label>
+                <div className="mt-1.5 flex gap-2">
+                  {[14, 30, 60, 90].map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => {
+                        setVoidDays(d);
+                        void fetchVoidPreview(d);
+                      }}
+                      className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border transition ${
+                        voidDays === d
+                          ? 'border-orange-500 bg-orange-500/20 text-orange-300'
+                          : 'border-white/10 bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {d} Hari
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview Status Box */}
+              <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3.5 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Status Pratinjau:</span>
+                  {previewLoading ? (
+                    <span className="text-cyan-400 animate-pulse flex items-center gap-1">
+                      <RefreshCw className="w-3 h-3 animate-spin" /> Memeriksa...
+                    </span>
+                  ) : voidPreview ? (
+                    <span className="text-orange-400 font-bold">
+                      {voidPreview.stale_count} Lamaran Terdeteksi
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">Belum diperiksa</span>
+                  )}
+                </div>
+
+                {voidPreview && (
+                  <p className="text-slate-300 leading-relaxed">
+                    Lamaran dengan status <strong className="text-white">applied</strong> atau <strong className="text-white">reviewed</strong> yang masuk sebelum{' '}
+                    <strong className="text-white">
+                      {new Date(voidPreview.cutoff_date).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </strong>{' '}
+                    akan diubah statusnya menjadi <strong className="text-red-400">expired</strong>.
+                  </p>
+                )}
+
+                <div className="flex items-start gap-1.5 text-[11px] text-amber-300/80 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400 mt-0.5" />
+                  <span>Aksi ini permanen dan akan mencatat log audit sistem secara transparan.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setVoidModalOpen(false)}
+                disabled={voidLoading}
+                className="flex-1 rounded-xl border border-white/10 bg-slate-800 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={executeVoidStale}
+                disabled={voidLoading || previewLoading || !voidPreview || voidPreview.stale_count === 0}
+                className="flex-1 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 py-2 text-xs font-semibold text-white transition flex items-center justify-center gap-1.5 shadow-lg shadow-orange-600/30"
+              >
+                {voidLoading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Memproses...</span>
+                  </>
+                ) : (
+                  <span>Tandai ({voidPreview?.stale_count ?? 0}) Kadaluarsa</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

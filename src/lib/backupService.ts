@@ -240,15 +240,43 @@ function getStorageSalt(): string {
   }
 }
 
+/**
+ * Keystream generator mixing device salt and per-record random nonce
+ */
+function deriveKeystream(salt: string, nonce: string, length: number): number[] {
+  const seed = `${salt}::${nonce}`;
+  const stream: number[] = [];
+  let h = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  for (let i = 0; i < length; i++) {
+    h = Math.imul(h ^ (i & 0xff), 0x01000193);
+    h ^= h >>> 13;
+    stream.push((h ^ (h >>> 16)) & 0xff);
+  }
+  return stream;
+}
+
 function obfuscateConfig(text: string): string {
   try {
     const salt = getStorageSalt();
-    const encoded = encodeURIComponent(text);
-    let result = '';
-    for (let i = 0; i < encoded.length; i++) {
-      result += String.fromCharCode(encoded.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+    const nonceBytes = new Uint8Array(12);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(nonceBytes);
+    } else {
+      for (let i = 0; i < 12; i++) nonceBytes[i] = Math.floor(Math.random() * 256);
     }
-    return 'enc:v1:' + btoa(result);
+    const nonce = btoa(String.fromCharCode(...nonceBytes));
+    const encoded = encodeURIComponent(text);
+    const keystream = deriveKeystream(salt, nonce, encoded.length);
+
+    let ciphertext = '';
+    for (let i = 0; i < encoded.length; i++) {
+      ciphertext += String.fromCharCode(encoded.charCodeAt(i) ^ keystream[i]);
+    }
+    return `enc:v2:${nonce}:${btoa(ciphertext)}`;
   } catch {
     return text;
   }
@@ -256,16 +284,36 @@ function obfuscateConfig(text: string): string {
 
 function deobfuscateConfig(stored: string): string {
   try {
-    if (!stored.startsWith('enc:v1:')) {
-      return stored; // backward-compatibility with plain JSON
+    // Version 2: Nonce-based randomized ciphertext
+    if (stored.startsWith('enc:v2:')) {
+      const parts = stored.split(':');
+      if (parts.length >= 4) {
+        const nonce = parts[2];
+        const rawCipher = atob(parts[3]);
+        const salt = getStorageSalt();
+        const keystream = deriveKeystream(salt, nonce, rawCipher.length);
+
+        let decoded = '';
+        for (let i = 0; i < rawCipher.length; i++) {
+          decoded += String.fromCharCode(rawCipher.charCodeAt(i) ^ keystream[i]);
+        }
+        return decodeURIComponent(decoded);
+      }
     }
-    const salt = getStorageSalt();
-    const raw = atob(stored.slice(7));
-    let result = '';
-    for (let i = 0; i < raw.length; i++) {
-      result += String.fromCharCode(raw.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+
+    // Version 1: Legacy XOR obfuscation
+    if (stored.startsWith('enc:v1:')) {
+      const salt = getStorageSalt();
+      const raw = atob(stored.slice(7));
+      let result = '';
+      for (let i = 0; i < raw.length; i++) {
+        result += String.fromCharCode(raw.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+      }
+      return decodeURIComponent(result);
     }
-    return decodeURIComponent(result);
+
+    // Backward-compatibility: plain JSON
+    return stored;
   } catch {
     return stored;
   }

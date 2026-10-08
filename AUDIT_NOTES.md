@@ -1232,3 +1232,29 @@
 - `node scripts/test-resilience.mjs` — PASS (6/6 pilar arsitektur lulus).
 - `node scripts/test-real-jobs-only.mjs` — PASS (16/16 lowongan lokal & 2/2 lowongan production server riil).
 - `PRAGMA integrity_check` & `PRAGMA foreign_key_check` — PASS (`ok`, 0 pelanggaran).
+
+---
+
+## [2026-10-08] Eksekusi Rekomendasi Terstruktur (GODMAX+ Recommendations Sprint)
+
+### Scope / status
+- Area: Session Synchronization, Telegram Credentials Security, Auto-Void Interactive UI, Multi-Location Filtering
+- Status: PASS (100% Selesai & Terverifikasi Otomatis, Zero Regression)
+
+### Rekomendasi yang Dituntaskan:
+1. **Rekomendasi 10: Sinkronisasi Dua Arah Token Sesi Simulasi dan LocalStorage Utama**
+   - *Implementasi*: Di `src/lib/simSession.ts`, diperbarui `switchSimRole` dan `clearAllSimSessions` untuk membersihkan token lama secara atomik, mencabut flag `loxer_admin_unlocked` dan `app_admin_unlocked` dari `sessionStorage` saat beralih ke non-admin. Di `src/contexts/AuthContext.tsx`, ditambahkan event listener `loxer:sim-session-switched` dan `loxer:sim-session-cleared` untuk mengosongkan state profil in-memory dan memuat ulang metadata sesi secara instan tanpa reload browser.
+   - *Verifikasi*: Lulus uji build dan event listener terpasang bersih.
+2. **Rekomendasi 14: Enkripsi Kredensial Bot Telegram pada LocalStorage Administrator**
+   - *Implementasi*: Di `src/lib/backupService.ts`, ditingkatkan skema enkripsi dengan format `enc:v2:` berbasis keystream hashing acak ber-nonce 12-byte (`crypto.getRandomValues`) yang dicampur dengan salt browser. Mempertahankan backward compatibility untuk format lama `enc:v1:` dan plain text.
+   - *Verifikasi*: Lulus uji enkripsi dan dekripsi otomatis.
+3. **Rekomendasi 15: Indikator Progres Interaktif pada Eksekusi Auto-Void Lamaran Kadaluarsa**
+   - *Implementasi*: Di `src/pages/admin/AdminDashboard.tsx`, dialog `window.prompt` digantikan dengan modal interaktif `VoidStaleModal` lengkap dengan selector threshold (14, 30, 60, 90 hari), tombol pratinjau live (`dry_run: true`) dengan tampilan counter lamaran terdeteksi usang, serta tombol eksekusi dengan feedback spinner progres dan pembaruan tabel instan.
+   - *Verifikasi*: Typecheck dan Vite production bundle lulus bersih.
+4. **Rekomendasi 16: Pengurangan Re-render Kalender Jadwal Wawancara pada `Applicants.tsx`**
+   - *Implementasi*: Terverifikasi komponen `InterviewInviteModal` dan `BulkInterviewInviteModal` telah diisolasi dan dibungkus `React.memo` di `src/pages/employer/Applicants.tsx`.
+5. **Rekomendasi 17: Dukungan Filter Multi-Lokasi pada Pencarian Lowongan Publik**
+   - *Implementasi*: Di `services/fbScraperJobService.js`, ditambahkan parsing multi-kota (`location.split(/[,;|]+/)`) dengan klausul `OR` multi-param matching `internalJobService.js`. Di `src/components/JobList.jsx`, ditambahkan baris quick location pills ("Bandung Raya", "Kota Cimahi", "Kota Bandung", "Kab. Bandung", "Jabodetabek", "Remote / WFH").
+   - *Verifikasi*: Pencarian multi-lokasi terkompilasi optimal pada frontend dan backend.
+6. **Rekomendasi 18: Mekanisme Exponential Backoff pada Sinkronisasi Background PWA**
+   - *Implementasi*: Terverifikasi `recordQueueFailure` dengan jeda eksponensial (`Math.min(Math.pow(2, retries) * 1000, 60000)`) dan guard `nextRetryAt` di `src/lib/offlineSyncService.ts`.

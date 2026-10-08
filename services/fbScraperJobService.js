@@ -21,8 +21,21 @@ export function searchFacebookScrapedJobs(params = {}) {
     }
 
     if (location && location.trim() && location.toLowerCase() !== 'indonesia') {
-      conditions.push('ai_payload LIKE ?');
-      sqlParams.push(`%${location.trim()}%`);
+      const cities = location
+        .split(/[,;|]+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0 && s.toLowerCase() !== 'indonesia');
+
+      if (cities.length === 1) {
+        conditions.push('ai_payload LIKE ?');
+        sqlParams.push(`%${cities[0]}%`);
+      } else if (cities.length > 1) {
+        const cityOrClauses = cities.map(() => 'ai_payload LIKE ?').join(' OR ');
+        conditions.push(`(${cityOrClauses})`);
+        for (const city of cities) {
+          sqlParams.push(`%${city}%`);
+        }
+      }
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

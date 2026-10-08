@@ -43,6 +43,16 @@ const CONTRACT_OPTIONS = [
   { value: 'freelance', label: 'Freelance' },
 ];
 
+const QUICK_LOCATIONS = [
+  { label: 'Semua Wilayah', value: '' },
+  { label: 'Bandung Raya (Bandung & Cimahi)', value: 'Bandung, Cimahi' },
+  { label: 'Kota Cimahi', value: 'Cimahi' },
+  { label: 'Kota Bandung', value: 'Kota Bandung' },
+  { label: 'Kab. Bandung', value: 'Kabupaten Bandung' },
+  { label: 'Jabodetabek', value: 'Jakarta, Bogor, Depok, Tangerang, Bekasi' },
+  { label: 'Remote / WFH', value: 'Remote' },
+];
+
 export default function JobList({
   initialKeywords = '',
   initialLocation = '',
@@ -246,7 +256,33 @@ export default function JobList({
             </button>
           </div>
         </div>
-        {/* Provider Pills hidden per user request: jobs continue to load from all sources unified */}
+
+        {/* Quick Multi-Location Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+          <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider pl-1 shrink-0">Area:</span>
+          {QUICK_LOCATIONS.map((loc) => {
+            const active = location === loc.value;
+            return (
+              <button
+                key={loc.label}
+                type="button"
+                onClick={() => {
+                  setLocation(loc.value);
+                  setPage(1);
+                  syncUrl(keywords, loc.value, 1, contractType, workHours, provider);
+                  void loadJobs(1, keywords, loc.value, contractType, workHours, provider);
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  active
+                    ? 'bg-sky-400 text-slate-950 font-bold shadow-sm shadow-sky-500/25'
+                    : 'bg-slate-900/80 border border-white/5 text-slate-400 hover:text-white hover:border-white/15'
+                }`}
+              >
+                {loc.label}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Category Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">

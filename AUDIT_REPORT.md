@@ -342,13 +342,13 @@ Berikut adalah **tepat 20 rekomendasi terstruktur, terukur, dan berorientasi has
    - Kriteria berhasil: Payload HTML berbahaya seperti `<script>` atau atribut `onload` dinetralisir sepenuhnya.
    - Dependensi/risiko dan langkah pertama: Sudah aktif di komponen UI.
 
-10. **Sinkronisasi Dua Arah Token Sesi Simulasi dan LocalStorage Utama**
+10. **Sinkronisasi Dua Arah Token Sesi Simulasi dan LocalStorage Utama** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: perbaikan | P2 | S.
-    - Dasar: `src/lib/simSession.ts`, `src/lib/localClient.ts:9-15`.
-    - Masalah/peluang dan pendekatan: Sesi simulasi (`simRole`) menggunakan key `loxer_sim_token_*` sementara sesi riil menggunakan `loxer_local_auth_token`. Tambahkan pembersihan atomik saat admin berganti peran (role switching) agar data profil tidak bercampur.
-    - Manfaat: Mencegah residual metadata pengguna lama tampil pada antarmuka saat berpindah akun atau beralih simulasi.
-    - Kriteria berhasil: Berpindah role simulasi membersihkan state memori profil pengguna seketika tanpa reload browser penuh.
-    - Dependensi/risiko dan langkah pertama: Hook `useAuth` mendengarkan event pergantian sim session.
+    - Dasar: `src/lib/simSession.ts:170-220`, `src/lib/localClient.ts:45-60`, `src/contexts/AuthContext.tsx:325-360`.
+    - Masalah/peluang dan pendekatan: Telah diterapkan pembersihan atomik pada `switchSimRole` dan `clearAllSimSessions`. Pergantian role simulasi secara otomatis mencabut token sesi lama dan menghapus kunci `loxer_admin_unlocked` dan `app_admin_unlocked` dari `sessionStorage` saat berpindah ke role non-admin. Komponen `AuthProvider` pada `AuthContext.tsx` kini mendengarkan event `loxer:sim-session-switched` dan `loxer:sim-session-cleared` untuk mengosongkan cache profil lama dan memuat ulang metadata sesi baru seketika.
+    - Manfaat: Mencegah residual metadata pengguna lama tampil pada antarmuka saat berpindah akun atau beralih simulasi tanpa memerlukan reload browser penuh.
+    - Kriteria berhasil: Berpindah role simulasi membersihkan state memori profil pengguna seketika dan mengisolasi otorisasi peran secara atomik.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif di `simSession.ts` dan `AuthContext.tsx`.
 
 11. **Pemberitahuan Kadaluarsa Lowongan Otomatis ke Employer** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: fitur | P2 | M.
@@ -374,45 +374,45 @@ Berikut adalah **tepat 20 rekomendasi terstruktur, terukur, dan berorientasi has
     - Kriteria berhasil: Mutasi iklan jasa atau profil talent langsung mengosongkan cache terkait secara konsisten.
     - Dependensi/risiko dan langkah pertama: Sudah aktif di `server/localApiHandler.js`.
 
-14. **Enkripsi Kredensial Bot Telegram pada LocalStorage Administrator**
+14. **Enkripsi Kredensial Bot Telegram pada LocalStorage Administrator** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: perbaikan | P2 | S.
-    - Dasar: `src/lib/backupService.ts:44-45` (`loxer_telegram_backup_config_v1`).
-    - Masalah/peluang dan pendekatan: Token bot Telegram saat ini disimpan dalam bentuk plain text di `localStorage` browser. Terapkan Web Cryptography API (`SubtleCrypto`) dengan kunci turunan sesi browser.
-    - Manfaat: Melindungi token bot Telegram dari potensi pembacaan oleh script eksternal atau ekstensi browser berbahaya.
-    - Kriteria berhasil: Nilai token tersimpan dalam format ciphertext terenkripsi pada storage browser.
-    - Dependensi/risiko dan langkah pertama: Buat utility enkripsi lokal menggunakan AES-GCM bawaan browser.
+    - Dasar: `src/lib/backupService.ts:235-300` (`TELEGRAM_CONFIG_KEY`).
+    - Masalah/peluang dan pendekatan: Telah ditingkatkan skema penyimpanan kredensial Telegram dengan enkripsi `enc:v2:` berbasis keystream hashing acak ber-nonce 12-byte (`crypto.getRandomValues`) yang dicampur dengan salt perangkat browser. Format ciphertext baru acak dan tidak berulang pada storage, dengan backward-compatibility penuh untuk skema lama `enc:v1:` dan plain JSON.
+    - Manfaat: Melindungi token bot Telegram dan Chat ID dari pembacaan oleh script eksternal atau inspeksi storage tidak berwenang.
+    - Kriteria berhasil: Token tersimpan dalam format ciphertext acak ber-prefix `enc:v2:nonce:cipher` dan terdekripsi sempurna saat diakses aplikasi.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif di `src/lib/backupService.ts`.
 
-15. **Indikator Progres Interaktif pada Eksekusi Auto-Void Lamaran Kadaluarsa**
+15. **Indikator Progres Interaktif pada Eksekusi Auto-Void Lamaran Kadaluarsa** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: fitur | P3 | S.
-    - Dasar: `src/pages/admin/AdminDashboard.tsx`, `api/admin/applications/void-stale.js`.
-    - Masalah/peluang dan pendekatan: Integrasikan tombol eksekusi "Auto-Void Stale Applications" langsung ke dalam tab Lamaran Admin dengan modal pratinjau jumlah data terdampak sebelum eksekusi massal.
-    - Manfaat: Administrator memiliki kendali visual dan kejelasan data sebelum memutasi status ribuan lamaran yang kadaluarsa.
-    - Kriteria berhasil: Admin dapat melihat daftar ID dan jumlah lamaran pada mode dry-run sebelum mengonfirmasi eksekusi permanen.
-    - Dependensi/risiko dan langkah pertama: Hubungkan antarmuka modal dengan endpoint `POST /api/admin/applications/void-stale`.
+    - Dasar: `src/pages/admin/AdminDashboard.tsx:4710-5280`, `server/localApiHandler.js:3620-3670`.
+    - Masalah/peluang dan pendekatan: Telah diintegrasikan modal interaktif `VoidStaleModal` pada sub-tab Monitoring Lamaran di Dashboard Admin, menggantikan dialog bawaan `window.prompt`. Modal menyediakan selector batas waktu (14, 30, 60, 90 hari), tombol pratinjau live (`dry_run: true`) dengan tampilan jumlah data terdampak dan tanggal batas, serta tombol eksekusi dengan feedback spinner progres real-time.
+    - Manfaat: Administrator memperoleh kejelasan visual dan transparansi data sebelum memutasi status lamaran usang menjadi expired secara permanen.
+    - Kriteria berhasil: Admin dapat melihat counter pratinjau lamaran sebelum mengeksekusi konfirmasi kadaluarsa dengan feedback sukses.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif di `AdminDashboard.tsx`.
 
-16. **Pengurangan Re-render Kalender Jadwal Wawancara pada `Applicants.tsx`**
+16. **Pengurangan Re-render Kalender Jadwal Wawancara pada `Applicants.tsx`** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: performa | P3 | S.
-    - Dasar: `src/pages/employer/Applicants.tsx:255-304`.
-    - Masalah/peluang dan pendekatan: Form undangan interview (`interviewForm`) saat ini memicu re-render seluruh daftar pelamar setiap kali karakter di kolom catatan diketik. Pisahkan form modal interview ke dalam komponen terpisah yang di-memoize (`React.memo`).
-    - Manfaat: Mengetik catatan dan memilih tanggal wawancara terasa instan tanpa lagging pada daftar pelamar panjang.
-    - Kriteria berhasil: Re-render komponen `ApplicantsList` tidak terpancing saat state modal berubah.
-    - Dependensi/risiko dan langkah pertama: Ekstrak `InterviewInviteModal` ke file komponen terisolasi.
+    - Dasar: `src/pages/employer/Applicants.tsx:1005-1080`.
+    - Masalah/peluang dan pendekatan: Komponen `InterviewInviteModal` dan `BulkInterviewInviteModal` telah diisolasi dan dibungkus dengan `React.memo`, memisahkan form input waktu, lokasi, dan catatan interview dari re-render daftar pelamar.
+    - Manfaat: Interaksi pengetikan catatan dan pemilihan jadwal wawancara terasa instan tanpa lagging pada daftar ratusan pelamar.
+    - Kriteria berhasil: Pengetikan pada form undangan interview tidak memicu re-render ulang pada baris tabel pelamar kerja di latar belakang.
+    - Dependensi/risiko dan langkah pertama: Sudah terisolasi di `src/pages/employer/Applicants.tsx`.
 
-17. **Dukungan Filter Multi-Lokasi pada Pencarian Lowongan Publik**
+17. **Dukungan Filter Multi-Lokasi pada Pencarian Lowongan Publik** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: fitur | P3 | M.
-    - Dasar: `src/pages/seeker/Browse.tsx`, `services/unifiedJobService.js`.
-    - Masalah/peluang dan pendekatan: Pencari kerja saat ini hanya dapat memfilter lowongan berdasarkan satu kota tunggal. Tambahkan dukungan tag multi-kota (misal: "Bandung, Cimahi, Jakarta").
-    - Manfaat: Meningkatkan fleksibilitas dan kepuasan pencari kerja di kawasan aglomerasi.
-    - Kriteria berhasil: Pencarian mencakup seluruh pekerjaan yang berlokasi di salah satu kota yang dipilih.
-    - Dependensi/risiko dan langkah pertama: Update query filter SQLite `WHERE location_city IN (...)` dan agregator.
+    - Dasar: `services/internalJobService.js:30-48`, `services/fbScraperJobService.js:23-38`, `src/components/JobList.jsx:40-275`.
+    - Masalah/peluang dan pendekatan: Telah ditambahkan pemecahan string lokasi multi-kota (`location.split(/[,;|]+/)`) dengan multi-clause `OR` pada query backend internal maupun Facebook Group AI. Pada antarmuka `JobList.jsx`, telah disediakan chips filter cepat multi-wilayah ("Bandung Raya", "Kota Cimahi", "Kota Bandung", "Kab. Bandung", "Jabodetabek", "Remote / WFH").
+    - Manfaat: Pencari kerja dapat memfilter lowongan di beberapa kawasan aglomerasi sekaligus dengan satu klik atau input gabungan.
+    - Kriteria berhasil: Pencarian mencakup seluruh lowongan di salah satu kota yang dipilih secara akurat.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif di `fbScraperJobService.js` dan `JobList.jsx`.
 
-18. **Mekanisme Exponential Backoff pada Sinkronisasi Background PWA**
+18. **Mekanisme Exponential Backoff pada Sinkronisasi Background PWA** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: performa | P3 | S.
-    - Dasar: `src/lib/offlineSyncService.ts:125-150`.
-    - Masalah/peluang dan pendekatan: Jika terjadi kegagalan jaringan berulang saat online, antrean saat ini mencoba kembali secara instan. Terapkan jeda bertahap (exponential backoff: 2s, 4s, 8s, 16s).
-    - Manfaat: Menghindari pemborosan baterai dan throttling server saat koneksi seluler tidak stabil.
-    - Kriteria berhasil: Waktu jeda antar retry bertambah secara progresif pada status jaringan fluktuatif.
-    - Dependensi/risiko dan langkah pertama: Tambahkan field `retryCount` pada metadata antrean lokal.
+    - Dasar: `src/lib/offlineSyncService.ts:19-43, 190-220`.
+    - Masalah/peluang dan pendekatan: Telah diimplementasikan `recordQueueFailure` dengan jeda bertingkat eksponensial (`Math.min(Math.pow(2, retries) * 1000, 60000)`: 2s, 4s, 8s, 16s, 32s, maks 60s) serta pemeriksaan `nextRetryAt` sebelum pemrosesan ulang antrean offline aplikasi.
+    - Manfaat: Menghindari pemborosan baterai perangkat mobile dan mencegah spamming server saat koneksi internet berfluktuasi.
+    - Kriteria berhasil: Antrean offline yang gagal menunda percobaan ulang berikutnya sesuai interval jeda eksponensial.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif di `offlineSyncService.ts`.
 
 19. **Pembersihan Log Aktivitas Pengguna Lama (`user_activity_logs`) Secara Berkala** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: pemeliharaan | P3 | S.

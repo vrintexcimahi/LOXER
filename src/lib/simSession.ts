@@ -178,6 +178,13 @@ export function clearAllSimSessions(): void {
     localStorage.removeItem(tokenKey);
     localStorage.removeItem(userKey);
   }
+  try {
+    sessionStorage.removeItem('loxer_admin_unlocked');
+    sessionStorage.removeItem('app_admin_unlocked');
+    sessionStorage.removeItem('loxer_super_admin_bypass');
+  } catch {
+    // ignore
+  }
   window.dispatchEvent(new CustomEvent('loxer:sim-session-cleared', { detail: { role: 'all' } }));
 }
 
@@ -190,11 +197,26 @@ export async function switchSimRole(newRole: SimRole | null): Promise<void> {
     // Kembali ke sesi live utama
     try {
       window.name = '';
+      sessionStorage.removeItem('loxer_admin_unlocked');
+      sessionStorage.removeItem('app_admin_unlocked');
+      sessionStorage.removeItem('loxer_super_admin_bypass');
     } catch {
       // ignore
     }
+    clearAllSimSessions();
     window.dispatchEvent(new CustomEvent('loxer:sim-session-cleared', { detail: { role: 'exit' } }));
     return;
+  }
+
+  // Bersihkan hak istimewa admin jika beralih ke non-admin
+  if (newRole !== 'admin') {
+    try {
+      sessionStorage.removeItem('loxer_admin_unlocked');
+      sessionStorage.removeItem('app_admin_unlocked');
+      sessionStorage.removeItem('loxer_super_admin_bypass');
+    } catch {
+      // ignore
+    }
   }
 
   try {
