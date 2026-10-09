@@ -77,7 +77,7 @@ export default function SeekerDashboard() {
       <SeekerLayout currentPath="/seeker/dashboard">
         <div className="animate-pulse space-y-6">
           <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
-            {[...Array(4)].map((_, i) => <div key={i} className="h-20 sm:h-28 bg-sky-100 rounded-2xl" />)}
+            {[...Array(4)].map((_, i) => <div key={i} className="h-20 sm:h-28 bg-sky-100 dark:bg-slate-800 rounded-2xl" />)}
           </div>
         </div>
       </SeekerLayout>
@@ -89,13 +89,13 @@ export default function SeekerDashboard() {
       {/* 1 Baris 4 Grid: Stats Cards */}
       <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-6">
         {stats.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-2xl border border-sky-100 p-2.5 sm:p-4 card-hover shadow-sm flex flex-col justify-between">
+          <div key={label} className="bg-white dark:bg-slate-900/90 rounded-2xl border border-sky-100 dark:border-white/10 p-2.5 sm:p-4 card-hover shadow-sm flex flex-col justify-between">
             <div className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center mb-2 sm:mb-3 shadow-md shrink-0`}>
               <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div>
-              <div className="text-lg sm:text-2xl font-black text-slate-800 leading-tight">{value}</div>
-              <div className="text-slate-500 text-[10px] sm:text-xs mt-0.5 truncate" title={label}>{label}</div>
+              <div className="text-lg sm:text-2xl font-black text-slate-800 dark:text-white leading-tight">{value}</div>
+              <div className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs mt-0.5 truncate" title={label}>{label}</div>
             </div>
           </div>
         ))}
@@ -104,17 +104,17 @@ export default function SeekerDashboard() {
       {/* 1 Baris 2 Grid: Lamaran Terkini & Notifikasi (Kompak & Hemat Ruang) */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
         {/* Recent Applications */}
-        <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-3.5 sm:p-4 flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-sky-100 dark:border-white/10 shadow-sm p-3.5 sm:p-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-1 mb-3">
               <div className="flex items-center gap-1.5 truncate">
-                <h2 className="font-bold text-slate-800 text-xs sm:text-sm truncate">Lamaran Terkini</h2>
+                <h2 className="font-bold text-slate-800 dark:text-white text-xs sm:text-sm truncate">Lamaran Terkini</h2>
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/30" title="Sinkronisasi status otomatis aktif">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live
                 </span>
               </div>
-              <a href="/seeker/applications" className="text-sky-500 text-[10px] sm:text-xs font-semibold hover:text-sky-700 flex items-center gap-0.5 shrink-0">
+              <a href="/seeker/applications" className="text-sky-500 dark:text-sky-400 text-[10px] sm:text-xs font-semibold hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-0.5 shrink-0">
                 <span className="hidden sm:inline">Lihat </span>Semua <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               </a>
             </div>
@@ -125,7 +125,7 @@ export default function SeekerDashboard() {
                   <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400" />
                 </div>
                 <p className="text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold">Belum ada lamaran</p>
-                <p className="text-slate-400 text-[10px] sm:text-xs mt-0.5 leading-tight line-clamp-1">Mulai lamar lowongan favorit</p>
+                <p className="text-slate-400 dark:text-slate-500 text-[10px] sm:text-xs mt-0.5 leading-tight line-clamp-1">Mulai lamar lowongan favorit</p>
                 <a href="/seeker/browse" className="inline-flex items-center justify-center gap-1 mt-2.5 gradient-cta text-white rounded-xl px-3 py-1.5 text-[10px] sm:text-xs font-bold shadow-sm hover:brightness-110 active:scale-95 transition">
                   Cari Lowongan
                 </a>
@@ -138,8 +138,8 @@ export default function SeekerDashboard() {
                       {(app.job_listings?.companies?.name || 'C')[0]}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-slate-800 text-[11px] sm:text-xs font-bold truncate">{app.job_listings?.title}</p>
-                      <p className="text-slate-400 text-[9px] sm:text-[10px] truncate">{app.job_listings?.companies?.name}</p>
+                      <p className="text-slate-800 dark:text-slate-200 text-[11px] sm:text-xs font-bold truncate">{app.job_listings?.title}</p>
+                      <p className="text-slate-400 dark:text-slate-500 text-[9px] sm:text-[10px] truncate">{app.job_listings?.companies?.name}</p>
                     </div>
                     <ApplicationStatusBadge status={app.status} compact />
                   </div>
@@ -150,10 +150,10 @@ export default function SeekerDashboard() {
         </div>
 
         {/* Notifications */}
-        <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-3.5 sm:p-4 flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-sky-100 dark:border-white/10 shadow-sm p-3.5 sm:p-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-1 mb-3">
-              <h2 className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5 truncate">
+              <h2 className="font-bold text-slate-800 dark:text-white text-xs sm:text-sm flex items-center gap-1.5 truncate">
                 <Bell className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
                 <span>Notifikasi</span>
               </h2>
@@ -170,7 +170,7 @@ export default function SeekerDashboard() {
                   <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400 dark:text-cyan-400" />
                 </div>
                 <p className="text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold">Tidak ada notifikasi</p>
-                <p className="text-slate-400 text-[10px] sm:text-xs mt-0.5 leading-tight">Pemberitahuan terbaru akan muncul di sini</p>
+                <p className="text-slate-400 dark:text-slate-500 text-[10px] sm:text-xs mt-0.5 leading-tight">Pemberitahuan terbaru akan muncul di sini</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -184,12 +184,12 @@ export default function SeekerDashboard() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <p className="font-bold truncate text-[11px] text-slate-800">{n.title}</p>
+                      <p className="font-bold truncate text-[11px] text-slate-800 dark:text-slate-200">{n.title}</p>
                       {!n.is_read && (
                         <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" title="Belum dibaca" />
                       )}
                     </div>
-                    <p className="text-slate-500 text-[10px] line-clamp-1 mt-0.5">{n.message}</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-[10px] line-clamp-1 mt-0.5">{n.message}</p>
                   </div>
                 ))}
               </div>
@@ -200,23 +200,23 @@ export default function SeekerDashboard() {
 
       {/* Recommended Jobs */}
       {recentJobs.length > 0 && (
-        <div className="mt-6 bg-white rounded-2xl border border-sky-100 shadow-sm p-5">
+        <div className="mt-6 bg-white dark:bg-slate-900/90 rounded-2xl border border-sky-100 dark:border-white/10 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-slate-800">Lowongan Terbaru</h2>
-            <a href="/seeker/browse" className="text-sky-500 text-xs font-medium hover:text-sky-700 flex items-center gap-1">
+            <h2 className="font-bold text-slate-800 dark:text-white">Lowongan Terbaru</h2>
+            <a href="/seeker/browse" className="text-sky-500 dark:text-sky-400 text-xs font-medium hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1">
               Lihat Semua <ArrowRight className="w-3 h-3" />
             </a>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
             {recentJobs.slice(0, 4).map((job) => (
-              <a key={job.id} href={`/seeker/browse?job_id=${job.id}`} className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border border-sky-100 hover:border-sky-300 hover:bg-sky-50 transition-all group text-center sm:text-left">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0 text-sky-600 font-black text-xs sm:text-sm">
+              <a key={job.id} href={`/seeker/browse?job_id=${job.id}`} className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border border-sky-100 dark:border-white/5 hover:border-sky-300 dark:hover:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-800/60 transition-all group text-center sm:text-left">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-sky-100 dark:bg-cyan-500/20 flex items-center justify-center flex-shrink-0 text-sky-600 dark:text-cyan-300 font-black text-xs sm:text-sm">
                   {(job.companies?.name || 'C')[0]}
                 </div>
                 <div className="min-w-0 w-full">
-                  <p className="text-slate-800 text-xs font-semibold truncate group-hover:text-sky-600 transition-colors">{job.title}</p>
-                  <p className="text-slate-400 text-[10px] truncate">{job.companies?.name}</p>
-                  <p className="text-sky-500 text-[10px] font-medium truncate">{job.location_city}</p>
+                  <p className="text-slate-800 dark:text-slate-200 text-xs font-semibold truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">{job.title}</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-[10px] truncate">{job.companies?.name}</p>
+                  <p className="text-sky-500 dark:text-sky-400 text-[10px] font-medium truncate">{job.location_city}</p>
                 </div>
               </a>
             ))}

@@ -120,12 +120,37 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
     };
   }, [device, registerDevice]);
 
-  // Re-register when user logs in or changes
+  // Re-register and load user preferences when user logs in or changes
   useEffect(() => {
+    let active = true;
     if (user?.id) {
       registerDevice(device, true);
+
+      // Hydrate user preferences from backend
+      const token = session?.access_token || (typeof window !== 'undefined' ? localStorage.getItem('loxer_local_auth_token') : null);
+      if (token) {
+        fetch('/api/user/preferences', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (!active || !data?.preferences) return;
+            const p = data.preferences as UserPreferences;
+            setPreferences(p);
+            if (p.theme && typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('loxer:preferences-synced', { detail: { theme: p.theme } }));
+            }
+          })
+          .catch(() => {
+            // non-blocking
+          });
+      }
     }
-  }, [user?.id, device, registerDevice]);
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, device, registerDevice, session?.access_token]);
 
   // Handle resize and orientation changes
   useEffect(() => {
@@ -189,6 +214,10 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
       ...(prev || defaultPreferences),
       ...newPrefs,
     }));
+
+    if (newPrefs.theme && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('loxer:preferences-synced', { detail: { theme: newPrefs.theme } }));
+    }
 
     if (user?.id) {
       try {

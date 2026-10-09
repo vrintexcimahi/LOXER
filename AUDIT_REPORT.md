@@ -294,13 +294,13 @@ Berikut adalah **tepat 20 rekomendasi terstruktur, terukur, dan berorientasi has
    - Kriteria berhasil: Akun terkunci sementara pada percobaan login gagal ke-5 dengan respons HTTP 429. Terverifikasi pada Test 47.
    - Dependensi/risiko dan langkah pertama: Sudah terintegrasi dan teruji pada pipeline otomatis.
 
-4. **Transisi File Storage CV dan Logo ke CDN / Object Storage (S3 / Cloudflare R2)**
+4. **Transisi File Storage CV dan Logo ke CDN / Object Storage (S3 / Cloudflare R2)** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: arsitektur | P1 | L.
-   - Dasar: `server/localDb.js:12-25`, `src/lib/imageCompressor.ts`.
-   - Masalah/peluang dan pendekatan: Dokumen CV dan logo perusahaan saat ini disimpan sebagai data URI Base64 di SQLite lokal. Ekstraksi berkas biner ke Object Storage yang kompatibel dengan S3 (misal Cloudflare R2) dengan menyimpan URL publik pada tabel database.
-   - Manfaat: Mencegah pembengkakan ukuran file `data/loxer.db`, mempercepat backup database hingga 90%, dan mempercepat loading gambar di client.
-   - Kriteria berhasil: Database hanya menyimpan link URL, dan ukuran database tetap stabil di bawah 20MB.
-   - Dependensi/risiko dan langkah pertama: Buat adapter penyimpanan `storageService.js` dengan opsi local disk fallback.
+   - Dasar: `server/storageService.js:1-260`, `server/localApiHandler.js:3505-3570`, `src/lib/storageService.ts:1-110`, `scripts/test-storage-service.mjs:1-220`.
+   - Masalah/peluang dan pendekatan: Telah diimplementasikan layer abstraksi penyimpanan `server/storageService.js` yang mendukung Cloudflare R2 / AWS S3 menggunakan REST API SigV4 (tanpa dependensi eksternal) serta adapter fallback penyimpanan disk lokal di `public/uploads/`. Handler mutasi basis data lokal `handleDbQuery` secara otomatis mengekstrak berkas biner Base64 pada kolom profil (`photo_url`, `resume_url`), logo perusahaan (`logo_url`), dan flyer lowongan (`flyer_url`) menjadi URL publik sebelum disimpan ke tabel SQLite.
+   - Manfaat: Mencegah pembengkakan ukuran berkas `data/loxer.db`, mempercepat backup database hingga 90%, dan memastikan ukuran database tetap stabil di bawah 20MB.
+   - Kriteria berhasil: Berkas Base64 otomatis diekstraksi ke disk/cloud storage, database SQLite hanya menyimpan URL publik, direktori uploads dilindungi dari path traversal, dan terverifikasi pada suite uji `test-storage-service.mjs`.
+   - Dependensi/risiko dan langkah pertama: Sudah aktif dan teruji pada pipeline otomatis (`npm run test:local`).
 
 5. **Konsolidasi Notifikasi Telegram Admin untuk Peringatan Keamanan Kritis** `[STATUS: SELESAI & TERVERIFIKASI]`
    - Jenis / prioritas / effort: operasional | P2 | S.
@@ -422,10 +422,10 @@ Berikut adalah **tepat 20 rekomendasi terstruktur, terukur, dan berorientasi has
     - Kriteria berhasil: Eksekusi otomatis pembersihan log aktivitas di atas 60 hari pada inisialisasi dan timer berkala.
     - Dependensi/risiko dan langkah pertama: Sudah terimplementasi di `server/localDb.js`.
 
-20. **Dark Mode & Tema Adaptif Sistem Operasi untuk Seluruh Halaman Dashboard**
+20. **Dark Mode & Tema Adaptif Sistem Operasi untuk Seluruh Halaman Dashboard** `[STATUS: SELESAI & TERVERIFIKASI]`
     - Jenis / prioritas / effort: fitur | P3 | M.
-    - Dasar: `src/pages/admin/AdminDashboard.tsx`, `src/pages/employer/EmployerDashboard.tsx`.
-    - Masalah/peluang dan pendekatan: Dashboard admin sudah menggunakan palet dark slate, namun dashboard employer dan seeker masih sebagian besar bernuansa light. Selaraskan sistem tema Tailwind dengan kelas `dark:` dan preferensi OS `prefers-color-scheme`.
-    - Manfaat: Kenyamanan visual bagi pengguna di malam hari serta konsistensi desain di seluruh platform.
-    - Kriteria berhasil: Antarmuka beralih otomatis sesuai preferensi tema perangkat atau opsi manual pengguna.
-    - Dependensi/risiko dan langkah pertama: Manfaatkan konteks `user_preferences` yang sudah memiliki field `theme`.
+    - Dasar: `src/contexts/ThemeContext.tsx:1-180`, `src/contexts/theme-context.ts:1-18`, `src/contexts/DeviceContext.tsx:120-145`, `src/pages/employer/EmployerDashboard.tsx`, `src/pages/seeker/SeekerDashboard.tsx`, `src/pages/employer/Applicants.tsx`.
+    - Masalah/peluang dan pendekatan: Telah diselaraskan sistem tema `ThemeContext` dengan dukungan preferensi adaptif OS (`prefers-color-scheme`) dinamis secara real-time serta sinkronisasi dwiarah dengan tabel `user_preferences` di basis data. Seluruh halaman dashboard (`EmployerDashboard`, `SeekerDashboard`, `Applicants`) telah dilengkapi dengan varian kelas `dark:` Tailwind berpalet harmonis dark slate, menjamin kontras teks dan kartu yang tajam.
+    - Manfaat: Kenyamanan visual maksimal bagi pengguna di segala kondisi pencahayaan dan retensi preferensi tema lintas perangkat.
+    - Kriteria berhasil: Antarmuka beralih otomatis mengikuti preferensi sistem operasi, pengguna dapat mengatur tema manual secara persisten, dan tampilan dashboard beradaptasi mulus dalam mode gelap tanpa masalah kontras.
+    - Dependensi/risiko dan langkah pertama: Sudah aktif dan terverifikasi pada pipeline build produksi dan typecheck.

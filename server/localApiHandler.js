@@ -26,9 +26,18 @@ import {
   countPartnerApplications,
 } from './localDb.js';
 import fs from 'node:fs';
+import path from 'node:path';
 import crypto from 'node:crypto';
 import { buildApplicationStatusNotification } from '../services/applicationStatusNotification.js';
 import { apiRateLimiter, dbRateLimiter, jobSearchCache, SlidingWindowRateLimiter, accountLockoutManager } from '../services/resilienceService.js';
+import {
+  uploadBase64,
+  offloadBase64Payload,
+  getStorageStats,
+  deleteFile as deleteStorageFile,
+} from './storageService.js';
+
+const PUBLIC_UPLOADS_DIR = path.resolve(process.cwd(), 'public', 'uploads');
 
 
 
@@ -1597,12 +1606,41 @@ async function handleDbQuery(req, res) {
       });
     }
 
+    // Offload media payload if base64 before writing to SQLite
+    async function offloadRecordMediaFields(targetTable, recordItem) {
+      if (!recordItem || typeof recordItem !== 'object') return recordItem;
+      const processedItem = { ...recordItem };
+
+      if (targetTable === 'seeker_profiles' || targetTable === 'talent_marketplace_posts') {
+        if (processedItem.photo_url && typeof processedItem.photo_url === 'string' && processedItem.photo_url.startsWith('data:image/')) {
+          processedItem.photo_url = await offloadBase64Payload(processedItem.photo_url, 'avatars', 'avatar');
+        }
+        if (processedItem.resume_url && typeof processedItem.resume_url === 'string' && (processedItem.resume_url.startsWith('data:application/pdf') || processedItem.resume_url.startsWith('data:image/'))) {
+          processedItem.resume_url = await offloadBase64Payload(processedItem.resume_url, 'resumes', 'resume');
+        }
+      }
+
+      if (targetTable === 'companies') {
+        if (processedItem.logo_url && typeof processedItem.logo_url === 'string' && processedItem.logo_url.startsWith('data:image/')) {
+          processedItem.logo_url = await offloadBase64Payload(processedItem.logo_url, 'logos', 'logo');
+        }
+      }
+
+      if (targetTable === 'job_listings') {
+        if (processedItem.flyer_url && typeof processedItem.flyer_url === 'string' && processedItem.flyer_url.startsWith('data:image/')) {
+          processedItem.flyer_url = await offloadBase64Payload(processedItem.flyer_url, 'flyers', 'flyer');
+        }
+      }
+
+      return processedItem;
+    }
+
     if (action === 'insert') {
       const records = Array.isArray(data) ? data : [data];
       const insertedRows = [];
 
       for (const item of records) {
-        const row = { ...item };
+        const row = await offloadRecordMediaFields(table, item);
         if (!row.id) row.id = crypto.randomUUID();
         const tablesWithoutCreatedAt = new Set(['applications', 'pages', 'feature_flags', 'admin_sessions']);
         if (!row.created_at && !tablesWithoutCreatedAt.has(table)) {
@@ -1649,10 +1687,11 @@ async function handleDbQuery(req, res) {
         return sendJson(res, 400, { error: { message: 'Update tanpa filter tidak diizinkan.' } });
       }
 
+      const updateData = await offloadRecordMediaFields(table, data);
       const setPairs = [];
       const setValues = [];
 
-      for (const [k, v] of Object.entries(data)) {
+      for (const [k, v] of Object.entries(updateData)) {
         if (!/^[a-zA-Z0-9_]+$/.test(k)) continue;
         setPairs.push(`"${k}" = ?`);
         if (v !== null && typeof v === 'object') {
@@ -1735,7 +1774,8 @@ async function handleDbQuery(req, res) {
     }
 
     if (action === 'upsert') {
-      const record = Array.isArray(data) ? data[0] : data;
+      const rawRecord = Array.isArray(data) ? data[0] : data;
+      const record = await offloadRecordMediaFields(table, rawRecord);
       const rawConflict = onConflict || 'id';
       const conflictKeys = String(rawConflict).split(',').map((k) => k.trim()).filter(Boolean);
 
@@ -3460,6 +3500,107 @@ async function handlePartnerApplicationStatus(req, res) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Storage Endpoints & Static File Serving (Recommendation 4)
+// ---------------------------------------------------------------------------
+function handleStaticUploads(req, res) {
+  const rawUrl = req.url || '';
+  if (rawUrl.includes('..') || rawUrl.includes('%2e') || rawUrl.includes('%2E')) {
+    return sendJson(res, 403, { message: 'Akses ditolak.' });
+  }
+
+  const urlObj = new URL(req.url, 'http://localhost');
+  const pathname = decodeURIComponent(urlObj.pathname);
+  const relativePath = pathname.replace(/^\/uploads\//, '');
+
+  // Guard: prevent directory traversal
+  const safePath = path.resolve(PUBLIC_UPLOADS_DIR, relativePath);
+  if (!safePath.startsWith(PUBLIC_UPLOADS_DIR) || relativePath.includes('..')) {
+    return sendJson(res, 403, { message: 'Akses ditolak.' });
+  }
+
+  if (!fs.existsSync(safePath) || !fs.statSync(safePath).isFile()) {
+    return sendJson(res, 404, { message: 'Berkas tidak ditemukan.' });
+  }
+
+  const ext = path.extname(safePath).toLowerCase();
+  const contentTypes = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.pdf': 'application/pdf',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc': 'application/msword',
+  };
+
+  const contentType = contentTypes[ext] || 'application/octet-stream';
+  const stat = fs.statSync(safePath);
+
+  res.statusCode = 200;
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Length', stat.size);
+  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  const stream = fs.createReadStream(safePath);
+  stream.on('error', (err) => {
+    console.error('[handleStaticUploads Stream Error]:', err.message);
+    if (!res.headersSent) {
+      sendJson(res, 500, { message: 'Gagal membaca berkas.' });
+    }
+  });
+  stream.pipe(res);
+}
+
+async function handleStorageUpload(req, res) {
+  try {
+    const body = await parseJsonBody(req);
+    const { file, folder, filenamePrefix } = body || {};
+    if (!file || typeof file !== 'string') {
+      return sendJson(res, 400, { message: 'Data berkas (Data URI Base64) wajib diisi.' });
+    }
+
+    const result = await uploadBase64({
+      dataUri: file,
+      folder: folder || 'uploads',
+      filenamePrefix: filenamePrefix || 'upload',
+    });
+
+    return sendJson(res, 200, {
+      ok: true,
+      message: 'Berkas berhasil diunggah ke media storage.',
+      data: result,
+    });
+  } catch (err) {
+    return sendJson(res, 400, { ok: false, message: err.message || 'Gagal mengunggah berkas.' });
+  }
+}
+
+function handleStorageStatus(req, res) {
+  const stats = getStorageStats();
+  return sendJson(res, 200, { ok: true, stats });
+}
+
+async function handleStorageDelete(req, res) {
+  const token = parseBearerToken(req);
+  if (!token) return sendJson(res, 401, { message: 'Unauthorized' });
+  const payload = verifyToken(token);
+  if (!payload?.sub) return sendJson(res, 401, { message: 'Unauthorized' });
+
+  const body = await parseJsonBody(req);
+  const fileUrl = body?.url;
+  if (!fileUrl) return sendJson(res, 400, { message: 'URL berkas wajib diisi.' });
+
+  const deleted = await deleteStorageFile(fileUrl);
+  return sendJson(res, 200, {
+    ok: deleted,
+    message: deleted ? 'Berkas berhasil dihapus dari storage.' : 'Berkas tidak ditemukan atau gagal dihapus.',
+  });
+}
+
 export function createLocalDbMiddleware(env = {}) {
   getLocalDb(); // ensure initialized
 
@@ -3468,6 +3609,31 @@ export function createLocalDbMiddleware(env = {}) {
   return async (req, res, next) => {
     const url = req.url || '';
     const path = url.split('?')[0];
+
+    // Guard: Block direct HTTP access to database files, backups, or .env
+    if (
+      path.startsWith('/data/') ||
+      path.endsWith('.db') ||
+      path.endsWith('.db-wal') ||
+      path.endsWith('.db-shm') ||
+      path.includes('/.env')
+    ) {
+      return sendJson(res, 403, { message: 'Akses ditolak.' });
+    }
+
+    // Static Uploads & Storage Endpoints
+    if (path.startsWith('/uploads/') && req.method === 'GET') {
+      return handleStaticUploads(req, res);
+    }
+    if (path === '/api/storage/upload' && req.method === 'POST') {
+      return handleStorageUpload(req, res);
+    }
+    if (path === '/api/storage/status' && req.method === 'GET') {
+      return handleStorageStatus(req, res);
+    }
+    if (path === '/api/storage/file' && req.method === 'DELETE') {
+      return handleStorageDelete(req, res);
+    }
 
     if (path === '/api/local/partner/apply') return handlePartnerApply(req, res);
     if (path === '/api/local/partner/applications' || path.startsWith('/api/local/partner/applications/')) {

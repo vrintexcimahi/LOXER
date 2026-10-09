@@ -540,8 +540,8 @@ export default function Applicants() {
       {/* Header Toolbar */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Manajemen Pelamar</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-black text-slate-800 dark:text-white">Manajemen Pelamar</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {filtered.length} pelamar {selectedJob !== 'all' ? 'untuk lowongan ini' : 'dari semua lowongan'}
           </p>
         </div>
@@ -551,10 +551,10 @@ export default function Applicants() {
           <button
             onClick={handleExportCsv}
             disabled={filtered.length === 0}
-            className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3.5 py-2 text-xs font-semibold text-sky-700 shadow-sm transition-all hover:bg-sky-50 active:scale-95 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-sky-200 dark:border-white/10 bg-white dark:bg-slate-900/90 px-3.5 py-2 text-xs font-semibold text-sky-700 dark:text-sky-300 shadow-sm transition-all hover:bg-sky-50 dark:hover:bg-slate-800 active:scale-95 disabled:opacity-50"
             title="Ekspor daftar pelamar ke format Excel CSV"
           >
-            <Download className="h-4 w-4 text-sky-600" /> Ekspor CSV ({filtered.length})
+            <Download className="h-4 w-4 text-sky-600 dark:text-cyan-400" /> Ekspor CSV ({filtered.length})
           </button>
 
           {/* Toggle Select All Button */}
@@ -563,11 +563,11 @@ export default function Applicants() {
             disabled={filtered.length === 0}
             className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all ${
               isAllVisibleSelected
-                ? 'border-sky-500 bg-sky-50 text-sky-700'
-                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300'
+                : 'border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
             } disabled:opacity-50`}
           >
-            {isAllVisibleSelected ? <CheckSquare className="h-4 w-4 text-sky-600" /> : <Square className="h-4 w-4 text-slate-400" />}
+            {isAllVisibleSelected ? <CheckSquare className="h-4 w-4 text-sky-600 dark:text-cyan-400" /> : <Square className="h-4 w-4 text-slate-400" />}
             <span>{isAllVisibleSelected ? 'Batalkan Semua' : 'Pilih Semua'}</span>
           </button>
         </div>
@@ -580,7 +580,7 @@ export default function Applicants() {
           <select
             value={selectedJob}
             onChange={(e) => setSelectedJob(e.target.value)}
-            className="appearance-none rounded-xl border border-sky-200 bg-white px-4 py-2 pr-8 text-sm text-slate-700 outline-none focus:border-sky-500"
+            className="appearance-none rounded-xl border border-sky-200 dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-2 pr-8 text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-sky-500 dark:focus:border-cyan-400"
           >
             <option value="all">Semua Lowongan</option>
             {jobs.map((job) => (
@@ -598,7 +598,7 @@ export default function Applicants() {
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as 'all' | '7d' | '30d' | 'this_month')}
-            className="appearance-none rounded-xl border border-sky-200 bg-white px-3.5 py-2 pr-8 text-xs font-medium text-slate-700 outline-none focus:border-sky-500"
+            className="appearance-none rounded-xl border border-sky-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3.5 py-2 pr-8 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:border-sky-500 dark:focus:border-cyan-400"
           >
             {DATE_FILTER_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -616,7 +616,7 @@ export default function Applicants() {
             className={`rounded-xl px-3 py-2 text-xs font-medium border transition-all ${
               filterStatus === 'all'
                 ? 'gradient-cta text-white border-transparent'
-                : 'bg-white text-slate-600 border-sky-200 hover:border-sky-300'
+                : 'bg-white dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 border-sky-200 dark:border-white/10 hover:border-sky-300 dark:hover:border-cyan-500/40'
             }`}
           >
             Semua
@@ -628,7 +628,7 @@ export default function Applicants() {
               className={`rounded-xl px-3 py-2 text-xs font-medium border transition-all ${
                 filterStatus === value
                   ? 'gradient-cta text-white border-transparent'
-                  : 'bg-white text-slate-600 border-sky-200 hover:border-sky-300'
+                  : 'bg-white dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 border-sky-200 dark:border-white/10 hover:border-sky-300 dark:hover:border-cyan-500/40'
               }`}
             >
               {label}
@@ -644,13 +644,13 @@ export default function Applicants() {
           {loading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, index) => (
-                <div key={index} className="h-24 animate-pulse rounded-2xl bg-sky-100" />
+                <div key={index} className="h-24 animate-pulse rounded-2xl bg-sky-100 dark:bg-slate-800" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="rounded-2xl border border-sky-100 bg-white py-16 text-center">
-              <Users className="mx-auto mb-3 h-12 w-12 text-sky-200" />
-              <p className="font-medium text-slate-500">Belum ada pelamar sesuai filter</p>
+            <div className="rounded-2xl border border-sky-100 dark:border-white/10 bg-white dark:bg-slate-900/90 py-16 text-center">
+              <Users className="mx-auto mb-3 h-12 w-12 text-sky-200 dark:text-cyan-500/40" />
+              <p className="font-medium text-slate-500 dark:text-slate-400">Belum ada pelamar sesuai filter</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -664,10 +664,10 @@ export default function Applicants() {
                     onClick={() => setSelectedApplicant({ application, profile, job })}
                     className={`group relative cursor-pointer rounded-2xl border p-4 shadow-sm transition-all ${
                       isSelected
-                        ? 'border-sky-500 bg-sky-50/50 shadow-sky-100'
+                        ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-950/40 shadow-sky-100 dark:shadow-none'
                         : isCurrentActive
-                        ? 'border-sky-400 bg-white shadow-md shadow-sky-100'
-                        : 'border-sky-100 bg-white hover:border-sky-200 card-hover'
+                        ? 'border-sky-400 dark:border-cyan-400 bg-white dark:bg-slate-800 shadow-md shadow-sky-100 dark:shadow-none'
+                        : 'border-sky-100 dark:border-white/10 bg-white dark:bg-slate-900/90 hover:border-sky-200 dark:hover:border-slate-700 card-hover'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -675,13 +675,13 @@ export default function Applicants() {
                       <button
                         type="button"
                         onClick={(e) => toggleSelectApplicant(application.id, e)}
-                        className="mt-1 flex-shrink-0 text-slate-400 hover:text-sky-600"
+                        className="mt-1 flex-shrink-0 text-slate-400 hover:text-sky-600 dark:hover:text-cyan-400"
                         title={isSelected ? 'Hapus pilihan' : 'Pilih pelamar'}
                       >
                         {isSelected ? (
-                          <CheckSquare className="h-5 w-5 text-sky-600" />
+                          <CheckSquare className="h-5 w-5 text-sky-600 dark:text-cyan-400" />
                         ) : (
-                          <Square className="h-5 w-5 text-slate-300 group-hover:text-slate-400" />
+                          <Square className="h-5 w-5 text-slate-300 dark:text-slate-600 group-hover:text-slate-400" />
                         )}
                       </button>
 
@@ -693,13 +693,13 @@ export default function Applicants() {
                       {/* Info */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-semibold text-slate-800">
+                          <p className="truncate text-sm font-semibold text-slate-800 dark:text-white">
                             {profile.full_name || 'Pelamar'}
                           </p>
                           <ApplicationStatusBadge status={application.status} />
                         </div>
-                        <p className="truncate text-xs text-slate-500">{job.title}</p>
-                        <div className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-400">
+                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{job.title}</p>
+                        <div className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-400 dark:text-slate-500">
                           {profile.domicile_city ? (
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-cyan-400" /> {profile.domicile_city}
@@ -721,7 +721,7 @@ export default function Applicants() {
         {/* Right Column: Selected Applicant Profile & Actions */}
         {selectedApplicant && (
           <div className="min-w-0 flex-1">
-            <div className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-2xl border border-sky-100 dark:border-white/10 bg-white dark:bg-slate-900/90 shadow-sm">
               {/* Header Cover */}
               <div className="gradient-card relative h-20">
                 <button
@@ -739,17 +739,17 @@ export default function Applicants() {
                     {(selectedApplicant.profile.full_name || '?')[0].toUpperCase()}
                   </div>
                   <div className="mb-2">
-                    <h2 className="text-lg font-black leading-tight text-slate-800">
+                    <h2 className="text-lg font-black leading-tight text-slate-800 dark:text-white">
                       {selectedApplicant.profile.full_name}
                     </h2>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                       {selectedApplicant.profile.domicile_city && (
                         <span className="flex items-center gap-1">
                           <MapPin className="h-3 w-3 text-cyan-400" /> {selectedApplicant.profile.domicile_city}
                         </span>
                       )}
                       {selectedApplicant.profile.phone && (
-                        <span className="flex items-center gap-1 text-slate-600">
+                        <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
                           <Phone className="h-3 w-3 text-emerald-500" /> {selectedApplicant.profile.phone}
                         </span>
                       )}
@@ -760,24 +760,24 @@ export default function Applicants() {
                   </div>
                 </div>
 
-                <p className="mb-4 text-xs text-slate-500">
-                  Melamar untuk: <span className="font-semibold text-slate-700">{selectedApplicant.job.title}</span>
+                <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                  Melamar untuk: <span className="font-semibold text-slate-700 dark:text-slate-200">{selectedApplicant.job.title}</span>
                 </p>
 
                 {/* About candidate */}
                 {selectedApplicant.profile.about && (
                   <div className="mb-4">
-                    <p className="text-xs leading-relaxed text-slate-500">{selectedApplicant.profile.about}</p>
+                    <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{selectedApplicant.profile.about}</p>
                   </div>
                 )}
 
                 {/* Expected Salary */}
                 {(selectedApplicant.profile.expected_salary_min || selectedApplicant.profile.expected_salary_max) && (
-                  <div className="mb-4 flex items-center gap-2 rounded-xl border border-sky-100 bg-sky-50 p-3">
+                  <div className="mb-4 flex items-center gap-2 rounded-xl border border-sky-100 dark:border-white/10 bg-sky-50 dark:bg-slate-800/80 p-3">
                     <Briefcase className="h-4 w-4 text-sky-500" />
                     <div>
-                      <p className="text-[10px] text-slate-500">Ekspektasi Gaji</p>
-                      <p className="text-sm font-semibold text-sky-600">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Ekspektasi Gaji</p>
+                      <p className="text-sm font-semibold text-sky-600 dark:text-cyan-300">
                         {formatSalary(
                           selectedApplicant.profile.expected_salary_min,
                           selectedApplicant.profile.expected_salary_max
@@ -791,12 +791,12 @@ export default function Applicants() {
                 {/* Skills */}
                 {selectedApplicant.profile.seeker_skills?.length ? (
                   <div className="mb-4">
-                    <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-slate-700">
+                    <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
                       <Tag className="h-3.5 w-3.5 text-sky-500" /> Keahlian
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {selectedApplicant.profile.seeker_skills.map((skill) => (
-                        <span key={skill.id} className="badge border-sky-200 bg-sky-50 text-sky-600">
+                        <span key={skill.id} className="badge border-sky-200 dark:border-cyan-500/30 bg-sky-50 dark:bg-cyan-500/20 text-sky-600 dark:text-cyan-300">
                           {skill.skill_name}
                         </span>
                       ))}
@@ -807,11 +807,11 @@ export default function Applicants() {
                 {/* Education */}
                 {selectedApplicant.profile.seeker_education?.length ? (
                   <div className="mb-4">
-                    <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-slate-700">
+                    <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
                       <GraduationCap className="h-3.5 w-3.5 text-sky-500" /> Pendidikan
                     </p>
                     {selectedApplicant.profile.seeker_education.map((education, index) => (
-                      <p key={`${education.school_name}-${index}`} className="text-xs text-slate-600">
+                      <p key={`${education.school_name}-${index}`} className="text-xs text-slate-600 dark:text-slate-300">
                         {education.degree} - {education.school_name}
                       </p>
                     ))}
@@ -820,7 +820,7 @@ export default function Applicants() {
 
                 {/* --- Scheduled Interview Card & Actions --- */}
                 {selectedApplicant.application.status === 'interview_scheduled' && (
-                  <div className="mb-5 rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50/70 to-white p-4 shadow-sm">
+                  <div className="mb-5 rounded-2xl border border-sky-200 dark:border-white/10 bg-gradient-to-br from-sky-50/70 to-white dark:from-slate-800/80 dark:to-slate-900/90 p-4 shadow-sm">
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
