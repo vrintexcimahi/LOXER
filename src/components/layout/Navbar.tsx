@@ -95,12 +95,11 @@ export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: N
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 pt-safe transition-all duration-300 ${
+      className={`loxer-navbar fixed top-0 left-0 right-0 z-50 pt-safe transition-all duration-300 ${
         scrolled
           ? 'bg-[#0F172A]/95 backdrop-blur-md shadow-xl shadow-sky-900/20'
-          : 'bg-transparent'
+          : 'bg-slate-900/95 backdrop-blur-md'
       }`}
-      style={{ background: scrolled ? undefined : 'linear-gradient(90deg, #0F172A, #0369A1)' }}
     >
       <div className="w-full max-w-[min(100%,1920px)] mx-auto px-[clamp(16px,3vw,48px)]">
         <div className="flex items-center justify-between h-14 sm:h-16">
@@ -314,7 +313,7 @@ export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: N
 
       {/* Mobile Menu Drawer */}
       {mobileOpen && (
-        <div className="md:hidden bg-[#0F172A]/98 backdrop-blur-xl border-t border-white/10 px-5 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-fade-up">
+        <div className="loxer-mobile-menu max-h-[calc(100dvh-140px)] overflow-y-auto overscroll-contain md:hidden bg-[#0F172A]/98 backdrop-blur-xl border-t border-white/10 px-5 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-fade-up">
           <div className="flex justify-start">
             <ThemeToggle />
           </div>

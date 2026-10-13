@@ -353,7 +353,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                   : 'Audit Log';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="loxer-workspace min-h-screen bg-slate-950 text-white">
       <AdminToast toast={toast} onClose={() => setToast(null)} />
 
       <div className="flex min-h-screen">

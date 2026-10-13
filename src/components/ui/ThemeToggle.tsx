@@ -23,7 +23,7 @@ export default function ThemeToggle({ compact = false, variant = 'light' }: Them
       onClick={toggleTheme}
       aria-label={isDark ? 'Aktifkan light mode' : 'Aktifkan dark mode'}
       title={isDark ? 'Aktifkan light mode' : 'Aktifkan dark mode'}
-      className={`inline-flex items-center justify-center rounded-xl border transition-all ${
+      className={`loxer-theme-toggle inline-flex items-center justify-center rounded-xl border transition-all ${
         compact ? 'h-9 w-9 sm:h-10 sm:w-10' : ''
       } ${variantClass}`}
     >

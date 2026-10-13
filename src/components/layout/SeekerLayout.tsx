@@ -2,6 +2,7 @@ import { ReactNode, useMemo } from 'react';
 import { Home, Search, FileText, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Sparkles } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import BrandText from '../ui/BrandText';
+import ClayIcon from '../ui/ClayIcon';
 import ThemeToggle from '../ui/ThemeToggle';
 import usePersistentSidebar from './usePersistentSidebar';
 import NotificationBell from '../ui/NotificationBell';
@@ -89,7 +90,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
   }, [isFreelancer]);
 
   return (
-    <div className="flex min-h-screen bg-sky-50">
+    <div className="loxer-workspace flex min-h-screen bg-sky-50">
       {/* Sidebar */}
       <aside
         className={`hidden lg:flex flex-col fixed left-0 top-0 h-full min-h-0 overflow-hidden gradient-sidebar border-r border-cyan-500/20 z-40 transition-all duration-300 ${
@@ -318,7 +319,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
         {/* Mobile Bottom Navigation - Native Mobile App Bar with Center Elevated Action */}
         <nav
           aria-label={isFreelancer ? "Freelancer Mobile Navigation" : "Seeker Mobile Navigation"}
-          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl border-t border-cyan-500/20 bg-[#0f172a]/95 text-slate-200 px-2 pt-1 pb-[max(0.65rem,env(safe-area-inset-bottom))] shadow-2xl"
+          className="loxer-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl border-t border-cyan-500/20 bg-[#0f172a]/95 text-slate-200 px-2 pt-1 pb-[max(0.65rem,env(safe-area-inset-bottom))] shadow-2xl"
         >
           <div className="flex items-center justify-between max-w-md mx-auto relative">
             {mobileNavItems.map((item) => {
@@ -330,9 +331,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
                     href={item.href}
                     className="flex flex-col items-center justify-center -mt-5 active:scale-90 transition-transform group focus:outline-none"
                   >
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all bg-gradient-to-tr from-cyan-500 to-sky-400 text-slate-950 shadow-cyan-500/40 group-hover:brightness-110">
-                      <item.icon className="w-6 h-6" strokeWidth={2.4} />
-                    </div>
+                    <ClayIcon icon={item.icon} active={active} elevated />
                     <span className={`text-[10px] tracking-tight mt-1 font-bold ${active ? 'text-cyan-400' : 'text-slate-300'}`}>
                       {item.label}
                     </span>
@@ -346,15 +345,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
                   href={item.href}
                   className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active:scale-95 transition-transform"
                 >
-                  <div
-                    className={`flex items-center justify-center px-3 py-1 rounded-full transition-all duration-200 ${
-                      active
-                        ? 'bg-cyan-500/20 text-cyan-300 shadow-sm border border-cyan-500/30'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <item.icon className="w-5 h-5" strokeWidth={active ? 2.2 : 1.8} />
-                  </div>
+                  <ClayIcon icon={item.icon} active={active} />
                   <span
                     className={`text-[10px] tracking-tight mt-0.5 truncate max-w-[64px] ${
                       active ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'

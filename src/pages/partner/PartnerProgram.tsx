@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import BrandText from '../../components/ui/BrandText';
 import PartnerBannerCarousel from '../../components/partner/PartnerBannerCarousel';
+import ThemeToggle from '../../components/ui/ThemeToggle';
 
 export default function PartnerProgram() {
   // Quick Application Form State
@@ -163,7 +164,7 @@ export default function PartnerProgram() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#071527] text-white selection:bg-cyan-500/30">
+    <main className="loxer-workspace min-h-screen bg-[#071527] text-white selection:bg-cyan-500/30">
       {/* Top Glassmorphic Navigation */}
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#071527]/85 backdrop-blur-xl transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
@@ -193,6 +194,7 @@ export default function PartnerProgram() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <ThemeToggle compact variant="dark" />
             <a
               href="/portal-mitra"
               className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 px-4 py-2 text-xs font-bold transition flex items-center gap-1.5"

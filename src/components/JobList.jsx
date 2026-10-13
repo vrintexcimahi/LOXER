@@ -210,6 +210,7 @@ export default function JobList({
             <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
             <input
               type="text"
+              aria-label="Cari posisi, keahlian, atau perusahaan"
               value={keywords}
               onChange={(e) => setKeywords(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
@@ -218,9 +219,10 @@ export default function JobList({
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="loxer-job-filters">
             {/* Contract Type */}
             <select
+              aria-label="Jenis kontrak"
               value={contractType}
               onChange={(e) => setContractType(e.target.value)}
               className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-sky-400"
@@ -233,6 +235,7 @@ export default function JobList({
             {/* Location input */}
             <input
               type="text"
+              aria-label="Kota atau lokasi pekerjaan"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Kota / Remote"

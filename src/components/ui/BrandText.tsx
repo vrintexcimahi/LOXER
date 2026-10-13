@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTheme } from '../../contexts/useTheme';
 
 interface BrandTextProps {
   className?: string;
@@ -15,11 +16,12 @@ export default function BrandText({
   alt = 'LOXER',
   asImage = true,
   lightBlueClassName = 'text-cyan-400',
-  whiteXClassName = 'text-white',
+  whiteXClassName = 'text-slate-950 dark:text-white',
 }: BrandTextProps) {
   const [hasError, setHasError] = useState(false);
+  const { theme } = useTheme();
 
-  if (!asImage || hasError) {
+  if (!asImage || hasError || theme === 'light') {
     return (
       <span className={`font-black tracking-tight ${className}`}>
         <span className={lightBlueClassName}>LO</span>

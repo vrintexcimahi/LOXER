@@ -209,7 +209,7 @@ export default function TalentMarketplace() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black pb-20 md:pb-0">
+    <div className="loxer-workspace min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black pb-20 md:pb-0">
       {/* Public Navbar */}
       <Navbar
         onLogin={() => setAuthMode('login')}
@@ -280,6 +280,7 @@ export default function TalentMarketplace() {
               <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
               <input
                 type="text"
+                aria-label="Cari keahlian, nama, atau posisi"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari keahlian (React, Barista, Desain), nama, atau posisi..."
@@ -288,8 +289,9 @@ export default function TalentMarketplace() {
             </div>
 
             {/* Availability Filter */}
-            <div className="flex items-center gap-2">
+            <div className="loxer-talent-filters">
               <select
+                aria-label="Kategori ketersediaan talent"
                 value={selectedAvailability}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -316,6 +318,7 @@ export default function TalentMarketplace() {
 
               {/* City Filter */}
               <select
+                aria-label="Kota talent"
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
                 className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400"

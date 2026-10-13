@@ -1,3 +1,4 @@
+import ClayIcon from '../../components/ui/ClayIcon';
 import { useMemo, type ReactNode } from 'react';
 import {
   AlertTriangle,
@@ -197,7 +198,7 @@ export default function GodModeLayout({ title, description, actions, children }:
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="loxer-workspace min-h-screen bg-slate-950 text-white">
       <div className="flex min-h-screen">
         <aside
           className={classNames(
@@ -249,13 +250,7 @@ export default function GodModeLayout({ title, description, actions, children }:
                           : 'border border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white'
                       )}
                     >
-                      <Icon
-                        className={classNames(
-                          'h-5 w-5 transition-colors',
-                          active ? 'text-cyan-400' : 'text-slate-400 group-hover:text-white'
-                        )}
-                        strokeWidth={1.8}
-                      />
+                      <ClayIcon icon={Icon} active={active} />
                       {item.badge && (
                         <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -345,7 +340,7 @@ export default function GodModeLayout({ title, description, actions, children }:
           {/* Mobile Bottom Navigation Bar - Focused for Mobile Application Users */}
           <nav
             aria-label="Mobile Navigation"
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/95 backdrop-blur-xl px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl"
+            className="loxer-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-slate-950/95 backdrop-blur-xl px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl"
           >
             <div className="flex items-center justify-around">
               {MOBILE_NAV_ITEMS.map((item) => {
@@ -360,13 +355,7 @@ export default function GodModeLayout({ title, description, actions, children }:
                       active ? 'text-cyan-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
                     )}
                   >
-                    <Icon
-                      className={classNames(
-                        'h-5 w-5 transition-colors',
-                        active ? 'text-cyan-400' : 'text-slate-400'
-                      )}
-                      strokeWidth={1.8}
-                    />
+                    <ClayIcon icon={Icon} active={active} />
                     <span className="text-[10px] font-medium tracking-tight truncate max-w-[56px]">
                       {item.label}
                     </span>

@@ -1,0 +1,204 @@
+/* Blue glass palette shared by the public pages and all role workspaces. */
+:root {
+  --app-bg: #bdd5ed;
+  --app-surface: #dceafa;
+  --app-surface-soft: #cedff1;
+  --app-border: #8fb5d580;
+  --app-text: #122c4d;
+  --app-text-muted: #465f7c;
+  --glass-page: radial-gradient(ellipse at 8% 0%, #83bdea70, transparent 55%), radial-gradient(ellipse at 95% 65%, #77b8dc55, transparent 60%), linear-gradient(145deg, #c8def2, #acc8e4 55%, #c3dcec);
+  --glass-panel: linear-gradient(135deg, #edf6ffd6, #cde2f2b8);
+  --glass-chrome: linear-gradient(120deg, #dcecf5eb, #bcd7eceb);
+  --glass-field: #e4eff9db;
+  --clay-shadow: inset 0 1px 0 #ffffffa8, inset 0 -1px 0 #719abb30, 0 6px 20px #244e7720;
+}
+html.dark {
+  --app-bg: #142c45;
+  --app-surface: #203b56;
+  --app-surface-soft: #19334c;
+  --app-border: #75b2df38;
+  --app-text: #e7f2ff;
+  --app-text-muted: #b1c7dd;
+  --glass-page: radial-gradient(ellipse at 8% 0%, #27629670, transparent 55%), radial-gradient(ellipse at 95% 65%, #15607b45, transparent 60%), linear-gradient(145deg, #1b3552, #132a43 55%, #193c51);
+  --glass-panel: linear-gradient(135deg, #2d4f70d9, #19374edb);
+  --glass-chrome: linear-gradient(120deg, #24425bed, #16334ded);
+  --glass-field: #122e46e8;
+  --clay-shadow: inset 0 1px 0 #b1dcff26, inset 0 -1px 0 #06172740, 0 6px 20px #06152638;
+}
+html body,
+html :is(.loxer-workspace, .loxer-landing, .clay-hero) {
+  background: var(--glass-page);
+  color: var(--app-text);
+}
+html :is(.loxer-landing, .loxer-workspace) .gradient-hero {
+  background: var(--glass-page);
+}
+html :is(.loxer-workspace, .loxer-landing) :is(.bg-white, .bg-slate-950, [class*="bg-slate-900"], [class*="bg-slate-800"]).border,
+html :is(.clay-role-card, .clay-search-bar, .clay-floating-tag, .clay-floating-bottom, .clay-button-secondary) {
+  background: var(--glass-panel);
+  border-color: var(--app-border);
+  box-shadow: var(--clay-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  backdrop-filter: blur(14px) saturate(120%);
+}
+html:root:is(.dark, :not(.dark)) :is(.loxer-navbar, .loxer-mobile-nav, .loxer-bottom-nav, .loxer-mobile-menu, .loxer-footer),
+html:root:is(.dark, :not(.dark)) .loxer-workspace :is(.gradient-sidebar, nav[aria-label]) {
+  background: var(--glass-chrome) !important;
+  border-color: var(--app-border);
+  box-shadow: inset 0 1px 0 #ffffff20, 0 4px 18px #12375618;
+  -webkit-backdrop-filter: blur(20px) saturate(125%);
+  backdrop-filter: blur(20px) saturate(125%);
+}
+html .loxer-workspace :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+html .input-field {
+  background: var(--glass-field);
+  color: var(--app-text);
+  border-color: var(--app-border);
+  box-shadow: inset 0 1px 3px #193f6415;
+}
+html .loxer-workspace :is(input, textarea)::placeholder { color: var(--app-text-muted); opacity: 1; }
+html .loxer-workspace select option { background: var(--app-surface); color: var(--app-text); }
+html .loxer-workspace table tbody tr:nth-child(odd) { background: var(--glass-field) !important; }
+html .loxer-workspace table tbody tr:nth-child(even) { background: var(--app-surface-soft) !important; }
+html .loxer-workspace table tbody tr:hover { background: var(--app-surface) !important; }
+html:not(.dark) .loxer-workspace .bg-sky-50 { background: #c4ddef80; }
+html:not(.dark) .loxer-workspace [class*="from-slate-"] { background: var(--glass-panel); }
+html:not(.dark) .loxer-clay-icon-soft { background: linear-gradient(145deg, #dfedf9, #aacce5); border-color: #eff8ff; }
+@media (min-width: 768px) {
+  html .clay-preview-card { background: var(--glass-panel); border-color: var(--app-border); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html :is(.loxer-navbar, .loxer-mobile-nav, .loxer-bottom-nav, .loxer-mobile-menu, .loxer-footer, .clay-role-card, .clay-search-bar),
+  html .loxer-workspace .border { backdrop-filter: none; -webkit-backdrop-filter: none; background-color: var(--app-surface); }
+}
+
+/* Keep interactive controls legible and comfortable on touch screens. */
+html :is(.loxer-workspace, .loxer-landing) :is(input, select, textarea):focus-visible {
+  outline: 2px solid #0783cb;
+  outline-offset: 2px;
+}
+html.dark :is(.loxer-workspace, .loxer-landing) :is(input, select, textarea):focus-visible { outline-color: #71d6ff; }
+@media (max-width: 767px) {
+  .loxer-job-filters :is(input, select), .loxer-talent-filters select { min-height: 44px; }
+  .loxer-workspace input:not([type="checkbox"]):not([type="radio"]),
+  .loxer-workspace select, .loxer-workspace textarea { font-size: 16px; }
+  aside[aria-label="Notifikasi Mode Web"] > div { flex-wrap: wrap; }
+  aside[aria-label="Notifikasi Mode Web"] p { white-space: normal; overflow: visible; }
+  aside[aria-label="Notifikasi Mode Web"] button { min-height: 44px; min-width: 44px; }
+}
+
+html:not(.dark) .loxer-workspace :is(a, button).text-slate-950[class*="bg-gradient-to-"] { color: #122c4d; }
+
+html.dark .loxer-workspace button.bg-cyan-500.text-slate-950 { background: #24bbdc !important; color: #102c43; }
+
+/* Enhanced text contrast and legibility in light mode */
+html:not(.dark) .loxer-workspace :is(h1, h2, h3, h4):not([class*="text-gradient"]):not([class*="gradient-"]):not(.text-cyan-400):not(.text-sky-400) {
+  color: #0c2642;
+}
+html:not(.dark) .loxer-workspace :is(.border, [class*="bg-slate-"]) :is(a, p, span).text-white:not([class*="gradient-"]):not([class*="bg-gradient-"]) {
+  color: #0c2642;
+}
+html:not(.dark) .loxer-workspace .text-slate-400,
+html:not(.dark) .loxer-workspace .text-slate-500 {
+  color: #3b5674;
+}
+html:not(.dark) .loxer-workspace .text-slate-300 {
+  color: #244160;
+}
+html:not(.dark) .loxer-workspace :is([class*="bg-slate-950/60"], [class*="bg-slate-900/80"], [class*="bg-slate-900/50"], [class*="bg-white/5"], [class*="bg-white/[0.04]"]) {
+  background-color: var(--glass-field);
+  border-color: var(--app-border);
+}
+
+/* Light mode Navbar & Footer contrast */
+html:not(.dark) .loxer-navbar a.text-slate-300 {
+  color: #153457 !important;
+}
+html:not(.dark) .loxer-navbar a.text-slate-300:hover {
+  color: #007bc4 !important;
+}
+html:not(.dark) .loxer-navbar a.text-cyan-400 {
+  color: #006eb4 !important;
+}
+html:not(.dark) .loxer-footer {
+  color: var(--app-text);
+}
+html:not(.dark) .loxer-footer h4 {
+  color: #0c2642 !important;
+}
+html:not(.dark) .loxer-footer :is(p, a, span) {
+  color: #324e6c;
+}
+html:not(.dark) .loxer-footer a:hover {
+  color: #007bc4;
+}
+html:not(.dark) .loxer-footer .border-t {
+  border-color: var(--app-border);
+}
+
+/* Light mode Mobile Drawer */
+html:not(.dark) .loxer-mobile-menu {
+  color: var(--app-text);
+}
+html:not(.dark) .loxer-mobile-menu a,
+html:not(.dark) .loxer-mobile-menu button {
+  color: #122c4d;
+}
+html:not(.dark) .loxer-mobile-menu .text-slate-300,
+html:not(.dark) .loxer-mobile-menu .text-slate-400 {
+  color: #3b5a7a !important;
+}
+html:not(.dark) .loxer-mobile-menu .text-white {
+  color: #0e243e !important;
+}
+html:not(.dark) .loxer-mobile-menu .bg-white\/\[0\.04\] {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+  border-color: var(--app-border) !important;
+}
+html:not(.dark) .loxer-mobile-menu hr {
+  border-color: var(--app-border) !important;
+}
+
+/* Bottom Navigation labels contrast */
+html:not(.dark) :is(.loxer-mobile-nav, .loxer-bottom-nav) span.text-slate-400 {
+  color: #3d5c7c !important;
+}
+html:not(.dark) :is(.loxer-mobile-nav, .loxer-bottom-nav) span.text-slate-300 {
+  color: #1a3c5e !important;
+}
+html:not(.dark) :is(.loxer-mobile-nav, .loxer-bottom-nav) span:is(.text-cyan-300, .text-cyan-400) {
+  color: #026bb2 !important;
+  font-weight: 700;
+}
+
+/* Auth Modal glass support */
+html.dark .loxer-auth-modal {
+  background: var(--glass-panel) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+}
+html.dark .loxer-auth-modal :is(input, select, textarea) {
+  background: var(--glass-field) !important;
+  color: var(--app-text) !important;
+  border-color: var(--app-border) !important;
+}
+html.dark .loxer-auth-modal :is(h2, h3, label) {
+  color: var(--app-text) !important;
+}
+html:not(.dark) .loxer-auth-modal {
+  background: var(--glass-panel) !important;
+  border-color: var(--app-border) !important;
+  box-shadow: var(--clay-shadow) !important;
+}
+
+/* Dark mode active filters clarity */
+html.dark .loxer-workspace button.bg-sky-400.text-slate-950 {
+  background: #38bdf8 !important;
+  color: #082f49 !important;
+  font-weight: 700;
+}
+html.dark .loxer-workspace button.border.text-slate-400:hover {
+  color: #ffffff !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}

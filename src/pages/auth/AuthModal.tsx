@@ -440,7 +440,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
       <div className="fixed inset-0 bg-[#0F172A]/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel / Bottom Sheet */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-t-3xl sm:rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-sky-900/20 animate-fade-up pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="loxer-auth-modal relative w-full max-w-md max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-sky-900/20 animate-fade-up pb-[max(1rem,env(safe-area-inset-bottom))]">
         {/* Android Native Visual Drag Handle */}
         <div className="sm:hidden pt-3 pb-1 flex justify-center">
           <div className="bottom-sheet-handle" />

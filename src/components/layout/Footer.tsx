@@ -7,7 +7,7 @@ export default function Footer() {
   const { isUnlocked, handleTriggerClick, toastMessage, toastVisible, setToastVisible } = useAdminEasterEgg();
 
   return (
-    <footer className="bg-[#0F172A] text-slate-400">
+    <footer className="loxer-footer bg-[#0F172A] text-slate-400">
       <div className="w-full max-w-[min(100%,1920px)] mx-auto px-[clamp(16px,3vw,48px)] py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           <div className="col-span-1 md:col-span-1">
