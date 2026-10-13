@@ -32,6 +32,7 @@ import {
   ZoomIn,
   Scissors,
   Archive,
+  Camera,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
@@ -44,6 +45,7 @@ import ImageViewerModal from '../../components/ui/ImageViewerModal';
 import { openImageSafelyInNewTab } from '../../lib/imageViewerHelper';
 import { BulkSmartCvManager } from './BulkSmartCvManager';
 import { PdfDocumentSplitter } from './PdfDocumentSplitter';
+import { AdminRegeneratePhotoModal } from './AdminRegeneratePhotoModal';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -153,10 +155,12 @@ export function AdminTalentDetailModal({
   talent,
   onClose,
   onTogglePublish,
+  onOpenRegeneratePhoto,
 }: {
   talent: TalentMarketplacePost | null;
   onClose: () => void;
   onTogglePublish: (talent: TalentMarketplacePost) => void;
+  onOpenRegeneratePhoto?: (talent: TalentMarketplacePost) => void;
 }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [viewerImage, setViewerImage] = useState<{
@@ -245,6 +249,19 @@ export function AdminTalentDetailModal({
                   {talent.category}
                 </span>
               </div>
+              {onOpenRegeneratePhoto && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenRegeneratePhoto(talent);
+                  }}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-indigo-400/40 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 text-[11px] font-bold text-indigo-300 transition"
+                  title="Perbaiki atau ganti foto profil kandidat"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+                  <span>Regenerate Foto Profil</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -427,16 +444,29 @@ export function AdminTalentDetailModal({
 
         {/* Action Footer */}
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-white/10">
-          <button
-            onClick={() => onTogglePublish(talent)}
-            className={`rounded-xl border px-4 py-2 text-xs font-bold transition ${
-              isPublished
-                ? 'border-amber-400/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-                : 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-            }`}
-          >
-            {isPublished ? '✕ Nonaktifkan dari Bursa' : '✓ Terbitkan ke Bursa Publik'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onTogglePublish(talent)}
+              className={`rounded-xl border px-4 py-2 text-xs font-bold transition ${
+                isPublished
+                  ? 'border-amber-400/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                  : 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+              }`}
+            >
+              {isPublished ? '✕ Nonaktifkan dari Bursa' : '✓ Terbitkan ke Bursa Publik'}
+            </button>
+            {onOpenRegeneratePhoto && (
+              <button
+                type="button"
+                onClick={() => onOpenRegeneratePhoto(talent)}
+                className="rounded-xl border border-indigo-400/40 bg-indigo-500/15 hover:bg-indigo-500/25 px-3 py-2 text-xs font-bold text-indigo-300 transition flex items-center gap-1.5"
+                title="Regenerate atau perbaiki foto profil kandidat"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Regenerate Foto</span>
+              </button>
+            )}
+          </div>
 
           <button
             onClick={onClose}
@@ -477,7 +507,7 @@ export function AdminTalentCatalogSection({
   onToast: (type: ToastType, message: string) => void;
   onNavigateToSmartAdd: () => void;
 }) {
-  const { talents, loading, fetchTalents, togglePublish, deleteTalent } = useTalentCatalog(onToast);
+  const { talents, setTalents, loading, fetchTalents, togglePublish, deleteTalent } = useTalentCatalog(onToast);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
@@ -488,6 +518,14 @@ export function AdminTalentCatalogSection({
   const [previewTalent, setPreviewTalent] = useState<TalentMarketplacePost | null>(null);
   const [chatTalent, setChatTalent] = useState<TalentMarketplacePost | null>(null);
   const [showGalleryModal, setShowGalleryModal] = useState<boolean>(false);
+  const [regenerateTalent, setRegenerateTalent] = useState<TalentMarketplacePost | null>(null);
+
+  const handlePhotoRegenerated = (updatedTalent: TalentMarketplacePost) => {
+    setTalents((prev) => prev.map((t) => (t.id === updatedTalent.id ? updatedTalent : t)));
+    if (previewTalent && previewTalent.id === updatedTalent.id) {
+      setPreviewTalent(updatedTalent);
+    }
+  };
 
   const TALENT_CATEGORIES = [
     'Semua',
@@ -851,6 +889,18 @@ export function AdminTalentCatalogSection({
                         </button>
                       </div>
                     )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRegenerateTalent(talent);
+                      }}
+                      className="flex items-center gap-1 rounded-full bg-slate-950/85 hover:bg-cyan-600 border border-white/20 hover:border-cyan-400 px-2 py-0.5 text-[8px] sm:text-[9px] font-bold text-cyan-300 hover:text-white backdrop-blur-md shadow-md transition"
+                      title="Regenerate Foto Profil (Admin Exclusive)"
+                    >
+                      <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      <span className="hidden sm:inline">Regen Foto</span>
+                    </button>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[8px] sm:text-[9px] font-bold backdrop-blur-md shadow-sm ${
                         isPublished ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/50' : 'bg-slate-900/80 text-slate-300 border border-white/20'
@@ -922,14 +972,23 @@ export function AdminTalentCatalogSection({
                     )}
                   </div>
 
-                  {/* Mobile Actions Bar (1 column) */}
-                  <div className="sm:hidden pt-2 border-t border-slate-200 dark:border-white/10">
+                  {/* Mobile Actions Bar (2 buttons) */}
+                  <div className="sm:hidden pt-2 border-t border-slate-200 dark:border-white/10 flex items-center gap-1.5">
                     <button
                       onClick={() => setPreviewTalent(talent)}
-                      className="w-full flex items-center justify-center gap-1 rounded-lg bg-cyan-50 dark:bg-slate-800 border border-cyan-200 dark:border-white/10 hover:bg-cyan-100 dark:hover:bg-slate-700 py-1.5 text-[10px] font-bold text-cyan-700 dark:text-cyan-300 transition"
+                      className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-cyan-50 dark:bg-slate-800 border border-cyan-200 dark:border-white/10 hover:bg-cyan-100 dark:hover:bg-slate-700 py-1.5 text-[10px] font-bold text-cyan-700 dark:text-cyan-300 transition"
                     >
                       <Eye className="w-3 h-3" />
                       <span>Detail</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRegenerateTalent(talent)}
+                      className="flex items-center justify-center gap-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-500/40 py-1.5 px-2 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 transition"
+                      title="Regenerate Foto"
+                    >
+                      <Camera className="w-3 h-3" />
+                      <span>Regen</span>
                     </button>
                   </div>
 
@@ -942,6 +1001,15 @@ export function AdminTalentCatalogSection({
                       >
                         <Eye className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                         <span>Biodata</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setRegenerateTalent(talent)}
+                        className="flex items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 dark:bg-indigo-500/20 dark:hover:bg-indigo-500/30 p-1.5 text-indigo-700 dark:text-indigo-300 transition shadow-sm"
+                        title="Regenerate Foto Profil Kandidat (3D Pixar / Upload Baru)"
+                      >
+                        <Camera className="w-4 h-4" />
                       </button>
 
                       <button
@@ -1060,6 +1128,14 @@ export function AdminTalentCatalogSection({
                           Biodata
                         </button>
                         <button
+                          onClick={() => setRegenerateTalent(talent)}
+                          className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-500/20 transition flex items-center gap-1"
+                          title="Regenerate Foto Profil"
+                        >
+                          <Camera className="w-3 h-3" />
+                          <span>Regen</span>
+                        </button>
+                        <button
                           onClick={() => setChatTalent(talent)}
                           className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-500/20 transition flex items-center gap-1"
                           title="Buka Ruang Chat Otomatis"
@@ -1095,6 +1171,16 @@ export function AdminTalentCatalogSection({
         talent={previewTalent}
         onClose={() => setPreviewTalent(null)}
         onTogglePublish={togglePublish}
+        onOpenRegeneratePhoto={(t) => setRegenerateTalent(t)}
+      />
+
+      {/* Regenerate Profile Photo Modal (Admin Exclusive) */}
+      <AdminRegeneratePhotoModal
+        talent={regenerateTalent}
+        isOpen={Boolean(regenerateTalent)}
+        onClose={() => setRegenerateTalent(null)}
+        onSuccess={handlePhotoRegenerated}
+        onToast={onToast}
       />
 
       {/* Ruang Chat Otomatis Terproteksi */}

@@ -9,13 +9,32 @@ export type GenderType = 'female' | 'male';
 export const PIXAR_FEMALE_AVATARS = [
   '/avatars/pixar_female_1.jpg',
   '/avatars/pixar_female_2.jpg',
+  '/avatars/pixar_female_3.jpg',
   '/avatars/pixar_female_red_1.jpg',
 ] as const;
 
 export const PIXAR_MALE_AVATARS = [
   '/avatars/pixar_male_1.jpg',
   '/avatars/pixar_male_2.jpg',
+  '/avatars/pixar_male_3.jpg',
 ] as const;
+
+export interface PixarAvatarOption {
+  url: string;
+  gender: GenderType;
+  label: string;
+  tag: string;
+}
+
+export const ALL_PIXAR_AVATARS: PixarAvatarOption[] = [
+  { url: '/avatars/pixar_male_1.jpg', gender: 'male', label: 'Pria Profesional (Jas Hitam)', tag: 'Eksekutif' },
+  { url: '/avatars/pixar_male_2.jpg', gender: 'male', label: 'Pria Kasual (Kemeja Putih)', tag: 'Teknisi / Staff' },
+  { url: '/avatars/pixar_male_3.jpg', gender: 'male', label: 'Pria Modern (Jas Navy)', tag: 'Supervisor' },
+  { url: '/avatars/pixar_female_1.jpg', gender: 'female', label: 'Wanita Hijab (Blazer Formal)', tag: 'Administrasi' },
+  { url: '/avatars/pixar_female_2.jpg', gender: 'female', label: 'Wanita Profesional (Kemeja)', tag: 'Customer Service' },
+  { url: '/avatars/pixar_female_3.jpg', gender: 'female', label: 'Wanita Modern (Blazer Tosca)', tag: 'Officer' },
+  { url: '/avatars/pixar_female_red_1.jpg', gender: 'female', label: 'Wanita Enerjik (Blazer Merah)', tag: 'Sales / Frontliner' },
+];
 
 // Common female name indicators in Indonesia
 const FEMALE_NAME_KEYWORDS = [
