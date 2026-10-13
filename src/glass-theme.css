@@ -1,42 +1,68 @@
 /* Blue glass palette shared by the public pages and all role workspaces. */
 :root {
-  --app-bg: #bdd5ed;
-  --app-surface: #dceafa;
-  --app-surface-soft: #cedff1;
-  --app-border: #8fb5d580;
-  --app-text: #122c4d;
-  --app-text-muted: #465f7c;
-  --glass-page: radial-gradient(ellipse at 8% 0%, #83bdea70, transparent 55%), radial-gradient(ellipse at 95% 65%, #77b8dc55, transparent 60%), linear-gradient(145deg, #c8def2, #acc8e4 55%, #c3dcec);
-  --glass-panel: linear-gradient(135deg, #edf6ffd6, #cde2f2b8);
-  --glass-chrome: linear-gradient(120deg, #dcecf5eb, #bcd7eceb);
-  --glass-field: #e4eff9db;
-  --clay-shadow: inset 0 1px 0 #ffffffa8, inset 0 -1px 0 #719abb30, 0 6px 20px #244e7720;
+  --app-bg: #b8d7f4;
+  --app-surface: rgba(255, 255, 255, 0.90);
+  --app-surface-soft: rgba(235, 246, 255, 0.85);
+  --app-border: rgba(138, 182, 220, 0.60);
+  --app-text: #0b2542;
+  --app-text-muted: #3d5c7e;
+
+  /* Soothing, high-comfort blue atmospheric gradient with multi-point luminous orbs */
+  --glass-page:
+    radial-gradient(ellipse 65% 55% at 8% 5%, rgba(56, 189, 248, 0.45) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 92% 14%, rgba(14, 165, 233, 0.36) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 60% at 50% 90%, rgba(6, 182, 212, 0.32) 0%, transparent 65%),
+    radial-gradient(circle at 85% 72%, rgba(96, 165, 250, 0.28) 0%, transparent 50%),
+    linear-gradient(150deg, #cde4f9 0%, #b3d7f4 32%, #9ec9ee 68%, #badcf7 100%);
+
+  --glass-panel: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(235, 246, 255, 0.84) 100%);
+  --glass-chrome: linear-gradient(120deg, rgba(240, 248, 255, 0.95) 0%, rgba(215, 236, 252, 0.92) 100%);
+  --glass-field: rgba(244, 250, 255, 0.90);
+  --clay-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(90, 140, 185, 0.25), 0 8px 24px rgba(18, 60, 98, 0.12);
 }
 html.dark {
-  --app-bg: #142c45;
-  --app-surface: #203b56;
-  --app-surface-soft: #19334c;
-  --app-border: #75b2df38;
-  --app-text: #e7f2ff;
-  --app-text-muted: #b1c7dd;
-  --glass-page: radial-gradient(ellipse at 8% 0%, #27629670, transparent 55%), radial-gradient(ellipse at 95% 65%, #15607b45, transparent 60%), linear-gradient(145deg, #1b3552, #132a43 55%, #193c51);
-  --glass-panel: linear-gradient(135deg, #2d4f70d9, #19374edb);
-  --glass-chrome: linear-gradient(120deg, #24425bed, #16334ded);
-  --glass-field: #122e46e8;
-  --clay-shadow: inset 0 1px 0 #b1dcff26, inset 0 -1px 0 #06172740, 0 6px 20px #06152638;
+  --app-bg: #071220;
+  --app-surface: rgba(18, 36, 60, 0.88);
+  --app-surface-soft: rgba(12, 26, 45, 0.90);
+  --app-border: rgba(100, 175, 230, 0.26);
+  --app-text: #eaf3ff;
+  --app-text-muted: #9ebbdb;
+
+  /* Deep oceanic midnight blue with luminous cyan/azure cosmic depth */
+  --glass-page:
+    radial-gradient(ellipse 65% 55% at 8% 5%, rgba(14, 165, 233, 0.26) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 92% 14%, rgba(3, 105, 161, 0.30) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 60% at 50% 90%, rgba(6, 182, 212, 0.20) 0%, transparent 65%),
+    radial-gradient(circle at 85% 72%, rgba(37, 99, 235, 0.20) 0%, transparent 50%),
+    linear-gradient(150deg, #06111f 0%, #0a1b32 35%, #071526 70%, #0d233e 100%);
+
+  --glass-panel: linear-gradient(135deg, rgba(20, 39, 64, 0.90) 0%, rgba(12, 25, 43, 0.88) 100%);
+  --glass-chrome: linear-gradient(120deg, rgba(22, 42, 68, 0.95) 0%, rgba(14, 29, 49, 0.92) 100%);
+  --glass-field: rgba(11, 23, 40, 0.90);
+  --clay-shadow: inset 0 1px 0 rgba(177, 220, 255, 0.18), inset 0 -1px 0 rgba(5, 15, 28, 0.50), 0 8px 24px rgba(3, 10, 20, 0.45);
 }
-html body,
+html body {
+  background: var(--glass-page) !important;
+  background-attachment: fixed !important;
+  background-size: 100% 100% !important;
+  color: var(--app-text);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
 html :is(.loxer-workspace, .loxer-landing, .clay-hero) {
-  background: var(--glass-page);
+  background: transparent !important;
   color: var(--app-text);
 }
+html :is(.loxer-workspace, .loxer-landing) :is(.bg-sky-50, .bg-slate-950:not(.border):not(aside)) {
+  background-color: transparent !important;
+}
 html :is(.loxer-landing, .loxer-workspace) .gradient-hero {
-  background: var(--glass-page);
+  background: transparent !important;
 }
 html :is(.loxer-workspace, .loxer-landing) :is(.bg-white, .bg-slate-950, [class*="bg-slate-900"], [class*="bg-slate-800"]).border,
 html :is(.clay-role-card, .clay-search-bar, .clay-floating-tag, .clay-floating-bottom, .clay-button-secondary) {
-  background: var(--glass-panel);
-  border-color: var(--app-border);
+  background: var(--glass-panel) !important;
+  border-color: var(--app-border) !important;
   box-shadow: var(--clay-shadow);
   -webkit-backdrop-filter: blur(14px) saturate(120%);
   backdrop-filter: blur(14px) saturate(120%);

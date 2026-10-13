@@ -17,7 +17,7 @@
   --gradient-sidebar: linear-gradient(180deg, #0F172A 0%, #0C2A4A 60%, #0369A1 100%);
   --gradient-badge: linear-gradient(90deg, #22D3EE, #0EA5E9);
   --gradient-subtle: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
-  --app-bg: #f0f9ff;
+  --app-bg: #b8d7f4;
   --app-surface: #ffffff;
   --app-surface-soft: #f8fafc;
   --app-border: #dbeafe;
@@ -31,7 +31,7 @@
 .dark {
   --gradient-hero: linear-gradient(135deg, #020617 0%, #0f172a 45%, #155e75 100%);
   --gradient-subtle: linear-gradient(135deg, #0F172A 0%, #111827 100%);
-  --app-bg: #020617;
+  --app-bg: #071220;
   --app-surface: #0f172a;
   --app-surface-soft: #111827;
   --app-border: rgba(148, 163, 184, 0.22);
@@ -72,7 +72,9 @@ pre, code {
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
-  background: var(--app-bg);
+  background: var(--glass-page, var(--app-bg));
+  background-attachment: fixed;
+  background-size: 100% 100%;
   color: var(--app-text);
   transition: background-color 200ms ease, color 200ms ease;
   min-height: 100vh;
