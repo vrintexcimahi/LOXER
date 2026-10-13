@@ -462,76 +462,6 @@ export function getLocalDb() {
         CREATE INDEX IF NOT EXISTS idx_jasa_ads_user ON jasa_ads(user_id);
       `);
 
-      const countRow = dbInstance.prepare('SELECT COUNT(*) as cnt FROM jasa_ads').get();
-      if (!countRow || countRow.cnt === 0) {
-        const anyUser = dbInstance.prepare('SELECT id FROM users LIMIT 1').get();
-        if (anyUser) {
-          const insertStmt = dbInstance.prepare(`
-            INSERT INTO jasa_ads (id, user_id, title, category, description, price, price_type, city, whatsapp, status, views_count, rating, review_count, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-          `);
-          insertStmt.run(
-            'ad-jasa-001',
-            anyUser.id,
-            'Jasa Service & Cuci AC Panggilan Cepat Bergaransi',
-            'Teknik & Pertukangan',
-            'Melayani cuci AC, perbaikan AC bocor, tambah freon R32/R410/R22, dan bongkar pasang AC semua merk. Teknisi berpengalaman dan bergaransi.',
-            75000,
-            'fixed',
-            'Bandung & Cimahi',
-            '081234567890',
-            'active',
-            142,
-            4.9,
-            28
-          );
-          insertStmt.run(
-            'ad-jasa-002',
-            anyUser.id,
-            'Jasa Desain Grafis Profesional (Logo, Brosur, Sosmed)',
-            'Desain & Multimedia',
-            'Pembuatan desain logo branding UMKM/Perusahaan, banner promosi, feed Instagram, kartu nama, dan kemasan produk. Revisi fleksibel sampai puas.',
-            150000,
-            'nego',
-            'Jakarta Selatan',
-            '081987654321',
-            'active',
-            320,
-            5.0,
-            45
-          );
-          insertStmt.run(
-            'ad-jasa-003',
-            anyUser.id,
-            'Jasa Pembuatan Website Company Profile & Toko Online',
-            'Teknologi & IT',
-            'Website modern, responsif mobile, cepat, dan SEO-friendly. Sudah termasuk hosting, domain .com 1 tahun, dan integrasi WhatsApp CS.',
-            850000,
-            'fixed',
-            'Surabaya',
-            '082133445566',
-            'active',
-            215,
-            4.8,
-            19
-          );
-          insertStmt.run(
-            'ad-jasa-004',
-            anyUser.id,
-            'Jasa Instalasi & Perbaikan Listrik Rumah / Kantor',
-            'Teknik & Pertukangan',
-            'Pemasangan instalasi kabel baru, tambah titik lampu/stop kontak, perbaikan konsleting listrik, dan perapihan panel MCB.',
-            50000,
-            'hourly',
-            'Bekasi',
-            '085678901234',
-            'pending',
-            48,
-            4.7,
-            8
-          );
-        }
-      }
     } catch (e) {
       console.warn('[localDb] jasa_ads setup notice:', e.message);
     }
@@ -590,62 +520,6 @@ export function getLocalDb() {
         CREATE INDEX IF NOT EXISTS idx_mp_tx_seller ON marketplace_transactions(seller_id);
       `);
 
-      const mpCount = dbInstance.prepare('SELECT COUNT(*) as cnt FROM marketplace_products').get();
-      if (!mpCount || mpCount.cnt === 0) {
-        const anyUser = dbInstance.prepare('SELECT id FROM users LIMIT 1').get();
-        const userId = anyUser?.id || 'usr-demo-dev-1';
-        const insProduct = dbInstance.prepare(`
-          INSERT INTO marketplace_products (
-            id, user_id, seller_name, seller_role, seller_verified, seller_whatsapp, seller_city,
-            title, category, sub_category, condition, price, price_type, images, description, stock,
-            status, digital_download_url, views_count, likes_count, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-        `);
-        insProduct.run(
-          'prod-dig-1',
-          userId,
-          'Arifin Ahmad (Dev)',
-          'freelancer',
-          1,
-          '6281234567801',
-          'Bandung',
-          'Source Code Aplikasi Kasir & POS Multi-Cabang (React + Node.js)',
-          'digital',
-          'Source Code & Script',
-          'Digital',
-          450000,
-          'nego',
-          JSON.stringify(['https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80']),
-          'Source code lengkap aplikasi POS Kasir & Inventaris toko siap pakai. Fitur cetak struk bluetooth, laporan penjualan harian/bulanan, stok barang otomatis, barcode scanner, dan dashboard admin modern. Include dokumentasi instalasi lengkap.',
-          99,
-          'available',
-          'https://github.com/vrintexcimahi/LOXER',
-          342,
-          58
-        );
-        insProduct.run(
-          'prod-sec-1',
-          userId,
-          'PT Vrintex Asset IT',
-          'employer',
-          1,
-          '6281234567802',
-          'Jakarta Selatan',
-          'MacBook Pro M1 2020 RAM 16GB SSD 512GB Space Grey Like New',
-          'second',
-          'Laptop & Komputer',
-          'Sekon (Second)',
-          11500000,
-          'nego',
-          JSON.stringify(['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80']),
-          'Eks pemakaian kantor divisi design & tech. Body 98% mulus tanpa dent/penyok, battery health 91% (Normal cycle count rendah), layar jernih TrueTone aktif, iCloud aman bebas reset. Kelengkapan unit + charger original Type-C 61W.',
-          2,
-          'available',
-          null,
-          812,
-          94
-        );
-      }
     } catch (e) {
       console.warn('[localDb] marketplace tables setup notice:', e.message);
     }

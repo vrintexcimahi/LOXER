@@ -119,7 +119,7 @@ function PenyediaJasaTab({ adminId, adminEmail, onToast }: { adminId: string; ad
       let query = supabase
         .from('users_meta')
         .select('id, email, role, is_banned, created_at', { count: 'exact' })
-        .in('role', ['freelancer', 'seeker'])
+        .eq('role', 'freelancer')
         .order('created_at', { ascending: false })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
       if (statusFilter === 'active') query = query.eq('is_banned', false);

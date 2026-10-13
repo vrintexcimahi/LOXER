@@ -90,20 +90,10 @@ export default async function handler(req, res) {
     const cleanName = String(full_name).trim();
     const now = new Date().toISOString();
     
-    // Fitur Smart Add CV TIDAK otomatis menambahkan akun user baru ke users/users_meta.
-    // Jika kandidat sudah mendaftar mandiri sebelumnya dengan email yang sama, hubungkan ID-nya.
-    let candidateUserId = null;
-    if (email && String(email).includes('@')) {
-      const cleanEmail = String(email).trim().toLowerCase();
-      const { data: existingUser } = await adminClient
-        .from('users_meta')
-        .select('id')
-        .ilike('email', cleanEmail)
-        .maybeSingle();
-      if (existingUser?.id) {
-        candidateUserId = existingUser.id;
-      }
-    }
+    // Kebijakan LOXER: Fitur Smart Add CV HANYA menerbitkan profil & postingan ke Bursa Talent LOXER.
+    // TIDAK otomatis menambahkan akun user baru ke tabel users atau users_meta.
+    // Data user terdaftar murni khusus untuk pengguna yang mendaftar mandiri / manual.
+    const candidateUserId = null;
 
     const candidateSeekerId = `skr_cv_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
