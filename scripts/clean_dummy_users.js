@@ -31,13 +31,6 @@ if (dummyIds.length > 0) {
   db.execute(`UPDATE talent_marketplace_posts SET user_id = NULL WHERE user_id IN (${placeholders})`, dummyIds);
   console.log('✔ talent_marketplace_posts user_id unlinked (set to NULL).');
 
-  // 3. Remove dummy ads & marketplace products
-  db.execute(`DELETE FROM jasa_ads WHERE id LIKE 'ad-jasa-%' OR user_id IN (${placeholders})`, dummyIds);
-  console.log('✔ Dummy jasa_ads purged.');
-
-  db.execute(`DELETE FROM marketplace_products WHERE id LIKE 'prod-%' OR user_id IN (${placeholders})`, dummyIds);
-  console.log('✔ Dummy marketplace_products purged.');
-
   // 4. Delete from users_meta and users
   db.execute(`DELETE FROM users_meta WHERE id IN (${placeholders})`, dummyIds);
   console.log('✔ users_meta records deleted.');
@@ -45,6 +38,13 @@ if (dummyIds.length > 0) {
   db.execute(`DELETE FROM users WHERE id IN (${placeholders})`, dummyIds);
   console.log('✔ users records deleted.');
 }
+
+// 3. Remove dummy ads & marketplace products
+db.execute("DELETE FROM jasa_ads WHERE id LIKE 'ad-jasa-%'");
+console.log('✔ Dummy jasa_ads purged.');
+
+db.execute("DELETE FROM marketplace_products WHERE id LIKE 'prod-%'");
+console.log('✔ Dummy marketplace_products purged.');
 
 console.log('\n=== POST-CLEANUP USERS COUNT ===');
 const postUsers = db.queryAll('SELECT id, email, role FROM users_meta');
