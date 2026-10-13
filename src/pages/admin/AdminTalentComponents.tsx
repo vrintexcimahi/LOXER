@@ -781,31 +781,41 @@ export function AdminTalentCatalogSection({
             return (
               <div
                 key={talent.id}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-white/10 bg-slate-900/80 hover:border-cyan-500/40 hover:bg-slate-900 shadow-md sm:shadow-lg shadow-black/40 transition-all duration-300"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/80 hover:border-cyan-500/50 hover:shadow-xl dark:hover:bg-slate-900 shadow-sm sm:shadow-md transition-all duration-300"
               >
-                {/* 1:1 Aspect Ratio Photo Header */}
-                <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-1.5 sm:p-3">
+                {/* 1:1 Aspect Ratio Photo Header (Full-bleed top) */}
+                <div className="relative aspect-square w-full overflow-hidden bg-slate-950">
                   <img
                     src={displayPhoto || getDefaultPixarAvatar(fullName, undefined, talent.bio)}
                     alt={fullName}
-                    className="h-full w-full object-cover object-center rounded-lg sm:rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = getDefaultPixarAvatar(fullName, undefined, talent.bio);
                     }}
                   />
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none rounded-lg sm:rounded-2xl m-1.5 sm:m-3" />
+                  {/* Scrim Overlay: Inline gradient prevents theme light/dark CSS selector collisions */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: 'linear-gradient(to top, rgba(2, 6, 23, 0.90) 0%, rgba(2, 6, 23, 0.45) 32%, rgba(2, 6, 23, 0.05) 60%, transparent 100%)',
+                    }}
+                  />
 
                   {/* Top Badges */}
-                  <div className="absolute left-2 sm:left-5 top-2 sm:top-5 flex items-center gap-1">
+                  <div className="absolute left-2.5 sm:left-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-10">
                     <span
-                      className={`rounded border px-1 sm:px-2 py-0.2 sm:py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider backdrop-blur-md truncate max-w-[90px] sm:max-w-none ${badgeTheme}`}
+                      className={`rounded-md border px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider backdrop-blur-md shadow-sm truncate max-w-[95px] sm:max-w-none ${badgeTheme}`}
+                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
                     >
                       {talent.badge || 'SIAP KERJA'}
                     </span>
                     {Boolean(talent.availability) && (
-                      <span className="hidden sm:flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md">
+                      <span
+                        className="hidden sm:flex items-center gap-1 rounded-md border border-emerald-400/50 bg-emerald-950/80 px-2 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md shadow-sm"
+                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+                      >
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         {AVAILABILITY_LABELS[talent.availability] || talent.availability}
                       </span>
@@ -813,17 +823,17 @@ export function AdminTalentCatalogSection({
                   </div>
 
                   {/* Top Right: Verified / Publish indicator + Mode Switcher */}
-                  <div className="absolute right-2 sm:right-5 top-2 sm:top-5 flex items-center gap-1 z-10">
+                  <div className="absolute right-2.5 sm:right-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-10">
                     {hasCvImage && (
                       <div
-                        className="flex items-center gap-0.5 rounded-lg bg-slate-950/85 p-0.5 border border-white/15 backdrop-blur-md shadow-lg"
+                        className="flex items-center gap-0.5 rounded-lg bg-black/80 p-0.5 border border-white/20 backdrop-blur-md shadow-md"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
                           type="button"
                           onClick={() => setCardImageMode((prev) => ({ ...prev, [talent.id]: 'photo' }))}
                           className={`px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold rounded transition ${
-                            currentMode === 'photo' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                            currentMode === 'photo' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
                           }`}
                           title="Tampilkan Pas Foto"
                         >
@@ -833,7 +843,7 @@ export function AdminTalentCatalogSection({
                           type="button"
                           onClick={() => setCardImageMode((prev) => ({ ...prev, [talent.id]: 'cv' }))}
                           className={`px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold rounded transition ${
-                            currentMode === 'cv' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                            currentMode === 'cv' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
                           }`}
                           title="Tampilkan Berkas CV Full (Kontak Diblur)"
                         >
@@ -842,38 +852,45 @@ export function AdminTalentCatalogSection({
                       </div>
                     )}
                     <span
-                      className={`rounded-full px-1.5 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-bold backdrop-blur-md ${
-                        isPublished ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/40' : 'bg-slate-800/80 text-slate-400 border border-white/10'
+                      className={`rounded-full px-2 py-0.5 text-[8px] sm:text-[9px] font-bold backdrop-blur-md shadow-sm ${
+                        isPublished ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/50' : 'bg-slate-900/80 text-slate-300 border border-white/20'
                       }`}
+                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
                     >
                       {isPublished ? 'Tayang' : 'Draft'}
                     </span>
                   </div>
 
-                  {/* Category & City Bar */}
-                  <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-5 right-2 sm:right-5 flex items-center justify-between text-[8px] sm:text-[10px] font-semibold text-slate-300 gap-1">
-                    <span className="truncate max-w-[85px] sm:max-w-[120px] rounded bg-slate-950/70 border border-white/10 px-1 sm:px-2 py-0.2 sm:py-0.5 backdrop-blur-md">
+                  {/* Category & City Bar: Protected dark-glass pill over the bottom gradient scrim */}
+                  <div className="absolute bottom-2.5 sm:bottom-3 left-2.5 sm:left-3.5 right-2.5 sm:right-3.5 flex items-center justify-between text-[9px] sm:text-[10px] font-semibold gap-1 z-10">
+                    <span
+                      className="truncate max-w-[110px] sm:max-w-[140px] rounded-md bg-slate-950/85 border border-white/20 px-2 py-0.5 backdrop-blur-md shadow-sm"
+                      style={{ color: '#a5f3fc', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                    >
                       {talent.category}
                     </span>
-                    <span className="flex items-center gap-0.5 sm:gap-1 rounded bg-slate-950/70 border border-white/10 px-1 sm:px-2 py-0.2 sm:py-0.5 backdrop-blur-md truncate">
-                      <MapPin className="w-2 h-2 sm:w-3 sm:h-3 text-cyan-400 shrink-0" />
+                    <span
+                      className="flex items-center gap-1 rounded-md bg-slate-950/85 border border-white/20 px-2 py-0.5 backdrop-blur-md shadow-sm truncate"
+                      style={{ color: '#e2e8f0', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                    >
+                      <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-400 shrink-0" />
                       <span className="truncate">{talent.domicile_city || 'Cimahi'}</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Card Content */}
-                <div className="p-2 sm:p-4 space-y-1 sm:space-y-2.5 flex-1 flex flex-col justify-between">
+                <div className="p-3 sm:p-4 space-y-2 sm:space-y-2.5 flex-1 flex flex-col justify-between">
                   <div>
-                    <h3 className="text-xs sm:text-sm font-black uppercase tracking-tight sm:tracking-wide text-white group-hover:text-cyan-300 transition truncate">
+                    <h3 className="text-xs sm:text-sm font-black uppercase tracking-tight sm:tracking-wide text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition truncate">
                       {fullName}
                     </h3>
-                    <p className="text-[10px] sm:text-xs text-slate-300 line-clamp-1 mt-0.5 font-medium">{talent.headline}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-300 line-clamp-1 mt-0.5 font-medium">{talent.headline}</p>
 
                     {/* Salary / Rate */}
-                    <div className="mt-1 sm:mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-md sm:rounded-xl bg-slate-950/60 border border-white/5 px-1.5 py-0.5 sm:px-2.5 sm:py-1.5">
-                      <span className="text-[8px] sm:text-[10px] text-slate-400 uppercase font-bold">Tarif:</span>
-                      <span className="text-[9px] sm:text-xs font-black text-cyan-400 truncate">
+                    <div className="mt-1.5 sm:mt-2 flex items-center justify-between rounded-lg sm:rounded-xl bg-slate-100/90 dark:bg-slate-950/60 border border-slate-200/90 dark:border-white/5 px-2 py-1 sm:px-2.5 sm:py-1.5">
+                      <span className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Tarif:</span>
+                      <span className="text-[10px] sm:text-xs font-black text-cyan-700 dark:text-cyan-400 truncate">
                         {talent.expected_salary > 0
                           ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
                           : '-'}
@@ -881,7 +898,7 @@ export function AdminTalentCatalogSection({
                     </div>
 
                     {/* Bio snippet (Desktop only) */}
-                    <p className="hidden sm:block mt-2 text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                    <p className="hidden sm:block mt-2 text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
                       {talent.bio || talent.bio_summary || 'Tidak ada deskripsi bio yang dicantumkan.'}
                     </p>
 
@@ -891,13 +908,13 @@ export function AdminTalentCatalogSection({
                         {parsedSkills.slice(0, 3).map((skill, idx) => (
                           <span
                             key={idx}
-                            className="rounded-md border border-white/10 bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-300"
+                            className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-100/90 dark:bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-300"
                           >
                             {skill}
                           </span>
                         ))}
                         {parsedSkills.length > 3 && (
-                          <span className="rounded-md border border-white/5 bg-slate-900 px-1.5 py-0.5 text-[9px] text-slate-400">
+                          <span className="rounded-md border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 text-[9px] text-slate-500 dark:text-slate-400">
                             +{parsedSkills.length - 3}
                           </span>
                         )}
@@ -906,10 +923,10 @@ export function AdminTalentCatalogSection({
                   </div>
 
                   {/* Mobile Actions Bar (1 column) */}
-                  <div className="sm:hidden pt-1 border-t border-white/10">
+                  <div className="sm:hidden pt-2 border-t border-slate-200 dark:border-white/10">
                     <button
                       onClick={() => setPreviewTalent(talent)}
-                      className="w-full flex items-center justify-center gap-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 py-1.5 text-[10px] font-bold text-cyan-300 transition"
+                      className="w-full flex items-center justify-center gap-1 rounded-lg bg-cyan-50 dark:bg-slate-800 border border-cyan-200 dark:border-white/10 hover:bg-cyan-100 dark:hover:bg-slate-700 py-1.5 text-[10px] font-bold text-cyan-700 dark:text-cyan-300 transition"
                     >
                       <Eye className="w-3 h-3" />
                       <span>Detail</span>
@@ -917,20 +934,20 @@ export function AdminTalentCatalogSection({
                   </div>
 
                   {/* Desktop Actions Bar */}
-                  <div className="hidden sm:block pt-3 border-t border-white/10 space-y-2">
+                  <div className="hidden sm:block pt-3 border-t border-slate-200 dark:border-white/10 space-y-2">
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setPreviewTalent(talent)}
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-slate-800/90 hover:bg-slate-700 py-1.5 text-xs font-bold text-white transition"
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 py-1.5 text-xs font-bold text-slate-800 dark:text-white transition shadow-sm"
                       >
-                        <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                        <Eye className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                         <span>Biodata</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setChatTalent(talent)}
-                        className="flex items-center justify-center rounded-xl border border-cyan-500/40 bg-cyan-500/20 hover:bg-cyan-500/30 p-1.5 text-cyan-300 transition"
+                        className="flex items-center justify-center rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 dark:bg-cyan-500/20 dark:hover:bg-cyan-500/30 p-1.5 text-cyan-700 dark:text-cyan-300 transition shadow-sm"
                         title="Buka Ruang Chat Otomatis (Shopee-Grade)"
                       >
                         <MessageSquare className="w-4 h-4" />
@@ -938,10 +955,10 @@ export function AdminTalentCatalogSection({
 
                       <button
                         onClick={() => togglePublish(talent)}
-                        className={`rounded-xl border p-1.5 transition ${
+                        className={`rounded-xl border p-1.5 transition shadow-sm ${
                           isPublished
-                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-                            : 'border-slate-700 bg-slate-800 text-slate-400 hover:text-white'
+                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                            : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                         title={isPublished ? 'Nonaktifkan dari bursa publik' : 'Aktifkan ke bursa publik'}
                       >
@@ -950,7 +967,7 @@ export function AdminTalentCatalogSection({
 
                       <button
                         onClick={() => deleteTalent(talent.id, fullName)}
-                        className="rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 p-1.5 text-rose-300 transition"
+                        className="rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 p-1.5 text-rose-600 dark:text-rose-300 transition shadow-sm"
                         title="Hapus talent"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -966,9 +983,9 @@ export function AdminTalentCatalogSection({
 
       {/* TABLE VIEW */}
       {!loading && viewMode === 'table' && filteredTalents.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-900 shadow-xl">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl">
           <table className="w-full text-sm">
-            <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-white/10">
+            <thead className="bg-slate-100 dark:bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/10">
               <tr>
                 <th className="px-4 py-3 text-left">Foto & Nama</th>
                 <th className="px-4 py-3 text-left">Posisi / Headline</th>
@@ -979,7 +996,7 @@ export function AdminTalentCatalogSection({
                 <th className="px-4 py-3 text-left">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-slate-300 text-xs">
+            <tbody className="divide-y divide-slate-200 dark:divide-white/5 text-slate-700 dark:text-slate-300 text-xs">
               {filteredTalents.map((talent, idx) => {
                 const fullName = talent.seeker_profiles?.full_name || talent.headline.split(' / ')[0] || 'Kandidat';
                 const photoUrl = talent.photo_url || talent.seeker_profiles?.photo_url;
@@ -989,12 +1006,14 @@ export function AdminTalentCatalogSection({
                   <tr
                     key={talent.id}
                     className={`transition-colors ${
-                      idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                      idx % 2 === 0
+                        ? 'bg-slate-50/70 hover:bg-cyan-50/70 dark:bg-[#0b1329] dark:hover:bg-[#1e2c4d]'
+                        : 'bg-white hover:bg-cyan-50/70 dark:bg-[#162038] dark:hover:bg-[#1e2c4d]'
                     }`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-slate-800 border border-white/10">
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-white/10">
                           <img
                             src={photoUrl || getDefaultPixarAvatar(fullName, undefined, talent.bio)}
                             alt={fullName}
@@ -1005,17 +1024,17 @@ export function AdminTalentCatalogSection({
                           />
                         </div>
                         <div>
-                          <p className="font-bold text-white uppercase">{fullName}</p>
-                          <span className="text-[10px] text-cyan-400 font-semibold">{talent.badge || 'SIAP KERJA'}</span>
+                          <p className="font-bold text-slate-900 dark:text-white uppercase">{fullName}</p>
+                          <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-semibold">{talent.badge || 'SIAP KERJA'}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-200">{talent.headline}</td>
+                    <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200">{talent.headline}</td>
                     <td className="px-4 py-3">
-                      <p className="text-white">{talent.category}</p>
-                      <p className="text-slate-400 text-[11px]">{talent.domicile_city || 'Cimahi'}</p>
+                      <p className="text-slate-900 dark:text-white">{talent.category}</p>
+                      <p className="text-slate-500 dark:text-slate-400 text-[11px]">{talent.domicile_city || 'Cimahi'}</p>
                     </td>
-                    <td className="px-4 py-3 font-semibold text-slate-300">
+                    <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-300">
                       {talent.expected_salary > 0
                         ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} / bln`
                         : '-'}

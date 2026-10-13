@@ -88,7 +88,7 @@ html .loxer-workspace table tbody tr:nth-child(odd) { background: var(--glass-fi
 html .loxer-workspace table tbody tr:nth-child(even) { background: var(--app-surface-soft) !important; }
 html .loxer-workspace table tbody tr:hover { background: var(--app-surface) !important; }
 html:not(.dark) .loxer-workspace .bg-sky-50 { background: #c4ddef80; }
-html:not(.dark) .loxer-workspace [class*="from-slate-"] { background: var(--glass-panel); }
+html:not(.dark) .loxer-workspace [class*="from-slate-"]:not([class*="bg-gradient-"]):not(.pointer-events-none) { background: var(--glass-panel); }
 html:not(.dark) .loxer-clay-icon-soft { background: linear-gradient(145deg, #dfedf9, #aacce5); border-color: #eff8ff; }
 @media (min-width: 768px) {
   html .clay-preview-card { background: var(--glass-panel); border-color: var(--app-border); }

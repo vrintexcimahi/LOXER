@@ -54,16 +54,16 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
     <div
       className={`group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 ${
         featured
-          ? 'border-cyan-400/50 bg-gradient-to-b from-slate-900/95 via-slate-900 to-slate-950 shadow-md sm:shadow-xl shadow-cyan-500/10 hover:shadow-cyan-500/20'
-          : 'border-white/10 bg-slate-900/80 hover:border-cyan-500/40 hover:bg-slate-900 shadow-md sm:shadow-lg shadow-black/40'
+          ? 'border-cyan-400/50 bg-white/95 dark:bg-gradient-to-b dark:from-slate-900/95 dark:via-slate-900 dark:to-slate-950 shadow-md sm:shadow-xl shadow-cyan-500/10 hover:shadow-cyan-500/20'
+          : 'border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/80 hover:border-cyan-500/50 hover:shadow-xl dark:hover:bg-slate-900 shadow-sm sm:shadow-md'
       }`}
     >
-      {/* 1:1 Aspect Ratio Photo Header (Ratio 1:1) */}
-      <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-1.5 sm:p-3">
+      {/* 1:1 Aspect Ratio Photo Header (Full-bleed top) */}
+      <div className="relative aspect-square w-full overflow-hidden bg-slate-950">
         <img
           src={currentDisplayUrl || getDefaultPixarAvatar(fullName, undefined, talent.bio)}
           alt={fullName}
-          className={`h-full w-full rounded-lg sm:rounded-2xl opacity-90 transition-transform duration-500 group-hover:scale-105 ${
+          className={`h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105 ${
             activeMedia === 'cv' ? 'object-contain bg-slate-950/90' : 'object-cover object-center'
           }`}
           loading="lazy"
@@ -72,15 +72,27 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
           }}
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none rounded-lg sm:rounded-2xl m-1.5 sm:m-3" />
+        {/* Scrim Overlay: Inline gradient prevents theme light/dark CSS selector collisions */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to top, rgba(2, 6, 23, 0.90) 0%, rgba(2, 6, 23, 0.45) 32%, rgba(2, 6, 23, 0.05) 60%, transparent 100%)',
+          }}
+        />
 
         {/* Top Badges */}
-        <div className="absolute left-2.5 sm:left-5 top-2.5 sm:top-5 flex items-center gap-1 z-10">
-          <span className={`rounded border px-1 sm:px-2 py-0.2 sm:py-0.5 text-[7px] sm:text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md truncate max-w-[65px] sm:max-w-none ${badgeTheme}`}>
+        <div className="absolute left-2.5 sm:left-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-10">
+          <span
+            className={`rounded-md border px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider backdrop-blur-md shadow-sm truncate max-w-[95px] sm:max-w-none ${badgeTheme}`}
+            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+          >
             {talent.badge || 'SIAP KERJA'}
           </span>
           {Boolean(talent.availability) && (
-            <span className="hidden sm:flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md">
+            <span
+              className="hidden sm:flex items-center gap-1 rounded-md border border-emerald-400/50 bg-emerald-950/80 px-2 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md shadow-sm"
+              style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+            >
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {AVAILABILITY_LABELS[talent.availability] || talent.availability}
             </span>
@@ -88,7 +100,7 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
         </div>
 
         {/* Pin / Verified Icon & Media Switcher */}
-        <div className="absolute right-2.5 sm:right-5 top-2.5 sm:top-5 flex items-center gap-1 z-20">
+        <div className="absolute right-2.5 sm:right-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-20">
           {Boolean(talent.portfolio_url) && (
             <div className="flex items-center bg-black/80 backdrop-blur-md rounded-lg p-0.5 border border-white/20 shadow-sm mr-1">
               <button
@@ -124,22 +136,28 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
             </div>
           )}
           {featured ? (
-            <div className="flex h-4 w-4 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 shadow-md">
-              <Pin className="h-2 w-2 sm:h-3 sm:w-3" />
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 shadow-md">
+              <Pin className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
             </div>
           ) : (
-            <div className="flex h-4 w-4 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-slate-900/60 border border-white/20 text-slate-300">
-              <ShieldCheck className="h-2 w-2 sm:h-3 sm:w-3 text-cyan-400" />
+            <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-slate-900/80 border border-white/20 text-slate-300 shadow-sm">
+              <ShieldCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-cyan-400" />
             </div>
           )}
         </div>
 
         {/* Category Pill Over Banner */}
-        <div className="absolute bottom-2 sm:bottom-4 left-2.5 sm:left-5 right-2.5 sm:right-5 flex items-center justify-between gap-1 z-10">
-          <span className="text-[8px] sm:text-[10px] font-semibold text-cyan-200/90 drop-shadow truncate">
+        <div className="absolute bottom-2.5 sm:bottom-3 left-2.5 sm:left-3.5 right-2.5 sm:right-3.5 flex items-center justify-between gap-1 z-10">
+          <span
+            className="text-[8px] sm:text-[10px] font-semibold text-cyan-200 drop-shadow truncate rounded-md bg-slate-950/85 px-2 py-0.5 border border-white/20 backdrop-blur-md shadow-sm"
+            style={{ color: '#a5f3fc', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+          >
             {talent.category || 'Talent'}
           </span>
-          <span className="text-[8px] sm:text-[10px] font-mono text-slate-300 drop-shadow flex items-center gap-0.5 truncate">
+          <span
+            className="text-[8px] sm:text-[10px] font-mono text-slate-200 drop-shadow flex items-center gap-0.5 truncate rounded-md bg-slate-950/85 px-2 py-0.5 border border-white/20 backdrop-blur-md shadow-sm"
+            style={{ color: '#e2e8f0', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+          >
             <MapPin className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
             <span className="truncate">{talent.domicile_city || 'Indonesia'}</span>
           </span>
@@ -147,14 +165,14 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
       </div>
 
       {/* Card Body */}
-      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
+      <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
         <div>
           {/* Candidate Name & Title */}
           <div className="cursor-pointer" onClick={() => onSelect(talent)}>
-            <h3 className="text-xs sm:text-base font-extrabold text-white tracking-tight sm:tracking-wide uppercase hover:text-cyan-400 transition-colors line-clamp-1">
+            <h3 className="text-xs sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight sm:tracking-wide uppercase hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors line-clamp-1">
               {fullName}
             </h3>
-            <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-slate-300 line-clamp-1 leading-snug">
+            <p className="mt-0.5 text-[10px] sm:text-xs font-medium text-slate-600 dark:text-slate-300 line-clamp-1 leading-snug">
               {talent.headline}
             </p>
           </div>
