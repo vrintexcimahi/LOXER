@@ -11,10 +11,15 @@
 }
 .loxer-clay-icon svg { filter: drop-shadow(0 1px 1px #ffffff80); }
 .loxer-clay-icon-soft {
-  background: linear-gradient(145deg, #fffefa, #eee7dc);
-  color: #5d7191;
-  border: 1px solid #ffffff;
-  box-shadow: 3px 3px 6px #bda9892b, -2px -2px 5px #ffffff, inset 0 1px 2px #ffffff;
+  background: linear-gradient(145deg, #32d1ff, #00a4ff 55%, #0079ee);
+  color: #ffffff;
+  border: 1px solid #5fd9ff;
+  box-shadow: inset 2px 3px 4px #ffffff8c, inset -3px -4px 6px #0061b85c,
+    0 2px 0 #0284d6, 0 4px 0 #0069b5, 0 9px 14px #007ecc40;
+}
+.loxer-clay-icon-soft svg {
+  color: white !important;
+  filter: drop-shadow(0 1px 1px #0064c060);
 }
 .loxer-clay-icon-solid, .loxer-feature-icon {
   background: linear-gradient(145deg, #32d1ff, #00a4ff 55%, #0079ee);
@@ -27,8 +32,17 @@
 :is(a, button):hover > .loxer-clay-icon { transform: translateY(-2px); }
 :is(a, button):active > .loxer-clay-icon { transform: translateY(1px) scale(.95); }
 .loxer-feature-icon { border-radius: 17px; }
-.dark .loxer-clay-icon-soft { background: linear-gradient(145deg, #24344b, #142035); border-color: #34445b; color: #a3b8d3; box-shadow: 3px 3px 6px #00000040, inset 0 1px 2px #ffffff0d; }
-.dark .loxer-clay-icon-soft svg { filter: drop-shadow(0 1px 1px #00000040); }
+.dark .loxer-clay-icon-soft {
+  background: linear-gradient(145deg, #32d1ff, #00a4ff 55%, #0079ee);
+  border-color: #5fd9ff;
+  color: #ffffff;
+  box-shadow: inset 2px 3px 4px #ffffff8c, inset -3px -4px 6px #0061b85c,
+    0 2px 0 #0284d6, 0 4px 0 #0069b5, 0 9px 14px #007ecc40;
+}
+.dark .loxer-clay-icon-soft svg {
+  color: white !important;
+  filter: drop-shadow(0 1px 1px #0064c060);
+}
 :root {
   --app-bg: #b8d7f4;
   --app-surface: rgba(255, 255, 255, 0.90);
@@ -190,7 +204,17 @@ html:not(.dark) .loxer-workspace .bg-clip-text { background: none; color: #0086c
   border-radius: 12px;
   transform: none;
 }
+:is(.loxer-mobile-nav, .loxer-bottom-nav) .loxer-clay-icon[data-active] {
+  box-shadow: inset 2px 3px 4px #ffffff, inset -3px -4px 6px #0052a3,
+    0 2px 0 #0284d6, 0 4px 0 #0069b5, 0 0 0 2.5px #38bdf8, 0 0 14px rgba(14, 165, 233, 0.65) !important;
+}
+:is(.loxer-mobile-nav, .loxer-bottom-nav) .loxer-clay-icon-elevated {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+}
 :is(.loxer-mobile-nav, .loxer-bottom-nav) .loxer-clay-icon svg { width: 20px; height: 20px; }
+:is(.loxer-mobile-nav, .loxer-bottom-nav) .loxer-clay-icon-elevated svg { width: 23px; height: 23px; }
 :is(.loxer-mobile-nav, .loxer-bottom-nav) > div > :is(a, button) > span:last-child {
   margin-top: 0;
   line-height: 14px;
@@ -216,7 +240,7 @@ html:not(.dark) .loxer-workspace .bg-clip-text { background: none; color: #0086c
 .dark .clay-hero { background: transparent; }
 .dark :is(.clay-preview-card, .clay-role-card) { background: var(--glass-panel); border-color: var(--app-border); }
 .dark :is(.clay-search-bar, .clay-floating-tag, .clay-floating-bottom, .clay-button-secondary, .clay-preview-search, .clay-preview-options a) { background: var(--glass-field); border-color: var(--app-border); }
-.dark .loxer-clay-icon-soft { background: linear-gradient(145deg, #1c324c, #0e1e32); border-color: #385678; color: #d0def1; }
+.dark .loxer-clay-icon-soft { background: linear-gradient(145deg, #32d1ff, #00a4ff 55%, #0079ee); border-color: #5fd9ff; color: #ffffff; }
 .dark :where(.loxer-landing, .loxer-workspace, .loxer-navbar, .loxer-mobile-nav, .loxer-bottom-nav) :is(.text-slate-400, .text-slate-500) { color: var(--app-text-muted); }
 .dark .clay-trust { color: #9ebbdb; }
 html.dark .loxer-navbar .loxer-theme-toggle { color: #e2e8f0 !important; background: var(--app-surface-soft) !important; border-color: #385678; }
@@ -251,8 +275,11 @@ html.dark .loxer-navbar .loxer-theme-toggle { color: #e2e8f0 !important; backgro
   box-shadow: inset 2px 3px 4px #ffffff8c, inset -3px -4px 6px #0061b85c,
     0 2px 0 #0284d6, 0 4px 0 #0069b5, 0 9px 14px #007ecc40;
 }
-.loxer-clay-icon-soft { box-shadow: inset 2px 2px 3px #ffffff, inset -2px -3px 4px rgba(90, 140, 185, 0.20), 0 2px 0 #b3d2ef, 0 6px 8px rgba(18, 58, 95, 0.14); }
-.dark .loxer-clay-icon-soft { box-shadow: inset 2px 2px 3px rgba(255, 255, 255, 0.15), inset -2px -3px 4px rgba(3, 12, 22, 0.50), 0 2px 0 #1b314e, 0 6px 8px rgba(3, 10, 20, 0.50); }
+.loxer-clay-icon-soft,
+.dark .loxer-clay-icon-soft {
+  box-shadow: inset 2px 3px 4px #ffffff8c, inset -3px -4px 6px #0061b85c,
+    0 2px 0 #0284d6, 0 4px 0 #0069b5, 0 9px 14px #007ecc40;
+}
 .clay-role-card:last-child .clay-role-icon { box-shadow: inset 2px 3px 4px #fffbc3b3, inset -3px -4px 6px #c9840066, 0 2px 0 #e0a20c, 0 4px 0 #ba7900, 0 9px 14px #c58a0040; }
 .loxer-clay-icon svg, .clay-role-icon svg, .clay-large-icon svg { filter: drop-shadow(0 1px 0 #ffffff80) drop-shadow(1px 2px 1px #00397035); }
 .clay-role-grid { padding-bottom: 7px; }

@@ -374,13 +374,7 @@ export default function GodModeLayout({ title, description, actions, children }:
                 )}
                 aria-label="Menu Lengkap"
               >
-                <Menu
-                  className={classNames(
-                    'h-5 w-5 transition-colors',
-                    isMobileOpen ? 'text-cyan-400' : 'text-slate-400'
-                  )}
-                  strokeWidth={1.8}
-                />
+                <ClayIcon icon={Menu} active={isMobileOpen} />
                 <span className="text-[10px] font-medium tracking-tight">Menu</span>
               </button>
             </div>

@@ -329,9 +329,10 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
                     className="flex flex-col items-center justify-center -mt-5 active:scale-90 transition-transform group focus:outline-none"
                   >
                     <ClayIcon icon={item.icon} active={active} elevated />
-                    <span className={`text-[10px] tracking-tight mt-1 font-bold ${active ? 'text-cyan-400' : 'text-slate-300'}`}>
+                    <span className={`text-[10px] tracking-tight mt-1 ${active ? 'text-cyan-400 font-extrabold' : 'text-slate-400 font-medium'}`}>
                       {item.label}
                     </span>
+                    {active && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-0.5 shadow-sm shadow-cyan-400/50" />}
                   </a>
                 );
               }
@@ -345,11 +346,12 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
                   <ClayIcon icon={item.icon} active={active} />
                   <span
                     className={`text-[10px] tracking-tight mt-0.5 truncate max-w-[64px] ${
-                      active ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'
+                      active ? 'text-cyan-400 font-extrabold' : 'text-slate-400 font-medium'
                     }`}
                   >
                     {item.label}
                   </span>
+                  {active && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-0.5 shadow-sm shadow-cyan-400/50" />}
                 </a>
               );
             })}

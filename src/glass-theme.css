@@ -88,8 +88,16 @@ html .loxer-workspace table tbody tr:nth-child(odd) { background: var(--glass-fi
 html .loxer-workspace table tbody tr:nth-child(even) { background: var(--app-surface-soft) !important; }
 html .loxer-workspace table tbody tr:hover { background: var(--app-surface) !important; }
 html:not(.dark) .loxer-workspace .bg-sky-50 { background: #c4ddef80; }
-html:not(.dark) .loxer-workspace [class*="from-slate-"]:not([class*="bg-gradient-"]):not(.pointer-events-none) { background: var(--glass-panel); }
-html:not(.dark) .loxer-clay-icon-soft { background: linear-gradient(145deg, #dfedf9, #aacce5); border-color: #eff8ff; }
+html:not(.dark) :is(.loxer-clay-icon-soft, .loxer-clay-icon) {
+  background: linear-gradient(145deg, #32d1ff, #00a4ff 55%, #0079ee);
+  border-color: #5fd9ff;
+  color: #ffffff;
+  box-shadow: inset 2px 3px 4px #ffffff8c, inset -3px -4px 6px #0061b85c, 0 2px 0 #0284d6, 0 4px 0 #0069b5, 0 9px 14px #007ecc40;
+}
+html:not(.dark) :is(.loxer-clay-icon, .loxer-clay-icon-soft) svg {
+  color: #ffffff !important;
+  filter: drop-shadow(0 1px 1px #0064c060);
+}
 @media (min-width: 768px) {
   html .clay-preview-card { background: var(--glass-panel); border-color: var(--app-border); }
 }

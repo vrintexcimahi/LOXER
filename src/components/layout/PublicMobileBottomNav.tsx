@@ -69,59 +69,62 @@ export default function PublicMobileBottomNav({
     >
       <div className="flex items-center justify-between max-w-md mx-auto relative">
         {navItems.map((item) => {
-          if (item.isCenterAction) {
-            return (
-              <a
-                key={item.label}
-                href={item.href}
-                aria-current={item.active ? 'page' : undefined}
-                className="flex flex-1 flex-col items-center justify-center -mt-5 active:scale-90 transition-transform group"
-              >
-                <ClayIcon icon={item.icon} active={item.active} elevated />
-                <span
-                  className={`text-[10px] tracking-tight mt-1 font-bold ${
-                    item.active ? 'text-cyan-400' : 'text-slate-300'
-                  }`}
+              if (item.isCenterAction) {
+                return (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    aria-current={item.active ? 'page' : undefined}
+                    className="flex flex-1 flex-col items-center justify-center -mt-5 active:scale-90 transition-transform group"
+                  >
+                    <ClayIcon icon={item.icon} active={item.active} elevated />
+                    <span
+                      className={`text-[10px] tracking-tight mt-1 ${
+                        item.active ? 'text-cyan-400 font-extrabold' : 'text-slate-400 font-medium'
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                    {item.active && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-0.5 shadow-sm shadow-cyan-400/50" />}
+                  </a>
+                );
+              }
+
+              if (item.onClick) {
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={item.onClick}
+                    className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active:scale-95 transition-transform"
+                  >
+                    <ClayIcon icon={item.icon} active={item.active} />
+                    <span className={`text-[10px] tracking-tight mt-0.5 truncate max-w-[64px] ${item.active ? 'text-cyan-400 font-extrabold' : 'text-slate-400 font-medium'}`}>
+                      {item.label}
+                    </span>
+                    {item.active && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-0.5 shadow-sm shadow-cyan-400/50" />}
+                  </button>
+                );
+              }
+
+              return (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  aria-current={item.active ? 'page' : undefined}
+                  className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active:scale-95 transition-transform"
                 >
-                  {item.label}
-                </span>
-              </a>
-            );
-          }
-
-          if (item.onClick) {
-            return (
-              <button
-                key={item.label}
-                type="button"
-                onClick={item.onClick}
-                className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active:scale-95 transition-transform"
-              >
-                <ClayIcon icon={item.icon} active={item.active} />
-                <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-[64px] text-slate-400 font-medium">
-                  {item.label}
-                </span>
-              </button>
-            );
-          }
-
-          return (
-            <a
-              key={item.label}
-              href={item.href}
-              aria-current={item.active ? 'page' : undefined}
-              className="flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 active:scale-95 transition-transform"
-            >
-              <ClayIcon icon={item.icon} active={item.active} />
-              <span
-                className={`text-[10px] tracking-tight mt-0.5 truncate max-w-[64px] ${
-                  item.active ? 'text-cyan-300 font-bold' : 'text-slate-400 font-medium'
-                }`}
-              >
-                {item.label}
-              </span>
-            </a>
-          );
+                  <ClayIcon icon={item.icon} active={item.active} />
+                  <span
+                    className={`text-[10px] tracking-tight mt-0.5 truncate max-w-[64px] ${
+                      item.active ? 'text-cyan-400 font-extrabold' : 'text-slate-400 font-medium'
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                  {item.active && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-0.5 shadow-sm shadow-cyan-400/50" />}
+                </a>
+              );
         })}
       </div>
     </nav>
