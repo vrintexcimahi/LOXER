@@ -4,7 +4,6 @@ import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRig
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { UserRole } from '../../lib/types';
-import BrandText from '../../components/ui/BrandText';
 import AppLogo from '../../components/ui/AppLogo';
 import AndroidToast from '../../components/ui/AndroidToast';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';

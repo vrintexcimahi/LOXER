@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Palette,
   Image as ImageIcon,
@@ -11,11 +11,9 @@ import {
   Download,
   Upload,
   Play,
-  VolumeX,
   Check,
   AlertCircle,
   Eye,
-  Info,
   Shield,
   Layers,
   Wand2,
@@ -23,19 +21,14 @@ import {
   ExternalLink,
   Smartphone,
   Monitor,
-  Flame,
   CheckCircle2,
-  HelpCircle,
   UploadCloud,
-  Trash2,
-  Copy,
   FileCode,
   Sun,
   Moon,
   Share2,
-  FileText,
+  Globe,
   Building2,
-  ArrowRight,
 } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
 import AppLogo from '../../components/ui/AppLogo';
@@ -65,7 +58,6 @@ export default function AdminSystemSettings() {
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [dragOverField, setDragOverField] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const importJsonRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {

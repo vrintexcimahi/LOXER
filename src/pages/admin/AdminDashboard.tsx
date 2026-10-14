@@ -68,7 +68,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import BrandText from '../../components/ui/BrandText';
 import AppLogo from '../../components/ui/AppLogo';
 import ApplicationStatusBadge from '../../components/ui/ApplicationStatusBadge';
 import ThemeToggle from '../../components/ui/ThemeToggle';

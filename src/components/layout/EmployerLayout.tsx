@@ -13,7 +13,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
-import BrandText from '../ui/BrandText';
 import AppLogo from '../ui/AppLogo';
 import ClayIcon from '../ui/ClayIcon';
 import ThemeToggle from '../ui/ThemeToggle';

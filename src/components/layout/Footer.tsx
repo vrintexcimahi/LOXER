@@ -1,5 +1,4 @@
 import { Twitter, Linkedin, Instagram, Github, ShieldCheck } from 'lucide-react';
-import BrandText from '../ui/BrandText';
 import AppLogo from '../ui/AppLogo';
 import AndroidToast from '../ui/AndroidToast';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';

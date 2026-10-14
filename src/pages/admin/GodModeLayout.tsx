@@ -17,7 +17,6 @@ import {
   Download,
   Sliders,
 } from 'lucide-react';
-import BrandText from '../../components/ui/BrandText';
 import AppLogo from '../../components/ui/AppLogo';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import NotificationBell from '../../components/ui/NotificationBell';

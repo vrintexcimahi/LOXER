@@ -3,7 +3,6 @@ import { Menu, X, ChevronDown, ChevronRight, User, LogOut, Settings, ShieldCheck
 import { useAuth } from '../../contexts/useAuth';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 import { useAppAccess } from '../../contexts/AppAccessContext';
-import BrandText from '../ui/BrandText';
 import AppLogo from '../ui/AppLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import NotificationBell from '../ui/NotificationBell';

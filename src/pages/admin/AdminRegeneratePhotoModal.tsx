@@ -1,20 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Sparkles,
-  Camera,
   Upload,
   RefreshCw,
   Check,
   X,
-  User,
   Sliders,
-  RotateCw,
-  FileText,
-  Image as ImageIcon,
   CheckCircle2,
   Wand2,
-  AlertCircle,
-  Eye,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
@@ -44,7 +37,6 @@ export function AdminRegeneratePhotoModal({
 }: AdminRegeneratePhotoModalProps) {
   const [activeTab, setActiveTab] = useState<'pixar' | 'upload' | 'recrop'>('pixar');
   const [selectedPhoto, setSelectedPhoto] = useState<string>('');
-  const [selectedAvatarId, setSelectedAvatarId] = useState<string>('');
   const [avatarGenderFilter, setAvatarGenderFilter] = useState<'all' | 'male' | 'female'>('all');
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -82,7 +74,6 @@ export function AdminRegeneratePhotoModal({
   useEffect(() => {
     if (isOpen && talent) {
       setSelectedPhoto(currentPhoto || getDefaultPixarAvatar(fullName, undefined, talent.bio));
-      setSelectedAvatarId('');
       setCustomFilePreview(null);
       setRotationAngle(0);
       setCropZoom(1);
@@ -97,7 +88,6 @@ export function AdminRegeneratePhotoModal({
   const handleAutoAssignPixar = () => {
     const defaultPixar = getDefaultPixarAvatar(fullName, undefined, talent.bio);
     setSelectedPhoto(defaultPixar);
-    setSelectedAvatarId(defaultPixar);
     onToast(
       'info',
       `Avatar 3D Pixar otomatis disesuaikan untuk ${detectedGender === 'female' ? 'Wanita' : 'Pria'}.`
@@ -107,7 +97,6 @@ export function AdminRegeneratePhotoModal({
   // Handle Select Specific Pixar Avatar
   const handleSelectPixar = (avatar: PixarAvatarOption) => {
     setSelectedPhoto(avatar.url);
-    setSelectedAvatarId(avatar.url);
   };
 
   // Handle File Upload from Admin PC
@@ -131,7 +120,6 @@ export function AdminRegeneratePhotoModal({
       if (result) {
         setCustomFilePreview(result);
         setSelectedPhoto(result);
-        setSelectedAvatarId('');
       }
     };
     reader.readAsDataURL(file);
@@ -229,7 +217,6 @@ export function AdminRegeneratePhotoModal({
 
         const resultUrl = canvas.toDataURL('image/jpeg', 0.92);
         setSelectedPhoto(resultUrl);
-        setSelectedAvatarId('');
         setIsProcessing(false);
         onToast('success', 'Berhasil mengekstrak pas foto baru dari dokumen CV!');
       } catch (err) {

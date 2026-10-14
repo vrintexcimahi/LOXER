@@ -251,12 +251,12 @@ VITE_SUPABASE_ANON_KEY=...`}
       return <AdminInternalLogin />;
     }
 
-    if (path.startsWith('/admin/')) {
+    if (normalizedPath.startsWith('/admin/') || normalizedPath === '/admin') {
       const isSuper = isRoleAuthorized('superadmin');
       const isAdmin = isRoleAuthorized('admin') || isSuper;
 
       if (!isAdmin) return null;
-      if (path === '/admin/partners') return <AdminPartners />;
+      if (normalizedPath === '/admin/partners') return <AdminPartners />;
 
       const adminPages: Record<string, JSX.Element> = {
         '/admin/dashboard': <AdminDashboard tab="overview" />,
@@ -268,9 +268,10 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/jasa': <AdminDashboard tab="jasa" />,
         '/admin/integrations': <AdminDashboard tab="integrations" />,
         '/admin/moderation': <ModerationQueue />,
+        '/admin/settings': <AdminSystemSettings />,
       };
       
-      if (path === '/admin/editor' || path === '/admin/jobs') {
+      if (normalizedPath === '/admin/editor' || normalizedPath === '/admin/jobs') {
         window.location.href = '/admin/dashboard';
         return null;
       }
@@ -289,12 +290,12 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/settings': <AdminSystemSettings />,
       };
 
-      if (superPages[path] && !isSuper) {
+      if (superPages[normalizedPath] && !isSuper && normalizedPath !== '/admin/settings') {
         window.location.href = '/admin/dashboard';
         return null;
       }
       
-      const page = adminPages[path] || (isSuper ? superPages[path] : null);
+      const page = adminPages[normalizedPath] || (isSuper ? superPages[normalizedPath] : null);
       return page || null;
     }
 

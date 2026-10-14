@@ -1,7 +1,6 @@
 import { ReactNode, useMemo } from 'react';
 import { Home, Search, FileText, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Sparkles } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
-import BrandText from '../ui/BrandText';
 import AppLogo from '../ui/AppLogo';
 import ClayIcon from '../ui/ClayIcon';
 import ThemeToggle from '../ui/ThemeToggle';
