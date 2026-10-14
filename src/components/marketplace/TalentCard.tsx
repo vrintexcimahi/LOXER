@@ -147,16 +147,26 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
         </div>
 
         {/* Category Pill Over Banner */}
-        <div className="absolute bottom-2.5 sm:bottom-3 left-2.5 sm:left-3.5 right-2.5 sm:right-3.5 flex items-center justify-between gap-1 z-10">
+        <div className="absolute bottom-2.5 sm:bottom-3 left-2.5 sm:left-3.5 right-2.5 sm:right-3.5 flex items-center justify-between gap-1 z-10 pointer-events-none">
           <span
-            className="text-[8px] sm:text-[10px] font-semibold text-cyan-200 drop-shadow truncate rounded-md bg-slate-950/85 px-2 py-0.5 border border-white/20 backdrop-blur-md shadow-sm"
-            style={{ color: '#a5f3fc', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+            className="talent-photo-badge talent-category-badge text-[8px] sm:text-[10px] font-bold truncate rounded-md px-2 py-0.5 border shadow-sm tracking-tight"
+            style={{
+              backgroundColor: 'rgba(2, 6, 23, 0.90)',
+              color: '#38bdf8',
+              borderColor: 'rgba(255, 255, 255, 0.25)',
+              textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
+            }}
           >
             {talent.category || 'Talent'}
           </span>
           <span
-            className="text-[8px] sm:text-[10px] font-mono text-slate-200 drop-shadow flex items-center gap-0.5 truncate rounded-md bg-slate-950/85 px-2 py-0.5 border border-white/20 backdrop-blur-md shadow-sm"
-            style={{ color: '#e2e8f0', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+            className="talent-photo-badge talent-city-badge text-[8px] sm:text-[10px] font-semibold flex items-center gap-0.5 truncate rounded-md px-2 py-0.5 border shadow-sm"
+            style={{
+              backgroundColor: 'rgba(2, 6, 23, 0.90)',
+              color: '#ffffff',
+              borderColor: 'rgba(255, 255, 255, 0.25)',
+              textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
+            }}
           >
             <MapPin className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
             <span className="truncate">{talent.domicile_city || 'Indonesia'}</span>

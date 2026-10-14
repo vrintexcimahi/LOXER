@@ -912,16 +912,26 @@ export function AdminTalentCatalogSection({
                   </div>
 
                   {/* Category & City Bar: Protected dark-glass pill over the bottom gradient scrim */}
-                  <div className="absolute bottom-2.5 sm:bottom-3 left-2.5 sm:left-3.5 right-2.5 sm:right-3.5 flex items-center justify-between text-[9px] sm:text-[10px] font-semibold gap-1 z-10">
+                  <div className="absolute bottom-2.5 sm:bottom-3 left-2.5 sm:left-3.5 right-2.5 sm:right-3.5 flex items-center justify-between text-[9px] sm:text-[10px] font-semibold gap-1 z-10 pointer-events-none">
                     <span
-                      className="truncate max-w-[110px] sm:max-w-[140px] rounded-md bg-slate-950/85 border border-white/20 px-2 py-0.5 backdrop-blur-md shadow-sm"
-                      style={{ color: '#a5f3fc', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                      className="talent-photo-badge talent-category-badge truncate max-w-[110px] sm:max-w-[140px] rounded-md px-2 py-0.5 border shadow-sm font-bold tracking-tight"
+                      style={{
+                        backgroundColor: 'rgba(2, 6, 23, 0.90)',
+                        color: '#38bdf8',
+                        borderColor: 'rgba(255, 255, 255, 0.25)',
+                        textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
+                      }}
                     >
                       {talent.category}
                     </span>
                     <span
-                      className="flex items-center gap-1 rounded-md bg-slate-950/85 border border-white/20 px-2 py-0.5 backdrop-blur-md shadow-sm truncate"
-                      style={{ color: '#e2e8f0', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                      className="talent-photo-badge talent-city-badge flex items-center gap-1 rounded-md px-2 py-0.5 border shadow-sm truncate font-semibold"
+                      style={{
+                        backgroundColor: 'rgba(2, 6, 23, 0.90)',
+                        color: '#ffffff',
+                        borderColor: 'rgba(255, 255, 255, 0.25)',
+                        textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
+                      }}
                     >
                       <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-400 shrink-0" />
                       <span className="truncate">{talent.domicile_city || 'Cimahi'}</span>

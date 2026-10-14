@@ -129,7 +129,24 @@ html:not(.dark) .loxer-workspace table tbody tr:nth-child(odd) { background-colo
 html:not(.dark) .loxer-workspace table tbody tr:nth-child(even) { background-color: rgba(230, 242, 253, 0.82) !important; }
 html:not(.dark) .loxer-workspace table tbody tr:hover { background-color: rgba(255, 255, 255, 0.95) !important; }
 html:not(.dark) .input-field { background: var(--glass-field); border-color: var(--app-border); box-shadow: inset 0 1px 3px rgba(25, 63, 100, 0.12); }
-html:not(.dark) .loxer-workspace [class*="bg-slate-950/"]:not([class*="bg-gradient-"]):not(.pointer-events-none) { background-color: var(--app-surface-soft); }
+html:not(.dark) .loxer-workspace [class*="bg-slate-950/"]:not([class*="bg-gradient-"]):not(.pointer-events-none):not(.talent-photo-badge):not([data-photo-badge]) { background-color: var(--app-surface-soft); }
+
+.talent-photo-badge,
+[data-photo-badge] {
+  background-color: rgba(2, 6, 23, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+.talent-photo-badge.talent-category-badge {
+  color: #38bdf8 !important;
+  font-weight: 700 !important;
+}
+.talent-photo-badge.talent-city-badge {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
 html:not(.dark) .loxer-workspace .text-slate-100 { color: var(--app-text); }
 html:not(.dark) .loxer-footer { background: var(--glass-chrome); color: var(--app-text-muted); border-top: 1px solid var(--app-border); }
 html:not(.dark) .loxer-footer .text-white { color: #0b2542; }
