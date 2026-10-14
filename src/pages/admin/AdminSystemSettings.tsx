@@ -862,7 +862,7 @@ export default function AdminSystemSettings() {
             {/* 1. MASTER LOGO SUITE (FEATURED SUITE) */}
             {/* =================================================================== */}
             {(assetCategoryFilter === 'all' || assetCategoryFilter === 'logo') && (
-              <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 p-5 md:p-6 space-y-6 shadow-xl shadow-cyan-950/20">
+              <div className="rounded-2xl border border-cyan-500/30 bg-slate-900/80 p-5 md:p-6 space-y-6 shadow-xl">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-md shadow-cyan-500/20">
@@ -922,17 +922,21 @@ export default function AdminSystemSettings() {
                     </div>
 
                     <div
-                      className={`h-40 rounded-2xl border transition-all flex flex-col items-center justify-center p-4 relative overflow-hidden ${
-                        previewNavbarTheme === 'dark'
-                          ? 'border-white/10 bg-slate-950 text-white'
-                          : 'border-slate-300 bg-white text-slate-900 shadow-inner'
-                      }`}
+                      className="h-40 rounded-2xl border transition-all flex flex-col items-center justify-center p-4 relative overflow-hidden shadow-inner"
+                      style={{
+                        backgroundColor: previewNavbarTheme === 'dark' ? '#0b1329' : '#ffffff',
+                        borderColor: previewNavbarTheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
+                        color: previewNavbarTheme === 'dark' ? '#ffffff' : '#0f172a',
+                      }}
                     >
                       <div className="relative z-10 flex items-center justify-center scale-110">
                         <AppLogo variant="navbar" height={settings.assets.appLogoHeight || 32} />
                       </div>
 
-                      <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] opacity-60">
+                      <div
+                        className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] font-mono"
+                        style={{ color: previewNavbarTheme === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(15,23,42,0.6)' }}
+                      >
                         <span>Tinggi: {settings.assets.appLogoHeight || 32}px</span>
                         <span>Mode: {settings.assets.appLogoDisplayMode || 'both'}</span>
                       </div>
@@ -1302,25 +1306,26 @@ export default function AdminSystemSettings() {
                       </div>
 
                       <div
-                        className={`rounded-2xl border p-3.5 transition-all flex items-center justify-between gap-4 overflow-x-auto ${
-                          previewNavbarTheme === 'dark'
-                            ? 'border-white/10 bg-[#0F172A] text-white shadow-xl shadow-cyan-950/20'
-                            : 'border-slate-300 bg-white text-slate-900 shadow-md'
-                        }`}
+                        className="rounded-2xl border p-3.5 transition-all flex items-center justify-between gap-4 overflow-x-auto shadow-md"
+                        style={{
+                          backgroundColor: previewNavbarTheme === 'dark' ? '#0F172A' : '#ffffff',
+                          borderColor: previewNavbarTheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : '#cbd5e1',
+                          color: previewNavbarTheme === 'dark' ? '#ffffff' : '#0f172a',
+                        }}
                       >
                         <div className="shrink-0 flex items-center">
                           <AppLogo variant="navbar" height={settings.assets.appLogoHeight || 32} />
                         </div>
 
                         <div className="hidden sm:flex items-center gap-4 text-xs font-medium">
-                          <span className="text-cyan-400 font-semibold cursor-pointer">Iklan Loker</span>
-                          <span className={previewNavbarTheme === 'dark' ? 'text-slate-300' : 'text-slate-600'}>
+                          <span className="text-cyan-500 font-semibold cursor-pointer">Iklan Loker</span>
+                          <span style={{ color: previewNavbarTheme === 'dark' ? '#cbd5e1' : '#475569' }}>
                             Pelamar
                           </span>
-                          <span className={previewNavbarTheme === 'dark' ? 'text-slate-300' : 'text-slate-600'}>
+                          <span style={{ color: previewNavbarTheme === 'dark' ? '#cbd5e1' : '#475569' }}>
                             Perusahaan
                           </span>
-                          <span className={previewNavbarTheme === 'dark' ? 'text-slate-300' : 'text-slate-600'}>
+                          <span style={{ color: previewNavbarTheme === 'dark' ? '#cbd5e1' : '#475569' }}>
                             Marketplace
                           </span>
                         </div>
