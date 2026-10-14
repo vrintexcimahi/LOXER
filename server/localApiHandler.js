@@ -3643,6 +3643,12 @@ export function createLocalDbMiddleware(env = {}) {
       return handlePartnerApplicationsList(req, res);
     }
 
+    // System Settings & Customization (Theme, Assets, Audio, Video)
+    if (path === '/api/system/settings') {
+      if (req.method === 'GET') return handleGetSystemSettings(req, res);
+      if (req.method === 'POST') return handleSaveSystemSettings(req, res);
+    }
+
     // Real-Time Web Traffic & Visitor Tracking (Public & Admin)
     // Mobile Shell endpoints (Master Prompt Section H & AK)
     if (url.startsWith('/api/mobile/config') && req.method === 'GET') {
@@ -4534,6 +4540,70 @@ async function handleAdminPublishSmartCv(req, res) {
   } catch (err) {
     console.error('[handleAdminPublishSmartCv Error]:', err);
     return sendJson(res, 500, { message: err.message || 'Gagal menerbitkan biodata pelamar' });
+  }
+}
+
+async function handleGetSystemSettings(req, res) {
+  try {
+    const row = queryOne("SELECT value, updated_at FROM system_settings WHERE key = 'global_config' LIMIT 1");
+    if (!row || !row.value) {
+      return sendJson(res, 200, { ok: true, settings: null, message: 'Default configuration active' });
+    }
+    let parsed = null;
+    try {
+      parsed = JSON.parse(row.value);
+    } catch {
+      parsed = null;
+    }
+    return sendJson(res, 200, { ok: true, settings: parsed, updated_at: row.updated_at });
+  } catch (err) {
+    console.error('[handleGetSystemSettings Error]:', err);
+    return sendJson(res, 500, { ok: false, message: 'Gagal memuat pengaturan sistem.' });
+  }
+}
+
+async function handleSaveSystemSettings(req, res) {
+  try {
+    const adminCheck = verifyAdminRequest(req);
+    const body = await parseJsonBody(req);
+    if (!body || typeof body !== 'object') {
+      return sendJson(res, 400, { ok: false, message: 'Data konfigurasi tidak valid.' });
+    }
+
+    const valueStr = JSON.stringify(body);
+    const now = new Date().toISOString();
+
+    execute(
+      `INSERT INTO system_settings (key, value, updated_at)
+       VALUES ('global_config', ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [valueStr, now]
+    );
+
+    try {
+      execute(
+        `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
+         VALUES (?, ?, ?, 'update_system_settings', 'system_settings', 'global_config', ?, ?)`,
+        [
+          crypto.randomUUID(),
+          adminCheck?.admin?.id || 'admin',
+          adminCheck?.admin?.email || 'admin@loxer.app',
+          JSON.stringify({ updated_at: now }),
+          now,
+        ]
+      );
+    } catch {
+      // non-blocking
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      message: 'Pengaturan sistem level-max berhasil disimpan ke database!',
+      updated_at: now,
+    });
+  } catch (err) {
+    console.error('[handleSaveSystemSettings Error]:', err);
+    return sendJson(res, 500, { ok: false, message: err.message || 'Gagal menyimpan pengaturan sistem.' });
   }
 }
 

@@ -47,6 +47,7 @@ import {
   Zap,
   Check,
   Key,
+  Sliders,
 } from 'lucide-react';
 import {
   Area,
@@ -283,7 +284,8 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
       ...(effectiveRole === 'superadmin' ? [
         { key: 'monitoring', label: 'Log & Monitoring', description: 'Real-time live tail & error tracker', href: '/admin/monitoring', icon: Terminal },
         { key: 'backup', label: 'Backup Database', description: 'Ekspor, restore & Telegram bot harian', href: '/admin/backup', icon: Database },
-        { key: 'dev-workbench', label: 'Developer Mode', description: 'Dual-view workbench (mobile & desktop)', href: '/admin/dev-workbench', icon: Smartphone }
+        { key: 'dev-workbench', label: 'Developer Mode', description: 'Dual-view workbench (mobile & desktop)', href: '/admin/dev-workbench', icon: Smartphone },
+        { key: 'settings', label: 'Pengaturan Sistem', description: 'Warna manual, aset media & kontrol sistem', href: '/admin/settings', icon: Sliders },
       ] : []),
     ],
     [effectiveRole]

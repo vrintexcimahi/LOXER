@@ -15,6 +15,7 @@ import {
   LogOut,
   Wrench,
   Download,
+  Sliders,
 } from 'lucide-react';
 import BrandText from '../../components/ui/BrandText';
 import ThemeToggle from '../../components/ui/ThemeToggle';
@@ -157,6 +158,12 @@ export default function GodModeLayout({ title, description, actions, children }:
         label: 'Developer Mode',
         description: 'Dual-view testing workbench',
         icon: Smartphone,
+      },
+      {
+        href: '/admin/settings',
+        label: 'Pengaturan Sistem',
+        description: 'Warna manual, aset media & kontrol sistem',
+        icon: Sliders,
       },
     ],
     [unresolvedErrorCount]

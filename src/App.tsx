@@ -37,6 +37,7 @@ const SecurityCenter = lazy(() => import('./pages/admin/SecurityCenter'));
 const LogMonitoring = lazy(() => import('./pages/admin/LogMonitoring'));
 const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const DeveloperWorkbench = lazy(() => import('./pages/admin/DeveloperWorkbench'));
+const AdminSystemSettings = lazy(() => import('./pages/admin/AdminSystemSettings'));
 const TalentMarketplace = lazy(() => import('./pages/public/TalentMarketplace'));
 const SeekerMarketplace = lazy(() => import('./pages/seeker/SeekerMarketplace'));
 const ProductMarketplace = lazy(() => import('./pages/public/ProductMarketplace'));
@@ -285,6 +286,7 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/monitoring': <LogMonitoring />,
         '/admin/backup': <DatabaseBackup />,
         '/admin/dev-workbench': <DeveloperWorkbench />,
+        '/admin/settings': <AdminSystemSettings />,
       };
 
       if (superPages[path] && !isSuper) {

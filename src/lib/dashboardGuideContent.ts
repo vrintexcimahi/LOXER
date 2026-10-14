@@ -339,4 +339,19 @@ export const adminGuideContent: Record<string, DashboardGuideContent> = {
       'Gunakan Autofill Tester untuk mengisi formulir tes otomatis tanpa ketik manual.',
     ],
   },
+  '/admin/settings': {
+    summary: 'Pengaturan Sistem Level Max memungkinkan administrator mengontrol tema warna seluruh halaman secara manual, mengganti aset media (gambar, logo, audio, video), dan mengelola identitas platform.',
+    detailFunctions: [
+      'Preset tema 1-klik dan kustomisasi palet warna HEX/RGB manual dengan live preview sandbox.',
+      'Manajemen aset gambar: logo navbar, logo footer, favicon browser, hero banner, dan default avatar.',
+      'Manajemen efek suara (Web Audio Synthesizer) dan kustomisasi notifikasi chat, apply, serta alert.',
+      'Pengaturan video onboarding tutorial dan hero background video looping.',
+      'Kontrol identitas platform, banner pengumuman marquee, dan mode pemeliharaan (maintenance mode).',
+    ],
+    usageTips: [
+      'Gunakan live preview sandbox untuk melihat respons warna sebelum menekan tombol Simpan & Terapkan Global.',
+      'Ekspor konfigurasi JSON sebagai cadangan visual sebelum melakukan perombakan tema besar-besaran.',
+      'Klik tombol Tes Suara untuk memastikan volume dan nada notifikasi terdengar nyaman.',
+    ],
+  },
 };
