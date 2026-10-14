@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import BrandText from '../ui/BrandText';
+import AppLogo from '../ui/AppLogo';
 import ClayIcon from '../ui/ClayIcon';
 import ThemeToggle from '../ui/ThemeToggle';
 import usePersistentSidebar from './usePersistentSidebar';
@@ -84,8 +85,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
         }`}
       >
         <div className={`flex items-center border-b border-white/10 py-5 ${isCollapsed ? 'justify-center px-3' : 'gap-2 px-6'}`}>
-            <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-cyan-500/30" />
-          {!isCollapsed ? <BrandText className="text-xl font-black" /> : null}
+          <AppLogo variant="sidebar" showText={!isCollapsed} textClassName="text-xl font-black" />
           {!isCollapsed ? (
             <span className="ml-auto rounded-full bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 text-[10px] font-bold text-emerald-300 shadow-sm shadow-emerald-500/20">
               Perusahaan (HRD)
@@ -156,8 +156,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
           <aside className="absolute left-0 top-0 flex h-full min-h-0 w-72 flex-col overflow-hidden gradient-sidebar border-r border-cyan-500/20 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
               <div className="flex items-center gap-2">
-                <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-cyan-500/30" />
-                <BrandText className="text-xl font-black" />
+                <AppLogo variant="sidebar" textClassName="text-xl font-black" />
                 <span className="rounded-full bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 text-[10px] font-bold text-emerald-300 shadow-sm shadow-emerald-500/20">
                   Perusahaan (HRD)
                 </span>
@@ -245,8 +244,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
               </button>
 
               <div className="flex items-center gap-1.5 lg:hidden shrink-0">
-                <img src="/branding/icon64.png" alt="LOXER Logo" className="w-6 h-6 rounded-lg shadow-md shadow-cyan-500/30" />
-                <BrandText className="text-base font-black" />
+                <AppLogo variant="compact" height={24} textClassName="text-base font-black" />
                 <span className="rounded-full bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 text-[10px] font-bold text-emerald-300 shadow-sm shadow-emerald-500/20">
                   Perusahaan (HRD)
                 </span>

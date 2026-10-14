@@ -69,6 +69,7 @@ import {
   YAxis,
 } from 'recharts';
 import BrandText from '../../components/ui/BrandText';
+import AppLogo from '../../components/ui/AppLogo';
 import ApplicationStatusBadge from '../../components/ui/ApplicationStatusBadge';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import NotificationBell from '../../components/ui/NotificationBell';
@@ -376,8 +377,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
           )}
         >
           <div className={classNames('flex h-16 items-center border-b border-white/10', isCollapsed ? 'justify-center px-3' : 'gap-2 px-5')}>
-            <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-cyan-500/30" />
-            <BrandText className={classNames('text-lg font-black', isCollapsed ? 'lg:hidden' : '')} />
+            <AppLogo variant="sidebar" showText={!isCollapsed} textClassName="text-lg font-black" />
             {!isCollapsed && (
               <span className="ml-auto rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20">
                 {effectiveRole === 'superadmin' ? 'Super Admin' : 'Admin'}
@@ -477,8 +477,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                   </span>
                 </button>
                 <div className="flex items-center gap-1.5 lg:hidden shrink-0">
-                  <img src="/branding/icon64.png" alt="LOXER Logo" className="w-6 h-6 rounded-lg shadow-md shadow-cyan-500/30 shrink-0" />
-                  <BrandText className="text-base font-black shrink-0" />
+                  <AppLogo variant="compact" height={24} textClassName="text-base font-black shrink-0" />
                   <span className="whitespace-nowrap rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20 shrink-0">
                     {effectiveRole === 'superadmin' ? 'Super Admin' : 'Admin'}
                   </span>

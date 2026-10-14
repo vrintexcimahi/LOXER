@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, Briefcase, Building2, Check, Crown, MapPin, Search, ShieldCheck, Sparkles, Users, Wrench } from 'lucide-react';
+import AppLogo from './AppLogo';
 import type { UserRole } from '../../lib/types';
 
 const roles = [
@@ -40,7 +41,10 @@ export default function ClayHero({ onRegister }: { onRegister: (role?: UserRole)
           <div className="clay-showcase" aria-label="Temukan peluang melalui LOXER">
             <div className="clay-floating-tag"><span className="clay-icon"><Check size={18} /></span><div>Langkah baru Anda<strong>Dimulai di sini</strong></div></div>
             <div className="clay-preview-card">
-              <div className="clay-preview-header"><img src="/branding/icon64.png" alt="" /><strong>LO<span>X</span>ER</strong><span className="clay-preview-badge">Karir & Jasa</span></div>
+              <div className="clay-preview-header">
+                <AppLogo variant="compact" height={22} textClassName="text-sm font-black" />
+                <span className="clay-preview-badge">Karir & Jasa</span>
+              </div>
               <div className="clay-preview-greeting"><div><small>Halo, talenta hebat 👋</small><h2>Siap meraih<br />peluang baru?</h2></div><img src="/avatars/pixar_male_1.jpg" alt="Ilustrasi pencari kerja" /></div>
               <a className="clay-preview-search" href="/browse"><Search size={18} /> Cari pekerjaan impian Anda <ArrowRight size={16} /></a>
               <div className="clay-preview-promo"><div><span>Waktunya berkembang</span><h3>Keahlian Anda,<br />peluang tanpa batas.</h3><a href="/talents?availability=freelance">Jelajahi jasa <ArrowRight size={15} /></a></div><div className="clay-large-icon"><Briefcase size={64} strokeWidth={1.6} /></div></div>

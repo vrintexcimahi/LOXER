@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/useAuth';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import BrandText from '../ui/BrandText';
+import AppLogo from '../ui/AppLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import NotificationBell from '../ui/NotificationBell';
 import AndroidToast from '../ui/AndroidToast';
@@ -115,8 +116,7 @@ export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: N
             className="flex items-center gap-2 group active-press select-none cursor-pointer"
             title={isUnlocked ? 'Mode Developer / Administrator Aktif' : undefined}
           >
-            <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-cyan-500/30 group-hover:brightness-110 transition" />
-            <BrandText className="text-xl font-black tracking-tight" />
+            <AppLogo variant="navbar" className="group-hover:brightness-110 transition" textClassName="text-xl font-black tracking-tight" />
           </a>
 
           {/* Desktop Nav */}

@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { UserRole } from '../../lib/types';
 import BrandText from '../../components/ui/BrandText';
+import AppLogo from '../../components/ui/AppLogo';
 import AndroidToast from '../../components/ui/AndroidToast';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 import { DEFAULT_ADMIN_EMAIL, isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
@@ -466,12 +467,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
             title={isUnlocked ? 'Mode Developer / Administrator Aktif' : undefined}
           >
             <div className="inline-flex items-center justify-center gap-3 px-5 py-2.5 rounded-2xl bg-slate-900/95 border border-cyan-400/30 shadow-xl shadow-cyan-500/20 backdrop-blur-md group-hover:border-cyan-400/60 transition-all mb-3.5">
-              <img
-                src="/branding/icon64.png"
-                alt="LOXER Logo"
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-md shadow-cyan-500/40 object-contain group-hover:brightness-110 transition shrink-0"
-              />
-              <BrandText className="text-2xl sm:text-3xl font-black" imgClassName="h-7 sm:h-8" />
+              <AppLogo variant="auth" height={36} textClassName="text-2xl sm:text-3xl font-black" />
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-white mb-1.5 text-center">

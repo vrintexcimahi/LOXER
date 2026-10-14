@@ -4,6 +4,8 @@
  * branding identity, and global system toggles with real-time DOM injection.
  */
 
+import { useState, useEffect, useCallback } from 'react';
+
 export interface ColorThemeSettings {
   preset: string;
   primaryColor: string;
@@ -25,12 +27,28 @@ export interface ColorThemeSettings {
 }
 
 export interface MediaAssetSettings {
+  // Primary Logo (Navbar, Header, General)
   appLogoUrl: string;
   appLogoFooterUrl: string;
+  appLogoAuthUrl: string;
+  appLogoDisplayMode: 'both' | 'image_only' | 'text_only';
+  appLogoHeight: number; // 20 - 72, default 32
+  appLogoSvgCode: string; // custom raw inline SVG
+  appLogoText: string; // override brand text (default: 'LOXER')
+
+  // Browser & Meta
   appFaviconUrl: string;
+  ogImageUrl: string;
+
+  // Banners & Backgrounds
   heroBannerUrl: string;
+  heroBannerOverlayOpacity: number; // 0 - 100, default 40
   talentBannerUrl: string;
   authBgUrl: string;
+  authBgBlur: number; // 0 - 20
+  watermarkUrl: string;
+
+  // Avatars & Placeholders
   defaultMaleAvatarUrl: string;
   defaultFemaleAvatarUrl: string;
   defaultCompanyLogoUrl: string;
@@ -269,10 +287,19 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   assets: {
     appLogoUrl: '',
     appLogoFooterUrl: '',
+    appLogoAuthUrl: '',
+    appLogoDisplayMode: 'both',
+    appLogoHeight: 32,
+    appLogoSvgCode: '',
+    appLogoText: 'LOXER',
     appFaviconUrl: '/branding/icon32.png',
+    ogImageUrl: '/branding/icon64.png',
     heroBannerUrl: '',
+    heroBannerOverlayOpacity: 40,
     talentBannerUrl: '',
     authBgUrl: '',
+    authBgBlur: 0,
+    watermarkUrl: '',
     defaultMaleAvatarUrl: '/avatars/pixar_male_1.jpg',
     defaultFemaleAvatarUrl: '/avatars/pixar_female_1.jpg',
     defaultCompanyLogoUrl: '',
@@ -374,13 +401,41 @@ export function applySystemSettingsToDom(settings: SystemSettings): void {
 
   // 2. Favicon update
   if (assets.appFaviconUrl) {
-    const existingFavicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
-    if (existingFavicon) {
-      existingFavicon.href = assets.appFaviconUrl;
+    let existingFavicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+    if (!existingFavicon) {
+      existingFavicon = document.createElement('link');
+      existingFavicon.rel = 'shortcut icon';
+      document.head.appendChild(existingFavicon);
     }
+    existingFavicon.href = assets.appFaviconUrl;
   }
 
-  // 3. Document Title Brand Prefix
+  // 3. OpenGraph Image
+  if (assets.ogImageUrl) {
+    let ogImage = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
+    if (!ogImage) {
+      ogImage = document.createElement('meta');
+      ogImage.setAttribute('property', 'og:image');
+      document.head.appendChild(ogImage);
+    }
+    ogImage.content = assets.ogImageUrl;
+  }
+
+  // 4. Asset CSS Variables & Overlay
+  root.style.setProperty('--app-logo-height', `${assets.appLogoHeight || 32}px`);
+  root.style.setProperty('--app-hero-overlay', `${(assets.heroBannerOverlayOpacity ?? 40) / 100}`);
+  if (assets.heroBannerUrl) {
+    root.style.setProperty('--app-hero-bg', `url("${assets.heroBannerUrl}")`);
+  } else {
+    root.style.removeProperty('--app-hero-bg');
+  }
+  if (assets.authBgUrl) {
+    root.style.setProperty('--app-auth-bg', `url("${assets.authBgUrl}")`);
+  } else {
+    root.style.removeProperty('--app-auth-bg');
+  }
+
+  // 5. Document Title Brand Prefix
   if (general.appName) {
     const currentTitle = document.title;
     if (!currentTitle.includes(general.appName)) {
@@ -388,7 +443,7 @@ export function applySystemSettingsToDom(settings: SystemSettings): void {
     }
   }
 
-  // 4. UI Animation speed
+  // 6. UI Animation speed
   if (general.uiAnimationSpeed === 'off') {
     root.style.setProperty('--animation-duration', '0s');
     root.classList.add('reduce-motion');
@@ -399,6 +454,76 @@ export function applySystemSettingsToDom(settings: SystemSettings): void {
     root.style.removeProperty('--animation-duration');
     root.classList.remove('reduce-motion');
   }
+
+  // 7. Dispatch Reactive System Settings Change Event
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(SYSTEM_SETTINGS_CHANGE_EVENT, { detail: settings }));
+  }
+}
+
+export const SYSTEM_SETTINGS_CHANGE_EVENT = 'loxer:system-settings-changed';
+
+export function getCachedSystemSettings(): SystemSettings {
+  if (typeof window === 'undefined') return DEFAULT_SYSTEM_SETTINGS;
+  try {
+    const local = window.localStorage.getItem(STORAGE_KEY);
+    if (local) {
+      return mergeSettingsWithDefaults(JSON.parse(local));
+    }
+  } catch {}
+  return DEFAULT_SYSTEM_SETTINGS;
+}
+
+export function useSystemSettings() {
+  const [settings, setSettings] = useState<SystemSettings>(() => getCachedSystemSettings());
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<SystemSettings>;
+      if (customEvent.detail) {
+        setSettings(customEvent.detail);
+      }
+    };
+
+    window.addEventListener(SYSTEM_SETTINGS_CHANGE_EVENT, handleUpdate);
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          setSettings(mergeSettingsWithDefaults(JSON.parse(e.newValue)));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    fetchSystemSettings().then((s) => setSettings(s)).catch(() => {});
+
+    return () => {
+      window.removeEventListener(SYSTEM_SETTINGS_CHANGE_EVENT, handleUpdate);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const update = useCallback(
+    async (newSettings: Partial<SystemSettings> | ((prev: SystemSettings) => SystemSettings)) => {
+      setLoading(true);
+      try {
+        let resolved: SystemSettings;
+        if (typeof newSettings === 'function') {
+          resolved = newSettings(settings);
+        } else {
+          resolved = mergeSettingsWithDefaults({ ...settings, ...newSettings });
+        }
+        setSettings(resolved);
+        await saveSystemSettings(resolved);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [settings]
+  );
+
+  return { settings, updateSettings: update, loading };
 }
 
 /**

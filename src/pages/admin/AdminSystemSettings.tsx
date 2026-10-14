@@ -26,8 +26,19 @@ import {
   Flame,
   CheckCircle2,
   HelpCircle,
+  UploadCloud,
+  Trash2,
+  Copy,
+  FileCode,
+  Sun,
+  Moon,
+  Share2,
+  FileText,
+  Building2,
+  ArrowRight,
 } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
+import AppLogo from '../../components/ui/AppLogo';
 import {
   SystemSettings,
   DEFAULT_SYSTEM_SETTINGS,
@@ -46,6 +57,13 @@ export default function AdminSystemSettings() {
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null);
   const [previewDeviceMode, setPreviewDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
+
+  // Asset Studio enhanced state
+  const [assetCategoryFilter, setAssetCategoryFilter] = useState<'all' | 'logo' | 'banner' | 'avatar' | 'browser'>('all');
+  const [logoInputMode, setLogoInputMode] = useState<'upload' | 'url' | 'svg' | 'presets'>('upload');
+  const [previewNavbarTheme, setPreviewNavbarTheme] = useState<'dark' | 'light'>('dark');
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [dragOverField, setDragOverField] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importJsonRef = useRef<HTMLInputElement>(null);
@@ -146,31 +164,103 @@ export default function AdminSystemSettings() {
     e.target.value = '';
   };
 
-  // Handle generic image upload to dataURL
-  const handleImageUpload = (field: keyof SystemSettings['assets'], file: File) => {
-    if (!file.type.startsWith('image/')) {
-      showToast('error', 'File harus berupa gambar (PNG, JPG, SVG, WEBP).');
+  // Handle generic image upload to server storage / dataURL fallback
+  const handleImageUpload = async (field: keyof SystemSettings['assets'], file: File) => {
+    if (!file.type.startsWith('image/') && !file.name.endsWith('.svg')) {
+      showToast('error', 'Berkas harus berupa gambar valid (PNG, JPG, SVG, WEBP).');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('error', 'Ukuran gambar maksimal 5MB.');
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('error', 'Ukuran berkas maksimal 8MB.');
       return;
     }
+
+    setUploadingField(String(field));
+
+    // If it's an SVG file and user is editing appLogoUrl or appLogoSvgCode, read text as well
+    if (file.name.endsWith('.svg') || file.type.includes('svg')) {
+      const textReader = new FileReader();
+      textReader.onload = (ev) => {
+        const svgContent = ev.target?.result as string;
+        if (svgContent && svgContent.includes('<svg')) {
+          updateSettings((prev) => ({
+            ...prev,
+            assets: {
+              ...prev.assets,
+              appLogoSvgCode: svgContent,
+            },
+          }));
+        }
+      };
+      textReader.readAsText(file);
+    }
+
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) {
-        updateSettings((prev) => ({
-          ...prev,
-          assets: {
-            ...prev.assets,
-            [field]: result,
-          },
-        }));
-        showToast('success', `Aset gambar berhasil dimuat!`);
+    reader.onload = async (e) => {
+      const dataUri = e.target?.result as string;
+      if (!dataUri) {
+        setUploadingField(null);
+        return;
       }
+
+      // 1. Instant local preview
+      updateSettings((prev) => ({
+        ...prev,
+        assets: {
+          ...prev.assets,
+          [field]: dataUri,
+        },
+      }));
+
+      // 2. Upload to storage endpoint for clean persistent URL
+      try {
+        const res = await fetch('/api/storage/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file: dataUri,
+            folder: 'branding',
+            filenamePrefix: String(field).toLowerCase().replace(/url$/i, ''),
+          }),
+        });
+
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload?.ok && payload?.data?.url) {
+            updateSettings((prev) => ({
+              ...prev,
+              assets: {
+                ...prev.assets,
+                [field]: payload.data.url,
+              },
+            }));
+            showToast('success', `Aset ${String(field)} berhasil diunggah ke server!`);
+            setUploadingField(null);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Storage upload fallback to dataURI:', err);
+      }
+
+      setUploadingField(null);
+      showToast('success', `Aset gambar berhasil dimuat ke pratinjau!`);
     };
     reader.readAsDataURL(file);
+  };
+
+  // Reset individual asset
+  const handleResetAsset = (field: keyof SystemSettings['assets']) => {
+    const defaultVal = (DEFAULT_SYSTEM_SETTINGS.assets as any)[field];
+    updateSettings((prev) => ({
+      ...prev,
+      assets: {
+        ...prev.assets,
+        [field]: defaultVal,
+        ...(field === 'appLogoUrl' ? { appLogoSvgCode: '', appLogoHeight: 32 } : {}),
+      },
+    }));
+    showToast('info', `Aset ${String(field)} dikembalikan ke pengaturan bawaan.`);
   };
 
   // Test sound effect
@@ -734,77 +824,703 @@ export default function AdminSystemSettings() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: ASET GAMBAR & LOGO */}
+        {/* TAB 2: ASET GAMBAR & LOGO (STUDIO LEVEL MAX) */}
         {/* ========================================================================= */}
         {activeTab === 'assets' && (
           <div className="space-y-6">
-            <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-emerald-400" />
-                  <span>Manajemen Aset Gambar & Logo Seluruh App</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Unggah file baru (PNG/SVG/JPG/WEBP) atau masukkan URL gambar eksternal untuk mengganti logo dan banner platform.
-                </p>
-              </div>
+            {/* Header & Filter Kategori */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <ImageIcon className="w-5 h-5 text-cyan-400" />
+                    <span>Studio Manajemen Aset & Logo (Level Max)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Ganti logo utama, logo footer, logo auth, favicon tab, banner hero, background modal, dan avatar kandidat secara manual atau unggah file baru.
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* 1. App Logo Navbar */}
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 space-y-3">
-                  <span className="text-xs font-bold text-white">1. Logo Utama (Navbar Header)</span>
-                  <div className="h-24 rounded-xl border border-white/10 bg-slate-900/80 flex items-center justify-center overflow-hidden p-2">
-                    {settings.assets.appLogoUrl ? (
-                      <img src={settings.assets.appLogoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <img src="/branding/icon32.png" alt="LOXER" className="h-8 w-8 object-contain" />
-                        <span className="font-extrabold text-white text-base">LOXER</span>
-                      </div>
-                    )}
+                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-950/80 border border-white/10">
+                  {[
+                    { key: 'all', label: 'Semua Aset' },
+                    { key: 'logo', label: 'Logo & Brand' },
+                    { key: 'browser', label: 'Browser & Favicon' },
+                    { key: 'banner', label: 'Banner & Latar' },
+                    { key: 'avatar', label: 'Avatar Pengguna' },
+                  ].map((cat) => (
+                    <button
+                      key={cat.key}
+                      type="button"
+                      onClick={() => setAssetCategoryFilter(cat.key as any)}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
+                        assetCategoryFilter === cat.key
+                          ? 'bg-cyan-500 text-slate-950 shadow-sm shadow-cyan-500/30'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* =================================================================== */}
+            {/* 1. MASTER LOGO SUITE (FEATURED SUITE) */}
+            {/* =================================================================== */}
+            {(assetCategoryFilter === 'all' || assetCategoryFilter === 'logo') && (
+              <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-slate-900/95 to-slate-950/95 p-5 md:p-6 space-y-6 shadow-xl shadow-cyan-950/20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-md shadow-cyan-500/20">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>1. Logo Utama (Navbar Header, Sidebar, & Seluruh App)</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 font-semibold">
+                          Aset Prioritas
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-400">
+                        Atur logo identitas utama yang tampil di seluruh bilah navigasi pengguna, portal pelamar, perusahaan, dan admin.
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <input
-                      type="text"
-                      placeholder="URL Gambar / Path Logo..."
-                      value={settings.assets.appLogoUrl}
-                      onChange={(e) =>
-                        updateSettings((prev) => ({
-                          ...prev,
-                          assets: { ...prev.assets, appLogoUrl: e.target.value },
-                        }))
-                      }
-                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500"
-                    />
-                    <label className="block">
-                      <span className="sr-only">Upload File</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleImageUpload('appLogoUrl', file);
-                        }}
-                        className="block w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 cursor-pointer"
-                      />
-                    </label>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('appLogoUrl')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition"
+                      title="Kembalikan Logo Utama ke Bawaan"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reset Bawaan</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* 2. Favicon Browser */}
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 space-y-3">
-                  <span className="text-xs font-bold text-white">2. Favicon (Tab Browser)</span>
-                  <div className="h-24 rounded-xl border border-white/10 bg-slate-900/80 flex items-center justify-center overflow-hidden p-2">
-                    <img
-                      src={settings.assets.appFaviconUrl || '/branding/icon32.png'}
-                      alt="Favicon"
-                      className="h-10 w-10 object-contain shadow-md"
-                    />
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left Column: Live Logo Visual Display Box */}
+                  <div className="lg:col-span-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-300">Pratinjau Logo Langsung</span>
+                      <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-950 border border-white/10 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewNavbarTheme('dark')}
+                          className={`px-2 py-0.5 rounded flex items-center gap-1 font-semibold transition ${
+                            previewNavbarTheme === 'dark' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Moon className="w-3 h-3" /> Gelap
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewNavbarTheme('light')}
+                          className={`px-2 py-0.5 rounded flex items-center gap-1 font-semibold transition ${
+                            previewNavbarTheme === 'light' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Sun className="w-3 h-3" /> Terang
+                        </button>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`h-40 rounded-2xl border transition-all flex flex-col items-center justify-center p-4 relative overflow-hidden ${
+                        previewNavbarTheme === 'dark'
+                          ? 'border-white/10 bg-slate-950 text-white'
+                          : 'border-slate-300 bg-white text-slate-900 shadow-inner'
+                      }`}
+                    >
+                      <div className="relative z-10 flex items-center justify-center scale-110">
+                        <AppLogo variant="navbar" height={settings.assets.appLogoHeight || 32} />
+                      </div>
+
+                      <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] opacity-60">
+                        <span>Tinggi: {settings.assets.appLogoHeight || 32}px</span>
+                        <span>Mode: {settings.assets.appLogoDisplayMode || 'both'}</span>
+                      </div>
+                    </div>
+
+                    {/* Mode Tampilan Selector */}
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-semibold text-slate-400">Mode Tampilan di Navigasi:</span>
+                      <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-950 border border-white/10 text-xs">
+                        {[
+                          { key: 'both', label: 'Logo + Teks' },
+                          { key: 'image_only', label: 'Hanya Logo' },
+                          { key: 'text_only', label: 'Hanya Teks' },
+                        ].map((m) => (
+                          <button
+                            key={m.key}
+                            type="button"
+                            onClick={() =>
+                              updateSettings((prev) => ({
+                                ...prev,
+                                assets: { ...prev.assets, appLogoDisplayMode: m.key as any },
+                              }))
+                            }
+                            className={`py-1.5 px-2 rounded-lg font-semibold text-center transition ${
+                              (settings.assets.appLogoDisplayMode || 'both') === m.key
+                                ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Height Slider */}
+                    <div className="space-y-1.5 bg-slate-950/60 border border-white/5 p-3 rounded-xl">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-300 font-semibold flex items-center gap-1.5">
+                          <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Tinggi Ukuran Logo</span>
+                        </span>
+                        <span className="text-cyan-300 font-mono font-bold">
+                          {settings.assets.appLogoHeight || 32}px
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={20}
+                        max={64}
+                        step={2}
+                        value={settings.assets.appLogoHeight || 32}
+                        onChange={(e) =>
+                          updateSettings((prev) => ({
+                            ...prev,
+                            assets: { ...prev.assets, appLogoHeight: Number(e.target.value) },
+                          }))
+                        }
+                        className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                        <span>20px (Kecil)</span>
+                        <span>32px (Standar)</span>
+                        <span>64px (Besar)</span>
+                      </div>
+                    </div>
+
+                    {/* Custom Brand Text */}
+                    <div className="space-y-1.5 bg-slate-950/60 border border-white/5 p-3 rounded-xl">
+                      <label className="text-xs font-semibold text-slate-300 block">
+                        Teks Nama Brand (di samping logo)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: LOXER atau NAMA PERUSAHAAN"
+                        value={settings.assets.appLogoText ?? 'LOXER'}
+                        onChange={(e) =>
+                          updateSettings((prev) => ({
+                            ...prev,
+                            assets: { ...prev.assets, appLogoText: e.target.value },
+                          }))
+                        }
+                        className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
+
+                  {/* Right Column: Input Mode Switcher & Editors */}
+                  <div className="lg:col-span-7 space-y-4">
+                    {/* Method Switcher Tabs */}
+                    <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-3">
+                      {[
+                        { key: 'upload', label: '1. Unggah Berkas Baru', icon: UploadCloud },
+                        { key: 'url', label: '2. URL Gambar Manual', icon: ExternalLink },
+                        { key: 'svg', label: '3. Kode Vektor SVG', icon: FileCode },
+                        { key: 'presets', label: '4. Preset Logo Siap Pakai', icon: Wand2 },
+                      ].map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => setLogoInputMode(item.key as any)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                              logoInputMode === item.key
+                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm shadow-cyan-500/20'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Mode 1: Drag & Drop File Upload */}
+                    {logoInputMode === 'upload' && (
+                      <div className="space-y-3">
+                        <div
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOverField('appLogoUrl');
+                          }}
+                          onDragLeave={() => setDragOverField(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragOverField(null);
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) handleImageUpload('appLogoUrl', file);
+                          }}
+                          className={`rounded-2xl border-2 border-dashed p-6 text-center transition-all flex flex-col items-center justify-center cursor-pointer ${
+                            dragOverField === 'appLogoUrl'
+                              ? 'border-cyan-400 bg-cyan-500/10 scale-[1.01]'
+                              : 'border-white/15 bg-slate-950/60 hover:border-cyan-400/50 hover:bg-slate-950'
+                          }`}
+                          onClick={() => {
+                            const el = document.getElementById('logo-file-input');
+                            if (el) el.click();
+                          }}
+                        >
+                          <input
+                            id="logo-file-input"
+                            type="file"
+                            accept="image/*,.svg"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload('appLogoUrl', file);
+                            }}
+                          />
+                          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center text-cyan-400 mb-3">
+                            <UploadCloud className="w-6 h-6 animate-pulse" />
+                          </div>
+                          <p className="text-sm font-bold text-white mb-1">
+                            {uploadingField === 'appLogoUrl'
+                              ? 'Mengunggah & Memproses Logo...'
+                              : 'Pilih Berkas atau Tarik ke Sini'}
+                          </p>
+                          <p className="text-xs text-slate-400 max-w-sm">
+                            Mendukung berkas PNG transparan, SVG vektor, WEBP, atau JPG resolusi tinggi (maksimal 8MB).
+                          </p>
+                          <span className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/30 transition">
+                            <Upload className="w-3.5 h-3.5" /> Telusuri Berkas Komputer
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mode 2: Manual URL */}
+                    {logoInputMode === 'url' && (
+                      <div className="space-y-3 p-4 rounded-2xl bg-slate-950/60 border border-white/10">
+                        <label className="text-xs font-semibold text-slate-300 block">
+                          Tautan URL Gambar Logo
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="https://domain.com/logo.png atau /branding/icon64.png"
+                            value={settings.assets.appLogoUrl}
+                            onChange={(e) =>
+                              updateSettings((prev) => ({
+                                ...prev,
+                                assets: { ...prev.assets, appLogoUrl: e.target.value, appLogoSvgCode: '' },
+                              }))
+                            }
+                            className="flex-1 rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                          />
+                          {settings.assets.appLogoUrl && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateSettings((prev) => ({
+                                  ...prev,
+                                  assets: { ...prev.assets, appLogoUrl: '' },
+                                }))
+                              }
+                              className="px-3 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-xs font-semibold"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-slate-400">
+                          <span>Saran cepat:</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateSettings((prev) => ({
+                                ...prev,
+                                assets: { ...prev.assets, appLogoUrl: '/branding/icon64.png', appLogoSvgCode: '' },
+                              }))
+                            }
+                            className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-cyan-300 font-mono"
+                          >
+                            /branding/icon64.png
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateSettings((prev) => ({
+                                ...prev,
+                                assets: { ...prev.assets, appLogoUrl: '/branding/icon32.png', appLogoSvgCode: '' },
+                              }))
+                            }
+                            className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-cyan-300 font-mono"
+                          >
+                            /branding/icon32.png
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mode 3: Raw SVG Vector Code */}
+                    {logoInputMode === 'svg' && (
+                      <div className="space-y-3 p-4 rounded-2xl bg-slate-950/60 border border-white/10">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold text-slate-300">
+                            Tempel Kode SVG Vektor Murni (&lt;svg ...&gt;)
+                          </label>
+                          <span className="text-[10px] text-emerald-400 font-mono font-semibold">
+                            Resolusi Tajam Tanpa Batas
+                          </span>
+                        </div>
+                        <textarea
+                          rows={5}
+                          placeholder="<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>...</svg>"
+                          value={settings.assets.appLogoSvgCode || ''}
+                          onChange={(e) =>
+                            updateSettings((prev) => ({
+                              ...prev,
+                              assets: { ...prev.assets, appLogoSvgCode: e.target.value },
+                            }))
+                          }
+                          className="w-full rounded-xl border border-white/10 bg-slate-900 p-3 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-cyan-400 resize-none"
+                        />
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span>Kode SVG langsung diinjeksi secara aman ke navigasi.</span>
+                          {settings.assets.appLogoSvgCode && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateSettings((prev) => ({
+                                  ...prev,
+                                  assets: { ...prev.assets, appLogoSvgCode: '' },
+                                }))
+                              }
+                              className="text-rose-400 hover:underline"
+                            >
+                              Bersihkan Kode SVG
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mode 4: Presets Siap Pakai */}
+                    {logoInputMode === 'presets' && (
+                      <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-950/60 border border-white/10">
+                        {[
+                          {
+                            name: 'LOXER Cyan Cube',
+                            type: 'url',
+                            val: '/branding/icon64.png',
+                            brand: 'LOXER',
+                            desc: 'Kubus 3D Cyan khas LOXER',
+                          },
+                          {
+                            name: 'Sapphire Hex Mark',
+                            type: 'svg',
+                            val: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="w-full h-full"><defs><linearGradient id="g-saph" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#38BDF8"/><stop offset="100%" stop-color="#1D4ED8"/></linearGradient></defs><polygon points="50,8 90,32 90,72 50,94 10,72 10,32" fill="url(#g-saph)" stroke="#67E8F9" stroke-width="3"/><path d="M50 8 L50 94 M10 32 L90 72 M10 72 L90 32" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="2"/><circle cx="50" cy="50" r="14" fill="#FFFFFF" fill-opacity="0.95"/></svg>`,
+                            brand: 'SAPPHIRE',
+                            desc: 'Vektor heksagonal safir modern',
+                          },
+                          {
+                            name: 'Emerald Shield Tech',
+                            type: 'svg',
+                            val: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="w-full h-full"><defs><linearGradient id="g-emr" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34D399"/><stop offset="100%" stop-color="#047857"/></linearGradient></defs><path d="M50 10 L86 24 L86 54 C86 74 50 92 50 92 C50 92 14 74 14 54 L14 24 Z" fill="url(#g-emr)" stroke="#A7F3D0" stroke-width="3"/><path d="M36 50 L46 62 L66 38" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+                            brand: 'EMERALD',
+                            desc: 'Perisai hijau keamanan kerja',
+                          },
+                          {
+                            name: 'Cyber Purple Nexus',
+                            type: 'svg',
+                            val: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="w-full h-full"><defs><linearGradient id="g-purp" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#C084FC"/><stop offset="100%" stop-color="#6D28D9"/></linearGradient></defs><rect x="14" y="14" width="72" height="72" rx="22" fill="url(#g-purp)" stroke="#F472B6" stroke-width="3"/><polygon points="50,26 74,50 50,74 26,50" fill="#FFFFFF" fill-opacity="0.9"/></svg>`,
+                            brand: 'CYBER',
+                            desc: 'Futuristik ungu neon studio',
+                          },
+                        ].map((preset, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              if (preset.type === 'svg') {
+                                updateSettings((prev) => ({
+                                  ...prev,
+                                  assets: {
+                                    ...prev.assets,
+                                    appLogoSvgCode: preset.val,
+                                    appLogoUrl: '',
+                                    appLogoText: preset.brand,
+                                  },
+                                }));
+                              } else {
+                                updateSettings((prev) => ({
+                                  ...prev,
+                                  assets: {
+                                    ...prev.assets,
+                                    appLogoUrl: preset.val,
+                                    appLogoSvgCode: '',
+                                    appLogoText: preset.brand,
+                                  },
+                                }));
+                              }
+                              showToast('success', `Preset "${preset.name}" diterapkan!`);
+                            }}
+                            className="p-3 rounded-xl border border-white/10 bg-slate-900/80 hover:border-cyan-400 hover:bg-slate-800 cursor-pointer transition flex items-center gap-3 group"
+                          >
+                            <div className="w-10 h-10 rounded-lg bg-slate-950 flex items-center justify-center p-1.5 shrink-0 border border-white/10 group-hover:scale-105 transition">
+                              {preset.type === 'svg' ? (
+                                <div
+                                  className="w-full h-full"
+                                  dangerouslySetInnerHTML={{ __html: preset.val }}
+                                />
+                              ) : (
+                                <img src={preset.val} alt={preset.name} className="w-full h-full object-contain" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-white group-hover:text-cyan-300 truncate">
+                                {preset.name}
+                              </p>
+                              <p className="text-[10px] text-slate-400 truncate">{preset.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Live Navbar Mockup Simulator */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Simulasi Tampilan Bilah Navigasi Pengguna (Live Navbar)</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400">Pratinjau Nyata</span>
+                      </div>
+
+                      <div
+                        className={`rounded-2xl border p-3.5 transition-all flex items-center justify-between gap-4 overflow-x-auto ${
+                          previewNavbarTheme === 'dark'
+                            ? 'border-white/10 bg-[#0F172A] text-white shadow-xl shadow-cyan-950/20'
+                            : 'border-slate-300 bg-white text-slate-900 shadow-md'
+                        }`}
+                      >
+                        <div className="shrink-0 flex items-center">
+                          <AppLogo variant="navbar" height={settings.assets.appLogoHeight || 32} />
+                        </div>
+
+                        <div className="hidden sm:flex items-center gap-4 text-xs font-medium">
+                          <span className="text-cyan-400 font-semibold cursor-pointer">Iklan Loker</span>
+                          <span className={previewNavbarTheme === 'dark' ? 'text-slate-300' : 'text-slate-600'}>
+                            Pelamar
+                          </span>
+                          <span className={previewNavbarTheme === 'dark' ? 'text-slate-300' : 'text-slate-600'}>
+                            Perusahaan
+                          </span>
+                          <span className={previewNavbarTheme === 'dark' ? 'text-slate-300' : 'text-slate-600'}>
+                            Marketplace
+                          </span>
+                        </div>
+
+                        <div className="shrink-0 flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="px-3 py-1 rounded-xl bg-cyan-400 text-slate-950 text-xs font-bold shadow-sm"
+                          >
+                            Masuk
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================================== */}
+            {/* 2. LOGO SEGUNDER (FOOTER & AUTH MODAL) */}
+            {/* =================================================================== */}
+            {(assetCategoryFilter === 'all' || assetCategoryFilter === 'logo') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Logo Footer */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Logo Khusus Footer (Bagian Bawah)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('appLogoFooterUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  <div className="h-24 rounded-xl border border-white/10 bg-slate-950/80 flex items-center justify-center p-3">
+                    <AppLogo variant="footer" height={28} />
+                  </div>
+
+                  <div className="space-y-2">
                     <input
                       type="text"
-                      placeholder="URL Favicon..."
+                      placeholder="Kosongkan untuk menyamakan dengan Logo Utama..."
+                      value={settings.assets.appLogoFooterUrl || ''}
+                      onChange={(e) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          assets: { ...prev.assets, appLogoFooterUrl: e.target.value },
+                        }))
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                    />
+
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1">
+                        <span className="sr-only">Unggah File</span>
+                        <input
+                          type="file"
+                          accept="image/*,.svg"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload('appLogoFooterUrl', file);
+                          }}
+                          className="block w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 cursor-pointer"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSettings((prev) => ({
+                            ...prev,
+                            assets: { ...prev.assets, appLogoFooterUrl: prev.assets.appLogoUrl },
+                          }))
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] text-slate-300 font-semibold"
+                        title="Salin dari Logo Utama"
+                      >
+                        Sama dg Logo Utama
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo Auth Modal */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Logo Modal Auth / Login / Registrasi</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('appLogoAuthUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  <div className="h-24 rounded-xl border border-white/10 bg-slate-950/80 flex items-center justify-center p-3">
+                    <AppLogo variant="auth" height={32} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Kosongkan untuk menyamakan dengan Logo Utama..."
+                      value={settings.assets.appLogoAuthUrl || ''}
+                      onChange={(e) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          assets: { ...prev.assets, appLogoAuthUrl: e.target.value },
+                        }))
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                    />
+
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1">
+                        <span className="sr-only">Unggah File</span>
+                        <input
+                          type="file"
+                          accept="image/*,.svg"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload('appLogoAuthUrl', file);
+                          }}
+                          className="block w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 cursor-pointer"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSettings((prev) => ({
+                            ...prev,
+                            assets: { ...prev.assets, appLogoAuthUrl: prev.assets.appLogoUrl },
+                          }))
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] text-slate-300 font-semibold"
+                        title="Salin dari Logo Utama"
+                      >
+                        Sama dg Logo Utama
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================================== */}
+            {/* 3. BROWSER & SOCIAL MEDIA ASSETS */}
+            {/* =================================================================== */}
+            {(assetCategoryFilter === 'all' || assetCategoryFilter === 'browser') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Favicon Browser */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Favicon (Tab Browser Chrome/Edge/Firefox)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('appFaviconUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  {/* Chrome Tab Simulator */}
+                  <div className="p-3 rounded-xl bg-slate-950 border border-white/10 space-y-2">
+                    <span className="text-[10px] text-slate-400 font-semibold block">Simulasi Tab Browser:</span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-t-lg bg-slate-800/90 border-t border-l border-r border-white/15 text-xs text-white max-w-xs shadow-sm">
+                      <img
+                        src={settings.assets.appFaviconUrl || '/branding/icon32.png'}
+                        alt="Favicon"
+                        className="w-4 h-4 object-contain rounded-sm shrink-0"
+                      />
+                      <span className="truncate font-medium">{settings.general.appName || 'LOXER'} — Bursa Kerja</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="URL Favicon (PNG/ICO/SVG)..."
                       value={settings.assets.appFaviconUrl}
                       onChange={(e) =>
                         updateSettings((prev) => ({
@@ -812,12 +1528,13 @@ export default function AdminSystemSettings() {
                           assets: { ...prev.assets, appFaviconUrl: e.target.value },
                         }))
                       }
-                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500"
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                     />
+
                     <label className="block">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,.ico,.svg"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleImageUpload('appFaviconUrl', file);
@@ -828,20 +1545,145 @@ export default function AdminSystemSettings() {
                   </div>
                 </div>
 
-                {/* 3. Hero Banner Beranda */}
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 space-y-3">
-                  <span className="text-xs font-bold text-white">3. Banner Utama (Hero Beranda)</span>
-                  <div className="h-24 rounded-xl border border-white/10 bg-slate-900/80 flex items-center justify-center overflow-hidden p-2">
-                    {settings.assets.heroBannerUrl ? (
-                      <img src={settings.assets.heroBannerUrl} alt="Hero" className="h-full w-full object-cover rounded-lg" />
+                {/* Social Share Card (Open Graph 1200x630) */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <Share2 className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Social Share Thumbnail (OpenGraph WA/FB/Twitter)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('ogImageUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  {/* Social Preview Mockup */}
+                  <div className="h-32 rounded-xl border border-white/10 bg-slate-950 overflow-hidden relative flex items-center justify-center">
+                    {settings.assets.ogImageUrl ? (
+                      <img
+                        src={settings.assets.ogImageUrl}
+                        alt="OG Share"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      <span className="text-xs text-slate-500 italic">Menggunakan Gradient Bawaan</span>
+                      <div className="text-center p-3">
+                        <Share2 className="w-6 h-6 text-slate-500 mx-auto mb-1" />
+                        <span className="text-xs text-slate-400">Gambar 1200x630 untuk pratinjau tautan media sosial</span>
+                      </div>
                     )}
                   </div>
-                  <div className="space-y-1.5">
+
+                  <div className="space-y-2">
                     <input
                       type="text"
-                      placeholder="URL Banner Hero..."
+                      placeholder="URL Thumbnail Berbagi (1200x630)..."
+                      value={settings.assets.ogImageUrl || ''}
+                      onChange={(e) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          assets: { ...prev.assets, ogImageUrl: e.target.value },
+                        }))
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                    />
+
+                    <label className="block">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload('ogImageUrl', file);
+                        }}
+                        className="block w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================================== */}
+            {/* 4. BANNER & LATAR BELAKANG */}
+            {/* =================================================================== */}
+            {(assetCategoryFilter === 'all' || assetCategoryFilter === 'banner') && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Hero Banner Beranda */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Banner Utama (Hero Beranda)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('heroBannerUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset Bawaan
+                    </button>
+                  </div>
+
+                  <div className="h-32 rounded-xl border border-white/10 bg-slate-950 overflow-hidden relative flex items-center justify-center">
+                    {settings.assets.heroBannerUrl ? (
+                      <div className="w-full h-full relative">
+                        <img
+                          src={settings.assets.heroBannerUrl}
+                          alt="Hero Banner"
+                          className="w-full h-full object-cover"
+                        />
+                        <div
+                          className="absolute inset-0 bg-slate-950"
+                          style={{ opacity: (settings.assets.heroBannerOverlayOpacity ?? 40) / 100 }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xs font-bold text-white drop-shadow">
+                            Pratinjau Teks di Atas Banner
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center p-3 text-xs text-slate-500 italic">
+                        Menggunakan latar gradien dinamis bawaan
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Scrim Overlay Slider */}
+                  <div className="space-y-1 bg-slate-950/60 p-2.5 rounded-xl border border-white/5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">Tingkat Kegelapan Overlay (Kontras Teks):</span>
+                      <span className="font-mono text-cyan-300 font-bold">
+                        {settings.assets.heroBannerOverlayOpacity ?? 40}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={90}
+                      step={5}
+                      value={settings.assets.heroBannerOverlayOpacity ?? 40}
+                      onChange={(e) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          assets: {
+                            ...prev.assets,
+                            heroBannerOverlayOpacity: Number(e.target.value),
+                          },
+                        }))
+                      }
+                      className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="URL Gambar Banner Hero..."
                       value={settings.assets.heroBannerUrl}
                       onChange={(e) =>
                         updateSettings((prev) => ({
@@ -849,8 +1691,9 @@ export default function AdminSystemSettings() {
                           assets: { ...prev.assets, heroBannerUrl: e.target.value },
                         }))
                       }
-                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500"
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                     />
+
                     <label className="block">
                       <input
                         type="file"
@@ -865,20 +1708,76 @@ export default function AdminSystemSettings() {
                   </div>
                 </div>
 
-                {/* 4. Background Auth / Login Modal */}
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 space-y-3">
-                  <span className="text-xs font-bold text-white">4. Background Auth / Login Modal</span>
-                  <div className="h-24 rounded-xl border border-white/10 bg-slate-900/80 flex items-center justify-center overflow-hidden p-2">
+                {/* Background Auth / Login Modal */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Background Auth / Modal Login</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('authBgUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset Bawaan
+                    </button>
+                  </div>
+
+                  <div className="h-32 rounded-xl border border-white/10 bg-slate-950 overflow-hidden relative flex items-center justify-center">
                     {settings.assets.authBgUrl ? (
-                      <img src={settings.assets.authBgUrl} alt="Auth BG" className="h-full w-full object-cover rounded-lg" />
+                      <div className="w-full h-full relative">
+                        <img
+                          src={settings.assets.authBgUrl}
+                          alt="Auth Background"
+                          className="w-full h-full object-cover"
+                          style={{ filter: `blur(${settings.assets.authBgBlur || 0}px)` }}
+                        />
+                        <div className="absolute inset-0 bg-slate-950/40" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xs font-bold text-white drop-shadow">
+                            Pratinjau Kartu Dialog Login
+                          </span>
+                        </div>
+                      </div>
                     ) : (
-                      <span className="text-xs text-slate-500 italic">Gradient Standar</span>
+                      <div className="text-center p-3 text-xs text-slate-500 italic">
+                        Menggunakan latar gelap frosted glass bawaan
+                      </div>
                     )}
                   </div>
-                  <div className="space-y-1.5">
+
+                  {/* Blur Slider */}
+                  <div className="space-y-1 bg-slate-950/60 p-2.5 rounded-xl border border-white/5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">Efek Blur Latar Belakang:</span>
+                      <span className="font-mono text-cyan-300 font-bold">
+                        {settings.assets.authBgBlur || 0}px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={16}
+                      step={1}
+                      value={settings.assets.authBgBlur || 0}
+                      onChange={(e) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          assets: {
+                            ...prev.assets,
+                            authBgBlur: Number(e.target.value),
+                          },
+                        }))
+                      }
+                      className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <input
                       type="text"
-                      placeholder="URL Background Login..."
+                      placeholder="URL Background Modal Login..."
                       value={settings.assets.authBgUrl}
                       onChange={(e) =>
                         updateSettings((prev) => ({
@@ -886,8 +1785,9 @@ export default function AdminSystemSettings() {
                           assets: { ...prev.assets, authBgUrl: e.target.value },
                         }))
                       }
-                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500"
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                     />
+
                     <label className="block">
                       <input
                         type="file"
@@ -901,21 +1801,67 @@ export default function AdminSystemSettings() {
                     </label>
                   </div>
                 </div>
+              </div>
+            )}
 
-                {/* 5. Default Avatar Pelamar Pria */}
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 space-y-3">
-                  <span className="text-xs font-bold text-white">5. Default Avatar Kandidat Pria</span>
-                  <div className="h-24 rounded-xl border border-white/10 bg-slate-900/80 flex items-center justify-center overflow-hidden p-2">
+            {/* =================================================================== */}
+            {/* 5. DEFAULT AVATARS & PLACEHOLDERS */}
+            {/* =================================================================== */}
+            {(assetCategoryFilter === 'all' || assetCategoryFilter === 'avatar') && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Default Avatar Pelamar Pria */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white">Default Avatar Pelamar Pria</span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('defaultMaleAvatarUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  <div className="h-24 rounded-xl border border-white/10 bg-slate-950/80 flex items-center justify-center p-2">
                     <img
                       src={settings.assets.defaultMaleAvatarUrl || '/avatars/pixar_male_1.jpg'}
-                      alt="Male Avatar"
-                      className="h-16 w-16 rounded-full object-cover border-2 border-cyan-400 shadow-md"
+                      alt="Avatar Pria"
+                      className="h-16 w-16 rounded-full object-cover border-2 border-cyan-400 shadow-md shadow-cyan-500/20"
                     />
                   </div>
-                  <div className="space-y-1.5">
+
+                  {/* Pixar Male Presets */}
+                  <div className="flex items-center justify-center gap-2 p-1.5 rounded-xl bg-slate-950 border border-white/5">
+                    {[
+                      { src: '/avatars/pixar_male_1.jpg', label: 'Pria 1' },
+                      { src: '/avatars/pixar_male_2.jpg', label: 'Pria 2' },
+                      { src: '/avatars/pixar_male_3.jpg', label: 'Pria 3' },
+                    ].map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() =>
+                          updateSettings((prev) => ({
+                            ...prev,
+                            assets: { ...prev.assets, defaultMaleAvatarUrl: p.src },
+                          }))
+                        }
+                        className={`w-9 h-9 rounded-full overflow-hidden border-2 transition ${
+                          settings.assets.defaultMaleAvatarUrl === p.src
+                            ? 'border-cyan-400 scale-105 shadow-sm shadow-cyan-400/50'
+                            : 'border-white/15 opacity-60 hover:opacity-100'
+                        }`}
+                        title={p.label}
+                      >
+                        <img src={p.src} alt={p.label} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
                     <input
                       type="text"
-                      placeholder="Path Avatar Pria..."
+                      placeholder="Path / URL Avatar..."
                       value={settings.assets.defaultMaleAvatarUrl}
                       onChange={(e) =>
                         updateSettings((prev) => ({
@@ -923,8 +1869,9 @@ export default function AdminSystemSettings() {
                           assets: { ...prev.assets, defaultMaleAvatarUrl: e.target.value },
                         }))
                       }
-                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500"
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                     />
+
                     <label className="block">
                       <input
                         type="file"
@@ -939,20 +1886,59 @@ export default function AdminSystemSettings() {
                   </div>
                 </div>
 
-                {/* 6. Default Avatar Pelamar Wanita */}
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 space-y-3">
-                  <span className="text-xs font-bold text-white">6. Default Avatar Kandidat Wanita</span>
-                  <div className="h-24 rounded-xl border border-white/10 bg-slate-900/80 flex items-center justify-center overflow-hidden p-2">
+                {/* Default Avatar Pelamar Wanita */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white">Default Avatar Pelamar Wanita</span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('defaultFemaleAvatarUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  <div className="h-24 rounded-xl border border-white/10 bg-slate-950/80 flex items-center justify-center p-2">
                     <img
                       src={settings.assets.defaultFemaleAvatarUrl || '/avatars/pixar_female_1.jpg'}
-                      alt="Female Avatar"
-                      className="h-16 w-16 rounded-full object-cover border-2 border-rose-400 shadow-md"
+                      alt="Avatar Wanita"
+                      className="h-16 w-16 rounded-full object-cover border-2 border-rose-400 shadow-md shadow-rose-500/20"
                     />
                   </div>
-                  <div className="space-y-1.5">
+
+                  {/* Pixar Female Presets */}
+                  <div className="flex items-center justify-center gap-2 p-1.5 rounded-xl bg-slate-950 border border-white/5">
+                    {[
+                      { src: '/avatars/pixar_female_1.jpg', label: 'Wanita 1' },
+                      { src: '/avatars/pixar_female_2.jpg', label: 'Wanita 2' },
+                      { src: '/avatars/pixar_female_3.jpg', label: 'Wanita 3' },
+                    ].map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() =>
+                          updateSettings((prev) => ({
+                            ...prev,
+                            assets: { ...prev.assets, defaultFemaleAvatarUrl: p.src },
+                          }))
+                        }
+                        className={`w-9 h-9 rounded-full overflow-hidden border-2 transition ${
+                          settings.assets.defaultFemaleAvatarUrl === p.src
+                            ? 'border-rose-400 scale-105 shadow-sm shadow-rose-400/50'
+                            : 'border-white/15 opacity-60 hover:opacity-100'
+                        }`}
+                        title={p.label}
+                      >
+                        <img src={p.src} alt={p.label} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
                     <input
                       type="text"
-                      placeholder="Path Avatar Wanita..."
+                      placeholder="Path / URL Avatar..."
                       value={settings.assets.defaultFemaleAvatarUrl}
                       onChange={(e) =>
                         updateSettings((prev) => ({
@@ -960,8 +1946,9 @@ export default function AdminSystemSettings() {
                           assets: { ...prev.assets, defaultFemaleAvatarUrl: e.target.value },
                         }))
                       }
-                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500"
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                     />
+
                     <label className="block">
                       <input
                         type="file"
@@ -975,8 +1962,63 @@ export default function AdminSystemSettings() {
                     </label>
                   </div>
                 </div>
+
+                {/* Default Logo Perusahaan */}
+                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white">Default Logo Perusahaan / Mitra</span>
+                    <button
+                      type="button"
+                      onClick={() => handleResetAsset('defaultCompanyLogoUrl')}
+                      className="text-[10px] text-slate-400 hover:text-white"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  <div className="h-24 rounded-xl border border-white/10 bg-slate-950/80 flex items-center justify-center p-2">
+                    {settings.assets.defaultCompanyLogoUrl ? (
+                      <img
+                        src={settings.assets.defaultCompanyLogoUrl}
+                        alt="Company Logo"
+                        className="h-16 w-16 rounded-xl object-contain border border-white/10"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center text-slate-400">
+                        <Building2 className="w-8 h-8" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 pt-10">
+                    <input
+                      type="text"
+                      placeholder="URL Logo Perusahaan..."
+                      value={settings.assets.defaultCompanyLogoUrl || ''}
+                      onChange={(e) =>
+                        updateSettings((prev) => ({
+                          ...prev,
+                          assets: { ...prev.assets, defaultCompanyLogoUrl: e.target.value },
+                        }))
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                    />
+
+                    <label className="block">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload('defaultCompanyLogoUrl', file);
+                        }}
+                        className="block w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 

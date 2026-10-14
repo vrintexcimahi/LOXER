@@ -1,5 +1,6 @@
 import { Twitter, Linkedin, Instagram, Github, ShieldCheck } from 'lucide-react';
 import BrandText from '../ui/BrandText';
+import AppLogo from '../ui/AppLogo';
 import AndroidToast from '../ui/AndroidToast';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 
@@ -16,8 +17,7 @@ export default function Footer() {
               className="flex items-center gap-2 mb-4 cursor-pointer select-none group"
               title={isUnlocked ? 'Mode Administrator Aktif' : undefined}
             >
-              <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg group-hover:brightness-110 transition" />
-              <BrandText className="text-xl font-black" />
+              <AppLogo variant="footer" className="group-hover:brightness-110 transition" textClassName="text-xl font-black" />
             </div>
             <p className="text-sm leading-relaxed text-slate-500 mb-6">
               Platform rekrutmen Indonesia yang menghubungkan pencari kerja berbakat dengan perusahaan terbaik.

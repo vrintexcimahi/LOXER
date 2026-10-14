@@ -18,6 +18,7 @@ import {
   Sliders,
 } from 'lucide-react';
 import BrandText from '../../components/ui/BrandText';
+import AppLogo from '../../components/ui/AppLogo';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import NotificationBell from '../../components/ui/NotificationBell';
 import usePersistentSidebar from '../../components/layout/usePersistentSidebar';
@@ -215,16 +216,13 @@ export default function GodModeLayout({ title, description, actions, children }:
           )}
         >
           <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4">
-            <a href="/admin/dashboard" className="flex items-center justify-center shrink-0">
-              <img src="/branding/icon64.png" alt="LOXER Logo" className="w-8 h-8 rounded-lg shadow-lg shadow-cyan-500/30" />
+            <a href="/admin/dashboard" className="flex items-center gap-2 shrink-0">
+              <AppLogo variant="sidebar" showText={!isCollapsed} textClassName="text-lg text-white" />
             </a>
             {!isCollapsed && (
-              <div>
-                <BrandText className="text-lg text-white" />
-                <span className="inline-block mt-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[9px] font-bold text-rose-300 shadow-sm shadow-rose-500/20">
-                  Super Admin
-                </span>
-              </div>
+              <span className="inline-block mt-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[9px] font-bold text-rose-300 shadow-sm shadow-rose-500/20 shrink-0">
+                Super Admin
+              </span>
             )}
             <button
               onClick={() => window.history.back()}
@@ -284,8 +282,7 @@ export default function GodModeLayout({ title, description, actions, children }:
                   <Menu className="h-5 w-5" />
                 </button>
                 <div className="flex items-center gap-2 lg:hidden shrink-0">
-                  <img src="/branding/icon64.png" alt="LOXER Logo" className="w-7 h-7 rounded-lg shadow-md shadow-cyan-500/30 shrink-0" />
-                  <BrandText className="text-base font-black" />
+                  <AppLogo variant="sidebar" textClassName="text-base font-black" />
                   <span className="whitespace-nowrap rounded-full bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 text-[10px] font-bold text-rose-300 shadow-sm shadow-rose-500/20 shrink-0">
                     Super Admin
                   </span>
