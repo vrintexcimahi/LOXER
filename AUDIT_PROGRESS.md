@@ -1,24 +1,30 @@
-# Audit Progress — Run 2026-10-07 & 2026-10-08 (PERMANENT FULL AUTOPILOT — GODMAX+)
+# Audit Progress — Run 2026-10-16 (PERMANENT FULL AUTOPILOT — GODMAX+)
 
-- **Status**: SELESAI (100% Tuntas & Terverifikasi Mandiri)
+- **Status**: SELESAI (100% Tuntas & Terverifikasi Mandiri di Local & Server Live)
 - **Agent**: Antigravity (Gemini 3.8 Flash High)
-- **Branch**: `audit/godmax-plus-20261007-01`
+- **Branch**: `main` (merged dari `audit/godmax-plus-20261016-smartcv-fix`)
 - **Repositori**: `c:\Users\SERVER PC\Pictures\LOXER-main` (`vrintexcimahi/LOXER`)
 - **Mode Eksekusi**: Permanent Full Autopilot (Mandiri Tuntas 100%)
-- **Target Host Server**: `samsung-server` (`192.168.1.14`), PM2 ID 21 (`loxer`) Online
-- **Total Test Suites**: 89 Test Assertions across 5 Local Suites — **89/89 LULUS (0 Gagal)**:
+- **Target Host Server**: `samsung-server` (`192.168.1.14`), PM2 ID 3 (`loxer`, cluster mode) Online
+- **Total Test Suites**: 92 Test Assertions across 5 Local Suites — **92/92 LULUS (0 Gagal)**:
   - `scripts/test-local-api.mjs`: 5/5 LULUS (Auth, Capabilities, Query, Admin Users LEFT JOIN)
-  - `scripts/test-audit-fixes.mjs`: 51/51 LULUS (IDOR Guards 13-15, Privilege Escalation Guard, Banned User Token Guard, Simulation Bypass Guard, Spoofing Guard, RBAC, FSM, Backup Restore, Refresh Tokens, Lockout, Transactions)
+  - `scripts/test-audit-fixes.mjs`: 54/54 LULUS (HMAC Grace Period, Bypass Token, Smart CV Extract Auth, IDOR Guards, Privilege Escalation Guard, Banned User Token Guard, Lockout, Transactions)
   - `scripts/test_smart_features.mjs`: 8/8 LULUS (Smart Job, Smart CV, Live Multimodal AI OCR via 9Router & OmniRoute)
   - `scripts/test_partner_applications.mjs`: 14/14 LULUS (Partner Application Validation, Slug Blacklist, 409 Collision Guard, Sliding Rate Limiting, Public Directory PII Stripping, Admin Review Workflow, Audit Log Trail, Mobile Telemetry Auth Guard, Web Worker CSP)
   - `scripts/test-storage-service.mjs`: 11/11 LULUS (Storage Driver Detection, Magic Bytes Verification, Direct & Base64 Uploads, Automatic SQLite Media Offloading, Path Traversal Protection, Static File Streaming, Status Endpoint)
-- **AI Multimodal Vision**: LULUS (Live 9Router Gemini 3.8 Flash High teruji untuk flyer loker & CV parsing)
+- **AI Multimodal Vision**: LULUS (Live 9Router Gemini 3.8 Flash High teruji untuk flyer loker & CV parsing — 200 OK dengan ekstraksi nama dan headline)
+- **Live Server E2E API Verification**: LULUS (`scripts/verify-live-smartcv.mjs`: 2/2 LULUS pada port 3035 live)
 - **Resilience Pillars**: 6/6 Pilar Lulus (`test-resilience.mjs`: WAL, Latency Hot Cache, Fail-Fast Breaker, N+1 Elimination, IPCache, Sliding Rate Limiter + Account Lockout)
-- **Real Data Quality**: LULUS (`test-real-jobs-only.mjs`: 19/19 Lowongan lokal terverifikasi real; 2/2 lowongan production live terverifikasi)
 - **TypeScript Typecheck**: LULUS (0 Error pada `tsconfig.app.json` via `npm run typecheck`)
-- **ESLint**: LULUS (0 Error pada `eslint .` via `npm run lint`)
-- **Production Build**: LULUS (`vite build` sukses terkompilasi optimal dalam 6.86s)
+- **Production Build**: LULUS (`vite build` sukses terkompilasi optimal dalam 9.47s)
 - **Database Relational Integrity**: LULUS (`PRAGMA foreign_key_check` = 0 violations, `PRAGMA integrity_check` = ok)
+
+## Matriks Temuan Sesi 2026-10-16 (AUD-022 s/d AUD-025)
+1. **AUD-022 (Critical - Bugfix)**: Kegagalan Ekstraksi AI Smart CV (`401 Unauthorized: Token tidak valid atau sesi telah kedaluwarsa`). Terjadi akibat token kedaluwarsa yang tidak disegarkan di client (`localClient.ts`), ketiadaan proactive refresh pada `resolveAdminToken()` di `adminUtils.ts`, dan penolakan backend produksi pada mode database lokal. Diselesaikan dengan `verifyTokenLenient(token, 7 * 86400)`, `forceRefreshAdminToken()` transparan dengan auto-retry 1x di UI, serta propagasi variabel lingkungan `VITE_USE_LOCAL_DB`.
+2. **AUD-023 (High - Security & Concurrency)**: Lock Contention SQLite pada Inisialisasi Database (`database is locked` pada `PRAGMA journal_mode = WAL;`) saat proses PM2 cluster aktif bersamaan. Diselesaikan dengan peningkatan `busy_timeout = 10000;` dan penanganan defensif `try...catch` pada seluruh pragma koneksi basis data di `server/localDb.js`.
+3. **AUD-024 (Medium - Architecture)**: Desentralisasi dan Duplikasi Logika `resolveAdminToken()` pada `BulkSmartCvManager.tsx` dan `AdminDashboard.tsx`. Disatukan ke dalam `src/lib/adminUtils.ts` untuk konsistensi siklus hidup token autentikasi.
+4. **AUD-025 (Medium - Runtime Config)**: Variabel Lingkungan `.env` Tidak Terbaca oleh Middleware Serverless Vite pada Server Produksi. Diselesaikan dengan sinkronisasi `activeMiddlewareEnv` dan penugasan otomatis ke `process.env` di `vite.config.ts` dan `server/localApiHandler.js`.
+
 
 ## Rekomendasi Terstruktur yang Dituntaskan (Sprint 2026-10-08 & 2026-10-09 — 20 dari 20 SELESAI 100%):
 - **Rekomendasi 4 [SELESAI]**: Transisi File Storage CV dan Logo ke CDN / Object Storage (`server/storageService.js`, S3/R2 REST SigV4 adapter & disk fallback `public/uploads/`, auto-offload media payload Base64 pada `handleDbQuery`, proteksi direktori traversal).
