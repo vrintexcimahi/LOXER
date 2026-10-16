@@ -14,9 +14,11 @@ import {
   withTransaction,
   recordDailyAnalyticsSnapshot,
   createDatabaseSnapshot,
+  createEncryptedDatabaseSnapshot,
   listDatabaseSnapshots,
   getSnapshotFilePath,
   restoreDatabaseSnapshot,
+  restoreEncryptedDatabaseSnapshot,
   extendJobListing,
   notifyExpiringJobListings,
   insertPartnerApplication,
@@ -25,6 +27,7 @@ import {
   getPartnerApplicationById,
   getPartnerApplicationBySlug,
   countPartnerApplications,
+  optimizeLocalDatabase,
 } from './localDb.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -96,11 +99,29 @@ function parseBearerToken(req) {
   return authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
 }
 
-function parseJsonBody(req) {
-  return new Promise((resolve) => {
+function parseJsonBody(req, maxBytes = 25 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let receivedBytes = 0;
     const chunks = [];
-    req.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    let isTooLarge = false;
+
+    req.on('data', (chunk) => {
+      if (isTooLarge) return;
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      receivedBytes += buf.length;
+      if (receivedBytes > maxBytes) {
+        isTooLarge = true;
+        try { req.pause(); } catch {}
+        const err = new Error(`Payload Too Large: Ukuran payload melebihi batas maksimal ${Math.round(maxBytes / (1024 * 1024))}MB.`);
+        err.statusCode = 413;
+        reject(err);
+        return;
+      }
+      chunks.push(buf);
+    });
+
     req.on('end', () => {
+      if (isTooLarge) return;
       const raw = Buffer.concat(chunks).toString('utf8');
       if (!raw) return resolve({});
       try {
@@ -108,6 +129,10 @@ function parseJsonBody(req) {
       } catch {
         resolve({});
       }
+    });
+
+    req.on('error', (err) => {
+      reject(err);
     });
   });
 }
@@ -3609,8 +3634,9 @@ export function createLocalDbMiddleware(env = {}) {
   const isLocalMode = env.VITE_USE_LOCAL_DB === 'true' || !env.VITE_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY;
 
   return async (req, res, next) => {
-    const url = req.url || '';
-    const path = url.split('?')[0];
+    try {
+      const url = req.url || '';
+      const path = url.split('?')[0];
 
     // Guard: Block direct HTTP access to database files, backups, or .env
     if (
@@ -3783,9 +3809,19 @@ export function createLocalDbMiddleware(env = {}) {
       if (url.startsWith('/api/admin/publish-smart-cv') && req.method === 'POST') {
         return handleAdminPublishSmartCv(req, res);
       }
+      if (url.startsWith('/api/admin/system/optimize-db') && req.method === 'POST') {
+        return handleAdminOptimizeDb(req, res);
+      }
     }
 
     next();
+    } catch (err) {
+      if (err.statusCode === 413) {
+        return sendJson(res, 413, { error: { message: err.message, code: 'PAYLOAD_TOO_LARGE' } });
+      }
+      console.error('[localApiHandler] Request error:', err);
+      return sendJson(res, 500, { error: { message: err.message || 'Internal Server Error' } });
+    }
   };
 }
 
@@ -3891,7 +3927,15 @@ async function handleAdminCreateSnapshot(req, res) {
   const label = body.label || 'manual';
 
   try {
-    const snapshot = createDatabaseSnapshot(label);
+    let snapshot;
+    if (body.encrypt === true || body.passphrase) {
+      if (!body.passphrase || typeof body.passphrase !== 'string' || body.passphrase.length < 8) {
+        return sendJson(res, 400, { message: 'Passphrase enkripsi harus memiliki minimal 8 karakter.' });
+      }
+      snapshot = createEncryptedDatabaseSnapshot(body.passphrase, label);
+    } else {
+      snapshot = createDatabaseSnapshot(label);
+    }
 
     try {
       execute(
@@ -3901,10 +3945,10 @@ async function handleAdminCreateSnapshot(req, res) {
           crypto.randomUUID(),
           callerId,
           callerMeta?.email || '',
-          'create_database_snapshot',
+          snapshot.isEncrypted ? 'create_encrypted_database_snapshot' : 'create_database_snapshot',
           'database',
           snapshot.filename,
-          JSON.stringify({ sizeBytes: snapshot.sizeBytes, filename: snapshot.filename }),
+          JSON.stringify({ sizeBytes: snapshot.sizeBytes, filename: snapshot.filename, isEncrypted: Boolean(snapshot.isEncrypted) }),
           new Date().toISOString(),
         ]
       );
@@ -3967,7 +4011,15 @@ async function handleAdminRestoreSnapshot(req, res) {
   }
 
   try {
-    const result = restoreDatabaseSnapshot(filename);
+    let result;
+    if (filename.endsWith('.enc.db')) {
+      if (!body.passphrase) {
+        return sendJson(res, 400, { message: 'Passphrase diperlukan untuk mendekripsi berkas snapshot terenkripsi.' });
+      }
+      result = restoreEncryptedDatabaseSnapshot(filename, body.passphrase);
+    } else {
+      result = restoreDatabaseSnapshot(filename);
+    }
 
     try {
       execute(
@@ -3991,6 +4043,41 @@ async function handleAdminRestoreSnapshot(req, res) {
     return sendJson(res, 200, { ok: true, message: `Basis data berhasil dipulihkan dari snapshot ${filename}.`, result });
   } catch (err) {
     return sendJson(res, 500, { message: err.message || 'Gagal memulihkan database dari snapshot.' });
+  }
+}
+
+async function handleAdminOptimizeDb(req, res) {
+  const auth = verifyAdminRequest(req);
+  if (!auth.ok) {
+    return sendJson(res, auth.status, { message: auth.message });
+  }
+  const { callerId, callerMeta } = auth;
+
+  try {
+    const stats = optimizeLocalDatabase();
+
+    try {
+      execute(
+        `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          callerId,
+          callerMeta?.email || '',
+          'optimize_database',
+          'database',
+          'sqlite',
+          JSON.stringify(stats),
+          new Date().toISOString(),
+        ]
+      );
+    } catch {
+      // audit log non-blocking
+    }
+
+    return sendJson(res, 200, { ok: true, message: 'Optimasi basis data SQLite dan WAL truncate berhasil.', stats });
+  } catch (err) {
+    return sendJson(res, 500, { ok: false, error: { message: err.message || 'Gagal menjalankan optimasi basis data.' } });
   }
 }
 

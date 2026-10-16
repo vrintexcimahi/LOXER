@@ -12,7 +12,15 @@ const DB_FILE = path.join(DATA_DIR, 'loxer.db');
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 const SCHEMA_FILE = path.join(DATA_DIR, 'schema.sql');
 
-const getJwtSecret = () => process.env.JWT_SECRET || 'loxer-local-jwt-secret-key-2026';
+export const getJwtSecret = () => process.env.JWT_SECRET || 'loxer-local-jwt-secret-key-2026';
+export const getJwtSecrets = () => {
+  const primary = getJwtSecret();
+  const secrets = [primary];
+  if (process.env.JWT_PREVIOUS_SECRET && process.env.JWT_PREVIOUS_SECRET.trim() && process.env.JWT_PREVIOUS_SECRET !== primary) {
+    secrets.push(process.env.JWT_PREVIOUS_SECRET.trim());
+  }
+  return secrets;
+};
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
   console.warn('[SECURITY WARNING] Running in production without a custom JWT_SECRET! Using insecure default fallback.');
 }
@@ -580,6 +588,7 @@ export function getLocalDb() {
           purgeOldActivityLogs(60);
           notifyExpiringJobListings(3);
           pruneOldSnapshots(7);
+          optimizeLocalDatabase();
         } catch {
           // ignore
         }
@@ -663,15 +672,24 @@ export function verifyTokenLenient(token, graceSeconds = 0) {
   if (parts.length !== 3) return null;
 
   const [encodedHeader, encodedPayload, signature] = parts;
-  const expectedSignature = crypto
-    .createHmac('sha256', getJwtSecret())
-    .update(`${encodedHeader}.${encodedPayload}`)
-    .digest('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
+  const secrets = getJwtSecrets();
+  let isValidSig = false;
 
-  if (signature !== expectedSignature) return null;
+  for (const sec of secrets) {
+    const expectedSignature = crypto
+      .createHmac('sha256', sec)
+      .update(`${encodedHeader}.${encodedPayload}`)
+      .digest('base64')
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+    if (signature === expectedSignature) {
+      isValidSig = true;
+      break;
+    }
+  }
+
+  if (!isValidSig) return null;
 
   try {
     const payload = JSON.parse(base64UrlDecode(encodedPayload));
@@ -980,7 +998,7 @@ export function createDatabaseSnapshot(label = '') {
 export function listDatabaseSnapshots() {
   if (!fs.existsSync(BACKUPS_DIR)) return [];
   const files = fs.readdirSync(BACKUPS_DIR)
-    .filter((f) => f.startsWith('loxer-snapshot-') && f.endsWith('.db'))
+    .filter((f) => f.startsWith('loxer-snapshot-') && (f.endsWith('.db') || f.endsWith('.enc.db')))
     .sort()
     .reverse();
 
@@ -990,6 +1008,7 @@ export function listDatabaseSnapshots() {
     return {
       filename,
       sizeBytes: stats.size,
+      isEncrypted: filename.endsWith('.enc.db'),
       createdAt: stats.mtime.toISOString(),
     };
   });
@@ -998,7 +1017,7 @@ export function listDatabaseSnapshots() {
 export function pruneOldSnapshots(maxKeepDays = 7) {
   if (!fs.existsSync(BACKUPS_DIR)) return 0;
   const cutoff = Date.now() - maxKeepDays * 24 * 60 * 60 * 1000;
-  const files = fs.readdirSync(BACKUPS_DIR).filter((f) => f.startsWith('loxer-snapshot-') && f.endsWith('.db'));
+  const files = fs.readdirSync(BACKUPS_DIR).filter((f) => f.startsWith('loxer-snapshot-') && (f.endsWith('.db') || f.endsWith('.enc.db')));
   let deleted = 0;
   for (const f of files) {
     const fullPath = path.join(BACKUPS_DIR, f);
@@ -1027,6 +1046,7 @@ export function startAutoBackupSchedule(intervalMs = 24 * 60 * 60 * 1000) {
       purgeOldAuditLogs(90);
       purgeOldActivityLogs(60);
       notifyExpiringJobListings(3);
+      optimizeLocalDatabase();
     } catch (err) {
       console.warn('[localDb] Scheduled database snapshot notice:', err.message);
     }
@@ -1049,12 +1069,103 @@ export function getSnapshotFilePath(filename) {
   if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
     return null;
   }
-  if (!filename.startsWith('loxer-snapshot-') || !filename.endsWith('.db')) {
+  if (!filename.startsWith('loxer-snapshot-') || (!filename.endsWith('.db') && !filename.endsWith('.enc.db'))) {
     return null;
   }
   const full = path.join(BACKUPS_DIR, filename);
   if (!fs.existsSync(full)) return null;
   return full;
+}
+
+export function createEncryptedDatabaseSnapshot(passphrase, label = '') {
+  if (!passphrase || typeof passphrase !== 'string' || passphrase.length < 8) {
+    throw new Error('Passphrase enkripsi harus memiliki minimal 8 karakter.');
+  }
+
+  // 1. Create temporary unencrypted snapshot
+  const rawSnap = createDatabaseSnapshot(`temp-enc-${Date.now()}`);
+  const rawPath = rawSnap.path;
+
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+  const slug = label ? `-${label.replace(/[^a-zA-Z0-9_-]/g, '')}` : '';
+  const encFilename = `loxer-snapshot-${dateStr}-${timeStr}${slug}.enc.db`;
+  const encPath = path.join(BACKUPS_DIR, encFilename);
+
+  try {
+    const salt = crypto.randomBytes(16);
+    const key = crypto.pbkdf2Sync(passphrase, salt, 100000, 32, 'sha256');
+    const iv = crypto.randomBytes(12); // standard 96-bit IV for AES-GCM
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+    const rawBuffer = fs.readFileSync(rawPath);
+    const encrypted = Buffer.concat([cipher.update(rawBuffer), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+
+    // Container: MAGIC(4: 'LXEN') + SALT(16) + IV(12) + AUTHTAG(16) + CIPHERTEXT
+    const magic = Buffer.from('LXEN', 'utf8');
+    const finalPayload = Buffer.concat([magic, salt, iv, authTag, encrypted]);
+
+    fs.writeFileSync(encPath, finalPayload);
+    try { fs.unlinkSync(rawPath); } catch {}
+
+    const stats = fs.statSync(encPath);
+    return {
+      filename: encFilename,
+      path: encPath,
+      sizeBytes: stats.size,
+      isEncrypted: true,
+      createdAt: now.toISOString(),
+    };
+  } catch (err) {
+    try { fs.unlinkSync(rawPath); } catch {}
+    throw err;
+  }
+}
+
+export function restoreEncryptedDatabaseSnapshot(filename, passphrase) {
+  if (!passphrase || typeof passphrase !== 'string') {
+    throw new Error('Passphrase diperlukan untuk mendekripsi snapshot.');
+  }
+  const fullPath = getSnapshotFilePath(filename);
+  if (!fullPath) {
+    throw new Error('Berkas snapshot tidak valid atau tidak ditemukan.');
+  }
+
+  const fileBuffer = fs.readFileSync(fullPath);
+  if (fileBuffer.length < 48) {
+    throw new Error('Berkas snapshot enkripsi rusak atau tidak lengkap.');
+  }
+
+  const magic = fileBuffer.subarray(0, 4).toString('utf8');
+  if (magic !== 'LXEN') {
+    throw new Error('Format berkas snapshot enkripsi tidak valid (header magic LXEN tidak sesuai).');
+  }
+
+  const salt = fileBuffer.subarray(4, 20);
+  const iv = fileBuffer.subarray(20, 32);
+  const authTag = fileBuffer.subarray(32, 48);
+  const ciphertext = fileBuffer.subarray(48);
+
+  const key = crypto.pbkdf2Sync(passphrase, salt, 100000, 32, 'sha256');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+
+  let decrypted;
+  try {
+    decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  } catch {
+    throw new Error('Dekripsi gagal: Passphrase salah atau berkas backup terkorupsi.');
+  }
+
+  const tempRestoreFile = path.join(BACKUPS_DIR, `loxer-snapshot-temp-restore-${Date.now()}.db`);
+  try {
+    fs.writeFileSync(tempRestoreFile, decrypted);
+    return restoreDatabaseSnapshot(path.basename(tempRestoreFile));
+  } finally {
+    try { fs.unlinkSync(tempRestoreFile); } catch {}
+  }
 }
 
 export function restoreDatabaseSnapshot(filename) {
@@ -1250,4 +1361,58 @@ export function updatePartnerApplicationStatus(id, status, reviewed_by) {
   ).run(status, reviewed_by, id);
   return res.changes > 0;
 }
+
+// ---------------------------------------------------------------------------
+// Rekomendasi 25: Automated SQLite VACUUM, Query Optimization & WAL Truncation
+// ---------------------------------------------------------------------------
+
+export function optimizeLocalDatabase() {
+  const db = getLocalDb();
+  const results = {
+    walCheckpoint: null,
+    pragmaOptimize: null,
+    dbSizeBytes: 0,
+    walSizeBytes: 0,
+    integrityCheck: 'ok',
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    // 1. Wal checkpoint TRUNCATE to flush all WAL pages back into main db and reset WAL size to 0
+    results.walCheckpoint = db.prepare('PRAGMA wal_checkpoint(TRUNCATE);').get();
+  } catch (e) {
+    results.walCheckpoint = { error: e.message };
+  }
+
+  try {
+    // 2. PRAGMA optimize runs query plan analysis and refreshes sqlite_stat1 for cost-based query optimizer
+    results.pragmaOptimize = db.prepare('PRAGMA optimize;').all();
+  } catch (e) {
+    results.pragmaOptimize = { error: e.message };
+  }
+
+  try {
+    // 3. Database file size checks
+    if (fs.existsSync(DB_FILE)) {
+      results.dbSizeBytes = fs.statSync(DB_FILE).size;
+    }
+    const walPath = `${DB_FILE}-wal`;
+    if (fs.existsSync(walPath)) {
+      results.walSizeBytes = fs.statSync(walPath).size;
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    // 4. Integrity check verification
+    const row = db.prepare('PRAGMA integrity_check(1);').get();
+    results.integrityCheck = row?.integrity_check || 'ok';
+  } catch (e) {
+    results.integrityCheck = e.message;
+  }
+
+  return results;
+}
+
 

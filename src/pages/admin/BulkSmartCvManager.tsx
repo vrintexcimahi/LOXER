@@ -314,39 +314,77 @@ export function BulkSmartCvManager({
         )
       );
 
-      const token = await resolveAdminToken();
-      let resp = await fetch('/api/admin/smart-cv-extract', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          imageBase64,
-          cvText: cvText.trim(),
-          fileName: item.fileName,
-        }),
-      });
+      let resp: Response | null = null;
+      let lastErrMessage = '';
+      const maxRetries = 2;
 
-      if (resp.status === 401) {
-        const freshToken = await forceRefreshAdminToken();
-        resp = await fetch('/api/admin/smart-cv-extract', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {}),
-          },
-          body: JSON.stringify({
-            imageBase64,
-            cvText: cvText.trim(),
-            fileName: item.fileName,
-          }),
-        });
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        if (attempt > 0) {
+          // Update progress status to inform user of auto-retry with backoff
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === item.id
+                ? { ...it, status: 'extracting', progress: 40, errorMsg: `Server sibuk. Mencoba ulang (${attempt}/${maxRetries})...` }
+                : it
+            )
+          );
+          const backoffMs = Math.min(1500 * Math.pow(2, attempt - 1) + Math.random() * 500, 6000);
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        }
+
+        try {
+          const token = await resolveAdminToken();
+          resp = await fetch('/api/admin/smart-cv-extract', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              imageBase64,
+              cvText: cvText.trim(),
+              fileName: item.fileName,
+            }),
+          });
+
+          if (resp.status === 401) {
+            const freshToken = await forceRefreshAdminToken();
+            resp = await fetch('/api/admin/smart-cv-extract', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {}),
+              },
+              body: JSON.stringify({
+                imageBase64,
+                cvText: cvText.trim(),
+                fileName: item.fileName,
+              }),
+            });
+          }
+
+          if (resp.ok) {
+            break; // Success!
+          }
+
+          // Check if error is transient (429, 502, 503, 504)
+          const isTransient = [429, 502, 503, 504].includes(resp.status);
+          const errJson = await resp.json().catch(() => ({}));
+          lastErrMessage = errJson.message || `HTTP ${resp.status} AI Gemini 3.8`;
+
+          if (!isTransient || attempt === maxRetries) {
+            throw new Error(lastErrMessage);
+          }
+        } catch (fetchErr: unknown) {
+          lastErrMessage = fetchErr instanceof Error ? fetchErr.message : 'Koneksi gagal';
+          if (attempt === maxRetries) {
+            throw fetchErr;
+          }
+        }
       }
 
-      if (!resp.ok) {
-        const errJson = await resp.json().catch(() => ({}));
-        throw new Error(errJson.message || `HTTP ${resp.status} AI Gemini 3.8`);
+      if (!resp || !resp.ok) {
+        throw new Error(lastErrMessage || 'Gagal memproses ekstraksi CV.');
       }
 
       const resData = await resp.json();

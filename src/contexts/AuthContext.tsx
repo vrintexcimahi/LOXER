@@ -390,6 +390,105 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user, fetchUserMeta]);
 
+  // Proactive Silent Background JWT Refresh & Visibility Keepalive
+  useEffect(() => {
+    if (!supabase || !session?.access_token) return;
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const parseJwtExpMs = (token: string): number | null => {
+      try {
+        const parts = token.split('.');
+        if (parts.length < 2) return null;
+        const base64Url = parts[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          (typeof window !== 'undefined' ? window.atob(base64) : Buffer.from(base64, 'base64').toString('binary'))
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        if (typeof payload.exp === 'number') {
+          return payload.exp * 1000;
+        }
+      } catch {
+        // ignore parsing error
+      }
+      return null;
+    };
+
+    const performSilentRefresh = async () => {
+      try {
+        if (!supabase) return;
+        const { data, error } = await supabase.auth.refreshSession();
+        if (!error && data?.session) {
+          setSession(data.session);
+          if (data.session.user) {
+            setUser(data.session.user);
+          }
+        }
+      } catch (err) {
+        console.warn('[AuthContext] Silent token refresh notice:', err);
+      }
+    };
+
+    const scheduleRefresh = () => {
+      const expMs =
+        (typeof session.expires_at === 'number' ? session.expires_at * 1000 : null) ||
+        parseJwtExpMs(session.access_token);
+
+      if (!expMs) return;
+
+      const now = Date.now();
+      const timeRemaining = expMs - now;
+      // Refresh 5 minutes before expiry, or immediately if within 5 minutes
+      const refreshBeforeMs = 5 * 60 * 1000;
+      const delay = Math.max(timeRemaining - refreshBeforeMs, 10000);
+
+      if (timeRemaining <= refreshBeforeMs) {
+        performSilentRefresh();
+      } else {
+        refreshTimer = setTimeout(() => {
+          performSilentRefresh();
+        }, delay);
+      }
+    };
+
+    scheduleRefresh();
+
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        const expMs =
+          (typeof session.expires_at === 'number' ? session.expires_at * 1000 : null) ||
+          parseJwtExpMs(session.access_token);
+        if (expMs) {
+          const timeRemaining = expMs - Date.now();
+          if (timeRemaining < 5 * 60 * 1000) {
+            performSilentRefresh();
+          }
+        }
+      }
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleVisibilityOrFocus);
+    }
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleVisibilityOrFocus);
+      }
+    };
+  }, [session?.access_token, session?.expires_at]);
+
   async function signUp(email: string, password: string, role: UserRole, fullName: string, phone: string) {
     if (!supabase) return { error: new Error('Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.') };
     const normalizedEmail = email.trim().toLowerCase();

@@ -106,8 +106,8 @@ export default function AdminSystemSettings() {
       } else {
         showToast('error', 'Gagal menyinkronkan ke server backend, namun tersimpan di browser lokal.');
       }
-    } catch (err: any) {
-      showToast('error', `Terjadi kesalahan: ${err.message || 'Gagal menyimpan'}`);
+    } catch (err: unknown) {
+      showToast('error', `Terjadi kesalahan: ${err instanceof Error ? err.message : 'Gagal menyimpan'}`);
     } finally {
       setIsSaving(false);
     }
@@ -148,7 +148,7 @@ export default function AdminSystemSettings() {
           updateSettings(() => parsed);
           showToast('success', 'Konfigurasi sistem berhasil diimpor & diterapkan!');
         }
-      } catch (err) {
+      } catch {
         showToast('error', 'File JSON tidak valid atau rusak.');
       }
     };
@@ -243,7 +243,7 @@ export default function AdminSystemSettings() {
 
   // Reset individual asset
   const handleResetAsset = (field: keyof SystemSettings['assets']) => {
-    const defaultVal = (DEFAULT_SYSTEM_SETTINGS.assets as any)[field];
+    const defaultVal = (DEFAULT_SYSTEM_SETTINGS.assets as unknown as Record<string, unknown>)[field] as never;
     updateSettings((prev) => ({
       ...prev,
       assets: {
@@ -844,7 +844,7 @@ export default function AdminSystemSettings() {
                     <button
                       key={cat.key}
                       type="button"
-                      onClick={() => setAssetCategoryFilter(cat.key as any)}
+                      onClick={() => setAssetCategoryFilter(cat.key as 'all' | 'logo' | 'banner' | 'avatar' | 'browser')}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
                         assetCategoryFilter === cat.key
                           ? 'bg-cyan-500 text-slate-950 shadow-sm shadow-cyan-500/30'
@@ -957,7 +957,7 @@ export default function AdminSystemSettings() {
                             onClick={() =>
                               updateSettings((prev) => ({
                                 ...prev,
-                                assets: { ...prev.assets, appLogoDisplayMode: m.key as any },
+                                assets: { ...prev.assets, appLogoDisplayMode: m.key as 'both' | 'image_only' | 'text_only' },
                               }))
                             }
                             className={`py-1.5 px-2 rounded-lg font-semibold text-center transition ${
@@ -1039,7 +1039,7 @@ export default function AdminSystemSettings() {
                           <button
                             key={item.key}
                             type="button"
-                            onClick={() => setLogoInputMode(item.key as any)}
+                            onClick={() => setLogoInputMode(item.key as 'upload' | 'url' | 'svg' | 'presets')}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                               logoInputMode === item.key
                                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm shadow-cyan-500/20'
@@ -2423,7 +2423,7 @@ export default function AdminSystemSettings() {
                     onChange={(e) =>
                       updateSettings((prev) => ({
                         ...prev,
-                        general: { ...prev.general, uiAnimationSpeed: e.target.value as any },
+                        general: { ...prev.general, uiAnimationSpeed: e.target.value as 'normal' | 'fast' | 'off' },
                       }))
                     }
                     className="w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white"

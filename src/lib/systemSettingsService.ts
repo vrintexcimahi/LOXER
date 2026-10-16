@@ -470,7 +470,9 @@ export function getCachedSystemSettings(): SystemSettings {
     if (local) {
       return mergeSettingsWithDefaults(JSON.parse(local));
     }
-  } catch {}
+  } catch {
+    /* ignore storage error */
+  }
   return DEFAULT_SYSTEM_SETTINGS;
 }
 
@@ -491,7 +493,9 @@ export function useSystemSettings() {
       if (e.key === STORAGE_KEY && e.newValue) {
         try {
           setSettings(mergeSettingsWithDefaults(JSON.parse(e.newValue)));
-        } catch {}
+        } catch {
+          /* ignore storage parse error */
+        }
       }
     };
     window.addEventListener('storage', handleStorage);
@@ -619,14 +623,15 @@ export async function resetSystemSettings(): Promise<SystemSettings> {
   return defaults;
 }
 
-function mergeSettingsWithDefaults(data: any): SystemSettings {
+function mergeSettingsWithDefaults(data: Partial<SystemSettings> | Record<string, unknown> | null | undefined): SystemSettings {
+  const d = data as Record<string, Record<string, unknown>> | null | undefined;
   return {
-    theme: { ...DEFAULT_SYSTEM_SETTINGS.theme, ...(data?.theme || {}) },
-    assets: { ...DEFAULT_SYSTEM_SETTINGS.assets, ...(data?.assets || {}) },
-    audio: { ...DEFAULT_SYSTEM_SETTINGS.audio, ...(data?.audio || {}) },
-    video: { ...DEFAULT_SYSTEM_SETTINGS.video, ...(data?.video || {}) },
-    general: { ...DEFAULT_SYSTEM_SETTINGS.general, ...(data?.general || {}) },
-    updatedAt: data?.updatedAt || new Date().toISOString(),
+    theme: { ...DEFAULT_SYSTEM_SETTINGS.theme, ...(d?.theme || {}) },
+    assets: { ...DEFAULT_SYSTEM_SETTINGS.assets, ...(d?.assets || {}) },
+    audio: { ...DEFAULT_SYSTEM_SETTINGS.audio, ...(d?.audio || {}) },
+    video: { ...DEFAULT_SYSTEM_SETTINGS.video, ...(d?.video || {}) },
+    general: { ...DEFAULT_SYSTEM_SETTINGS.general, ...(d?.general || {}) },
+    updatedAt: (typeof d?.updatedAt === 'string' ? d.updatedAt : null) || new Date().toISOString(),
   };
 }
 
@@ -658,7 +663,9 @@ export function playSystemSound(
 
   // 2. High-Fidelity Web Audio API Synthesizer
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
 
     const ctx = new AudioContextClass();

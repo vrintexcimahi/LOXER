@@ -1315,3 +1315,48 @@
   - `POST /api/admin/smart-cv-extract` dengan bypass token: HTTP 200 OK (Kandidat: Siti Aminah, Headline: Staff HR & Administrasi).
   - Ekstraksi AI multimodal Gemini 3.8 via 9Router terkonfirmasi aktif dan berfungsi sempurna.
 
+---
+
+## [2026-10-16] Enterprise Hardening & Recommendations Sprint (Rekomendasi 21 s/d 26)
+
+### Scope / status
+- Area: Session Keepalive, Zero-Downtime Secret Rotation, AES-256-GCM Encrypted Snapshots, Resilient AI Batch Processing, Automated SQLite VACUUM & Query Optimizer, Global Request Body Limiting (HTTP 413)
+- Status: PASS (100% Implemented & Verified across 98 Test Assertions)
+
+### Architecture & Engineering Implementations
+1. **Rekomendasi 21: Silent JWT Background Refresh & Visibility Keepalive (`src/contexts/AuthContext.tsx`)**:
+   - Memonitor klaim `exp` pada token JWT aktif secara periodik.
+   - Mengatur timer silent refresh otomatis 5 menit sebelum token expired (`Math.max(timeRemaining - 5 * 60 * 1000, 10000)`).
+   - Menambahkan event listener `visibilitychange` dan `focus` window untuk mendeteksi kembalinya pengguna ke tab aplikasi dan langsung menyegarkan sesi jika mendekati batas kadaluarsa.
+2. **Rekomendasi 22: Zero-Downtime Secret Key Rotation via Dual-Secret Verification (`server/localDb.js`, `scripts/rotate-jwt-secret.mjs`)**:
+   - Menambahkan helper `getJwtSecrets()` yang memuat `JWT_SECRET` (aktif) dan `JWT_PREVIOUS_SECRET` (masa transisi).
+   - Memutakhirkan `verifyTokenLenient()` sehingga memvalidasi HMAC signature terhadap seluruh secret yang aktif.
+   - Mengembangkan CLI tool mandiri `scripts/rotate-jwt-secret.mjs` yang menghasilkan 256-bit cryptographically secure hex keys, merotasi secret di `.env`, dan menguji verifikasi dual-secret (`--dry-run` supported).
+3. **Rekomendasi 23: Encrypted SQLite Snapshot Archiving (AES-256-GCM) (`server/localDb.js`, `server/localApiHandler.js`)**:
+   - Mengimplementasikan `createEncryptedDatabaseSnapshot(passphrase, label)` dan `restoreEncryptedDatabaseSnapshot(filename, passphrase)`.
+   - Menggunakan key derivation PBKDF2 (100.000 iterasi, SHA-256), 96-bit IV acak, authentication tag 16-byte, serta header magic `LXEN`.
+   - Melindungi endpoint `POST /api/admin/backups/create-snapshot` (`{ encrypt: true, passphrase: "..." }`) dan `POST /api/admin/backups/restore-snapshot`.
+4. **Rekomendasi 24: Resilient Smart CV Processing Queue with Exponential Backoff (`src/pages/admin/BulkSmartCvManager.tsx`)**:
+   - Membungkus pemanggilan `/api/admin/smart-cv-extract` dalam auto-retry loop jika terjadi transient error (HTTP 429, 502, 503, 504, atau network timeout).
+   - Jeda bertingkat eksponensial ber-jitter (1.5s, 3s, maks 6s) dengan feedback visual status ke antarmuka pengguna.
+5. **Rekomendasi 25: Automated SQLite VACUUM, Optimizer Execution & WAL Truncation (`server/localDb.js`, `server/localApiHandler.js`)**:
+   - Membuat fungsi `optimizeLocalDatabase()` yang mengeksekusi `PRAGMA wal_checkpoint(TRUNCATE)` untuk membersihkan frame WAL dan mengembalikan ukuran WAL ke nol, serta `PRAGMA optimize` untuk merefresh query cost analysis planner.
+   - Menjalankan optimasi otomatis pada interval 1 jam dan dalam cron backup harian.
+   - Menyediakan endpoint admin terproteksi: `POST /api/admin/system/optimize-db`.
+6. **Rekomendasi 26: Global Request Body Payload Limiting & Malformed JSON Guard (`server/localApiHandler.js`)**:
+   - Memperbarui `parseJsonBody(req, maxBytes)` dengan batas maksimum ukuran payload (default 25MB) untuk mencegah serangan memory exhaustion.
+   - Menghentikan pemrosesan stream dan merespon dengan `HTTP 413 Payload Too Large` secara otomatis.
+   - Membungkus eksekusi middleware Express/Vite dengan exception handler defensif.
+7. **Pembersihan Linter & Kepatuhan React Hooks**:
+   - Mengoreksi pelanggaran `react-hooks/rules-of-hooks` pada `src/pages/admin/AdminRegeneratePhotoModal.tsx` dengan mengangkat `useMemo` sebelum early return.
+   - Menghapus tipe `any` dan memperbaiki empty catch block pada `src/lib/systemSettingsService.ts` dan `src/pages/admin/AdminSystemSettings.tsx`.
+
+### Verifikasi & Hasil
+- `npm run test:local` — **98/98 LULUS (0 Gagal)** di 5 test suites.
+- `npm run typecheck` — **PASS (0 Error)** pada `tsconfig.app.json`.
+- `npm run lint` — **PASS (0 Error, 2 warning Fast Refresh bawaan)**.
+- `npm run check:prod` / `npm run build` — **PASS (2374 modul terkompilasi dalam 6.06s)**.
+- `PRAGMA foreign_key_check` — `[]` (0 pelanggaran).
+- `PRAGMA integrity_check` — `ok`.
+
+

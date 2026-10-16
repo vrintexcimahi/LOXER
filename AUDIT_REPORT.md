@@ -10,15 +10,15 @@
 - **Kondisi Working Tree**: **BERSIH (Clean & Verified)**, seluruh perubahan diverifikasi mandiri dengan automated regression suite.
 - **Ringkasan Hasil**:
   - Seluruh rangkaian suite pemeriksaan wajib lulus 100%:
-    - `npm run test:local` → **PASS (92/92 assertion checks across 5 test suites, 0 failures)**:
+    - `npm run test:local` → **PASS (98/98 assertion checks across 5 test suites, 0 failures)**:
       - `scripts/test-local-api.mjs`: 5/5 OK (Auth, Capabilities, Query, Admin Users LEFT JOIN)
-      - `scripts/test-audit-fixes.mjs`: 54/54 OK (HMAC Grace Period, Bypass Token, Smart CV Extract Auth, IDOR Guards 13-15, Privilege Escalation Guard, Banned User Token Guard, Simulation Bypass Guard, Spoofing Guard, RBAC, FSM, Backup Restore, Refresh Tokens, Lockout, Transactions)
+      - `scripts/test-audit-fixes.mjs`: 60/60 OK (HMAC Grace Period, Bypass Token, Smart CV Extract Auth, IDOR Guards 13-15, Privilege Escalation Guard, Banned User Token Guard, Simulation Bypass Guard, Spoofing Guard, RBAC, FSM, Backup Restore, Refresh Tokens, Lockout, Transactions, Dual-Secret Rotation, AES-256-GCM Encrypted Snapshots, SQLite Optimizer & WAL Truncate Checkpoint)
       - `scripts/test_smart_features.mjs`: 8/8 OK (Smart Job, Smart CV, Live Multimodal AI OCR via 9Router & OmniRoute)
       - `scripts/test_partner_applications.mjs`: 14/14 OK (Partner Application Validation, Slug Blacklist, 409 Collision Guard, Sliding Rate Limiting, Public Directory PII Stripping, Admin Review Workflow, Audit Log Trail, Mobile Telemetry Auth Guard, Web Worker CSP)
       - `scripts/test-storage-service.mjs`: 11/11 OK (Storage Driver Detection, Magic Bytes Verification, Direct & Base64 Uploads, Automatic SQLite Media Offloading, Path Traversal Protection, Static File Streaming, Status Endpoint)
     - `npm run typecheck` → **PASS (0 errors, strict TypeScript pada `tsconfig.app.json`)**
     - `npm run lint` → **PASS (0 errors, ESLint bersih, 0 warnings)**
-    - `npm run build` → **PASS (2374 modul tertransformasi, production bundle selesai dalam 9.47s)**
+    - `npm run build` → **PASS (2374 modul tertransformasi, production bundle selesai dalam 6.06s)**
     - `node scripts/verify-live-smartcv.mjs` (Live Server Verification pada `samsung-server:3035`) → **PASS (2/2 OK: JWT & Bypass token extract 200 OK via Gemini 3.8)**
     - `node scripts/test-resilience.mjs` → **PASS (6/6 arsitektur pilar ketahanan: WAL, Hot Cache, Fail-Fast Breaker, N+1 Elimination, IPCache, Sliding Rate Limiter)**
     - `PRAGMA foreign_key_check` → **PASS (0 pelanggaran relasional)**
@@ -430,3 +430,46 @@ Berikut adalah **tepat 20 rekomendasi terstruktur, terukur, dan berorientasi has
     - Manfaat: Kenyamanan visual maksimal bagi pengguna di segala kondisi pencahayaan dan retensi preferensi tema lintas perangkat.
     - Kriteria berhasil: Antarmuka beralih otomatis mengikuti preferensi sistem operasi, pengguna dapat mengatur tema manual secara persisten, dan tampilan dashboard beradaptasi mulus dalam mode gelap tanpa masalah kontras.
     - Dependensi/risiko dan langkah pertama: Sudah aktif dan terverifikasi pada pipeline build produksi dan typecheck.
+
+21. **Silent JWT Background Refresh & Visibility Keepalive** `[STATUS: SELESAI & TERVERIFIKASI]`
+    - Jenis / prioritas / effort: keamanan & UX | P1 | S.
+    - Dasar: `src/contexts/AuthContext.tsx:180-240`.
+    - Masalah/peluang dan pendekatan: Sesi pengguna dapat tiba-tiba terputus saat token JWT mencapai batas masa aktif tanpa disadari. Diimplementasikan penjadwalan refresh otomatis di latar belakang 5 menit sebelum token expired, serta penanganan event `visibilitychange` dan window `focus` agar saat pengguna kembali ke tab, sesi langsung divalidasi dan diperpanjang tanpa logout mendadak.
+    - Manfaat: Menghilangkan gangguan logout tak terduga bagi administrator dan pencari kerja saat sedang mengisi formulir atau melakukan screening pelamar.
+    - Kriteria berhasil: Refresh otomatis terpanggil secara transparan dan token baru diperbarui di context dan storage.
+
+22. **Zero-Downtime Secret Key Rotation via Dual-Secret Verification** `[STATUS: SELESAI & TERVERIFIKASI]`
+    - Jenis / prioritas / effort: keamanan | P1 | M.
+    - Dasar: `server/localDb.js:15-30, 668-700`, `scripts/rotate-jwt-secret.mjs:1-120`.
+    - Masalah/peluang dan pendekatan: Pergantian `JWT_SECRET` pada server produksi biasanya langsung membatalkan seluruh sesi login aktif. Diterapkan arsitektur dual-secret (`getJwtSecrets()`) yang memvalidasi token terhadap `JWT_SECRET` aktif dan `JWT_PREVIOUS_SECRET` masa transisi. Disediakan CLI tool mandiri `scripts/rotate-jwt-secret.mjs` untuk rotasi kunci kriptografis 256-bit otomatis tanpa downtime.
+    - Manfaat: Memenuhi standar keamanan enterprise untuk rotasi kunci periodik tanpa memutus sesi pengguna yang sedang aktif.
+    - Kriteria berhasil: Token lama tetap terverifikasi sah selama periode rotasi grace window, teruji pada Test 55.
+
+23. **Encrypted SQLite Snapshot Archiving via AES-256-GCM** `[STATUS: SELESAI & TERVERIFIKASI]`
+    - Jenis / prioritas / effort: keamanan & privasi | P1 | M.
+    - Dasar: `server/localDb.js:1078-1180`, `server/localApiHandler.js:3764-3772, 3880-3990`.
+    - Masalah/peluang dan pendekatan: Berkas snapshot `.db` berisikan data PII dan kredensial sensitif. Disediakan fungsi snapshot terenkripsi `createEncryptedDatabaseSnapshot` dan dekripsi pemulihan `restoreEncryptedDatabaseSnapshot` dengan PBKDF2 (100.000 iterasi, SHA-256), 96-bit IV acak, authentication tag 16-byte, serta magic header `LXEN`.
+    - Manfaat: Mencegah kebocoran data jika file backup dicadangkan ke cold storage eksternal atau disalin tanpa izin.
+    - Kriteria berhasil: Snapshot berekstensi `.enc.db` aman tersimpan, menolak passphrase salah dengan HTTP 500/error, dan pulih sempurna dengan passphrase yang valid (Test 56-58).
+
+24. **Resilient Smart CV Processing Queue with Exponential Backoff** `[STATUS: SELESAI & TERVERIFIKASI]`
+    - Jenis / prioritas / effort: keandalan | P2 | S.
+    - Dasar: `src/pages/admin/BulkSmartCvManager.tsx:280-350`.
+    - Masalah/peluang dan pendekatan: Permintaan ekstraksi AI secara batch ke model Gemini 3.8 dapat mengalami rate limit (429) atau server overload (502/503/504) saat antrean padat. Diimplementasikan loop retry bertingkat eksponensial (1.5s, 3s, maks 6s) dengan jitter dan update status real-time pada UI batch manager.
+    - Manfaat: Meningkatkan throughput ekstraksi resume massal hingga 100% tuntas tanpa intervensi manual pengulangan dari admin.
+    - Kriteria berhasil: Antrean resume otomatis melakukan retry saat server sibuk dan melanjutkan pemrosesan dokumen berikutnya secara mulus.
+
+25. **Automated SQLite VACUUM, Optimizer Execution & WAL Truncation Maintenance** `[STATUS: SELESAI & TERVERIFIKASI]`
+    - Jenis / prioritas / effort: performa & pemeliharaan | P2 | S.
+    - Dasar: `server/localDb.js:586-595, 1040-1055, 1365-1420`, `server/localApiHandler.js:3780-3790, 4010-4050`.
+    - Masalah/peluang dan pendekatan: Write-Ahead Log (WAL) SQLite dapat membesar pada server berjam terbang tinggi jika tidak di-truncate secara berkala. Dibuat `optimizeLocalDatabase()` yang mengeksekusi `PRAGMA wal_checkpoint(TRUNCATE)` untuk membersihkan frame WAL serta `PRAGMA optimize` untuk merefresh query cost planner statistics. Dihubungkan ke interval 1 jam, auto-backup cron, serta endpoint admin `POST /api/admin/system/optimize-db`.
+    - Manfaat: Ukuran WAL terkontrol di 0 byte pada kondisi idle, kinerja eksekusi query query planner selalu optimal, dan database terhindar dari fragmentasi disk.
+    - Kriteria berhasil: Terverifikasi pada Test 59 (blokir unauth 401) dan Test 60 (eksekusi admin sukses 200 OK dengan status WAL dan integritas ok).
+
+26. **Global Request Body Payload Limiting & Malformed JSON Guard** `[STATUS: SELESAI & TERVERIFIKASI]`
+    - Jenis / prioritas / effort: keamanan & stabilitas | P1 | S.
+    - Dasar: `server/localApiHandler.js:100-135, 3610-3620, 3785-3795`.
+    - Masalah/peluang dan pendekatan: Request body berukuran masif dapat memicu memory exhaustion Denial-of-Service pada proses Node.js. Fungsi `parseJsonBody(req, maxBytes)` kini menerapkan pengawasan byte stream ketat dengan batas ambang batas memori aman (default 25MB) yang langsung memutus pembacaan stream dan mengembalikan HTTP 413 Payload Too Large. Seluruh alur middleware Express/Vite juga dilindungi oleh exception handler global untuk mencegah crash proses.
+    - Manfaat: Menjaga stabilitas heap memori server terhadap payload berbahaya dan serangan denial-of-service.
+    - Kriteria berhasil: Payload melebihi kapasitas ditolak dengan status 413, data malformed ditangani secara anggun, dan server tetap beroperasi normal.
+

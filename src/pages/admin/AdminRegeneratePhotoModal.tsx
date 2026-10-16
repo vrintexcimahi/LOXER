@@ -82,6 +82,12 @@ export function AdminRegeneratePhotoModal({
     }
   }, [isOpen, talent, currentPhoto, fullName, detectedGender]);
 
+  // Filtered Pixar Avatars
+  const filteredPixarAvatars = useMemo(() => {
+    if (avatarGenderFilter === 'all') return ALL_PIXAR_AVATARS;
+    return ALL_PIXAR_AVATARS.filter((a) => a.gender === avatarGenderFilter);
+  }, [avatarGenderFilter]);
+
   if (!isOpen || !talent) return null;
 
   // Handle Quick Auto-Pixar Assign
@@ -219,7 +225,7 @@ export function AdminRegeneratePhotoModal({
         setSelectedPhoto(resultUrl);
         setIsProcessing(false);
         onToast('success', 'Berhasil mengekstrak pas foto baru dari dokumen CV!');
-      } catch (err) {
+      } catch {
         setIsProcessing(false);
         onToast('error', 'Gagal memproses potongan foto dari CV.');
       }
@@ -296,12 +302,6 @@ export function AdminRegeneratePhotoModal({
       setIsSaving(false);
     }
   };
-
-  // Filtered Pixar Avatars
-  const filteredPixarAvatars = useMemo(() => {
-    if (avatarGenderFilter === 'all') return ALL_PIXAR_AVATARS;
-    return ALL_PIXAR_AVATARS.filter((a) => a.gender === avatarGenderFilter);
-  }, [avatarGenderFilter]);
 
   const isCurrentPhotoEqualSelected = selectedPhoto === currentPhoto;
 

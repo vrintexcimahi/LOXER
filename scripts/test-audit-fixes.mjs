@@ -1003,6 +1003,100 @@ async function testAuditFixes() {
     assert(smartCvRes.status === 200 || smartCvRes.status === 500, '54. AI (AUD-008): /api/admin/smart-cv-extract authorizes valid admin token without 401 error');
     assert(smartCvRes.status !== 401, '54.1 AI (AUD-008): /api/admin/smart-cv-extract does NOT return 401 Unauthorized for admin');
 
+    // 55. Security (AUD-009 / Rec 22): Dual-Secret JWT Key Verification during Key Rotation
+    const crypto = await import('node:crypto');
+    const legacySecret = 'legacy-rotation-test-secret-2025';
+    process.env.JWT_PREVIOUS_SECRET = legacySecret;
+
+    // Issue token signed by legacy secret
+    const legacyExp = Math.floor(Date.now() / 1000) + 3600;
+    const legH = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const legP = Buffer.from(JSON.stringify({ sub: 'admin-vrintex-root', email: 'vrintex@loxer.app', role: 'superadmin', exp: legacyExp })).toString('base64url');
+    const legSig = crypto.createHmac('sha256', legacySecret).update(`${legH}.${legP}`).digest('base64url');
+    const legacyToken = `${legH}.${legP}.${legSig}`;
+
+    const dualRes = await fetch(`${baseUrl}/api/admin/analytics-snapshot/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${legacyToken}`,
+      },
+    });
+    assert(dualRes.status === 200, '55. Security (Rec 22): Token signed with JWT_PREVIOUS_SECRET accepted during key rotation grace period');
+
+    // 56. Security (Rec 23): Encrypted Database Snapshot Creation (AES-256-GCM)
+    const encSnapRes = await fetch(`${baseUrl}/api/admin/backups/create-snapshot`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        label: 'test-enc',
+        encrypt: true,
+        passphrase: 'super-secret-password-1234',
+      }),
+    });
+    const encSnapData = await encSnapRes.json();
+    assert(encSnapRes.status === 200 && encSnapData.snapshot?.isEncrypted === true, '56. Security (Rec 23): Admin successfully creates AES-256-GCM encrypted snapshot');
+    const encFilename = encSnapData.snapshot?.filename;
+
+    // 57. Security (Rec 23): Encrypted Snapshot Rejects Wrong Passphrase
+    closeLocalDb();
+    const failRestoreRes = await fetch(`${baseUrl}/api/admin/backups/restore-snapshot`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        filename: encFilename,
+        passphrase: 'wrong-passphrase-totally-incorrect',
+      }),
+    });
+    assert(failRestoreRes.status === 500, '57. Security (Rec 23): Encrypted snapshot restore fails with incorrect passphrase');
+
+    // 58. Security (Rec 23): Encrypted Snapshot Successfully Restores with Correct Passphrase
+    closeLocalDb();
+    const okRestoreRes = await fetch(`${baseUrl}/api/admin/backups/restore-snapshot`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        filename: encFilename,
+        passphrase: 'super-secret-password-1234',
+      }),
+    });
+    const okRestoreData = await okRestoreRes.json();
+    assert(okRestoreRes.status === 200 && okRestoreData.ok === true, '58. Security (Rec 23): Encrypted snapshot restores cleanly with valid passphrase');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // 59. Security (Rec 25): Unauthenticated call to /api/admin/system/optimize-db is blocked with 401
+    const unauthOptRes = await fetch(`${baseUrl}/api/admin/system/optimize-db`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    assert(unauthOptRes.status === 401, '59. Security (Rec 25): Unauthenticated optimize-db call blocked with 401');
+
+    // 60. Performance & Maintenance (Rec 25): Admin triggers SQLite optimization and WAL truncation
+    const optRes = await fetch(`${baseUrl}/api/admin/system/optimize-db`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+    });
+    const optData = await optRes.json();
+    assert(
+      optRes.status === 200 &&
+      optData.ok === true &&
+      optData.stats?.integrityCheck === 'ok' &&
+      optData.stats?.walCheckpoint !== undefined,
+      '60. Performance (Rec 25): Admin successfully executes SQLite optimization and WAL checkpoint'
+    );
+
     // Clean up temporary fixtures
     if (tempJobId) execute("DELETE FROM job_listings WHERE id = ?", [tempJobId]);
     if (tempCompId) execute("DELETE FROM companies WHERE id = ?", [tempCompId]);
