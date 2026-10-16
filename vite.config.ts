@@ -866,6 +866,8 @@ function createAuthCapabilitiesMiddleware(env: Record<string, string>) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   if (env.JWT_SECRET) process.env.JWT_SECRET = env.JWT_SECRET;
+  if (env.VITE_USE_LOCAL_DB) process.env.VITE_USE_LOCAL_DB = env.VITE_USE_LOCAL_DB;
+  if (env.ALLOW_LOCAL_ADMIN_BYPASS) process.env.ALLOW_LOCAL_ADMIN_BYPASS = env.ALLOW_LOCAL_ADMIN_BYPASS;
   const apiJobsMiddleware = createApiJobsMiddleware(env);
   const integrationsStatusMiddleware = createIntegrationsStatusMiddleware(env);
   const adminUsersMiddleware = createAdminUsersMiddleware(env);

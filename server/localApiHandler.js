@@ -141,6 +141,8 @@ function isAllowedAdminEmail(email) {
   );
 }
 
+let activeMiddlewareEnv = {};
+
 function verifyAdminRequest(req) {
   const token = parseBearerToken(req);
   if (!token) {
@@ -148,10 +150,16 @@ function verifyAdminRequest(req) {
   }
 
   // 1. Support local admin bypass tokens in local dev, local DB mode, or when explicitly allowed
-  const isLocalDb = process.env.VITE_USE_LOCAL_DB === 'true' || process.env.USE_LOCAL_DB === 'true';
+  const dbFileExists = fs.existsSync(path.resolve(process.cwd(), 'data', 'loxer.db'));
+  const isLocalDb =
+    process.env.VITE_USE_LOCAL_DB === 'true' ||
+    process.env.USE_LOCAL_DB === 'true' ||
+    activeMiddlewareEnv.VITE_USE_LOCAL_DB === 'true' ||
+    dbFileExists;
   const isLocalDev = process.env.NODE_ENV !== 'production';
   const allowLocalBypass =
     process.env.ALLOW_LOCAL_ADMIN_BYPASS === 'true' ||
+    activeMiddlewareEnv.ALLOW_LOCAL_ADMIN_BYPASS === 'true' ||
     isLocalDb ||
     (isLocalDev && (!process.env.NODE_ENV || process.env.ALLOW_LOCAL_ADMIN_BYPASS !== 'false'));
 
@@ -3593,6 +3601,9 @@ async function handleStorageDelete(req, res) {
 }
 
 export function createLocalDbMiddleware(env = {}) {
+  activeMiddlewareEnv = env || {};
+  if (env.VITE_USE_LOCAL_DB) process.env.VITE_USE_LOCAL_DB = env.VITE_USE_LOCAL_DB;
+  if (env.ALLOW_LOCAL_ADMIN_BYPASS) process.env.ALLOW_LOCAL_ADMIN_BYPASS = env.ALLOW_LOCAL_ADMIN_BYPASS;
   getLocalDb(); // ensure initialized
 
   const isLocalMode = env.VITE_USE_LOCAL_DB === 'true' || !env.VITE_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY;
