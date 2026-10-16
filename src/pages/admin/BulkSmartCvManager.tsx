@@ -26,6 +26,7 @@ import { cleanDomicileCity, maskPhoneNumber } from '../../lib/contactPrivacyServ
 import { validateDocumentMagicBytes, validateImageMagicBytes } from '../../lib/imageCompressor';
 import { getDefaultPixarAvatar } from '../../lib/avatarService';
 import { PdfDocumentSplitter } from './PdfDocumentSplitter';
+import { resolveAdminToken, forceRefreshAdminToken } from '../../lib/adminUtils';
 
 interface PdfJsPage {
   getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
@@ -107,17 +108,6 @@ const LOXER_STANDARD_CATEGORIES = [
   'Teknologi & IT Mandiri',
 ];
 
-async function resolveAdminToken(): Promise<string> {
-  if (typeof window !== 'undefined') {
-    const stored =
-      localStorage.getItem('loxer_local_auth_token_admin') ||
-      localStorage.getItem('loxer_local_auth_token') ||
-      localStorage.getItem('loxer_auth_token');
-    if (stored) return stored;
-    return `local-admin-vrintex-token-${Date.now()}`;
-  }
-  return '';
-}
 
 export interface BulkSmartCvManagerProps {
   onToast: (type: ToastType, message: string) => void;
@@ -325,7 +315,7 @@ export function BulkSmartCvManager({
       );
 
       const token = await resolveAdminToken();
-      const resp = await fetch('/api/admin/smart-cv-extract', {
+      let resp = await fetch('/api/admin/smart-cv-extract', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -337,6 +327,22 @@ export function BulkSmartCvManager({
           fileName: item.fileName,
         }),
       });
+
+      if (resp.status === 401) {
+        const freshToken = await forceRefreshAdminToken();
+        resp = await fetch('/api/admin/smart-cv-extract', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {}),
+          },
+          body: JSON.stringify({
+            imageBase64,
+            cvText: cvText.trim(),
+            fileName: item.fileName,
+          }),
+        });
+      }
 
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));
@@ -508,10 +514,10 @@ export function BulkSmartCvManager({
   // Publish a single ready candidate
   const handlePublishSingle = async (item: BulkCvItem) => {
     if (!item.data) return;
-    const token = await resolveAdminToken();
+    let token = await resolveAdminToken();
 
     try {
-      const resp = await fetch('/api/admin/publish-smart-cv', {
+      let resp = await fetch('/api/admin/publish-smart-cv', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -519,6 +525,18 @@ export function BulkSmartCvManager({
         },
         body: JSON.stringify(item.data),
       });
+
+      if (resp.status === 401) {
+        token = await forceRefreshAdminToken();
+        resp = await fetch('/api/admin/publish-smart-cv', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(item.data),
+        });
+      }
 
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));

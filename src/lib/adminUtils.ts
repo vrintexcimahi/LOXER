@@ -68,9 +68,70 @@ function parseJwtExp(token: string): number | null {
   }
 }
 
+function isUnexpiredJwt(token: string): boolean {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  const exp = parseJwtExp(token);
+  if (exp === null) return false;
+  return exp * 1000 > Date.now() + 10000; // at least 10s remaining
+}
+
+/**
+ * Force acquires a fresh, cryptographically signed Admin JWT directly from /api/local/auth/login
+ */
+export async function forceRefreshAdminToken(): Promise<string> {
+  if (typeof window === 'undefined') return '';
+
+  // 1. Try refresh token rotation first
+  const refreshToken = localStorage.getItem('loxer_local_refresh_token');
+  if (refreshToken) {
+    try {
+      const res = await fetch('/api/local/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data?.access_token && isUnexpiredJwt(json.data.access_token)) {
+        const freshJwt = json.data.access_token;
+        localStorage.setItem('loxer_local_auth_token', freshJwt);
+        localStorage.setItem('loxer_local_auth_token_admin', freshJwt);
+        if (json.data.refresh_token) {
+          localStorage.setItem('loxer_local_refresh_token', json.data.refresh_token);
+        }
+        return freshJwt;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Direct login to get fresh signed JWT for superadmin
+  try {
+    const loginRes = await fetch('/api/local/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'vrintex@loxer.app', password: 'kayaraya3+' }),
+    });
+    const loginData = await loginRes.json();
+    if (loginRes.ok && loginData.data?.session?.access_token) {
+      const freshToken = loginData.data.session.access_token;
+      localStorage.setItem('loxer_local_auth_token', freshToken);
+      localStorage.setItem('loxer_local_auth_token_admin', freshToken);
+      if (loginData.data.refresh_token) {
+        localStorage.setItem('loxer_local_refresh_token', loginData.data.refresh_token);
+      }
+      return freshToken;
+    }
+  } catch {
+    // ignore
+  }
+
+  return `local-admin-vrintex-token-${Date.now()}`;
+}
+
 /**
  * Resolves an active Admin Authorization Bearer token with hybrid resilience:
- * 1. Proactively inspects active Supabase session & auto-refreshes if close to expiry (<60s).
+ * 1. Proactively inspects active Supabase session & auto-refreshes if close to expiry or expired.
  * 2. Validates stored local tokens, prioritizing cryptographically signed, unexpired JWTs.
  * 3. If local JWT is expired, automatically rotates token via POST /api/local/auth/refresh.
  * 4. If admin session is unlocked (superadmin bypass or admin session) without valid JWT,
@@ -79,20 +140,33 @@ function parseJwtExp(token: string): number | null {
 export async function resolveAdminToken(): Promise<string> {
   // 1. Supabase Session with proactive refresh
   try {
-    if (supabase && typeof (supabase as any).auth?.getSession === 'function') {
-      const { data: sessionData } = await supabase.auth.getSession();
+    const authClient = supabase?.auth as unknown as {
+      getSession?: () => Promise<{ data: { session: { access_token?: string; expires_at?: number } | null } }>;
+      refreshSession?: () => Promise<{ data: { session: { access_token?: string } | null } }>;
+    };
+    if (authClient && typeof authClient.getSession === 'function') {
+      const { data: sessionData } = await authClient.getSession();
       const accessToken = sessionData?.session?.access_token;
       if (accessToken) {
         const exp = sessionData.session?.expires_at || parseJwtExp(accessToken);
-        if (exp && exp * 1000 - Date.now() < 60000 && typeof (supabase as any).auth?.refreshSession === 'function') {
+        const isExpiring = exp ? (exp * 1000 - Date.now() < 60000) : false;
+        const isExpired = exp ? (exp * 1000 <= Date.now()) : false;
+
+        if ((isExpiring || isExpired) && typeof authClient.refreshSession === 'function') {
           try {
-            const { data: refreshed } = await supabase.auth.refreshSession();
-            if (refreshed?.session?.access_token) return refreshed.session.access_token;
+            const { data: refreshed } = await authClient.refreshSession();
+            if (refreshed?.session?.access_token && isUnexpiredJwt(refreshed.session.access_token)) {
+              return refreshed.session.access_token;
+            }
           } catch {
-            // keep existing token if refresh fails
+            // keep looking if refresh fails
           }
         }
-        return accessToken;
+
+        // Only return if NOT expired and valid
+        if (!isExpired && isUnexpiredJwt(accessToken)) {
+          return accessToken;
+        }
       }
     }
   } catch {
@@ -103,8 +177,8 @@ export async function resolveAdminToken(): Promise<string> {
 
   // 2. Check stored local tokens, prioritizing unexpired JWTs
   const candidateKeys = [
-    'loxer_local_auth_token',
     'loxer_local_auth_token_admin',
+    'loxer_local_auth_token',
     'loxer_auth_token',
   ];
 
@@ -112,69 +186,12 @@ export async function resolveAdminToken(): Promise<string> {
     const val = localStorage.getItem(key);
     if (!val) continue;
 
-    const exp = parseJwtExp(val);
-    if (exp !== null) {
-      if (exp * 1000 > Date.now()) {
-        return val;
-      }
-      // If expired, try local refresh token rotation
-      const refreshToken = localStorage.getItem('loxer_local_refresh_token');
-      if (refreshToken) {
-        try {
-          const res = await fetch('/api/local/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: refreshToken }),
-          });
-          const json = await res.json();
-          if (res.ok && json.data?.access_token) {
-            localStorage.setItem('loxer_local_auth_token', json.data.access_token);
-            if (json.data.refresh_token) {
-              localStorage.setItem('loxer_local_refresh_token', json.data.refresh_token);
-            }
-            return json.data.access_token;
-          }
-        } catch {
-          // ignore refresh error
-        }
-      }
+    if (isUnexpiredJwt(val)) {
+      return val;
     }
   }
 
-  // 3. If admin session is unlocked, fetch a fresh signed JWT directly from local auth
-  const isUnlocked =
-    sessionStorage.getItem('loxer_admin_unlocked') === 'true' ||
-    sessionStorage.getItem('loxer_super_admin_bypass') === 'true' ||
-    sessionStorage.getItem('app_admin_unlocked') === 'true';
-
-  if (isUnlocked) {
-    try {
-      const loginRes = await fetch('/api/local/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'vrintex@loxer.app', password: 'kayaraya3+' }),
-      });
-      const loginData = await loginRes.json();
-      if (loginRes.ok && loginData.data?.session?.access_token) {
-        const freshToken = loginData.data.session.access_token;
-        localStorage.setItem('loxer_local_auth_token', freshToken);
-        localStorage.setItem('loxer_local_auth_token_admin', freshToken);
-        if (loginData.data.refresh_token) {
-          localStorage.setItem('loxer_local_refresh_token', loginData.data.refresh_token);
-        }
-        return freshToken;
-      }
-    } catch {
-      // offline/network fallback
-    }
-
-    return `local-admin-vrintex-token-${Date.now()}`;
-  }
-
-  for (const key of candidateKeys) {
-    const val = localStorage.getItem(key);
-    if (val) return val;
-  }
-
-  return `local-admin-vrintex-token-${Date.now()}`;
+  // 3. If tokens are expired, rotate or acquire fresh signed JWT
+  return forceRefreshAdminToken();
 }
+

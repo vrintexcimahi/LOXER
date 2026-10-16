@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
-import { resolveAdminToken } from '../../lib/adminUtils';
+import { resolveAdminToken, forceRefreshAdminToken } from '../../lib/adminUtils';
 import { checkIsSuperAdmin } from '../../lib/constants';
 import { maskPhoneNumber, maskEmail, cleanDomicileCity } from '../../lib/contactPrivacyService';
 import { cropPasFotoFromImage, generateBlurredCvImage, autoEnhanceImageDataUrl } from '../../lib/cvImageProcessor';
@@ -1587,7 +1587,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
       const token = await resolveAdminToken();
 
-      const resp = await fetch('/api/admin/smart-cv-extract', {
+      let resp = await fetch('/api/admin/smart-cv-extract', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1599,6 +1599,22 @@ STATUS: Siap Kerja Segera (Fulltime)`);
           fileName: selectedFileName || 'CV Pelamar',
         }),
       });
+
+      if (resp.status === 401) {
+        const freshToken = await forceRefreshAdminToken();
+        resp = await fetch('/api/admin/smart-cv-extract', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {}),
+          },
+          body: JSON.stringify({
+            imageBase64: fileBase64,
+            cvText: cvText.trim(),
+            fileName: selectedFileName || 'CV Pelamar',
+          }),
+        });
+      }
 
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
@@ -1780,9 +1796,9 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
     setIsPublishing(true);
     try {
-      const token = await resolveAdminToken();
+      let token = await resolveAdminToken();
 
-      const resp = await fetch('/api/admin/publish-smart-cv', {
+      let resp = await fetch('/api/admin/publish-smart-cv', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1790,6 +1806,18 @@ STATUS: Siap Kerja Segera (Fulltime)`);
         },
         body: JSON.stringify(formData),
       });
+
+      if (resp.status === 401) {
+        token = await forceRefreshAdminToken();
+        resp = await fetch('/api/admin/publish-smart-cv', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(formData),
+        });
+      }
 
       if (!resp.ok) {
         // Fallback: direct Supabase insert

@@ -75,7 +75,7 @@ import NotificationBell from '../../components/ui/NotificationBell';
 import usePersistentSidebar from '../../components/layout/usePersistentSidebar';
 import DashboardGuideAssistant from '../../components/ui/DashboardGuideAssistant';
 import { useAuth } from '../../contexts/useAuth';
-import { formatDayLabel, formatRelativeTime, logAdminAction, toISODateOnly } from '../../lib/adminUtils';
+import { formatDayLabel, formatRelativeTime, logAdminAction, toISODateOnly, resolveAdminToken, forceRefreshAdminToken } from '../../lib/adminUtils';
 import { adminGuideContent } from '../../lib/dashboardGuideContent';
 import { checkIsSuperAdmin, isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
 import { supabase } from '../../lib/supabase';
@@ -2432,30 +2432,6 @@ const SMART_JOB_TYPES: { value: JobType; label: string }[] = [
   { value: 'internship', label: 'Magang (Internship)' },
 ];
 
-async function resolveAdminToken(): Promise<string> {
-  try {
-    const { data: sessionData } = await (supabase ? supabase.auth.getSession() : { data: { session: null } });
-    if (sessionData?.session?.access_token) return sessionData.session.access_token;
-  } catch {
-    // ignore
-  }
-  if (typeof window !== 'undefined') {
-    const stored =
-      localStorage.getItem('loxer_local_auth_token_admin') ||
-      localStorage.getItem('loxer_local_auth_token') ||
-      localStorage.getItem('loxer_auth_token');
-    if (stored) return stored;
-    if (
-      sessionStorage.getItem('loxer_admin_unlocked') === 'true' ||
-      sessionStorage.getItem('loxer_super_admin_bypass') === 'true' ||
-      sessionStorage.getItem('app_admin_unlocked') === 'true'
-    ) {
-      return `local-admin-vrintex-token-${Date.now()}`;
-    }
-    return `local-admin-vrintex-token-${Date.now()}`;
-  }
-  return '';
-}
 
 function SmartAddJobSection({
   adminId,
@@ -2647,7 +2623,7 @@ function SmartAddJobSection({
 
       const token = await resolveAdminToken();
 
-      const resp = await fetch('/api/admin/smart-job-extract', {
+      let resp = await fetch('/api/admin/smart-job-extract', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2659,6 +2635,22 @@ function SmartAddJobSection({
           postText: postText.trim(),
         }),
       });
+
+      if (resp.status === 401) {
+        const freshToken = await forceRefreshAdminToken();
+        resp = await fetch('/api/admin/smart-job-extract', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {}),
+          },
+          body: JSON.stringify({
+            imageBase64: posterBase64,
+            postUrl: postUrl.trim(),
+            postText: postText.trim(),
+          }),
+        });
+      }
 
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
@@ -2720,9 +2712,9 @@ function SmartAddJobSection({
     setIsPublishing(true);
 
     try {
-      const token = await resolveAdminToken();
+      let token = await resolveAdminToken();
 
-      const resp = await fetch('/api/admin/publish-smart-job', {
+      let resp = await fetch('/api/admin/publish-smart-job', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2733,6 +2725,21 @@ function SmartAddJobSection({
           poster_url: posterBase64 || '',
         }),
       });
+
+      if (resp.status === 401) {
+        token = await forceRefreshAdminToken();
+        resp = await fetch('/api/admin/publish-smart-job', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            ...formData,
+            poster_url: posterBase64 || '',
+          }),
+        });
+      }
 
       if (!resp.ok) {
         const errJson = await resp.json().catch(() => ({}));

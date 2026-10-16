@@ -167,7 +167,17 @@ async function testAuditFixes() {
     assert(statsRes.ok && typeof statsData.total === 'number', '8. Audit Logs Stats API');
 
     // 9. Test internal job query with company relation
-    const anyJob = queryOne("SELECT id FROM job_listings WHERE status = 'active' LIMIT 1");
+    let anyJob = queryOne("SELECT id FROM job_listings WHERE status = 'active' LIMIT 1");
+    let tempCompId = null;
+    let tempJobId = null;
+    if (!anyJob) {
+      tempCompId = 'comp_test_' + Date.now();
+      tempJobId = 'job_test_' + Date.now();
+      execute("INSERT INTO companies (id, user_id, name, created_at) VALUES (?, 'admin-vrintex-root', 'PT Test Loker', datetime('now'))", [tempCompId]);
+      execute("INSERT INTO job_listings (id, company_id, title, category, status, created_at) VALUES (?, ?, 'Tester Software', 'Teknologi & IT', 'active', datetime('now'))", [tempJobId, tempCompId]);
+      anyJob = { id: tempJobId };
+    }
+
     if (anyJob) {
       const jobRes = await fetch(`${baseUrl}/api/local/db/query`, {
         method: 'POST',
@@ -184,7 +194,14 @@ async function testAuditFixes() {
     }
 
     // 10. Test Seeker application submission
-    const seeker = queryOne("SELECT id, user_id FROM seeker_profiles LIMIT 1");
+    let seeker = queryOne("SELECT id, user_id FROM seeker_profiles LIMIT 1");
+    let tempSeekerId = null;
+    if (!seeker) {
+      tempSeekerId = 'skr_test_' + Date.now();
+      execute("INSERT INTO seeker_profiles (id, full_name, created_at) VALUES (?, 'Test Seeker', datetime('now'))", [tempSeekerId]);
+      seeker = { id: tempSeekerId };
+    }
+
     let testAppId = null;
     if (seeker && anyJob) {
       testAppId = 'test_app_' + Date.now();
@@ -333,8 +350,8 @@ async function testAuditFixes() {
         onConflict: 'id',
         data: {
           id: testAppUpsertId,
-          job_id: anyJob?.id || 'job_default',
-          seeker_id: seeker?.id || 'seeker_default',
+          job_id: anyJob.id,
+          seeker_id: seeker.id,
           status: 'applied',
         },
       }),
@@ -941,6 +958,55 @@ async function testAuditFixes() {
     assert(spoofJson.ok, '51. Traffic: Track event succeeds');
     const trackedRow = queryOne("SELECT user_id FROM web_traffic_logs WHERE path = '/test-page' ORDER BY created_at DESC LIMIT 1");
     assert(trackedRow?.user_id === null || trackedRow?.user_id !== 'spoofed_admin_id', '51.1 Security (AUD-005): Spoofed user_id stripped without auth');
+
+    // 52. Security & Resilience (AUD-006): Expired Admin JWT within 7-Day Grace Window is Accepted
+    // Create an authentic JWT payload with exp in the past (1 hour ago)
+    const pastExp = Math.floor(Date.now() / 1000) - 3600;
+    const headerB64 = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const payloadB64 = Buffer.from(JSON.stringify({ sub: 'admin-vrintex-root', email: 'vrintex@loxer.app', role: 'superadmin', exp: pastExp })).toString('base64url');
+    const cryptoMod = await import('node:crypto');
+    const secret = process.env.JWT_SECRET || 'loxer-local-jwt-secret-key-2026';
+    const sig = cryptoMod.createHmac('sha256', secret).update(`${headerB64}.${payloadB64}`).digest('base64url');
+    const graceToken = `${headerB64}.${payloadB64}.${sig}`;
+
+    const graceRes = await fetch(`${baseUrl}/api/admin/analytics-snapshot/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${graceToken}`,
+      },
+    });
+    assert(graceRes.status === 200, '52. Security (AUD-006): Authentic admin token within 7-day grace period accepted (200)');
+
+    // 53. Security & Resilience (AUD-007): Local Admin Bypass Token Accepted in Local DB Mode
+    const bypassRes = await fetch(`${baseUrl}/api/admin/analytics-snapshot/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer local-admin-vrintex-test',
+      },
+    });
+    assert(bypassRes.status === 200, '53. Security (AUD-007): Local admin bypass token accepted (200)');
+
+    // 54. AI Smart CV Extract Endpoint (AUD-008): Accepts Valid Admin Token
+    const smartCvRes = await fetch(`${baseUrl}/api/admin/smart-cv-extract`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        cvText: 'Nama: Siti Aminah\nKeahlian: Akuntansi, Pajak, Excel\nDomisili: Bandung',
+        fileName: 'CV_Siti.txt',
+      }),
+    });
+    assert(smartCvRes.status === 200 || smartCvRes.status === 500, '54. AI (AUD-008): /api/admin/smart-cv-extract authorizes valid admin token without 401 error');
+    assert(smartCvRes.status !== 401, '54.1 AI (AUD-008): /api/admin/smart-cv-extract does NOT return 401 Unauthorized for admin');
+
+    // Clean up temporary fixtures
+    if (tempJobId) execute("DELETE FROM job_listings WHERE id = ?", [tempJobId]);
+    if (tempCompId) execute("DELETE FROM companies WHERE id = ?", [tempCompId]);
+    if (tempSeekerId) execute("DELETE FROM seeker_profiles WHERE id = ?", [tempSeekerId]);
 
     if (failureCount > 0) {
       throw new Error(`${failureCount} test assertion(s) failed!`);

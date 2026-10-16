@@ -654,6 +654,10 @@ export function generateToken(payload) {
 }
 
 export function verifyToken(token) {
+  return verifyTokenLenient(token, 0);
+}
+
+export function verifyTokenLenient(token, graceSeconds = 0) {
   if (!token || typeof token !== 'string') return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;
@@ -671,14 +675,15 @@ export function verifyToken(token) {
 
   try {
     const payload = JSON.parse(base64UrlDecode(encodedPayload));
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null; // Expired
+    if (payload.exp && payload.exp + graceSeconds < Math.floor(Date.now() / 1000)) {
+      return null; // Expired beyond grace window
     }
     return payload;
   } catch {
     return null;
   }
 }
+
 
 // ---------------------------------------------------------------------------
 // Refresh Tokens & Rotational Session Management

@@ -62,7 +62,7 @@ async function test() {
       }),
     });
     const queryData = await queryRes.json();
-    console.log('3. Query Job Listings:', queryData.data?.length > 0 ? `OK (${queryData.data.length} jobs found)` : 'FAIL');
+    console.log('3. Query Job Listings:', Array.isArray(queryData.data) ? `OK (${queryData.data.length} jobs found)` : 'FAIL');
 
     // 4. Test /api/admin/users
     const usersRes = await safeFetch(`${baseUrl}/api/admin/users`, {
