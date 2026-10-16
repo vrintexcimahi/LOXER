@@ -2345,9 +2345,9 @@ function AdminJobs({
 
 function StatMini({ title, value }: { title: string; value: number }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
-      <p className="text-xs uppercase tracking-wide text-slate-500">{title}</p>
-      <p className="mt-1 text-2xl font-bold text-white">{value.toLocaleString('id-ID')}</p>
+    <div className="rounded-xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900 p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 font-semibold">{title}</p>
+      <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{value.toLocaleString('id-ID')}</p>
     </div>
   );
 }
@@ -4912,21 +4912,21 @@ function AdminApplications({
   return (
     <section className="space-y-5">
       {/* Sub-Feature Tab Navigator: Data Lamaran vs Katalog Pelamar Kerja vs Smart Add CV */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/90 p-2.5 backdrop-blur-md">
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-950/60 border border-white/5 overflow-x-auto max-w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 p-2.5 backdrop-blur-md shadow-sm">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 overflow-x-auto max-w-full">
           <button
             onClick={() => handleSubTabChange('applications')}
             className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all whitespace-nowrap ${
               activeSubTab === 'applications'
                 ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-cyan-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5'
             }`}
           >
             <ListChecks className="w-4 h-4" />
             <span>Data Lamaran Masuk</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                activeSubTab === 'applications' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                activeSubTab === 'applications' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400'
               }`}
             >
               {total}
@@ -4938,14 +4938,14 @@ function AdminApplications({
             className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all whitespace-nowrap ${
               activeSubTab === 'talents'
                 ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-cyan-500/25'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/5'
             }`}
           >
             <Users className="w-4 h-4" />
             <span>Katalog Pelamar Kerja</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                activeSubTab === 'talents' ? 'bg-white/20 text-white' : 'bg-cyan-500/20 text-cyan-300'
+                activeSubTab === 'talents' ? 'bg-white/20 text-white' : 'bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300'
               }`}
             >
               {talents.length}
@@ -4957,16 +4957,16 @@ function AdminApplications({
             className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all whitespace-nowrap ${
               activeSubTab === 'smart-cv'
                 ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-md shadow-emerald-500/25 ring-1 ring-white/20'
-                : 'text-amber-400 hover:text-white hover:bg-white/5 border border-amber-500/30 bg-amber-500/10'
+                : 'text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-white hover:bg-amber-100/60 dark:hover:bg-white/5 border border-amber-500/30 bg-amber-500/10'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-300 animate-pulse" />
             <span>Smart Add CV</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase ${
                 activeSubTab === 'smart-cv'
                   ? 'bg-white/20 text-white'
-                  : 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                  : 'bg-amber-400/20 text-amber-700 dark:text-amber-300 border border-amber-400/30'
               }`}
             >
               Gemini 3.8
@@ -4977,7 +4977,7 @@ function AdminApplications({
         <div className="flex items-center gap-2 px-1">
           <button
             onClick={refreshAll}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition shadow-sm"
             title="Segarkan data"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading || talentsLoading ? 'animate-spin' : ''}`} />
@@ -4996,16 +4996,16 @@ function AdminApplications({
             <StatMini title="Shortlist & Interview" value={shortlistedCount} />
             <div
               onClick={() => handleSubTabChange('talents')}
-              className="cursor-pointer rounded-xl border border-cyan-500/20 bg-slate-900 p-4 transition hover:border-cyan-500/50 hover:bg-slate-800/80 group"
+              className="cursor-pointer rounded-xl border border-cyan-500/30 bg-white/95 dark:bg-slate-900 p-4 transition hover:border-cyan-500/50 hover:bg-cyan-50/50 dark:hover:bg-slate-800/80 group shadow-sm"
               title="Klik untuk membuka Katalog Pelamar Kerja"
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-wide text-cyan-400 font-semibold flex items-center gap-1.5">
+                <p className="text-xs uppercase tracking-wide text-cyan-700 dark:text-cyan-400 font-semibold flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" /> Total Talent Pelamar
                 </p>
-                <ChevronRight className="w-4 h-4 text-cyan-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
+                <ChevronRight className="w-4 h-4 text-cyan-600 dark:text-cyan-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
               </div>
-              <p className="mt-1 text-2xl font-bold text-white group-hover:text-cyan-300 transition">
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition">
                 {talents.length.toLocaleString('id-ID')}
               </p>
             </div>
@@ -5013,16 +5013,16 @@ function AdminApplications({
 
           {/* Active Job / Search Filter Notification Banner */}
           {search && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cyan-500/30 bg-cyan-950/40 p-3 text-xs text-cyan-200">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cyan-500/30 bg-cyan-50/90 dark:bg-cyan-950/40 p-3 text-xs text-cyan-800 dark:text-cyan-200 shadow-sm">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-cyan-400 shrink-0" />
+                <Filter className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
                 <span>
-                  Memfilter pelamar untuk kata kunci / lowongan: <strong className="text-white">{search}</strong> ({filteredRows.length} pelamar)
+                  Memfilter pelamar untuk kata kunci / lowongan: <strong className="text-cyan-950 dark:text-white">{search}</strong> ({filteredRows.length} pelamar)
                 </span>
               </div>
               <button
                 onClick={() => setSearch('')}
-                className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-2.5 py-1 text-xs font-semibold text-white hover:bg-cyan-500/30 transition"
+                className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-2.5 py-1 text-xs font-semibold text-cyan-900 dark:text-white hover:bg-cyan-500/30 transition"
               >
                 ✕ Tampilkan Semua Pelamar
               </button>
@@ -5030,20 +5030,20 @@ function AdminApplications({
           )}
 
           {/* Action & Filter Bar */}
-          <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
+          <div className="rounded-xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900 p-4 shadow-sm">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-white">Monitoring Lamaran</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Monitoring Lamaran</p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleOpenVoidModal}
-                  className="rounded-lg border border-orange-400/30 bg-orange-500/10 px-3 py-1.5 text-xs text-orange-200 hover:bg-orange-500/20 transition flex items-center gap-1.5"
+                  className="rounded-lg border border-orange-400/40 bg-orange-500/10 px-3 py-1.5 text-xs text-orange-700 dark:text-orange-200 hover:bg-orange-500/20 transition flex items-center gap-1.5 font-semibold"
                 >
-                  <Clock className="w-3.5 h-3.5 text-orange-400" />
+                  <Clock className="w-3.5 h-3.5 text-orange-500 dark:text-orange-400" />
                   <span>Void Kadaluarsa</span>
                 </button>
                 <button
                   onClick={exportCSV}
-                  className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-200 hover:bg-cyan-500/20 transition"
+                  className="rounded-lg border border-cyan-400/40 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-700 dark:text-cyan-200 hover:bg-cyan-500/20 transition font-semibold"
                 >
                   Export CSV
                 </button>
@@ -5052,12 +5052,12 @@ function AdminApplications({
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
               <div className="relative md:col-span-2">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Cari seeker / lowongan / perusahaan..."
-                  className="w-full rounded-lg border border-white/10 bg-slate-800 py-2 pl-9 pr-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                  className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
                 />
               </div>
               <select
@@ -5066,7 +5066,7 @@ function AdminApplications({
                   setPage(1);
                   setStatusFilter(e.target.value as 'all' | ApplicationStatus);
                 }}
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500"
+                className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500"
               >
                 <option value="all">Semua Status</option>
                 <option value="applied">Applied</option>
@@ -5081,19 +5081,19 @@ function AdminApplications({
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-800 dark:text-slate-300 focus:outline-none focus:border-cyan-500"
               />
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-800 dark:text-slate-300 focus:outline-none focus:border-cyan-500"
               />
             </div>
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
+          <div className="overflow-x-auto rounded-xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm">
             {loading ? (
               <div className="space-y-3 p-4">
                 <SkeletonBlock className="h-10" />
@@ -5102,7 +5102,7 @@ function AdminApplications({
               </div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="bg-slate-100 dark:bg-slate-800/80 text-xs uppercase tracking-wide text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/10">
                   <tr>
                     <th className="px-4 py-3 text-left">#</th>
                     <th className="px-4 py-3 text-left">Seeker</th>
@@ -5117,7 +5117,7 @@ function AdminApplications({
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                      <td colSpan={8} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
                         Tidak ada berkas lamaran yang cocok dengan kriteria pencarian.
                       </td>
                     </tr>
@@ -5131,19 +5131,21 @@ function AdminApplications({
                       return (
                         <tr
                           key={String(row.id)}
-                          className={`border-b border-white/5 text-slate-300 transition-colors ${
-                            idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
+                          className={`border-b border-slate-200/80 dark:border-white/5 text-slate-700 dark:text-slate-300 transition-colors ${
+                            idx % 2 === 0
+                              ? 'bg-slate-50/70 hover:bg-cyan-50/70 dark:!bg-[#0b1329] dark:hover:!bg-[#1e2c4d]'
+                              : 'bg-white hover:bg-cyan-50/70 dark:!bg-[#162038] dark:hover:!bg-[#1e2c4d]'
                           }`}
                         >
                           <td className="px-4 py-3">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                          <td className="px-4 py-3 font-medium text-white">{String(seeker?.full_name || '-')}</td>
-                          <td className="px-4 py-3 text-cyan-300">{String(job?.title || '-')}</td>
+                          <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{String(seeker?.full_name || '-')}</td>
+                          <td className="px-4 py-3 text-cyan-700 dark:text-cyan-300">{String(job?.title || '-')}</td>
                           <td className="px-4 py-3">{String(company?.name || '-')}</td>
                           <td className="px-4 py-3">
                             <ApplicationStatusBadge status={String(row.status || 'applied') as ApplicationStatus} />
                           </td>
-                          <td className="px-4 py-3 text-xs text-slate-400">{new Date(String(row.applied_at || '')).toLocaleDateString('id-ID')}</td>
-                          <td className="px-4 py-3 text-xs text-slate-400">{new Date(String(row.updated_at || '')).toLocaleDateString('id-ID')}</td>
+                          <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">{new Date(String(row.applied_at || '')).toLocaleDateString('id-ID')}</td>
+                          <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">{new Date(String(row.updated_at || '')).toLocaleDateString('id-ID')}</td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-2 text-xs">
                               <button
@@ -5152,14 +5154,20 @@ function AdminApplications({
                                     `Lamaran ${String(row.id)}\nSeeker: ${String(seeker?.full_name || '-')}\nJob: ${String(job?.title || '-')}`
                                   )
                                 }
-                                className="rounded-md border border-white/10 px-2 py-1 hover:bg-white/10 transition"
+                                className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-transparent text-slate-700 dark:text-slate-300 px-2 py-1 hover:bg-slate-200 dark:hover:bg-white/10 transition"
                               >
                                 Detail
                               </button>
-                              <button onClick={() => forceUpdateStatus(row)} className="rounded-md border border-white/10 px-2 py-1 hover:bg-white/10 transition">
+                              <button
+                                onClick={() => forceUpdateStatus(row)}
+                                className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-transparent text-slate-700 dark:text-slate-300 px-2 py-1 hover:bg-slate-200 dark:hover:bg-white/10 transition"
+                              >
                                 Ubah Status
                               </button>
-                              <button onClick={() => deleteApplication(row)} className="rounded-md border border-red-400/30 px-2 py-1 text-red-300 hover:bg-red-500/10 transition">
+                              <button
+                                onClick={() => deleteApplication(row)}
+                                className="rounded-md border border-red-500/30 px-2 py-1 text-red-600 dark:text-red-300 hover:bg-red-500/10 transition"
+                              >
                                 Hapus
                               </button>
                             </div>

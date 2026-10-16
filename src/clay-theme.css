@@ -167,8 +167,8 @@ html:not(.dark) .loxer-footer .text-white { color: #0b2542; }
 html:not(.dark) .loxer-landing .glass { background: var(--glass-panel); border-color: var(--app-border); color: #007dbd; }
 html:not(.dark) .loxer-mobile-nav .text-slate-400 { color: #3d5c7e; }
 html:not(.dark) .loxer-workspace nav[aria-label] :is(.text-slate-200, .text-slate-300) { color: #0b2542; }
-html:not(.dark) .loxer-workspace [class*="from-slate-"]:not([class*="bg-gradient-"]):not(.pointer-events-none) { background: var(--glass-panel); color: #0b2542; }
-html:not(.dark) .loxer-workspace [class*="from-slate-"] .text-white { color: #0b2542; }
+html:not(.dark) .loxer-workspace [class*="from-slate-"]:not(.pointer-events-none):not(aside) { background: var(--glass-panel) !important; color: #0b2542; }
+html:not(.dark) .loxer-workspace [class*="from-slate-"]:not(.pointer-events-none) :is(h1, h2, h3, h4, .text-white) { color: #0b2542; }
 html:not(.dark) .loxer-workspace :is(.text-sky-300, .text-sky-400, .text-cyan-100, .text-cyan-200) { color: #007dbd; }
 html:not(.dark) .loxer-workspace .bg-clip-text { background: none; color: #0086ca; -webkit-text-fill-color: #0086ca; }
 :is(a, button, input, select, textarea):focus-visible { outline: 3px solid #008ee8; outline-offset: 4px; }

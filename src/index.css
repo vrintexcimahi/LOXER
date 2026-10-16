@@ -578,16 +578,28 @@ html.dark .badge {
 /* ==============================================================================
    Universal Zebra Striping & Alternating Row Colors for All Tables in LOXER
    ============================================================================== */
-table tbody tr:nth-child(odd) {
+html.dark table tbody tr:nth-child(odd) {
   background-color: #0b1329 !important;
 }
 
-table tbody tr:nth-child(even) {
+html.dark table tbody tr:nth-child(even) {
   background-color: #162038 !important;
 }
 
-table tbody tr:hover {
+html.dark table tbody tr:hover {
   background-color: #1e2c4d !important;
+}
+
+html:not(.dark) table tbody tr:nth-child(odd) {
+  background-color: rgba(248, 250, 252, 0.9) !important;
+}
+
+html:not(.dark) table tbody tr:nth-child(even) {
+  background-color: rgba(241, 245, 249, 0.75) !important;
+}
+
+html:not(.dark) table tbody tr:hover {
+  background-color: rgba(224, 242, 254, 0.85) !important;
 }
 
 table tbody tr {

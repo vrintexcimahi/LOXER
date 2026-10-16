@@ -729,23 +729,23 @@ export function BulkSmartCvManager({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Top Banner: Bulk AI Multimodal Extractor */}
-      <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950/30 p-6 shadow-xl backdrop-blur-md">
+      <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 dark:border-amber-500/30 bg-gradient-to-r from-amber-50/95 via-orange-50/70 to-yellow-50/60 dark:from-slate-950 dark:via-slate-900 dark:to-amber-950/30 p-6 shadow-xl backdrop-blur-md">
         <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
         <div className="absolute left-1/3 bottom-0 -mb-16 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
-              <Layers className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+              <Layers className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
               <span>Bulk Add CV Engine • Mass Multimodal OCR</span>
-              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-black uppercase text-amber-200">
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-black uppercase text-amber-800 dark:text-amber-200">
                 Puluhan - Ratusan Berkas PDF
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
               <span>Upload Berkas CV Massal &amp; Siapkan Biodata Otomatis</span>
             </h2>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
               Tarik dan lepaskan puluhan hingga ratusan berkas CV (PDF / JPG). Antrean AI memproses dokumen secara paralel, memotong pas foto 1:1, menyensor kontak, dan menyiapkan draf biodata bursa talent siap terbit dalam sekali klik.
             </p>
           </div>
@@ -755,10 +755,10 @@ export function BulkSmartCvManager({
               <button
                 type="button"
                 onClick={onSwitchToSingleMode}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 transition shadow-sm"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/90 hover:bg-white dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-white/10 transition shadow-sm"
                 title="Beralih ke mode ekstraksi satuan untuk 1 berkas CV atau paste clipboard"
               >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                 <span>Mode Satuan (Single)</span>
               </button>
             )}
@@ -767,7 +767,7 @@ export function BulkSmartCvManager({
               type="button"
               onClick={handleExportJson}
               disabled={readyCount + publishedCount === 0}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition shadow-sm disabled:opacity-40"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 transition shadow-sm disabled:opacity-40"
               title="Unduh seluruh data biodata hasil ekstraksi ke file JSON"
             >
               <Download className="w-3.5 h-3.5" />
@@ -778,7 +778,7 @@ export function BulkSmartCvManager({
       </div>
 
       {/* Multi-File Upload & Ingestion Dropzone */}
-      <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5 backdrop-blur-md shadow-lg space-y-4">
+      <div className="rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 p-5 backdrop-blur-md shadow-lg space-y-4">
         <input
           ref={fileInputRef}
           type="file"
@@ -806,17 +806,17 @@ export function BulkSmartCvManager({
             }
           }}
           onClick={() => fileInputRef.current?.click()}
-          className="cursor-pointer border-2 border-dashed border-amber-500/30 hover:border-amber-400 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/20 rounded-2xl p-8 sm:p-10 text-center transition-all duration-300 group bg-slate-950/50 hover:bg-slate-950/80 focus:outline-none"
+          className="cursor-pointer border-2 border-dashed border-amber-500/40 hover:border-amber-500 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 rounded-2xl p-8 sm:p-10 text-center transition-all duration-300 group bg-amber-50/40 hover:bg-amber-50/70 dark:bg-slate-950/50 dark:hover:bg-slate-950/80 focus:outline-none"
         >
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-300 group-hover:scale-110 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-500/20 transition-all duration-300">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center text-amber-700 dark:text-amber-300 group-hover:scale-110 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-500/20 transition-all duration-300">
             <Layers className="w-7 h-7" />
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-base sm:text-lg font-bold text-white">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-base sm:text-lg font-bold text-slate-900 dark:text-white">
             <span>📚 Tarik &amp; Lepaskan Puluhan Berkas CV PDF di Sini</span>
           </div>
 
-          <p className="mt-2 text-xs sm:text-sm text-slate-300 max-w-xl mx-auto">
+          <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-xl mx-auto">
             Pilih banyak file sekaligus (Ctrl + A / Shift + Klik) atau pilih folder arsip CV pelamar Anda. Format didukung: PDF, JPG, PNG, WEBP.
           </p>
 
@@ -839,24 +839,24 @@ export function BulkSmartCvManager({
                 e.stopPropagation();
                 folderInputRef.current?.click();
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 shadow-sm transition"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 shadow-sm transition"
             >
-              <FolderUp className="w-4 h-4 text-amber-400" />
+              <FolderUp className="w-4 h-4 text-amber-500 dark:text-amber-400" />
               <span>Unggah 1 Folder Penuh</span>
             </button>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-400">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1">
-              <Check className="w-3 h-3 text-emerald-400" /> Antrean Paralel Otomatis
+              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Antrean Paralel Otomatis
             </span>
             <span>•</span>
             <span className="inline-flex items-center gap-1">
-              <Check className="w-3 h-3 text-emerald-400" /> Potong Pas Foto 1:1 Presisi
+              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Potong Pas Foto 1:1 Presisi
             </span>
             <span>•</span>
             <span className="inline-flex items-center gap-1">
-              <Check className="w-3 h-3 text-emerald-400" /> Sensor Privasi Kontak CV
+              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Sensor Privasi Kontak CV
             </span>
           </div>
         </div>
@@ -864,14 +864,14 @@ export function BulkSmartCvManager({
 
       {/* ── Pecah Dokumen CTA (muncul ketika ada PDF di queue) ───────────── */}
       {items.some((it) => it.fileType === 'pdf') && (
-        <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-950/40 to-slate-950 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-50/90 via-purple-50/70 to-slate-50/80 dark:from-violet-950/40 dark:to-slate-950 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-300">
-              <Lock className="w-3 h-3 text-violet-400" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-800 dark:text-violet-300">
+              <Lock className="w-3 h-3 text-violet-600 dark:text-violet-400" />
               <span>Fitur Baru • Smart PDF Splitter & Galeri Berkas</span>
             </div>
-            <h4 className="text-sm font-bold text-white">📂 Pecah &amp; Arsipkan Berkas PDF Pelamar</h4>
-            <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white">📂 Pecah &amp; Arsipkan Berkas PDF Pelamar</h4>
+            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
               Setelah scan selesai, pecah setiap halaman PDF pelamar menjadi berkas individual.
               AI otomatis mengklasifikasikan (KTP, Ijazah, SKCK, CV, dll.) dan menyensor dokumen sensitif secara penuh.
             </p>
@@ -880,7 +880,7 @@ export function BulkSmartCvManager({
             id="bulk-cv-open-splitter-btn"
             type="button"
             onClick={() => setShowPdfSplitter((v) => !v)}
-            className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-violet-500 hover:bg-violet-400 text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <Scissors className="w-4 h-4" />
             {showPdfSplitter ? 'Sembunyikan' : 'Buka Pecah Dokumen'}
@@ -890,20 +890,20 @@ export function BulkSmartCvManager({
 
       {/* Progress & Live Control Bar */}
       {totalCount > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5 shadow-lg space-y-4">
+        <div className="rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 p-5 shadow-lg space-y-4">
           {/* Top row: Summary & Batch Actions */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                   <span>Status Antrean Pemrosesan ({totalCount} Berkas)</span>
                 </h3>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40">
                   {overallPercent}% Selesai
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 {readyCount} siap diterbitkan • {publishedCount} sudah terbit • {processingCount} sedang diekstrak • {errorCount} gagal
               </p>
             </div>
@@ -911,12 +911,12 @@ export function BulkSmartCvManager({
             {/* Controls */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Concurrency Selector */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-slate-950 text-xs">
-                <span className="text-slate-400 text-[11px] font-semibold">Kecepatan:</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-950 text-xs">
+                <span className="text-slate-600 dark:text-slate-400 text-[11px] font-semibold">Kecepatan:</span>
                 <button
                   type="button"
                   onClick={() => setConcurrency(1)}
-                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 1 ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 1 ? 'bg-amber-500 text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                   title="1 Worker (Stabil / Ringan)"
                 >
                   1x
@@ -924,7 +924,7 @@ export function BulkSmartCvManager({
                 <button
                   type="button"
                   onClick={() => setConcurrency(2)}
-                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 2 ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 2 ? 'bg-amber-500 text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                   title="2 Worker (Standar Rekomendasi)"
                 >
                   2x
@@ -932,7 +932,7 @@ export function BulkSmartCvManager({
                 <button
                   type="button"
                   onClick={() => setConcurrency(3)}
-                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 3 ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 3 ? 'bg-amber-500 text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                   title="3 Worker (Cepat)"
                 >
                   3x
@@ -945,8 +945,8 @@ export function BulkSmartCvManager({
                 onClick={() => setIsQueueRunning(!isQueueRunning)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
                   isQueueRunning
-                    ? 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-                    : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20'
+                    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
                 }`}
               >
                 {isQueueRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
@@ -958,7 +958,7 @@ export function BulkSmartCvManager({
                 <button
                   type="button"
                   onClick={handleRetryAllErrors}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 transition"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition"
                   title="Ulangi ekstraksi untuk berkas yang gagal"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -971,7 +971,7 @@ export function BulkSmartCvManager({
                 <button
                   type="button"
                   onClick={handleClearCompleted}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition"
                   title="Bersihkan yang sudah diterbitkan dari antrean"
                 >
                   <span>Bersihkan Terbit</span>
@@ -982,7 +982,7 @@ export function BulkSmartCvManager({
               <button
                 type="button"
                 onClick={handleClearAll}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition"
                 title="Kosongkan semua antrean"
               >
                 <Trash2 className="w-4 h-4" />
@@ -993,7 +993,7 @@ export function BulkSmartCvManager({
                 type="button"
                 onClick={handleBulkPublishAll}
                 disabled={readyCount === 0 || isBulkPublishing}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 {isBulkPublishing ? (
                   <>
@@ -1011,7 +1011,7 @@ export function BulkSmartCvManager({
           </div>
 
           {/* Overall Progress Bar */}
-          <div className="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-white/5">
+          <div className="w-full bg-slate-200 dark:bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-200 dark:border-white/5">
             <div
               className="bg-gradient-to-r from-amber-500 via-cyan-500 to-emerald-500 h-full transition-all duration-500"
               style={{ width: `${overallPercent}%` }}
@@ -1020,22 +1020,22 @@ export function BulkSmartCvManager({
 
           {/* ── Banner Selesai Scan: Pecah Dokumen PDF Siap ───────────── */}
           {totalCount > 0 && processingCount === 0 && pendingCount === 0 && items.some((it) => it.fileType === 'pdf') && (
-            <div className="rounded-2xl border-2 border-violet-500/60 bg-gradient-to-r from-violet-950/90 via-slate-900 to-indigo-950/90 p-4 sm:p-5 shadow-2xl flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
+            <div className="rounded-2xl border-2 border-violet-500/40 bg-gradient-to-r from-violet-50 via-indigo-50/90 to-purple-50 dark:from-violet-950/90 dark:via-slate-900 dark:to-indigo-950/90 p-4 sm:p-5 shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
               <div className="flex items-start gap-3.5">
                 <div className="h-10 w-10 rounded-2xl bg-violet-500/20 border border-violet-400/40 flex items-center justify-center shrink-0">
-                  <Scissors className="w-5 h-5 text-violet-300" />
+                  <Scissors className="w-5 h-5 text-violet-700 dark:text-violet-300" />
                 </div>
                 <div className="space-y-1">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/20 px-2.5 py-0.5 text-xs font-black text-violet-200">
-                    <Sparkles className="w-3.5 h-3.5 text-violet-400 animate-spin" />
+                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/20 px-2.5 py-0.5 text-xs font-black text-violet-800 dark:text-violet-200">
+                    <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 animate-spin" />
                     <span>AI SCAN SELESAI • PECAH DOKUMEN SIAP</span>
                   </div>
-                  <h4 className="text-sm sm:text-base font-bold text-white">
+                  <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                     Pecah Berkas PDF Multi-Halaman &amp; Arsipkan ke Galeri Berkas
                   </h4>
-                  <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
                     Pemindaian seluruh berkas CV telah selesai! Ditemukan{' '}
-                    <strong className="text-violet-300">
+                    <strong className="text-violet-700 dark:text-violet-300">
                       {items.filter((it) => it.fileType === 'pdf').length} berkas PDF
                     </strong>{' '}
                     yang dapat dipecah menjadi berkas individual (KTP, Ijazah, SKCK, Sertifikat, dll.) dan diarsipkan otomatis ke Galeri Berkas Pelamar dengan sensor privasi penuh pada berkas sensitif.
@@ -1059,15 +1059,15 @@ export function BulkSmartCvManager({
           )}
 
           {/* Stats Badges & Filter Tabs */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-white/10">
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setActiveFilter('all')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                   activeFilter === 'all'
-                    ? 'bg-white text-slate-950 shadow'
-                    : 'text-slate-400 hover:text-white bg-slate-800/60'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
                 }`}
               >
                 Semua ({totalCount})
@@ -1078,7 +1078,7 @@ export function BulkSmartCvManager({
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                   activeFilter === 'ready'
                     ? 'bg-emerald-500 text-slate-950 shadow'
-                    : 'text-emerald-400 hover:text-white bg-emerald-500/10'
+                    : 'text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-white bg-emerald-500/10'
                 }`}
               >
                 Siap Diterbitkan ({readyCount})
@@ -1089,7 +1089,7 @@ export function BulkSmartCvManager({
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                   activeFilter === 'processing'
                     ? 'bg-amber-500 text-slate-950 shadow'
-                    : 'text-amber-400 hover:text-white bg-amber-500/10'
+                    : 'text-amber-800 dark:text-amber-400 hover:text-amber-950 dark:hover:text-white bg-amber-500/10'
                 }`}
               >
                 Diproses ({processingCount + pendingCount})
@@ -1101,7 +1101,7 @@ export function BulkSmartCvManager({
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                     activeFilter === 'published'
                       ? 'bg-cyan-500 text-slate-950 shadow'
-                      : 'text-cyan-400 hover:text-white bg-cyan-500/10'
+                      : 'text-cyan-700 dark:text-cyan-400 hover:text-cyan-900 dark:hover:text-white bg-cyan-500/10'
                   }`}
                 >
                   Sudah Terbit ({publishedCount})
@@ -1114,7 +1114,7 @@ export function BulkSmartCvManager({
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
                     activeFilter === 'error'
                       ? 'bg-rose-500 text-white shadow'
-                      : 'text-rose-400 hover:text-white bg-rose-500/10'
+                      : 'text-rose-700 dark:text-rose-400 hover:text-rose-900 dark:hover:text-white bg-rose-500/10'
                   }`}
                 >
                   Gagal ({errorCount})
@@ -1123,18 +1123,18 @@ export function BulkSmartCvManager({
             </div>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 rounded-lg bg-slate-950 p-1 border border-white/10 text-xs">
+            <div className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200 dark:border-white/10 text-xs">
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1 rounded font-semibold transition ${viewMode === 'grid' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2.5 py-1 rounded font-semibold transition ${viewMode === 'grid' ? 'bg-amber-500 text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 Kartu
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('table')}
-                className={`px-2.5 py-1 rounded font-semibold transition ${viewMode === 'table' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                className={`px-2.5 py-1 rounded font-semibold transition ${viewMode === 'table' ? 'bg-amber-500 text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 Tabel Ringkas
               </button>
@@ -1160,18 +1160,18 @@ export function BulkSmartCvManager({
                     key={item.id}
                     className={`relative rounded-2xl border p-4 transition-all duration-300 flex flex-col justify-between ${
                       isPublished
-                        ? 'border-cyan-500/40 bg-slate-900/60 shadow-lg'
+                        ? 'border-cyan-500/40 bg-white/95 dark:bg-slate-900/60 shadow-lg'
                         : isReady
-                        ? 'border-emerald-500/40 bg-slate-900/90 shadow-xl hover:border-emerald-400'
+                        ? 'border-emerald-500/40 bg-white dark:bg-slate-900/90 shadow-xl hover:border-emerald-400'
                         : isError
-                        ? 'border-rose-500/30 bg-rose-950/20'
-                        : 'border-white/10 bg-slate-950/50'
+                        ? 'border-rose-500/30 bg-rose-50/80 dark:bg-rose-950/20'
+                        : 'border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-slate-950/50'
                     }`}
                   >
                     <div>
                       {/* Card Header: Avatar & Status Badge */}
                       <div className="flex items-start gap-3">
-                        <div className="relative h-14 w-14 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-slate-950 flex items-center justify-center shadow-inner">
+                        <div className="relative h-14 w-14 shrink-0 rounded-xl overflow-hidden border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-slate-950 flex items-center justify-center shadow-inner">
                           {data?.photo_url ? (
                             <img
                               src={data.photo_url}
@@ -1182,7 +1182,7 @@ export function BulkSmartCvManager({
                               }}
                             />
                           ) : isWorking ? (
-                            <RefreshCw className="w-5 h-5 text-amber-400 animate-spin" />
+                            <RefreshCw className="w-5 h-5 text-amber-500 dark:text-amber-400 animate-spin" />
                           ) : (
                             <img
                               src={getDefaultPixarAvatar(data?.full_name || item.fileName, data?.gender, data?.bio)}
@@ -1192,7 +1192,7 @@ export function BulkSmartCvManager({
                           )}
 
                           {/* Mini file type badge */}
-                          <span className="absolute bottom-0.5 right-0.5 rounded bg-slate-950/90 px-1 text-[8px] font-bold text-slate-300 uppercase">
+                          <span className="absolute bottom-0.5 right-0.5 rounded bg-slate-900/90 dark:bg-slate-950/90 px-1 text-[8px] font-bold text-slate-200 dark:text-slate-300 uppercase">
                             {item.fileType}
                           </span>
                         </div>
@@ -1200,7 +1200,7 @@ export function BulkSmartCvManager({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-1">
                             <h4
-                              className="text-xs font-bold text-white truncate hover:text-amber-300 transition cursor-pointer"
+                              className="text-xs font-bold text-slate-900 dark:text-white truncate hover:text-amber-600 dark:hover:text-amber-300 transition cursor-pointer"
                               title={data?.full_name || item.fileName}
                               onClick={() => isReady && handleOpenEditModal(item)}
                             >
@@ -1209,47 +1209,47 @@ export function BulkSmartCvManager({
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(item.id)}
-                              className="text-slate-500 hover:text-rose-400 p-0.5"
+                              className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-0.5"
                               title="Hapus dari antrean"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
 
-                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 truncate mt-0.5">
                             {data?.headline || item.fileSize}
                           </p>
 
                           {/* Status Pill */}
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                             {item.isDuplicate && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30" title="Data kandidat serupa terdeteksi di antrean">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30" title="Data kandidat serupa terdeteksi di antrean">
                                 ⚠️ Duplikat Antrean
                               </span>
                             )}
                             {isReady && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30">
                                 <CheckCircle2 className="w-2.5 h-2.5" /> Siap Diterbitkan
                               </span>
                             )}
                             {isPublished && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30">
                                 <Check className="w-2.5 h-2.5" /> Sudah Masuk Bursa
                               </span>
                             )}
                             {isWorking && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
                                 <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                                 {item.status === 'reading' ? 'Membaca Halaman...' : 'Ekstraksi AI...'}
                               </span>
                             )}
                             {item.status === 'pending' && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-800 text-slate-400">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10">
                                 <Clock className="w-2.5 h-2.5" /> Menunggu Antrean
                               </span>
                             )}
                             {isError && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/10 dark:bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30">
                                 <AlertTriangle className="w-2.5 h-2.5" /> Gagal
                               </span>
                             )}
@@ -1260,9 +1260,9 @@ export function BulkSmartCvManager({
                       {/* Working Progress */}
                       {isWorking && (
                         <div className="mt-3 space-y-1">
-                          <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+                          <div className="w-full bg-slate-200 dark:bg-slate-950 rounded-full h-1.5 overflow-hidden">
                             <div
-                              className="bg-amber-400 h-full transition-all duration-300"
+                              className="bg-amber-500 dark:bg-amber-400 h-full transition-all duration-300"
                               style={{ width: `${item.progress}%` }}
                             />
                           </div>
@@ -1271,12 +1271,12 @@ export function BulkSmartCvManager({
 
                       {/* Error details */}
                       {isError && (
-                        <div className="mt-3 p-2 rounded-xl bg-rose-950/40 border border-rose-500/20 text-[10px] text-rose-300 flex items-center justify-between gap-2">
+                        <div className="mt-3 p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-500/20 text-[10px] text-rose-800 dark:text-rose-300 flex items-center justify-between gap-2">
                           <span className="truncate">{item.errorMsg || 'Gagal mengekstrak biodata'}</span>
                           <button
                             type="button"
                             onClick={() => handleRetryItem(item.id)}
-                            className="px-2 py-0.5 bg-rose-500/30 hover:bg-rose-500/50 rounded font-bold shrink-0 text-white"
+                            className="px-2 py-0.5 bg-rose-600 hover:bg-rose-500 rounded font-bold shrink-0 text-white"
                           >
                             Ulangi
                           </button>
@@ -1285,16 +1285,16 @@ export function BulkSmartCvManager({
 
                       {/* Ready Candidate Details Preview */}
                       {data && (
-                        <div className="mt-3 space-y-2 pt-2 border-t border-white/5">
+                        <div className="mt-3 space-y-2 pt-2 border-t border-slate-200 dark:border-white/5">
                           <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold border border-white/5">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-white/5">
                               {data.category}
                             </span>
-                            <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-semibold border border-white/5 flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-cyan-700 dark:text-cyan-300 font-semibold border border-slate-200 dark:border-white/5 flex items-center gap-1">
                               <MapPin className="w-2.5 h-2.5" /> {data.domicile_city}
                             </span>
                             {data.experience_years > 0 && (
-                              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-white/5">
+                              <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/5">
                                 {data.experience_years} thn exp
                               </span>
                             )}
@@ -1306,13 +1306,13 @@ export function BulkSmartCvManager({
                               {data.skills.slice(0, 3).map((sk, idx) => (
                                 <span
                                   key={idx}
-                                  className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20"
+                                  className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20"
                                 >
                                   {sk}
                                 </span>
                               ))}
                               {data.skills.length > 3 && (
-                                <span className="text-[9px] px-1 py-0.2 text-slate-500">
+                                <span className="text-[9px] px-1 py-0.2 text-slate-500 dark:text-slate-400">
                                   +{data.skills.length - 3}
                                 </span>
                               )}
@@ -1320,12 +1320,12 @@ export function BulkSmartCvManager({
                           )}
 
                           {/* Contact & Privacy Status */}
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
-                            <span className="flex items-center gap-1 text-emerald-400">
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-mono pt-1">
+                            <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                               <Lock className="w-2.5 h-2.5" />
                               <span>{data.whatsapp_number ? maskPhoneNumber(data.whatsapp_number) : 'Tanpa No. HP'}</span>
                             </span>
-                            <span className="text-slate-500 text-[9px]">Gaji: Nego</span>
+                            <span className="text-slate-500 dark:text-slate-400 text-[9px]">Gaji: Nego</span>
                           </div>
                         </div>
                       )}
@@ -1333,20 +1333,20 @@ export function BulkSmartCvManager({
 
                     {/* Card Actions Footer */}
                     {isReady && (
-                      <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-2">
+                      <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-white/10 flex items-center justify-between gap-2">
                         <button
                           type="button"
                           onClick={() => handleOpenEditModal(item)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 transition"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 transition"
                         >
-                          <Eye className="w-3 h-3 text-cyan-400" />
+                          <Eye className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
                           <span>Tinjau &amp; Edit</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handlePublishSingle(item)}
-                          className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 shadow transition"
+                          className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow transition"
                         >
                           <Send className="w-3 h-3" />
                           <span>Terbitkan</span>
@@ -1359,9 +1359,9 @@ export function BulkSmartCvManager({
             </div>
           ) : (
             /* Table Mode */
-            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/90 shadow-lg">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-950/80 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-white/10">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-slate-900/90 shadow-sm">
+              <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                <thead className="bg-slate-100 dark:bg-slate-950/80 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/10">
                   <tr>
                     <th className="px-4 py-3">Kandidat</th>
                     <th className="px-4 py-3">Kategori</th>
@@ -1371,7 +1371,7 @@ export function BulkSmartCvManager({
                     <th className="px-4 py-3 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 font-medium">
+                <tbody className="divide-y divide-slate-200/80 dark:divide-white/5 font-medium">
                   {filteredItems.map((item) => {
                     const data = item.data;
                     const isReady = item.status === 'ready';
@@ -1379,10 +1379,10 @@ export function BulkSmartCvManager({
                     const isError = item.status === 'error';
 
                     return (
-                      <tr key={item.id} className="hover:bg-white/5 transition">
+                      <tr key={item.id} className="hover:bg-cyan-50/70 dark:hover:bg-white/5 transition">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-slate-950 flex items-center justify-center">
+                            <div className="h-9 w-9 shrink-0 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-950 flex items-center justify-center">
                               <img
                                 src={data?.photo_url || getDefaultPixarAvatar(data?.full_name || item.fileName, data?.gender, data?.bio)}
                                 alt=""
@@ -1393,8 +1393,8 @@ export function BulkSmartCvManager({
                               />
                             </div>
                             <div>
-                              <p className="font-bold text-white">{data?.full_name || item.fileName}</p>
-                              <p className="text-[10px] text-slate-400">{data?.headline || item.fileSize}</p>
+                              <p className="font-bold text-slate-900 dark:text-white">{data?.full_name || item.fileName}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400">{data?.headline || item.fileSize}</p>
                             </div>
                           </div>
                         </td>
@@ -1405,27 +1405,27 @@ export function BulkSmartCvManager({
                         </td>
                         <td className="px-4 py-3">
                           {isReady && (
-                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
+                            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
                               Siap Terbit
                             </span>
                           )}
                           {isPublished && (
-                            <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/20 px-2 py-0.5 rounded border border-cyan-500/30">
+                            <span className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 bg-cyan-500/10 dark:bg-cyan-500/20 px-2 py-0.5 rounded border border-cyan-500/30">
                               Sudah Terbit
                             </span>
                           )}
                           {isError && (
-                            <span className="text-[10px] font-bold text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30">
+                            <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30">
                               Gagal
                             </span>
                           )}
                           {(item.status === 'reading' || item.status === 'extracting') && (
-                            <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
                               <RefreshCw className="w-3 h-3 animate-spin" /> Sedang Proses...
                             </span>
                           )}
                           {item.status === 'pending' && (
-                            <span className="text-[10px] text-slate-500">Antrean</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400">Antrean</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -1435,14 +1435,14 @@ export function BulkSmartCvManager({
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditModal(item)}
-                                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 text-xs font-semibold"
+                                  className="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-white/10"
                                 >
                                   Edit
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handlePublishSingle(item)}
-                                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded text-xs"
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs"
                                 >
                                   Terbitkan
                                 </button>

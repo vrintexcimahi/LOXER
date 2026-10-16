@@ -126,22 +126,107 @@ html:not(.dark) .loxer-workspace :is(a, button).text-slate-950[class*="bg-gradie
 html.dark .loxer-workspace button.bg-cyan-500.text-slate-950 { background: #24bbdc !important; color: #102c43; }
 
 /* Enhanced text contrast and legibility in light mode */
-html:not(.dark) .loxer-workspace :is(h1, h2, h3, h4):not([class*="text-gradient"]):not([class*="gradient-"]):not(.text-cyan-400):not(.text-sky-400) {
+html:not(.dark) .loxer-workspace :is(h1, h2, h3, h4):not([class*="text-gradient"]):not([class*="gradient-"]):not(.text-cyan-600):not(.text-sky-600) {
   color: #0c2642;
 }
-html:not(.dark) .loxer-workspace :is(.border, [class*="bg-slate-"]) :is(a, p, span).text-white:not([class*="gradient-"]):not([class*="bg-gradient-"]) {
+
+/* Light mode dark-to-light banner transformations (eliminates dark theme lingering in light mode) */
+html:not(.dark) .loxer-workspace :is([class*="from-slate-950"], [class*="from-slate-900"]):not(.pointer-events-none):not(aside) {
+  background-image: linear-gradient(135deg, rgba(240, 249, 255, 0.95) 0%, rgba(224, 242, 254, 0.90) 50%, rgba(219, 234, 254, 0.85) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  box-shadow: 0 10px 25px -5px rgba(14, 165, 233, 0.12) !important;
+  color: #0c2642 !important;
+}
+
+/* Any banner header inside converted light banners */
+html:not(.dark) .loxer-workspace :is([class*="from-slate-950"], [class*="from-slate-900"]) :is(h1, h2, h3, h4, .text-white) {
+  color: #0c2642 !important;
+}
+html:not(.dark) .loxer-workspace :is([class*="from-slate-950"], [class*="from-slate-900"]) :is(p, span.text-slate-300, span.text-slate-400) {
+  color: #334155 !important;
+}
+
+/* White text in cards/panels becomes crisp dark text, EXCEPT on solid/gradient colored action buttons */
+html:not(.dark) .loxer-workspace :is(.border, [class*="bg-slate-"], [class*="bg-white"]) :is(p, span, div, label):not([class*="bg-gradient-"]):not([class*="bg-cyan-500"]):not([class*="bg-sky-500"]):not([class*="bg-blue-600"]):not([class*="bg-emerald-500"]):not([class*="bg-violet-600"]).text-white {
   color: #0c2642;
 }
+
+/* Preserve crisp white text on colored action buttons and pills */
+html:not(.dark) .loxer-workspace :is(a, button):is([class*="bg-gradient-to-"], .bg-cyan-500, .bg-sky-500, .bg-blue-600, .bg-emerald-500, .bg-violet-600) {
+  color: #ffffff !important;
+}
+html:not(.dark) .loxer-workspace :is(a, button):is([class*="bg-gradient-to-"], .bg-cyan-500, .bg-sky-500, .bg-blue-600, .bg-emerald-500, .bg-violet-600) :is(span, p, svg) {
+  color: #ffffff !important;
+}
+
+/* Legible text colors for secondary and tertiary copy in light mode (WCAG AA > 4.5:1) */
 html:not(.dark) .loxer-workspace .text-slate-400,
 html:not(.dark) .loxer-workspace .text-slate-500 {
-  color: #3b5674;
+  color: #475569;
 }
-html:not(.dark) .loxer-workspace .text-slate-300 {
-  color: #244160;
+html:not(.dark) .loxer-workspace .text-slate-300,
+html:not(.dark) .loxer-workspace .text-slate-200 {
+  color: #1e293b;
 }
+
+/* High contrast pastel/neon text replacements for light mode (no more invisible cyan/amber/emerald on white) */
+html:not(.dark) .loxer-workspace :is(.text-cyan-300, .text-cyan-200, .text-cyan-100) {
+  color: #0284c7 !important;
+}
+html:not(.dark) .loxer-workspace :is(.text-emerald-300, .text-emerald-200, .text-emerald-100) {
+  color: #059669 !important;
+}
+html:not(.dark) .loxer-workspace :is(.text-amber-300, .text-amber-200, .text-amber-100) {
+  color: #b45309 !important;
+}
+html:not(.dark) .loxer-workspace :is(.text-violet-300, .text-violet-200, .text-violet-100) {
+  color: #7c3aed !important;
+}
+html:not(.dark) .loxer-workspace :is(.text-rose-300, .text-rose-200, .text-rose-100) {
+  color: #e11d48 !important;
+}
+
+/* Subtle badge backgrounds in light mode with high-contrast text and border */
+html:not(.dark) .loxer-workspace :is(.bg-cyan-500\/10, .bg-cyan-500\/15, .bg-cyan-500\/20) {
+  background-color: rgba(14, 165, 233, 0.12) !important;
+  border-color: rgba(14, 165, 233, 0.35) !important;
+  color: #0284c7 !important;
+}
+html:not(.dark) .loxer-workspace :is(.bg-emerald-500\/10, .bg-emerald-500\/15, .bg-emerald-500\/20) {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  color: #059669 !important;
+}
+html:not(.dark) .loxer-workspace :is(.bg-amber-500\/10, .bg-amber-500\/15, .bg-amber-500\/20) {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  color: #b45309 !important;
+}
+html:not(.dark) .loxer-workspace :is(.bg-violet-500\/10, .bg-violet-500\/15, .bg-violet-500\/20) {
+  background-color: rgba(139, 92, 246, 0.12) !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+  color: #7c3aed !important;
+}
+
+/* Dark pill / badge containers in light mode */
+html:not(.dark) .loxer-workspace :is(.bg-slate-800, .bg-slate-800\/60, .bg-slate-800\/80, .bg-slate-800\/90) {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+/* Input fields & wells in light mode */
 html:not(.dark) .loxer-workspace :is([class*="bg-slate-950/60"], [class*="bg-slate-900/80"], [class*="bg-slate-900/50"], [class*="bg-white/5"], [class*="bg-white/[0.04]"]) {
   background-color: var(--glass-field);
   border-color: var(--app-border);
+}
+html:not(.dark) .loxer-workspace :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+html:not(.dark) .loxer-workspace :is(input, textarea)::placeholder {
+  color: #94a3b8 !important;
 }
 
 /* Light mode Navbar & Footer contrast */

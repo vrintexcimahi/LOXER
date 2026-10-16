@@ -232,20 +232,20 @@ export function PdfDocumentSplitter({
   return (
     <div className="space-y-5 animate-fade-in">
       {/* ── Header Banner ──────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-violet-950/40 p-5 shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-50 via-purple-50/80 to-slate-50/90 dark:from-slate-950 dark:via-slate-900 dark:to-violet-950/40 p-5 shadow-xl">
         <div className="absolute right-0 top-0 -mr-12 -mt-12 h-56 w-56 rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
         <div className="absolute left-1/4 bottom-0 -mb-12 h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300">
-              <Scissors className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-800 dark:text-violet-300">
+              <Scissors className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 animate-pulse" />
               <span>Smart PDF Splitter • Auto-Klasifikasi & Sensor AI</span>
             </div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <span>📂 Pecah Dokumen & Galeri Berkas Pelamar</span>
             </h2>
-            <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
               Upload PDF multi-halaman → setiap halaman dipecah otomatis → diklasifikasikan (KTP, Ijazah, SKCK, CV, dll.) →
               dokumen sensitif disensor penuh secara otomatis → diarsipkan ke galeri berkas pelamar.
             </p>
@@ -258,8 +258,8 @@ export function PdfDocumentSplitter({
               onClick={() => setActiveTab('split')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'split'
-                  ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/25'
-                  : 'text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700/60'
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/25'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-700/60'
               }`}
             >
               <Scissors className="w-3.5 h-3.5" />
@@ -270,14 +270,14 @@ export function PdfDocumentSplitter({
               onClick={() => setActiveTab('gallery')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all relative ${
                 activeTab === 'gallery'
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                  : 'text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700/60'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-700/60'
               }`}
             >
               <Archive className="w-3.5 h-3.5" />
               Galeri Berkas
               {gallery.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 flex items-center justify-center rounded-full bg-emerald-400 text-slate-950 text-[9px] font-black">
+                <span className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 flex items-center justify-center rounded-full bg-emerald-500 text-white text-[9px] font-black shadow-sm">
                   {gallery.length}
                 </span>
               )}
@@ -290,7 +290,7 @@ export function PdfDocumentSplitter({
       {activeTab === 'split' && (
         <div className="space-y-5">
           {/* File Upload Zone */}
-          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5 shadow-lg space-y-4">
+          <div className="rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 p-5 shadow-lg space-y-4">
             <input
               ref={fileInputRef}
               type="file"
@@ -308,21 +308,21 @@ export function PdfDocumentSplitter({
                 e.preventDefault();
                 if (e.dataTransfer.files?.length) handleFilesSelected(e.dataTransfer.files);
               }}
-              className="cursor-pointer border-2 border-dashed border-violet-500/30 hover:border-violet-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-500/20 rounded-2xl p-8 text-center transition-all duration-300 group bg-slate-950/50 hover:bg-slate-950/80 focus:outline-none"
+              className="cursor-pointer border-2 border-dashed border-violet-500/40 hover:border-violet-500 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/20 rounded-2xl p-8 text-center transition-all duration-300 group bg-violet-50/40 hover:bg-violet-50/70 dark:bg-slate-950/50 dark:hover:bg-slate-950/80 focus:outline-none"
             >
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-400/30 flex items-center justify-center text-violet-300 group-hover:scale-110 group-hover:border-violet-400 group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-all duration-300">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-400/40 flex items-center justify-center text-violet-700 dark:text-violet-300 group-hover:scale-110 group-hover:border-violet-400 group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-all duration-300">
                 <Scissors className="w-7 h-7" />
               </div>
-              <div className="mt-4 text-base font-bold text-white">
+              <div className="mt-4 text-base font-bold text-slate-900 dark:text-white">
                 📄 Tarik & Lepaskan Berkas PDF Multi-Halaman di Sini
               </div>
-              <p className="mt-1.5 text-xs text-slate-400 max-w-lg mx-auto">
+              <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
                 Setiap halaman akan dipecah, diklasifikasikan, dan disensor otomatis. Format: PDF saja.
               </p>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-violet-500 hover:bg-violet-400 text-white shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
                 <FolderOpen className="w-4 h-4" />
                 Pilih Berkas PDF
@@ -409,20 +409,20 @@ export function PdfDocumentSplitter({
 
           {/* Split Results Summary */}
           {pages.length > 0 && !isSplitting && (
-            <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 space-y-4">
+            <div className="rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/80 p-4 space-y-4 shadow-sm">
               {/* Stats row */}
               <div className="flex flex-wrap gap-3">
-                <div className="flex-1 min-w-[120px] rounded-xl bg-slate-800/80 border border-white/5 p-3 text-center">
-                  <div className="text-2xl font-black text-white">{pages.length}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold uppercase mt-0.5">Total Halaman</div>
+                <div className="flex-1 min-w-[120px] rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/5 p-3 text-center">
+                  <div className="text-2xl font-black text-slate-900 dark:text-white">{pages.length}</div>
+                  <div className="text-[10px] text-slate-600 dark:text-slate-400 font-semibold uppercase mt-0.5">Total Halaman</div>
                 </div>
-                <div className="flex-1 min-w-[120px] rounded-xl bg-red-950/30 border border-red-500/20 p-3 text-center">
-                  <div className="text-2xl font-black text-red-400">{sensitiveCount}</div>
-                  <div className="text-[10px] text-red-300/70 font-semibold uppercase mt-0.5">Sensitif (Disensor)</div>
+                <div className="flex-1 min-w-[120px] rounded-xl bg-rose-50 dark:bg-red-950/30 border border-rose-200 dark:border-red-500/20 p-3 text-center">
+                  <div className="text-2xl font-black text-rose-700 dark:text-red-400">{sensitiveCount}</div>
+                  <div className="text-[10px] text-rose-800/80 dark:text-red-300/70 font-semibold uppercase mt-0.5">Sensitif (Disensor)</div>
                 </div>
-                <div className="flex-1 min-w-[120px] rounded-xl bg-emerald-950/30 border border-emerald-500/20 p-3 text-center">
-                  <div className="text-2xl font-black text-emerald-400">{pages.length - sensitiveCount}</div>
-                  <div className="text-[10px] text-emerald-300/70 font-semibold uppercase mt-0.5">Aman Ditampilkan</div>
+                <div className="flex-1 min-w-[120px] rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/20 p-3 text-center">
+                  <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{pages.length - sensitiveCount}</div>
+                  <div className="text-[10px] text-emerald-800/80 dark:text-emerald-300/70 font-semibold uppercase mt-0.5">Aman Ditampilkan</div>
                 </div>
               </div>
 
@@ -436,14 +436,14 @@ export function PdfDocumentSplitter({
                       key={label}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
                       style={{
-                        color: meta?.color || '#94a3b8',
-                        borderColor: `${meta?.color || '#94a3b8'}33`,
-                        background: meta?.bgColor || 'rgba(100,116,139,0.1)',
+                        color: meta?.color || '#0284c7',
+                        borderColor: `${meta?.color || '#0284c7'}44`,
+                        background: meta?.bgColor || 'rgba(2,132,199,0.08)',
                       }}
                     >
                       <span>{meta?.icon || '📁'}</span>
                       {label}
-                      <span className="px-1 py-0 rounded-full bg-white/10 text-[10px] font-black">{count}</span>
+                      <span className="px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-white/10 text-[10px] font-black text-slate-700 dark:text-white">{count}</span>
                       {meta?.isSensitive && <Lock className="w-3 h-3" />}
                     </span>
                   );
@@ -452,9 +452,9 @@ export function PdfDocumentSplitter({
 
               {/* Security notice */}
               {sensitiveCount > 0 && (
-                <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-                  <Shield className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-300 leading-relaxed">
+                <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+                  <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
                     <strong>{sensitiveCount} halaman sensitif</strong> (KTP, Ijazah, SKCK, dll.) telah otomatis disensor penuh dengan enkripsi visual.
                     Data asli <strong>tidak tersimpan di server</strong> — hanya versi tersensor yang diarsipkan.
                   </p>
@@ -471,12 +471,12 @@ export function PdfDocumentSplitter({
                 return (
                   <div
                     key={page.id}
-                    className="group relative rounded-xl border overflow-hidden bg-slate-900 transition-all hover:scale-[1.03] hover:shadow-xl cursor-pointer"
-                    style={{ borderColor: `${meta.color}33` }}
+                    className="group relative rounded-xl border overflow-hidden bg-white dark:bg-slate-900 transition-all hover:scale-[1.03] hover:shadow-xl cursor-pointer shadow-sm"
+                    style={{ borderColor: `${meta.color}44` }}
                     onClick={() => { setViewingPage(page); setShowRaw(false); }}
                   >
                     {/* Page thumbnail */}
-                    <div className="relative aspect-[3/4] overflow-hidden bg-slate-800">
+                    <div className="relative aspect-[3/4] overflow-hidden bg-slate-100 dark:bg-slate-800">
                       <img
                         src={page.isSensitive ? page.censoredImageBase64 : page.censoredImageBase64 || page.rawImageBase64}
                         alt={`Halaman ${page.pageNumber}`}
@@ -499,17 +499,17 @@ export function PdfDocumentSplitter({
                     {/* Card info */}
                     <div className="p-2 space-y-1">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-bold text-slate-400">Hal. {page.pageNumber}/{page.totalPages}</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Hal. {page.pageNumber}/{page.totalPages}</span>
                         <span className="text-[10px] font-semibold" style={{ color: meta.color }}>
                           {meta.icon} {meta.label}
                         </span>
                       </div>
-                      <div className="text-[9px] text-slate-500 truncate">{page.sourceFileName}</div>
+                      <div className="text-[9px] text-slate-500 dark:text-slate-400 truncate">{page.sourceFileName}</div>
                     </div>
 
                     {/* Reclassify button */}
                     <select
-                      className="w-full text-[9px] bg-slate-800 border-t border-white/5 text-slate-300 px-2 py-1 cursor-pointer focus:outline-none"
+                      className="w-full text-[9px] bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-white/5 text-slate-700 dark:text-slate-300 px-2 py-1 cursor-pointer focus:outline-none"
                       value={page.docClass}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => {
@@ -535,16 +535,16 @@ export function PdfDocumentSplitter({
       {activeTab === 'gallery' && (
         <div className="space-y-4">
           {/* Gallery header + controls */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-white/10 bg-slate-900/80">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/80 shadow-sm">
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Archive className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Archive className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 Galeri Berkas Pelamar
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-black border border-emerald-500/30">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 text-[10px] font-black border border-emerald-500/30">
                   {gallery.length} berkas
                 </span>
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                 Seluruh halaman berkas pelamar yang telah dipecah, diklasifikasikan, dan disensor.
               </p>
             </div>
@@ -552,7 +552,7 @@ export function PdfDocumentSplitter({
               <button
                 onClick={handleClearGallery}
                 disabled={gallery.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-700 dark:text-red-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition disabled:opacity-40"
               >
                 <X className="w-3.5 h-3.5" />
                 Kosongkan
@@ -567,8 +567,8 @@ export function PdfDocumentSplitter({
                 onClick={() => { setGalleryFilter('all'); setGalleryPage(0); }}
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
                   galleryFilter === 'all'
-                    ? 'bg-slate-600 text-white'
-                    : 'text-slate-400 hover:text-white bg-slate-800/60'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
                 }`}
               >
                 Semua ({gallery.length})
@@ -597,9 +597,9 @@ export function PdfDocumentSplitter({
           {/* Gallery grid */}
           {gallery.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500 space-y-3">
-              <Archive className="w-12 h-12 text-slate-700" />
-              <p className="text-sm font-medium">Galeri berkas masih kosong.</p>
-              <p className="text-xs text-slate-600">
+              <Archive className="w-12 h-12 text-slate-400 dark:text-slate-700" />
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Galeri berkas masih kosong.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-600">
                 Pecah berkas PDF terlebih dahulu, lalu klik "Arsipkan ke Galeri".
               </p>
             </div>
@@ -615,11 +615,11 @@ export function PdfDocumentSplitter({
                   return (
                     <div
                       key={page.id}
-                      className="group relative rounded-xl border overflow-hidden bg-slate-900 hover:scale-[1.03] hover:shadow-xl cursor-pointer transition-all"
-                      style={{ borderColor: `${meta.color}33` }}
+                      className="group relative rounded-xl border overflow-hidden bg-white dark:bg-slate-900 hover:scale-[1.03] hover:shadow-xl cursor-pointer transition-all shadow-sm"
+                      style={{ borderColor: `${meta.color}44` }}
                       onClick={() => { setViewingPage(page); setShowRaw(false); }}
                     >
-                      <div className="relative aspect-[3/4] overflow-hidden bg-slate-800">
+                      <div className="relative aspect-[3/4] overflow-hidden bg-slate-100 dark:bg-slate-800">
                         <img
                           src={page.isSensitive ? page.censoredImageBase64 : (page.censoredImageBase64 || page.rawImageBase64)}
                           alt={`${page.label} hal. ${page.pageNumber}`}
@@ -639,10 +639,10 @@ export function PdfDocumentSplitter({
                         <div className="text-[9px] font-bold truncate" style={{ color: meta.color }}>
                           {meta.icon} {meta.label}
                         </div>
-                        <div className="text-[8px] text-slate-500 truncate">
+                        <div className="text-[8px] text-slate-500 dark:text-slate-400 truncate">
                           {page.candidateName || page.sourceFileName}
                         </div>
-                        <div className="text-[8px] text-slate-600">Hal. {page.pageNumber}/{page.totalPages}</div>
+                        <div className="text-[8px] text-slate-400 dark:text-slate-600">Hal. {page.pageNumber}/{page.totalPages}</div>
                       </div>
                     </div>
                   );

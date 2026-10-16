@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
+import { resolveAdminToken } from '../../lib/adminUtils';
 import { checkIsSuperAdmin } from '../../lib/constants';
 import { maskPhoneNumber, maskEmail, cleanDomicileCity } from '../../lib/contactPrivacyService';
 import { cropPasFotoFromImage, generateBlurredCvImage, autoEnhanceImageDataUrl } from '../../lib/cvImageProcessor';
@@ -641,15 +642,15 @@ export function AdminTalentCatalogSection({
       </div>
 
       {/* Control & Filter Card */}
-      <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-4 space-y-3.5 backdrop-blur-md">
+      <div className="rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 p-4 space-y-3.5 backdrop-blur-md shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama pelamar, posisi keahlian, atau domisili kota..."
-              className="w-full rounded-xl border border-white/10 bg-slate-950 py-2.5 pl-9 pr-3 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+              className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950 py-2.5 pl-9 pr-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500"
             />
           </div>
 
@@ -673,18 +674,18 @@ export function AdminTalentCatalogSection({
 
             <button
               onClick={fetchTalents}
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white transition"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition"
               title="Segarkan data talent"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Segarkan</span>
             </button>
 
-            <div className="flex items-center rounded-xl border border-white/10 bg-slate-950 p-1">
+            <div className="flex items-center rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-950 p-1">
               <button
                 onClick={() => setViewMode('grid')}
                 className={`p-1.5 rounded-lg transition ${
-                  viewMode === 'grid' ? 'bg-cyan-500/20 text-cyan-300 shadow' : 'text-slate-400 hover:text-white'
+                  viewMode === 'grid' ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
                 title="Tampilan Grid 1:1"
               >
@@ -693,7 +694,7 @@ export function AdminTalentCatalogSection({
               <button
                 onClick={() => setViewMode('table')}
                 className={`p-1.5 rounded-lg transition ${
-                  viewMode === 'table' ? 'bg-cyan-500/20 text-cyan-300 shadow' : 'text-slate-400 hover:text-white'
+                  viewMode === 'table' ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
                 title="Tampilan Tabel"
               >
@@ -704,11 +705,11 @@ export function AdminTalentCatalogSection({
         </div>
 
         {/* Dropdowns & Category Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-2 border-t border-white/5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-2 border-t border-slate-200 dark:border-white/5">
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+            className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             {TALENT_CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
@@ -720,7 +721,7 @@ export function AdminTalentCatalogSection({
           <select
             value={selectedAvailability}
             onChange={(e) => setSelectedAvailability(e.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+            className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             <option value="all">Semua Ketersediaan Kerja</option>
             <option value="fulltime">Di Tempat / Bengkel (Fulltime)</option>
@@ -732,7 +733,7 @@ export function AdminTalentCatalogSection({
           <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
-            className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+            className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500"
           >
             <option value="all">Semua Kota Domisili ({cities.length} Kota)</option>
             {cities.map((city) => (
@@ -748,7 +749,7 @@ export function AdminTalentCatalogSection({
       {loading && (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {[1, 2, 3, 4, 5, 6].map((n) => (
-            <div key={n} className="rounded-xl sm:rounded-2xl border border-white/10 bg-slate-900 p-2 sm:p-4 space-y-2 sm:space-y-3">
+            <div key={n} className="rounded-xl sm:rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-900 p-2 sm:p-4 space-y-2 sm:space-y-3">
               <SkeletonBlock className="aspect-square w-full rounded-lg sm:rounded-xl" />
               <SkeletonBlock className="h-4 sm:h-5 w-3/4" />
               <SkeletonBlock className="h-3 sm:h-4 w-1/2" />
@@ -759,10 +760,10 @@ export function AdminTalentCatalogSection({
 
       {/* Empty State */}
       {!loading && filteredTalents.length === 0 && (
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-12 text-center space-y-3">
-          <Users className="w-12 h-12 text-slate-600 mx-auto" />
-          <h3 className="text-sm font-bold text-white">Tidak ada data pelamar yang cocok</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+        <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/60 p-12 text-center space-y-3 shadow-sm">
+          <Users className="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">Tidak ada data pelamar yang cocok</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400 max-w-sm mx-auto">
             Coba ubah kata kunci pencarian atau sesuaikan filter kategori dan domisili untuk menemukan talent.
           </p>
           <button
@@ -772,7 +773,7 @@ export function AdminTalentCatalogSection({
               setSelectedAvailability('all');
               setSelectedCity('all');
             }}
-            className="rounded-xl border border-cyan-500/40 bg-cyan-500/20 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/30 transition"
+            className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 dark:bg-cyan-500/20 px-4 py-2 text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 dark:hover:bg-cyan-500/30 transition"
           >
             Reset Semua Filter
           </button>
@@ -1122,8 +1123,8 @@ export function AdminTalentCatalogSection({
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                           isPublished
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-slate-800 text-slate-400 border border-white/10'
+                            ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10'
                         }`}
                       >
                         {isPublished ? 'Tayang' : 'Draft'}
@@ -1133,13 +1134,13 @@ export function AdminTalentCatalogSection({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setPreviewTalent(talent)}
-                          className="rounded-lg border border-white/10 bg-slate-800 px-2.5 py-1 text-xs text-white hover:bg-slate-700 transition"
+                          className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-800 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition"
                         >
                           Biodata
                         </button>
                         <button
                           onClick={() => setRegenerateTalent(talent)}
-                          className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-300 hover:bg-indigo-500/20 transition flex items-center gap-1"
+                          className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 transition flex items-center gap-1"
                           title="Regenerate Foto Profil"
                         >
                           <Camera className="w-3 h-3" />
@@ -1147,7 +1148,7 @@ export function AdminTalentCatalogSection({
                         </button>
                         <button
                           onClick={() => setChatTalent(talent)}
-                          className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-300 hover:bg-cyan-500/20 transition flex items-center gap-1"
+                          className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 transition flex items-center gap-1"
                           title="Buka Ruang Chat Otomatis"
                         >
                           <MessageSquare className="w-3 h-3" />
@@ -1155,14 +1156,14 @@ export function AdminTalentCatalogSection({
                         </button>
                         <button
                           onClick={() => togglePublish(talent)}
-                          className="rounded-lg border border-white/10 px-2 py-1 hover:bg-white/5 transition"
+                          className="rounded-lg border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 px-2 py-1 hover:bg-slate-100 dark:hover:bg-white/5 transition"
                           title="Ubah publikasi"
                         >
                           {isPublished ? 'Draft' : 'Tayang'}
                         </button>
                         <button
                           onClick={() => deleteTalent(talent.id, fullName)}
-                          className="rounded-lg border border-rose-500/30 text-rose-300 px-2 py-1 hover:bg-rose-500/10 transition"
+                          className="rounded-lg border border-rose-500/30 text-rose-600 dark:text-rose-300 px-2 py-1 hover:bg-rose-500/10 transition"
                         >
                           Hapus
                         </button>
@@ -1251,31 +1252,6 @@ interface PdfJsDoc {
 interface PdfJsLibrary {
   GlobalWorkerOptions: { workerSrc: string };
   getDocument: (options: { data: ArrayBuffer }) => { promise: Promise<PdfJsDoc> };
-}
-
-async function resolveAdminToken(): Promise<string> {
-  try {
-    const { data: sessionData } = await (supabase ? supabase.auth.getSession() : { data: { session: null } });
-    if (sessionData?.session?.access_token) return sessionData.session.access_token;
-  } catch {
-    // ignore
-  }
-  if (typeof window !== 'undefined') {
-    const stored =
-      localStorage.getItem('loxer_local_auth_token_admin') ||
-      localStorage.getItem('loxer_local_auth_token') ||
-      localStorage.getItem('loxer_auth_token');
-    if (stored) return stored;
-    if (
-      sessionStorage.getItem('loxer_admin_unlocked') === 'true' ||
-      sessionStorage.getItem('loxer_super_admin_bypass') === 'true' ||
-      sessionStorage.getItem('app_admin_unlocked') === 'true'
-    ) {
-      return `local-admin-vrintex-token-${Date.now()}`;
-    }
-    return `local-admin-vrintex-token-${Date.now()}`;
-  }
-  return '';
 }
 
 // ==============================================================================
@@ -1886,14 +1862,14 @@ STATUS: Siap Kerja Segera (Fulltime)`);
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Mode Switcher: Single vs Bulk */}
-      <div className="flex flex-col sm:flex-row items-center gap-2 p-1.5 bg-slate-900/90 border border-white/10 rounded-2xl backdrop-blur-md shadow-lg">
+      <div className="flex flex-col sm:flex-row items-center gap-2 p-1.5 bg-white/90 dark:bg-slate-900/90 border border-sky-100 dark:border-white/10 rounded-2xl backdrop-blur-md shadow-lg">
         <button
           type="button"
           onClick={() => setMainMode('single')}
           className={`flex-1 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             mainMode === 'single'
-              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
           }`}
         >
           <Sparkles className="w-4 h-4" />
@@ -1906,12 +1882,12 @@ STATUS: Siap Kerja Segera (Fulltime)`);
           className={`flex-1 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             mainMode === 'bulk'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-amber-500/25'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
           }`}
         >
           <Layers className="w-4 h-4" />
           <span>Mode Massal / Bulk Upload (Puluhan &amp; Ratusan PDF)</span>
-          <span className="ml-1.5 px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/30">
+          <span className="ml-1.5 px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-amber-100 dark:bg-amber-400/20 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-400/30">
             Multi-Worker AI
           </span>
         </button>
@@ -1927,328 +1903,328 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       ) : (
         <>
           {/* Top Banner: AI Smart Add CV Engine */}
-          <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-cyan-950/40 p-6 shadow-xl backdrop-blur-md">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 -mb-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+          <div className="relative overflow-hidden rounded-2xl border border-sky-200 dark:border-cyan-500/30 bg-gradient-to-r from-sky-50 via-cyan-50/80 to-blue-50/60 dark:from-slate-950 dark:via-slate-900 dark:to-cyan-950/40 p-6 shadow-xl backdrop-blur-md">
+            <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+            <div className="absolute left-1/3 bottom-0 -mb-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" />
-              <span>Smart Add CV • 9Router Gemini 3.8 Multimodal OCR</span>
-              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-200">
-                PDF & JPG Vision
-              </span>
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-              <span>Unggah Berkas CV & Ekstraksi Biodata Otomatis</span>
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Upload berkas CV pelamar (PDF, JPG, PNG, WEBP) atau paste teks biodata. Agen AI Gemini 3.8 membaca berkas visual secara mendalam, mengekstrak kualifikasi, riwayat kerja, pendidikan, dan kontak, lalu langsung menyesuaikannya ke dalam format bursa talent LOXER.
-            </p>
-          </div>
-
-          <button
-            onClick={handleLoadSampleCv}
-            disabled={isExtracting}
-            className="flex items-center gap-2 self-start md:self-center whitespace-nowrap rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-300 transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-            title="Klik untuk mencoba otomatis dengan contoh CV Azqy Ahmad Saputra"
-          >
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span>⚡ Muat Contoh CV Pelamar</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Input Source Selector Card */}
-      <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5 backdrop-blur-md shadow-lg space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-white/10">
-          <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Upload className="w-4 h-4 text-cyan-400" />
-              <span>Langkah 1: Masukkan Berkas CV Pelamar</span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Pilih metode input: unggah berkas dokumen CV (PDF / JPG / PNG) atau tempelkan teks resume langsung
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/80 p-1">
-            <button
-              onClick={() => setInputMode('file')}
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                inputMode === 'file'
-                  ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <FileUp className="w-3.5 h-3.5" />
-              <span>Upload / Paste CV</span>
-            </button>
-            <button
-              onClick={() => setInputMode('text')}
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                inputMode === 'text'
-                  ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Teks CV / Resume</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Mode: File Upload (PDF / Image) */}
-        {inputMode === 'file' && (
-          <div className="space-y-4">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-
-            {!filePreviewUrl && !fileBase64 ? (
-              <div
-                tabIndex={0}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                onPaste={handleDropzonePaste}
-                onClick={() => fileInputRef.current?.click()}
-                className="cursor-pointer border-2 border-dashed border-cyan-500/30 hover:border-cyan-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-500/20 rounded-2xl p-8 sm:p-10 text-center transition-all duration-300 group bg-slate-950/50 hover:bg-slate-950/80 focus:outline-none"
-              >
-                {/* Rounded Icon Badge like Image 1 */}
-                <div className="mx-auto w-14 h-14 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300 group-hover:scale-110 group-hover:border-cyan-400 group-hover:shadow-lg group-hover:shadow-cyan-500/20 transition-all duration-300">
-                  <Clipboard className="w-7 h-7" />
-                </div>
-
-                {/* Primary Action Text matching Image 1: 📋 Tekan Ctrl + V untuk Paste Screenshot */}
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-base sm:text-lg font-bold text-white">
-                  <span className="flex items-center gap-1.5">
-                    <span>📋 Tekan</span>
-                    <kbd className="px-2.5 py-0.5 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 font-mono text-xs sm:text-sm font-black shadow-inner tracking-wider">
-                      Ctrl + V
-                    </kbd>
-                    <span>untuk Paste Screenshot / Gambar</span>
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                  <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-500 dark:text-amber-400" />
+                  <span>Smart Add CV • 9Router Gemini 3.8 Multimodal OCR</span>
+                  <span className="rounded-full bg-amber-200/60 dark:bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-900 dark:text-amber-200">
+                    PDF &amp; JPG Vision
                   </span>
                 </div>
-
-                {/* Subtitle matching Image 1 */}
-                <p className="mt-2 text-xs sm:text-sm text-slate-300">
-                  Atau klik di sini untuk memilih file berkas CV dari perangkat (drag & drop didukung)
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+                  <span>Unggah Berkas CV &amp; Ekstraksi Biodata Otomatis</span>
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
+                  Upload berkas CV pelamar (PDF, JPG, PNG, WEBP) atau paste teks biodata. Agen AI Gemini 3.8 membaca berkas visual secara mendalam, mengekstrak kualifikasi, riwayat kerja, pendidikan, dan kontak, lalu langsung menyesuaikannya ke dalam format bursa talent LOXER.
                 </p>
-
-                {/* Feature Pills */}
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                    <Sparkles className="w-3 h-3 text-cyan-400" />
-                    Copy Image &gt; Paste di tempat
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                    <Check className="w-3 h-3 text-emerald-400" />
-                    Screenshot (Win+Shift+S) &gt; Paste
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-800 text-slate-400 border border-white/10">
-                    PDF, JPG, PNG, WEBP (Maks 15MB)
-                  </span>
-                </div>
-
-                {/* Direct Action Buttons */}
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePasteImageFromClipboard();
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
-                  >
-                    <Clipboard className="w-3.5 h-3.5" />
-                    <span>Tempel dari Clipboard Sekarang</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMainMode('bulk');
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Mode Massal (Upload Puluhan CV Sekaligus)</span>
-                  </button>
-                </div>
               </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-cyan-500/40 bg-slate-950/80 p-4 shadow-lg">
-                {filePreviewUrl ? (
-                  <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-slate-900">
-                    <img src={filePreviewUrl} alt="CV Preview" className="h-full w-full object-cover object-center" />
-                    <span className="absolute bottom-1 right-1 rounded bg-slate-950/80 px-1 text-[9px] font-bold text-cyan-300 uppercase border border-cyan-500/20">
-                      {fileType}
-                    </span>
+
+              <button
+                onClick={handleLoadSampleCv}
+                disabled={isExtracting}
+                className="flex items-center gap-2 self-start md:self-center whitespace-nowrap rounded-xl border border-amber-300 dark:border-amber-500/30 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 px-4 py-2.5 text-xs font-bold text-amber-900 dark:text-amber-300 transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                title="Klik untuk mencoba otomatis dengan contoh CV Azqy Ahmad Saputra"
+              >
+                <Zap className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>⚡ Muat Contoh CV Pelamar</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Input Source Selector Card */}
+          <div className="rounded-2xl border border-sky-100 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 p-5 backdrop-blur-md shadow-lg space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100 dark:border-white/10">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                  <span>Langkah 1: Masukkan Berkas CV Pelamar</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Pilih metode input: unggah berkas dokumen CV (PDF / JPG / PNG) atau tempelkan teks resume langsung
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/80 p-1">
+                <button
+                  onClick={() => setInputMode('file')}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    inputMode === 'file'
+                      ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <FileUp className="w-3.5 h-3.5" />
+                  <span>Upload / Paste CV</span>
+                </button>
+                <button
+                  onClick={() => setInputMode('text')}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    inputMode === 'text'
+                      ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Teks CV / Resume</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Mode: File Upload (PDF / Image) */}
+            {inputMode === 'file' && (
+              <div className="space-y-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+
+                {!filePreviewUrl && !fileBase64 ? (
+                  <div
+                    tabIndex={0}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                    onPaste={handleDropzonePaste}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="cursor-pointer border-2 border-dashed border-cyan-400/50 hover:border-cyan-500 dark:border-cyan-500/30 dark:hover:border-cyan-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 rounded-2xl p-8 sm:p-10 text-center transition-all duration-300 group bg-sky-50/50 hover:bg-sky-50/90 dark:bg-slate-950/50 dark:hover:bg-slate-950/80 focus:outline-none"
+                  >
+                    {/* Rounded Icon Badge */}
+                    <div className="mx-auto w-14 h-14 rounded-2xl bg-cyan-100 dark:bg-cyan-500/15 border border-cyan-300 dark:border-cyan-400/30 flex items-center justify-center text-cyan-700 dark:text-cyan-300 group-hover:scale-110 group-hover:border-cyan-400 group-hover:shadow-lg group-hover:shadow-cyan-500/20 transition-all duration-300">
+                      <Clipboard className="w-7 h-7" />
+                    </div>
+
+                    {/* Primary Action Text */}
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-base sm:text-lg font-bold text-slate-800 dark:text-white">
+                      <span className="flex items-center gap-1.5">
+                        <span>📋 Tekan</span>
+                        <kbd className="px-2.5 py-0.5 rounded-lg bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-300 dark:border-cyan-400/50 text-cyan-800 dark:text-cyan-300 font-mono text-xs sm:text-sm font-black shadow-inner tracking-wider">
+                          Ctrl + V
+                        </kbd>
+                        <span>untuk Paste Screenshot / Gambar</span>
+                      </span>
+                    </div>
+
+                    {/* Subtitle */}
+                    <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                      Atau klik di sini untuk memilih file berkas CV dari perangkat (drag &amp; drop didukung)
+                    </p>
+
+                    {/* Feature Pills */}
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-cyan-50 dark:bg-cyan-500/10 text-cyan-800 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-500/20">
+                        <Sparkles className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
+                        Copy Image &gt; Paste di tempat
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20">
+                        <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        Screenshot (Win+Shift+S) &gt; Paste
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-white/10">
+                        PDF, JPG, PNG, WEBP (Maks 15MB)
+                      </span>
+                    </div>
+
+                    {/* Direct Action Buttons */}
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePasteImageFromClipboard();
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/20 dark:hover:bg-cyan-500/30 text-cyan-900 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/40 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
+                        <Clipboard className="w-3.5 h-3.5" />
+                        <span>Tempel dari Clipboard Sekarang</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMainMode('bulk');
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>Mode Massal (Upload Puluhan CV Sekaligus)</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="h-20 w-20 shrink-0 flex items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300 font-bold">
-                    PDF
+                  <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-sky-200 dark:border-cyan-500/40 bg-slate-50/90 dark:bg-slate-950/80 p-4 shadow-lg">
+                    {filePreviewUrl ? (
+                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-900">
+                        <img src={filePreviewUrl} alt="CV Preview" className="h-full w-full object-cover object-center" />
+                        <span className="absolute bottom-1 right-1 rounded bg-slate-900/80 px-1 text-[9px] font-bold text-cyan-300 uppercase border border-cyan-500/20">
+                          {fileType}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="h-20 w-20 shrink-0 flex items-center justify-center rounded-xl bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 font-bold">
+                        PDF
+                      </div>
+                    )}
+
+                    <div className="flex-1 text-center sm:text-left space-y-1">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-center sm:justify-start gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>{selectedFileName || 'Berkas CV Terpilih'}</span>
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Ukuran: {selectedFileSize || 'Siap diekstrak'} • Siap diproses oleh AI Multimodal Gemini 3.8
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {fileType === 'pdf' && selectedRawPdf && (
+                        <button
+                          type="button"
+                          onClick={() => setShowSplitterModal(true)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300 dark:border-violet-500/40 bg-violet-100 dark:bg-violet-500/20 hover:bg-violet-200 dark:hover:bg-violet-500/30 px-3 py-1.5 text-xs text-violet-900 dark:text-violet-200 transition font-bold"
+                          title="Pecah berkas PDF multi-halaman &amp; arsipkan ke galeri"
+                        >
+                          <Scissors className="w-3.5 h-3.5 text-violet-600 dark:text-violet-300" />
+                          <span>Pecah Dokumen {pdfPageCount > 1 ? `(${pdfPageCount} Hal)` : ''}</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handlePasteImageFromClipboard}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-300 dark:border-cyan-500/30 bg-cyan-100 dark:bg-cyan-500/10 hover:bg-cyan-200 dark:hover:bg-cyan-500/20 px-3 py-1.5 text-xs text-cyan-900 dark:text-cyan-300 transition"
+                        title="Tempel gambar / screenshot baru dari clipboard (Ctrl+V)"
+                      >
+                        <Clipboard className="w-3.5 h-3.5" />
+                        <span>Paste Baru (Ctrl+V)</span>
+                      </button>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 transition"
+                      >
+                        Ganti Berkas
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFilePreviewUrl(null);
+                          setFileBase64('');
+                          setSelectedFileName('');
+                          setCvText('');
+                          setSelectedRawPdf(null);
+                          setPdfPageCount(0);
+                        }}
+                        className="rounded-lg border border-rose-300 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 px-3 py-1.5 text-xs transition"
+                      >
+                        Hapus
+                      </button>
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
 
-                <div className="flex-1 text-center sm:text-left space-y-1">
-                  <p className="text-xs font-bold text-white flex items-center justify-center sm:justify-start gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>{selectedFileName || 'Berkas CV Terpilih'}</span>
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    Ukuran: {selectedFileSize || 'Siap diekstrak'} • Siap diproses oleh AI Multimodal Gemini 3.8
-                  </p>
+            {/* Mode: Paste Text */}
+            {inputMode === 'text' && (
+              <div className="space-y-3">
+                <textarea
+                  rows={6}
+                  value={cvText}
+                  onChange={(e) => setCvText(e.target.value)}
+                  placeholder="Tempel teks resume / biodata pelamar di sini (pengalaman, keahlian, pendidikan, kontak)..."
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 p-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 leading-relaxed font-mono"
+                />
+              </div>
+            )}
+
+            {/* Action Button & Progress */}
+            <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                {isExtracting
+                  ? 'Sedang memproses... Harap tunggu beberapa detik.'
+                  : 'Klik tombol di samping untuk memindai berkas dan menyusun data kandidat.'}
+              </p>
+
+              <button
+                onClick={handleSmartExtract}
+                disabled={isExtracting || (!fileBase64 && !cvText.trim())}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-500/25 transition disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Sparkles className={`w-4 h-4 ${isExtracting ? 'animate-spin' : ''}`} />
+                <span>{isExtracting ? 'Mengekstrak dengan Gemini 3.8...' : 'Mulai Ekstraksi AI dengan Gemini 3.8'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Extraction Step Progress */}
+            {isExtracting && (
+              <div className="rounded-xl border border-sky-200 dark:border-cyan-500/20 bg-sky-50 dark:bg-cyan-950/30 p-4 space-y-3 animate-fade-in">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-cyan-800 dark:text-cyan-300 flex items-center gap-2">
+                    <Bot className="w-4 h-4 animate-bounce text-cyan-600 dark:text-cyan-400" />
+                    <span>Memproses Dokumen CV dengan Gemini 3.8 Multimodal</span>
+                  </span>
+                  <span className="text-[11px] font-mono text-cyan-700 dark:text-cyan-400 font-bold">Langkah {extractStep} / 3</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {fileType === 'pdf' && selectedRawPdf && (
-                    <button
-                      type="button"
-                      onClick={() => setShowSplitterModal(true)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/20 hover:bg-violet-500/30 px-3 py-1.5 text-xs text-violet-200 transition font-bold"
-                      title="Pecah berkas PDF multi-halaman & arsipkan ke galeri"
-                    >
-                      <Scissors className="w-3.5 h-3.5 text-violet-300" />
-                      <span>Pecah Dokumen {pdfPageCount > 1 ? `(${pdfPageCount} Hal)` : ''}</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handlePasteImageFromClipboard}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-1.5 text-xs text-cyan-300 transition"
-                    title="Tempel gambar / screenshot baru dari clipboard (Ctrl+V)"
-                  >
-                    <Clipboard className="w-3.5 h-3.5" />
-                    <span>Paste Baru (Ctrl+V)</span>
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="rounded-lg border border-white/10 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs text-slate-200 transition"
-                  >
-                    Ganti Berkas
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFilePreviewUrl(null);
-                      setFileBase64('');
-                      setSelectedFileName('');
-                      setCvText('');
-                      setSelectedRawPdf(null);
-                      setPdfPageCount(0);
-                    }}
-                    className="rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 text-xs transition"
-                  >
-                    Hapus
-                  </button>
+                <div className="w-full bg-slate-200 dark:bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-400 to-cyan-400 h-1.5 transition-all duration-700"
+                    style={{ width: extractStep === 1 ? '33%' : extractStep === 2 ? '66%' : '95%' }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-600 dark:text-slate-400">
+                  <span className={extractStep >= 1 ? 'text-cyan-800 dark:text-cyan-300 font-bold' : ''}>1. Membaca visual &amp; teks berkas</span>
+                  <span className={extractStep >= 2 ? 'text-cyan-800 dark:text-cyan-300 font-bold' : ''}>2. Analisis kualifikasi &amp; pengalaman</span>
+                  <span className={extractStep >= 3 ? 'text-cyan-800 dark:text-cyan-300 font-bold' : ''}>3. Menyusun struktur bursa talent</span>
                 </div>
               </div>
             )}
+
+            {extractError && (
+              <div className="rounded-xl border border-rose-300 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-3 text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>{extractError}</span>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Mode: Paste Text */}
-        {inputMode === 'text' && (
-          <div className="space-y-3">
-            <textarea
-              rows={6}
-              value={cvText}
-              onChange={(e) => setCvText(e.target.value)}
-              placeholder="Tempel teks resume / biodata pelamar di sini (pengalaman, keahlian, pendidikan, kontak)..."
-              className="w-full rounded-xl border border-white/10 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 leading-relaxed font-mono"
-            />
-          </div>
-        )}
-
-        {/* Action Button & Progress */}
-        <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p className="text-xs text-slate-400">
-            {isExtracting
-              ? 'Sedang memproses... Harap tunggu beberapa detik.'
-              : 'Klik tombol di samping untuk memindai berkas dan menyusun data kandidat.'}
-          </p>
-
-          <button
-            onClick={handleSmartExtract}
-            disabled={isExtracting || (!fileBase64 && !cvText.trim())}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-500/25 transition disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <Sparkles className={`w-4 h-4 ${isExtracting ? 'animate-spin' : ''}`} />
-            <span>{isExtracting ? 'Mengekstrak dengan Gemini 3.8...' : 'Mulai Ekstraksi AI dengan Gemini 3.8'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Extraction Step Progress */}
-        {isExtracting && (
-          <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/30 p-4 space-y-3 animate-fade-in">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-cyan-300 flex items-center gap-2">
-                <Bot className="w-4 h-4 animate-bounce text-cyan-400" />
-                <span>Memproses Dokumen CV dengan Gemini 3.8 Multimodal</span>
-              </span>
-              <span className="text-[11px] font-mono text-cyan-400">Langkah {extractStep} / 3</span>
-            </div>
-
-            <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-emerald-400 to-cyan-400 h-1.5 transition-all duration-700"
-                style={{ width: extractStep === 1 ? '33%' : extractStep === 2 ? '66%' : '95%' }}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-400">
-              <span className={extractStep >= 1 ? 'text-cyan-300 font-bold' : ''}>1. Membaca visual & teks berkas</span>
-              <span className={extractStep >= 2 ? 'text-cyan-300 font-bold' : ''}>2. Analisis kualifikasi & pengalaman</span>
-              <span className={extractStep >= 3 ? 'text-cyan-300 font-bold' : ''}>3. Menyusun struktur bursa talent</span>
-            </div>
-          </div>
-        )}
-
-        {extractError && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{extractError}</span>
-          </div>
-        )}
-      </div>
 
       {/* Langkah 2: Review Form & Live Preview */}
       {formData && (
         <div className="space-y-5 animate-fade-in">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Langkah 2: Tinjau & Sesuaikan Hasil Ekstraksi AI</span>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Langkah 2: Tinjau &amp; Sesuaikan Hasil Ekstraksi AI</span>
             </h3>
-            <span className="rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-[11px] font-bold text-emerald-300">
+            <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-400/30 px-3 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
               Keyakinan AI: {formData.confidence_score}%
             </span>
           </div>
 
           {/* Banner Pecah Dokumen PDF Multi-Halaman */}
           {selectedRawPdf && (
-            <div className="rounded-2xl border-2 border-violet-500/50 bg-gradient-to-r from-violet-950/80 via-slate-900 to-indigo-950/80 p-4 shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+            <div className="rounded-2xl border-2 border-violet-300 dark:border-violet-500/50 bg-gradient-to-r from-violet-50 via-purple-50/70 to-indigo-50/60 dark:from-violet-950/80 dark:via-slate-900 dark:to-indigo-950/80 p-4 shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-xl bg-violet-500/20 border border-violet-400/40 flex items-center justify-center shrink-0">
-                  <Scissors className="w-5 h-5 text-violet-300" />
+                <div className="h-10 w-10 rounded-xl bg-violet-100 dark:bg-violet-500/20 border border-violet-300 dark:border-violet-400/40 flex items-center justify-center shrink-0">
+                  <Scissors className="w-5 h-5 text-violet-600 dark:text-violet-300" />
                 </div>
                 <div className="space-y-1">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/20 px-2.5 py-0.5 text-xs font-bold text-violet-300">
-                    <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-300 dark:border-violet-400/40 bg-violet-100 dark:bg-violet-500/20 px-2.5 py-0.5 text-xs font-bold text-violet-900 dark:text-violet-300">
+                    <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
                     <span>Dokumen PDF Terdeteksi {pdfPageCount > 1 ? `(${pdfPageCount} Halaman)` : ''}</span>
                   </div>
-                  <h4 className="text-sm font-bold text-white">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
                     Pecah Dokumen &amp; Arsipkan ke Galeri Berkas Pelamar
                   </h4>
-                  <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed">
                     Setelah scan selesai, pecah setiap halaman berkas pelamar (KTP, Ijazah, SKCK, Sertifikat, dll).
                     Sistem otomatis mengklasifikasikan dokumen dan menerapkan <strong>sensor penuh</strong> pada dokumen sensitif (KTP, Ijazah, SKCK).
                   </p>
@@ -2266,18 +2242,18 @@ STATUS: Siap Kerja Segera (Fulltime)`);
           )}
 
           {/* Privacy & Shopee-Grade Sensor Policy Banner */}
-          <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/70 via-slate-900 to-slate-950 p-4 shadow-lg flex items-start gap-3.5">
-            <div className="h-9 w-9 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center shrink-0">
-              <ShieldAlert className="w-5 h-5 text-cyan-400" />
+          <div className="rounded-2xl border border-cyan-200 dark:border-cyan-500/30 bg-gradient-to-r from-cyan-50 via-sky-50/80 to-blue-50/60 dark:from-cyan-950/70 dark:via-slate-900 dark:to-slate-950 p-4 shadow-lg flex items-start gap-3.5">
+            <div className="h-9 w-9 rounded-xl bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-300 dark:border-cyan-400/30 flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                 <span>Standar Privasi &amp; Sensor Ketat Shopee / LOXER Aktif</span>
-                <span className="rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[9px] font-black text-emerald-300">
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-400/30 px-2 py-0.5 text-[9px] font-black text-emerald-800 dark:text-emerald-300">
                   OTOMATIS
                 </span>
               </h4>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Semua nomor kontak (HP/WhatsApp), email, dan akun sosmed yang dilampirkan otomatis disensor penuh untuk privasi pelamar. Semua aktivitas komunikasi, wawancara, negosiasi gaji, dan penawaran kerja perusahaan wajib full di dalam aplikasi LOXER melalui <strong>Ruang Chat Otomatis</strong> terenkripsi.
               </p>
             </div>
@@ -2285,62 +2261,62 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Form Inputs (Left: 7 cols) */}
-            <div className="lg:col-span-7 space-y-4 rounded-2xl border border-white/10 bg-slate-900/90 p-5 shadow-xl">
+            <div className="lg:col-span-7 space-y-4 rounded-2xl border border-sky-100 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 p-5 shadow-xl">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Nama Lengkap Pelamar *
                   </label>
                   <input
                     value={formData.full_name}
                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Headline Posisi / Profesi *
                   </label>
                   <input
                     value={formData.headline}
                     onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
-                    placeholder="Contoh: Operator Gudang & Packing"
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                    placeholder="Contoh: Operator Gudang &amp; Packing"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Kategori Keahlian LOXER
                   </label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500"
                   >
-                    <option value="Teknologi & IT">Teknologi & IT</option>
-                    <option value="Operasional & Logistik">Operasional & Logistik</option>
-                    <option value="Keuangan & Akuntansi">Keuangan & Akuntansi</option>
-                    <option value="Servis Elektronik & Komputer">Servis Elektronik & Komputer</option>
-                    <option value="Bengkel & Otomotif">Bengkel & Otomotif</option>
-                    <option value="Kebersihan & Cleaning Service">Kebersihan & Cleaning Service</option>
-                    <option value="Desain, Percetakan & Sablon">Desain, Percetakan & Sablon</option>
-                    <option value="Pemasaran & Digital">Pemasaran & Digital</option>
-                    <option value="Umum & Jasa">Umum & Jasa</option>
+                    <option value="Teknologi & IT">Teknologi &amp; IT</option>
+                    <option value="Operasional & Logistik">Operasional &amp; Logistik</option>
+                    <option value="Keuangan & Akuntansi">Keuangan &amp; Akuntansi</option>
+                    <option value="Servis Elektronik & Komputer">Servis Elektronik &amp; Komputer</option>
+                    <option value="Bengkel & Otomotif">Bengkel &amp; Otomotif</option>
+                    <option value="Kebersihan & Cleaning Service">Kebersihan &amp; Cleaning Service</option>
+                    <option value="Desain, Percetakan & Sablon">Desain, Percetakan &amp; Sablon</option>
+                    <option value="Pemasaran & Digital">Pemasaran &amp; Digital</option>
+                    <option value="Umum & Jasa">Umum &amp; Jasa</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Ketersediaan Kerja
                   </label>
                   <select
                     value={formData.availability}
                     onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500"
                   >
                     <option value="fulltime">Di Tempat / Bengkel (Fulltime)</option>
                     <option value="freelance">Layanan Panggilan (Freelance)</option>
@@ -2352,7 +2328,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Ekspektasi Gaji / Tarif (Rp)
                   </label>
                   <input
@@ -2360,21 +2336,21 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                     value={formData.expected_salary || ''}
                     placeholder="Kosongkan jika ditambahkan oleh admin"
                     onChange={(e) => setFormData({ ...formData, expected_salary: Number(e.target.value) || 0 })}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 font-mono"
                   />
-                  <span className="text-[10px] text-slate-400 mt-1 block">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
                     Kosongkan (nilai 0) untuk user tanpa akun / ditambah admin.
                   </span>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Tipe Tarif
                   </label>
                   <select
                     value={formData.rate_type}
                     onChange={(e) => setFormData({ ...formData, rate_type: e.target.value as 'monthly' | 'hourly' | 'project' })}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500"
                   >
                     <option value="monthly">Per Bulan</option>
                     <option value="hourly">Per Jam</option>
@@ -2383,40 +2359,40 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Pengalaman (Tahun)
                   </label>
                   <input
                     type="number"
                     value={formData.experience_years}
                     onChange={(e) => setFormData({ ...formData, experience_years: Number(e.target.value) || 0 })}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Kota Domisili (Hanya Nama Kota)
                   </label>
                   <input
                     value={formData.domicile_city}
                     onChange={(e) => setFormData({ ...formData, domicile_city: cleanDomicileCity(e.target.value) })}
                     placeholder="Contoh: Cimahi"
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
                   />
-                  <span className="text-[10px] text-slate-400 mt-1 block">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
                     🔒 Detail alamat jalan/RT/nomor disensor otomatis.
                   </span>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                       Nomor WhatsApp / HP
                     </label>
-                    <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                       <Lock className="w-2.5 h-2.5" /> Sensor Aktif
                     </span>
                   </div>
@@ -2424,10 +2400,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                     value={formData.whatsapp_number}
                     onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })}
                     placeholder="Contoh: 08123456789"
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 font-mono"
                   />
                   {formData.whatsapp_number && (
-                    <p className="mt-1 text-[10px] text-cyan-300 font-mono flex items-center gap-1">
+                    <p className="mt-1 text-[10px] text-cyan-700 dark:text-cyan-300 font-mono flex items-center gap-1">
                       <Lock className="w-2.5 h-2.5" />
                       <span>Disensor ke Publik:</span>
                       <strong className="underline">{maskPhoneNumber(formData.whatsapp_number)}</strong>
@@ -2440,10 +2416,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                       Email Pelamar
                     </label>
-                    <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                       <Lock className="w-2.5 h-2.5" /> Sensor Aktif
                     </span>
                   </div>
@@ -2451,59 +2427,58 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                     value={formData.email || ''}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="Contoh: pelamar@gmail.com"
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 font-mono"
                   />
                   {formData.email && (
-                    <p className="mt-1 text-[10px] text-cyan-300 font-mono flex items-center gap-1">
+                    <p className="mt-1 text-[10px] text-cyan-700 dark:text-cyan-300 font-mono flex items-center gap-1">
                       <Lock className="w-2.5 h-2.5" />
                       <span>Disensor ke Publik:</span>
                       <strong className="underline">{maskEmail(formData.email)}</strong>
                     </p>
                   )}
                 </div>
-
               </div>
 
               {/* Media Profil: Foto Utama (Pas Foto) & Gambar Ke-2 (CV Full Diblur) */}
-              <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3.5 space-y-3">
+              <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-slate-950/60 p-3.5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                     <span>Media Profil: Foto Utama (Pas Foto) &amp; Gambar Ke-2 (CV Full Diblur)</span>
                   </label>
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-500/20">
                     Otomatis Gemini OCR
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Foto Utama: Pas Foto */}
-                  <div className="rounded-xl border border-white/10 bg-slate-900/90 p-3 space-y-2.5">
+                  <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/90 p-3 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                      <span className="text-[11px] font-bold text-slate-900 dark:text-white flex items-center gap-1">
                         <span>Foto Utama (Pas Foto)</span>
                       </span>
                       {formData.photo_url ? (
-                        <span className="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 rounded flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
+                        <span className="text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/30 px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
                           <span>AI Presisi (0% Bocor Teks)</span>
                         </span>
                       ) : (
-                        <span className="text-[9px] font-semibold text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded">
+                        <span className="text-[9px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded border border-slate-200 dark:border-transparent">
                           Inisial Default
                         </span>
                       )}
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-slate-950 flex items-center justify-center shadow-inner">
+                      <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-slate-950 flex items-center justify-center shadow-inner">
                         {formData.photo_url ? (
                           <img src={formData.photo_url} alt="Pas Foto" className="h-full w-full object-cover object-center" />
                         ) : (
-                          <span className="text-xl font-black text-cyan-300">{formData.full_name.charAt(0).toUpperCase()}</span>
+                          <span className="text-xl font-black text-cyan-700 dark:text-cyan-300">{formData.full_name.charAt(0).toUpperCase()}</span>
                         )}
                       </div>
                       <div className="flex-1 space-y-1.5">
-                        <p className="text-[10px] text-slate-300 leading-snug">
+                        <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-snug">
                           {formData.photo_url
                             ? 'Wajah kandidat terpotong 1:1 presisi dari lembar CV tanpa teks luar.'
                             : 'Tidak ada pas foto di lembar CV. Inisial nama otomatis digunakan.'}
@@ -2517,10 +2492,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                               onClick={() => handleReCrop('smart_square')}
                               className={`px-2 py-0.5 text-[9px] font-bold rounded transition ${
                                 activeCropMode === 'smart_square'
-                                  ? 'bg-cyan-500 text-slate-950 shadow'
-                                  : 'bg-slate-800 text-slate-300 hover:text-white border border-white/10'
+                                  ? 'bg-cyan-500 text-white shadow'
+                                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-white/10'
                               }`}
-                              title="Crop 1:1 simetris fokus wajah & bahu tanpa memuat teks CV"
+                              title="Crop 1:1 simetris fokus wajah &amp; bahu tanpa memuat teks CV"
                             >
                               🎯 1:1 Wajah
                             </button>
@@ -2529,8 +2504,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                               onClick={() => handleReCrop('tight_face')}
                               className={`px-2 py-0.5 text-[9px] font-bold rounded transition ${
                                 activeCropMode === 'tight_face'
-                                  ? 'bg-cyan-500 text-slate-950 shadow'
-                                  : 'bg-slate-800 text-slate-300 hover:text-white border border-white/10'
+                                  ? 'bg-cyan-500 text-white shadow'
+                                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-white/10'
                               }`}
                               title="Crop zoom wajah terpusat"
                             >
@@ -2541,8 +2516,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                               onClick={() => handleReCrop('full_frame')}
                               className={`px-2 py-0.5 text-[9px] font-bold rounded transition ${
                                 activeCropMode === 'full_frame'
-                                  ? 'bg-cyan-500 text-slate-950 shadow'
-                                  : 'bg-slate-800 text-slate-300 hover:text-white border border-white/10'
+                                  ? 'bg-cyan-500 text-white shadow'
+                                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 dark:hover:text-white border border-slate-200 dark:border-white/10'
                               }`}
                               title="Pas foto penuh dengan background studio tersinkron"
                             >
@@ -2551,7 +2526,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                             <button
                               type="button"
                               onClick={handleAutoSharpen}
-                              className="px-2 py-0.5 text-[9px] font-bold rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-400/30 transition flex items-center gap-1"
+                              className="px-2 py-0.5 text-[9px] font-bold rounded bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 text-amber-900 dark:text-amber-300 dark:hover:bg-amber-500/30 border border-amber-300 dark:border-amber-400/30 transition flex items-center gap-1"
                               title="Pertajam otomatis foto buram"
                             >
                               ✨ Pertajam HD
@@ -2559,7 +2534,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                             <button
                               type="button"
                               onClick={handleApplyPixarAvatar}
-                              className="px-2 py-0.5 text-[9px] font-bold rounded bg-violet-500/20 text-violet-300 hover:bg-violet-500/30 border border-violet-400/30 transition flex items-center gap-1"
+                              className="px-2 py-0.5 text-[9px] font-bold rounded bg-violet-100 hover:bg-violet-200 dark:bg-violet-500/20 text-violet-900 dark:text-violet-300 dark:hover:bg-violet-500/30 border border-violet-300 dark:border-violet-400/30 transition flex items-center gap-1"
                               title="Gunakan 3D Pixar Avatar sesuai gender"
                             >
                               🎨 3D Avatar
@@ -2571,17 +2546,17 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                           <button
                             type="button"
                             onClick={() => customPhotoInputRef.current?.click()}
-                            className="text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 underline"
+                            className="text-[10px] font-semibold text-cyan-700 dark:text-cyan-400 hover:text-cyan-800 dark:hover:text-cyan-300 underline"
                           >
                             + Ganti / Upload Foto
                           </button>
                           {formData.photo_url && (
                             <>
-                              <span className="text-slate-600">·</span>
+                              <span className="text-slate-400 dark:text-slate-600">·</span>
                               <button
                                 type="button"
                                 onClick={() => setFormData({ ...formData, photo_url: '' })}
-                                className="text-[10px] font-semibold text-rose-300 hover:text-rose-200 underline"
+                                className="text-[10px] font-semibold text-rose-600 dark:text-rose-300 hover:text-rose-700 dark:hover:text-rose-200 underline"
                               >
                                 Gunakan inisial
                               </button>
@@ -2600,25 +2575,25 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   </div>
 
                   {/* Gambar Ke-2: CV Full Kontak Diblur */}
-                  <div className="rounded-xl border border-white/10 bg-slate-900/90 p-3 space-y-2">
+                  <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/90 p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                      <span className="text-[11px] font-bold text-slate-900 dark:text-white flex items-center gap-1">
                         <span>Gambar Ke-2 (CV Full)</span>
                       </span>
-                      <span className="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.2 rounded flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/30 px-1.5 py-0.2 rounded flex items-center gap-1">
                         <Lock className="w-2.5 h-2.5" /> Kontak Diblur Penuh
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-slate-950 flex items-center justify-center shadow-inner">
+                      <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-slate-950 flex items-center justify-center shadow-inner">
                         {formData.portfolio_url ? (
                           <img src={formData.portfolio_url} alt="CV Full Diblur" className="h-full w-full object-cover object-top" />
                         ) : (
-                          <FileText className="w-6 h-6 text-slate-500" />
+                          <FileText className="w-6 h-6 text-slate-400 dark:text-slate-500" />
                         )}
                       </div>
                       <div className="flex-1 space-y-1">
-                        <p className="text-[10px] text-slate-300 leading-snug">
+                        <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-snug">
                           Nomor HP, WA &amp; email disensor permanen. Perekrutan 100% via aplikasi LOXER.
                         </p>
                       </div>
@@ -2628,33 +2603,33 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                   Ringkasan Profil (Bio)
                 </label>
                 <textarea
                   rows={3}
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className="w-full rounded-xl border border-white/10 bg-slate-950 p-3 text-xs text-white focus:outline-none focus:border-cyan-500 leading-relaxed"
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 p-3 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 leading-relaxed"
                 />
               </div>
 
               {/* Skills Tags Editor */}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  Keahlian & Tag Keterampilan
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
+                  Keahlian &amp; Tag Keterampilan
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {formData.skills.map((skill, sIdx) => (
                     <span
                       key={sIdx}
-                      className="inline-flex items-center gap-1 rounded-lg border border-cyan-400/30 bg-cyan-950/40 px-2.5 py-1 text-xs text-cyan-300 font-medium"
+                      className="inline-flex items-center gap-1 rounded-lg border border-cyan-300 dark:border-cyan-400/30 bg-cyan-50 dark:bg-cyan-950/40 px-2.5 py-1 text-xs text-cyan-800 dark:text-cyan-300 font-medium"
                     >
                       <span>{skill}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveSkill(skill)}
-                        className="text-slate-400 hover:text-white"
+                        className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
                       >
                         ✕
                       </button>
@@ -2672,12 +2647,12 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                       }
                     }}
                     placeholder="Tambah keahlian baru (tekan Enter)..."
-                    className="flex-1 rounded-xl border border-white/10 bg-slate-950 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
                   />
                   <button
                     type="button"
                     onClick={handleAddSkill}
-                    className="rounded-xl border border-cyan-500/30 bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/30 transition"
+                    className="rounded-xl border border-cyan-300 dark:border-cyan-500/30 bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-900 dark:text-cyan-300 dark:hover:bg-cyan-500/30 transition"
                   >
                     Tambah
                   </button>
@@ -2686,26 +2661,26 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
               {/* Riwayat Pengalaman & Pendidikan (AI Extracted) */}
               {((formData.experiences && formData.experiences.length > 0) || (formData.educations && formData.educations.length > 0)) && (
-                <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3.5 space-y-3">
+                <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-slate-950/40 p-3.5 space-y-3">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                      <Briefcase className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="font-bold text-slate-800 dark:text-slate-300 flex items-center gap-1.5">
+                      <Briefcase className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
                       <span>Riwayat Pengalaman &amp; Pendidikan (Deteksi AI)</span>
                     </span>
-                    <span className="text-[10px] text-cyan-400 font-semibold">Terekstraksi Otomatis</span>
+                    <span className="text-[10px] text-cyan-700 dark:text-cyan-400 font-semibold">Terekstraksi Otomatis</span>
                   </div>
 
                   {formData.experiences && formData.experiences.length > 0 && (
                     <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold uppercase text-slate-400">Pengalaman Kerja:</span>
+                      <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400">Pengalaman Kerja:</span>
                       <div className="space-y-1">
                         {formData.experiences.map((exp, idx) => (
-                          <div key={idx} className="rounded-lg border border-white/5 bg-slate-900/80 p-2 text-xs flex items-start justify-between gap-2">
+                          <div key={idx} className="rounded-lg border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900/80 p-2 text-xs flex items-start justify-between gap-2">
                             <div>
-                              <p className="font-bold text-white">{exp.position} <span className="font-normal text-slate-400">di {exp.company_name}</span></p>
-                              {exp.description && <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{exp.description}</p>}
+                              <p className="font-bold text-slate-900 dark:text-white">{exp.position} <span className="font-normal text-slate-600 dark:text-slate-400">di {exp.company_name}</span></p>
+                              {exp.description && <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{exp.description}</p>}
                             </div>
-                            {exp.period && <span className="text-[10px] text-cyan-400 font-mono shrink-0">{exp.period}</span>}
+                            {exp.period && <span className="text-[10px] text-cyan-700 dark:text-cyan-400 font-mono shrink-0 font-semibold">{exp.period}</span>}
                           </div>
                         ))}
                       </div>
@@ -2714,13 +2689,13 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
                   {formData.educations && formData.educations.length > 0 && (
                     <div className="space-y-1.5 pt-1">
-                      <span className="text-[10px] font-bold uppercase text-slate-400">Pendidikan:</span>
+                      <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400">Pendidikan:</span>
                       <div className="space-y-1">
                         {formData.educations.map((edu, idx) => (
-                          <div key={idx} className="rounded-lg border border-white/5 bg-slate-900/80 p-2 text-xs flex items-center justify-between gap-2">
-                            <p className="font-bold text-white">{edu.school_name} <span className="font-normal text-slate-400">({edu.degree}{edu.major ? ` - ${edu.major}` : ''})</span></p>
+                          <div key={idx} className="rounded-lg border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900/80 p-2 text-xs flex items-center justify-between gap-2">
+                            <p className="font-bold text-slate-900 dark:text-white">{edu.school_name} <span className="font-normal text-slate-600 dark:text-slate-400">({edu.degree}{edu.major ? ` - ${edu.major}` : ''})</span></p>
                             {(edu.start_year || edu.end_year) && (
-                              <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono shrink-0">
                                 {edu.start_year || ''} - {edu.end_year || 'Selesai'}
                               </span>
                             )}
@@ -2734,13 +2709,13 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     Badge Khusus
                   </label>
                   <select
                     value={formData.badge}
                     onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-cyan-500"
                   >
                     <option value="SIAP KERJA">SIAP KERJA</option>
                     <option value="TOP TALENT">TOP TALENT</option>
@@ -2750,33 +2725,33 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
                     URL Foto Profil / Dokumen
                   </label>
                   <input
                     value={formData.photo_url}
                     onChange={(e) => setFormData({ ...formData, photo_url: e.target.value })}
                     placeholder="data:image/... atau https://..."
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono truncate"
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 font-mono truncate"
                   />
                 </div>
               </div>
 
               {/* AI Notes */}
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-amber-300 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-400" />
+              <div className="rounded-xl border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-3 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                   <span>Catatan Evaluasi AI Gemini 3.8</span>
                 </span>
-                <p className="text-xs text-slate-200 leading-relaxed">{formData.ai_notes}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">{formData.ai_notes}</p>
               </div>
 
               {/* Publish Action Buttons */}
-              <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-3">
+              <div className="pt-3 border-t border-slate-200 dark:border-white/10 flex items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => setFormData(null)}
-                  className="rounded-xl border border-white/10 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition"
+                  className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 transition"
                 >
                   Batal / Reset
                 </button>
@@ -2796,26 +2771,26 @@ STATUS: Siap Kerja Segera (Fulltime)`);
             {/* Live 1:1 Preview Card (Right: 5 cols) */}
             <div className="lg:col-span-5 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                   Pratinjau Kartu Pelamar (1:1 Aspect Ratio)
                 </span>
-                <span className="text-[10px] text-cyan-400 font-semibold">Tampilan Bursa Publik</span>
+                <span className="text-[10px] text-cyan-700 dark:text-cyan-400 font-bold">Tampilan Bursa Publik</span>
               </div>
 
               {/* Exact Card Component */}
-              <div className="overflow-hidden rounded-2xl border border-cyan-500/40 bg-slate-900 shadow-2xl">
+              <div className="overflow-hidden rounded-2xl border border-sky-200 dark:border-cyan-500/40 bg-white dark:bg-slate-900 shadow-2xl">
                 {/* Media Switcher Tab for Live Preview */}
                 {formData.portfolio_url && (
-                  <div className="p-2 border-b border-white/10 bg-slate-950/85 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400">Pratinjau Media:</span>
+                  <div className="p-2 border-b border-slate-200 dark:border-white/10 bg-slate-100/90 dark:bg-slate-950/85 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Pratinjau Media:</span>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setPreviewMode('photo')}
                         className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
                           previewMode === 'photo'
-                            ? 'bg-cyan-500 text-slate-950 shadow'
-                            : 'text-slate-400 hover:text-white bg-slate-800'
+                            ? 'bg-cyan-500 text-white shadow'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-200/80 dark:bg-slate-800'
                         }`}
                       >
                         Foto 1: Pas Foto
@@ -2825,8 +2800,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                         onClick={() => setPreviewMode('cv')}
                         className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
                           previewMode === 'cv'
-                            ? 'bg-cyan-500 text-slate-950 shadow'
-                            : 'text-slate-400 hover:text-white bg-slate-800'
+                            ? 'bg-cyan-500 text-white shadow'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-200/80 dark:bg-slate-800'
                         }`}
                       >
                         Foto 2: CV Full (Diblur)
@@ -2835,7 +2810,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   </div>
                 )}
 
-                <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950/40 p-3">
+                <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-100 via-sky-50 to-blue-100/60 dark:from-slate-800 dark:via-slate-900 dark:to-cyan-950/40 p-3">
                   {(previewMode === 'cv' && formData.portfolio_url ? formData.portfolio_url : formData.photo_url) ? (
                     <div className="relative h-full w-full overflow-hidden rounded-2xl">
                       <img
@@ -2851,12 +2826,12 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                       )}
                     </div>
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-600/30 to-indigo-600/30 text-cyan-300 font-extrabold text-5xl">
+                    <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-600/30 to-indigo-600/30 text-cyan-600 dark:text-cyan-300 font-extrabold text-5xl">
                       {formData.full_name.charAt(0).toUpperCase()}
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none rounded-2xl m-3" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent pointer-events-none rounded-2xl m-3" />
 
                   {/* Badges */}
                   <div className="absolute left-5 top-5 flex items-center gap-1.5">
@@ -2873,7 +2848,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                     <ShieldCheck className="w-5 h-5 text-cyan-400" />
                   </div>
 
-                  <div className="absolute bottom-4 left-5 right-5 flex items-center justify-between text-[10px] font-semibold text-slate-300">
+                  <div className="absolute bottom-4 left-5 right-5 flex items-center justify-between text-[10px] font-semibold text-slate-200">
                     <span className="truncate max-w-[130px] rounded-md bg-slate-950/70 border border-white/10 px-2 py-0.5 backdrop-blur-md">
                       {formData.category}
                     </span>
@@ -2885,21 +2860,21 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                 </div>
 
                 <div className="p-4 space-y-2.5">
-                  <h3 className="text-sm font-black uppercase tracking-wide text-white truncate">
+                  <h3 className="text-sm font-black uppercase tracking-wide text-slate-900 dark:text-white truncate">
                     {formData.full_name || 'Nama Pelamar'}
                   </h3>
-                  <p className="text-xs text-slate-300 font-medium line-clamp-1">{formData.headline}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 font-medium line-clamp-1">{formData.headline}</p>
 
-                  <div className="flex items-center justify-between rounded-xl bg-slate-950/60 border border-white/5 px-2.5 py-1.5">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold">Tarif:</span>
-                    <span className="text-xs font-black text-slate-400">
+                  <div className="flex items-center justify-between rounded-xl bg-slate-100 dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 px-2.5 py-1.5">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Tarif:</span>
+                    <span className="text-xs font-black text-cyan-700 dark:text-cyan-400">
                       {formData.expected_salary > 0
                         ? `Rp ${formData.expected_salary.toLocaleString('id-ID')} / bln`
                         : '-'}
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
                     {formData.bio || 'Ringkasan profil profesional kandidat.'}
                   </p>
 
@@ -2907,7 +2882,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                     {formData.skills.slice(0, 4).map((skill, idx) => (
                       <span
                         key={idx}
-                        className="rounded-md border border-white/10 bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-300"
+                        className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-300"
                       >
                         {skill}
                       </span>
@@ -2915,7 +2890,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   </div>
 
                   <div className="pt-2 flex items-center gap-2">
-                    <div className="flex-1 text-center rounded-xl bg-cyan-500/20 border border-cyan-400/30 py-2 text-xs font-bold text-cyan-300 flex items-center justify-center gap-1.5">
+                    <div className="flex-1 text-center rounded-xl bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-300 dark:border-cyan-400/30 py-2 text-xs font-bold text-cyan-800 dark:text-cyan-300 flex items-center justify-center gap-1.5">
                       <Eye className="w-3.5 h-3.5" />
                       <span>Pratinjau Biodata</span>
                     </div>
