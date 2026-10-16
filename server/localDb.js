@@ -73,12 +73,12 @@ export function getLocalDb() {
         try {
           db = new DatabaseSync(DB_FILE);
           pendingDb = db;
-          db.exec('PRAGMA busy_timeout = 5000;');
-          db.exec('PRAGMA journal_mode = WAL;');
-          db.exec('PRAGMA synchronous = NORMAL;');
-          db.exec('PRAGMA cache_size = -64000;');
-          db.exec('PRAGMA temp_store = MEMORY;');
-          db.exec('PRAGMA foreign_keys = ON;');
+          try { db.exec('PRAGMA busy_timeout = 10000;'); } catch {}
+          try { db.exec('PRAGMA journal_mode = WAL;'); } catch {}
+          try { db.exec('PRAGMA synchronous = NORMAL;'); } catch {}
+          try { db.exec('PRAGMA cache_size = -64000;'); } catch {}
+          try { db.exec('PRAGMA temp_store = MEMORY;'); } catch {}
+          try { db.exec('PRAGMA foreign_keys = ON;'); } catch {}
 
           // Auto-init schema if tables don't exist
           if (fs.existsSync(SCHEMA_FILE)) {
