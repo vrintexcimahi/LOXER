@@ -46,104 +46,141 @@ export function detectCandidateGender(fullName?: string, bio?: string): 'wanita'
   return 'pria';
 }
 
-export const BASE_UPSCALE_4K_PROMPT_CONFIG = {
-  task: "image_restoration_and_4k_upscale",
-  language: "id",
-  input_reference: "gunakan gambar asli sebagai satu-satunya referensi",
-  goal: "Pulihkan gambar yang sangat blur menjadi foto yang lebih tajam, natural, realistis dan berkualitas 4K tanpa mengubah identitas orang pada gambar.",
-  output: {
-    quality: "ultra_high",
-    resolution: "4K",
-    preserve_aspect_ratio: true,
-    format: "PNG",
-    style: "realistic_photography"
+export const SYSTEM_RESTORATION_INSTRUCTION = `You are an image restoration engine, not an image generator.
+
+For every restoration request:
+- Treat the supplied image as the absolute visual source.
+- Never redesign or reinterpret the subject.
+- Never replace the face.
+- Never change the person's identity.
+- Never change clothing, background, pose, expression, framing, colors or composition.
+- Do not beautify.
+- Do not create details that cannot reasonably be recovered.
+- Only remove blur, noise and compression artifacts and increase resolution.
+- Structural similarity and identity preservation are more important than visual perfection.
+- When uncertain, preserve the original pixels instead of inventing new content.`;
+
+export const STRICT_UPSCALE_4K_PROMPT_CONFIG = {
+  task: "STRICT_IMAGE_RESTORATION_4K",
+  mode: "image_to_image_restoration",
+  priority: "PRESERVE_ORIGINAL_IMAGE",
+  instruction: "Gunakan GAMBAR INPUT sebagai sumber visual absolut. Ini adalah tugas RESTORASI dan UPSCALE, BUKAN generate ulang, BUKAN membuat portrait baru, BUKAN mengganti wajah. Pertahankan orang, identitas, wajah, ekspresi, pose, rambut, pakaian, background, pencahayaan, framing, crop, warna, teks, badge, logo, dan seluruh komposisi gambar asli. Hanya perbaiki blur, noise, ketajaman, detail dan resolusi.",
+  identity_preservation: {
+    enabled: true,
+    strength: "MAXIMUM",
+    instruction: "Wajah hasil HARUS tetap orang yang sama persis dengan gambar input. Jangan reinterpretasi wajah. Jangan membuat bentuk mata, hidung, bibir, rahang, alis, telinga atau proporsi baru.",
+    preserve: [
+      "face geometry",
+      "eye shape",
+      "eye spacing",
+      "eyebrow shape",
+      "nose shape",
+      "lip shape",
+      "jawline",
+      "face width",
+      "skin tone",
+      "hairline",
+      "hairstyle",
+      "facial expression"
+    ]
+  },
+  scene_preservation: {
+    enabled: true,
+    strength: "MAXIMUM",
+    preserve: [
+      "original background",
+      "original clothing",
+      "original pose",
+      "original framing",
+      "original camera angle",
+      "original crop",
+      "original lighting direction",
+      "original colors",
+      "all UI overlays",
+      "all labels",
+      "all logos",
+      "all badges"
+    ],
+    instruction: "Jangan mengganti background. Jangan mengganti pakaian. Jangan menambahkan studio, kantor, salon, ruangan, benda, aksesori atau elemen baru."
   },
   restoration: {
-    deblur: "maximum",
-    remove_motion_blur: true,
-    remove_gaussian_blur: true,
-    recover_facial_details: true,
-    recover_hair_details: true,
-    recover_clothing_details: true,
-    reduce_noise: true,
+    deblur: true,
+    denoise: true,
     remove_compression_artifacts: true,
-    improve_edge_definition: true,
-    improve_dynamic_range: true,
-    correct_exposure: true,
-    correct_white_balance: true,
+    recover_edges: true,
+    recover_hair_detail: true,
+    recover_skin_detail: true,
     natural_skin_texture: true,
-    sharpening: "high_but_natural"
+    correct_minor_exposure: true,
+    correct_minor_white_balance: true,
+    upscale: "4K",
+    sharpening: "natural",
+    detail_recovery: "conservative"
   },
   face_restoration: {
-    priority: "very_high",
-    preserve_original_identity: true,
-    preserve_face_shape: true,
-    preserve_eye_shape: true,
-    preserve_nose_shape: true,
-    preserve_lip_shape: true,
-    preserve_skin_tone: true,
-    preserve_hairstyle: true,
-    preserve_expression: true,
-    do_not_beautify_excessively: true,
-    do_not_generate_new_facial_features: true,
-    instruction: "Rekonstruksi hanya detail yang secara logis berasal dari struktur gambar asli. Jangan mengganti wajah, jangan membuat wajah baru, dan jangan mengubah ciri khas subjek."
+    enabled: true,
+    method: "conservative",
+    beautification: false,
+    skin_smoothing: false,
+    face_swap: false,
+    face_redesign: false,
+    instruction: "Perjelas informasi wajah yang memang ada pada gambar input. Jika suatu detail tidak dapat dipastikan dari sumber, jangan mengarang detail baru."
   },
-  detail_enhancement: {
-    eyes: "clear and natural",
-    eyebrows: "restore realistic individual strands",
-    hair: "restore natural individual hair strands",
-    skin: "realistic pores and subtle texture",
-    lips: "natural texture without artificial gloss",
-    clothing: "restore fabric texture and original shape",
-    background: "clean and sharpen moderately while keeping original appearance"
+  composition_lock: {
+    enabled: true,
+    instruction: "Posisi kepala, ukuran wajah, arah pandangan, bahu, rambut, pakaian dan semua objek harus tetap pada koordinat visual yang sama seperti gambar asli."
   },
-  ui_and_text: {
-    preserve_original_layout: true,
-    preserve_existing_labels: true,
-    preserve_existing_colors: true,
-    do_not_add_new_text: true,
-    do_not_change_interface_elements: true
+  background_lock: {
+    enabled: true,
+    instruction: "Background wajib identik dengan input. Hanya boleh dibersihkan dari blur/noise ringan. Tidak boleh diganti."
   },
-  camera_look: {
-    appearance: "high-end smartphone or professional camera",
-    focus: "sharp face",
-    depth: "natural",
-    contrast: "balanced",
-    saturation: "natural",
-    hdr: "subtle",
-    oversharpening: false
+  color_lock: {
+    enabled: true,
+    instruction: "Pertahankan warna dominan gambar asli. Jangan melakukan recolor atau cinematic grading."
   },
-  negative_prompt: [
-    "different person",
-    "changed identity",
+  text_and_ui_lock: {
+    enabled: true,
+    instruction: "Jangan mengubah, menghapus, menambahkan atau menulis ulang teks, label, ikon, badge dan elemen UI yang sudah ada."
+  },
+  forbidden: [
+    "generate a new person",
+    "different face",
+    "face replacement",
     "face swap",
-    "new face",
-    "altered facial proportions",
-    "plastic skin",
-    "over-smoothed skin",
-    "AI beauty filter",
-    "anime",
-    "cartoon",
-    "painting",
-    "fake eyelashes",
-    "unrealistic eyes",
-    "extra facial features",
-    "distorted face",
-    "warped hair",
-    "oversharpening",
-    "halo artifacts",
-    "excessive HDR",
-    "unnatural skin color",
-    "invented text",
-    "changed clothing",
-    "changed background",
-    "watermark"
+    "beautification",
+    "change expression",
+    "change hairstyle",
+    "change clothing",
+    "change background",
+    "change pose",
+    "change camera angle",
+    "change crop",
+    "invent facial details",
+    "add makeup",
+    "make eyes larger",
+    "reshape nose",
+    "reshape jaw",
+    "smooth plastic skin",
+    "professional portrait recreation",
+    "studio portrait",
+    "cinematic portrait",
+    "AI portrait",
+    "new environment",
+    "additional objects"
   ],
-  final_instruction: "Hasil akhir harus terlihat seperti foto asli yang sejak awal diambil menggunakan kamera berkualitas tinggi dalam kondisi fokus sempurna, bukan seperti gambar AI. Pertahankan komposisi, identitas, pose, pakaian, warna, background dan seluruh elemen asli. Tingkatkan hanya kualitas, kejernihan dan resolusinya hingga 4K."
+  negative_prompt: "different person, new face, reconstructed identity, face swap, altered facial structure, beauty filter, plastic skin, perfect model face, changed eyes, changed nose, changed lips, changed jawline, changed hairstyle, different clothes, different background, office background, salon background, studio background, cinematic background, portrait recreation, artificial lighting, new objects, different pose, different crop, hallucinated details",
+  quality_target: {
+    "resolution": "4K",
+    "realism": "photographic",
+    "identity_similarity": "maximum",
+    "structural_similarity": "maximum",
+    "visual_change": "minimum"
+  },
+  final_instruction: "OUTPUT harus terlihat seperti gambar input yang sama persis tetapi diambil dengan kamera yang lebih fokus dan beresolusi tinggi. Jika harus memilih antara membuat gambar lebih cantik atau mempertahankan gambar asli, SELALU pilih mempertahankan gambar asli."
 };
 
-export function getUpscale4kPromptJson(): string {
-  return JSON.stringify(BASE_UPSCALE_4K_PROMPT_CONFIG, null, 2);
+export function getStrictUpscale4kPrompt(): string {
+  return `${SYSTEM_RESTORATION_INSTRUCTION}\n\nSTRICT_RESTORATION_SPECIFICATION:\n${JSON.stringify(STRICT_UPSCALE_4K_PROMPT_CONFIG, null, 2)}`;
 }
 
 /**
@@ -159,8 +196,8 @@ export async function callAiPhotoEnhancer(
   const cleanName = (params.fullName || 'Kandidat').trim();
   const cleanHeadline = (params.headline || 'Staff Profesional').trim();
 
-  // Pure structured 4K upscale restoration JSON prompt from user specification
-  const upscale4kPromptJson = params.customPrompt || getUpscale4kPromptJson();
+  // Strict structured 4K upscale restoration JSON prompt + System Instruction
+  const upscale4kPromptJson = params.customPrompt || getStrictUpscale4kPrompt();
 
   // 1. Try Backend Proxy First (Fast LAN / Reverse Proxy)
   try {

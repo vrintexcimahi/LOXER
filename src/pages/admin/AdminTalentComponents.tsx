@@ -2643,7 +2643,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                               disabled={isAiEnhancing}
                               onClick={() => handleAiEnhancePhoto('enhance')}
                               className="px-2 py-0.5 text-[9px] font-bold rounded bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/20 text-cyan-900 dark:text-cyan-300 dark:hover:bg-cyan-500/30 border border-cyan-300 dark:border-cyan-400/30 transition flex items-center gap-1 shadow-sm disabled:opacity-50"
-                              title="Pulihkan dan upscale pas foto ke resolusi 4K Ultra HD menggunakan AI Gemini Imagen"
+                              title="Restorasi ketat 4K: Pertahankan 100% wajah, pakaian, dan latar belakang asli dari CV"
                             >
                               <Sparkles className={`w-2.5 h-2.5 text-cyan-500 dark:text-cyan-400 ${isAiEnhancing ? 'animate-spin' : ''}`} />
                               ⚡ Upscale 4K
@@ -2653,10 +2653,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                               disabled={isAiEnhancing}
                               onClick={() => handleAiEnhancePhoto('regenerate')}
                               className="px-2 py-0.5 text-[9px] font-bold rounded bg-purple-100 hover:bg-purple-200 dark:bg-purple-500/20 text-purple-900 dark:text-purple-300 dark:hover:bg-purple-500/30 border border-purple-300 dark:border-purple-400/30 transition flex items-center gap-1 shadow-sm disabled:opacity-50"
-                              title="Generate ulang pas foto profil jika hasil belum sesuai"
+                              title="Buat pas foto studio baru (interpretasi AI baru)"
                             >
                               <RefreshCw className={`w-2.5 h-2.5 text-purple-500 dark:text-purple-400 ${isAiEnhancing ? 'animate-spin' : ''}`} />
-                              🔄 Buat Ulang
+                              🔄 Buat Foto Baru
                             </button>
                             <button
                               type="button"
@@ -2946,7 +2946,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                         disabled={isAiEnhancing || !formData.photo_url}
                         onClick={() => handleAiEnhancePhoto('enhance')}
                         className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md transition flex items-center gap-1 disabled:opacity-50"
-                        title="Pulihkan & upscale pas foto ke kualitas 4K Ultra HD tanpa mengubah identitas"
+                        title="Restorasi ketat 4K: Pertahankan 100% wajah, baju, dan latar belakang asli dari CV (Image-to-Image)"
                       >
                         <Sparkles className={`w-3 h-3 ${isAiEnhancing ? 'animate-spin' : ''}`} />
                         <span>{isAiEnhanced ? '⚡ Upscale 4K Lagi' : '⚡ Upscale 4K'}</span>
@@ -2957,10 +2957,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                         disabled={isAiEnhancing}
                         onClick={() => handleAiEnhancePhoto('regenerate')}
                         className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-md transition flex items-center gap-1 disabled:opacity-50"
-                        title="Generate ulang pas foto profil jika hasil belum sesuai"
+                        title="Buat pas foto studio baru dengan AI (Interpretasi baru jika foto asli tidak memadai)"
                       >
                         <RefreshCw className={`w-3 h-3 ${isAiEnhancing ? 'animate-spin' : ''}`} />
-                        <span>🔄 Generate Ulang</span>
+                        <span>🔄 Buat Foto Baru</span>
                       </button>
 
                       {originalPhotoUrl && formData.photo_url !== originalPhotoUrl && (

@@ -71,9 +71,12 @@ export async function cropPasFotoFromImage(
         const safeW = Math.max(10, safeX2 - safeX1);
         const safeH = Math.max(10, safeY2 - safeY1);
 
+        const TARGET_SIZE = 960;
+        const HALF_SIZE = TARGET_SIZE / 2;
+
         const canvas = document.createElement('canvas');
-        canvas.width = 480;
-        canvas.height = 480;
+        canvas.width = TARGET_SIZE;
+        canvas.height = TARGET_SIZE;
         const ctx = canvas.getContext('2d');
         if (!ctx) return resolve('');
 
@@ -95,19 +98,19 @@ export async function cropPasFotoFromImage(
 
           // Fill canvas with sampled portrait background
           ctx.fillStyle = bgColor;
-          ctx.fillRect(0, 0, 480, 480);
+          ctx.fillRect(0, 0, TARGET_SIZE, TARGET_SIZE);
 
           // Fit portrait into canvas
-          const scale = Math.min(480 / safeW, 480 / safeH);
+          const scale = Math.min(TARGET_SIZE / safeW, TARGET_SIZE / safeH);
           const drawW = safeW * scale;
           const drawH = safeH * scale;
-          const drawX = (480 - drawW) / 2;
-          const drawY = (480 - drawH) / 2;
+          const drawX = (TARGET_SIZE - drawW) / 2;
+          const drawY = (TARGET_SIZE - drawH) / 2;
 
           const angle = ((Math.round(rotationAngle || 0) % 360) + 360) % 360;
           if (angle > 0) {
             ctx.save();
-            ctx.translate(240, 240);
+            ctx.translate(HALF_SIZE, HALF_SIZE);
             ctx.rotate((angle * Math.PI) / 180);
             ctx.drawImage(img, safeX1, safeY1, safeW, safeH, -drawW / 2, -drawH / 2, drawW, drawH);
             ctx.restore();
@@ -115,13 +118,13 @@ export async function cropPasFotoFromImage(
             ctx.drawImage(img, safeX1, safeY1, safeW, safeH, drawX, drawY, drawW, drawH);
           }
 
-          enhancePortraitCanvas(ctx, 480, 480, {
-            sharpenStrength: 0.40,
-            contrastBoost: 1.08,
-            vibrancyBoost: 1.08,
+          enhancePortraitCanvas(ctx, TARGET_SIZE, TARGET_SIZE, {
+            sharpenStrength: 0.35,
+            contrastBoost: 1.05,
+            vibrancyBoost: 1.05,
           });
 
-          return resolve(canvas.toDataURL('image/jpeg', 0.92));
+          return resolve(canvas.toDataURL('image/jpeg', 0.95));
         }
 
         let cropX = safeX1;
@@ -210,22 +213,22 @@ export async function cropPasFotoFromImage(
         const angle = ((Math.round(rotationAngle || 0) % 360) + 360) % 360;
         if (angle > 0) {
           ctx.save();
-          ctx.translate(240, 240);
+          ctx.translate(HALF_SIZE, HALF_SIZE);
           ctx.rotate((angle * Math.PI) / 180);
-          ctx.drawImage(img, cropX, cropY, cropW, cropH, -240, -240, 480, 480);
+          ctx.drawImage(img, cropX, cropY, cropW, cropH, -HALF_SIZE, -HALF_SIZE, TARGET_SIZE, TARGET_SIZE);
           ctx.restore();
         } else {
-          ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, 480, 480);
+          ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, TARGET_SIZE, TARGET_SIZE);
         }
 
         // Automatic HD Portrait Enhancement: Natural contrast, healthy vibrant skin tones, & crisp edge clarity
-        enhancePortraitCanvas(ctx, 480, 480, {
-          sharpenStrength: 0.45,
-          contrastBoost: 1.08,
-          vibrancyBoost: 1.08,
+        enhancePortraitCanvas(ctx, TARGET_SIZE, TARGET_SIZE, {
+          sharpenStrength: 0.40,
+          contrastBoost: 1.06,
+          vibrancyBoost: 1.06,
         });
 
-        resolve(canvas.toDataURL('image/jpeg', 0.92));
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
       } catch (err) {
         console.warn('[cropPasFotoFromImage] Failed to crop:', err);
         resolve('');
