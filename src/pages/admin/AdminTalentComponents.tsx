@@ -1784,7 +1784,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
     setIsAiEnhancing(true);
     setAiEnhanceProgress(
       mode === 'enhance'
-        ? 'Mempertajam detail wajah & mata ke kualitas studio HD...'
+        ? 'Sedang memulihkan & upscale pas foto ke 4K Ultra HD (~10-15s)...'
         : 'Membuat variasi pas foto studio baru dengan Gemini Imagen...'
     );
 
@@ -1816,7 +1816,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
         onToast(
           'success',
           mode === 'enhance'
-            ? '✨ Foto profil berhasil dipertajam dengan AI Imagen HD!'
+            ? '⚡ Foto profil berhasil di-upscale ke 4K Ultra HD!'
             : '✨ Pas foto profil baru berhasil digenerate!'
         );
       } else {
@@ -2640,10 +2640,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                               disabled={isAiEnhancing}
                               onClick={() => handleAiEnhancePhoto('enhance')}
                               className="px-2 py-0.5 text-[9px] font-bold rounded bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/20 text-cyan-900 dark:text-cyan-300 dark:hover:bg-cyan-500/30 border border-cyan-300 dark:border-cyan-400/30 transition flex items-center gap-1 shadow-sm disabled:opacity-50"
-                              title="Pertajam pas foto menggunakan AI Gemini Imagen ke kualitas Studio HD"
+                              title="Pulihkan dan upscale pas foto ke resolusi 4K Ultra HD menggunakan AI Gemini Imagen"
                             >
                               <Sparkles className={`w-2.5 h-2.5 text-cyan-500 dark:text-cyan-400 ${isAiEnhancing ? 'animate-spin' : ''}`} />
-                              ⚡ AI Pertajam
+                              ⚡ Upscale 4K
                             </button>
                             <button
                               type="button"
@@ -2943,10 +2943,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                         disabled={isAiEnhancing || !formData.photo_url}
                         onClick={() => handleAiEnhancePhoto('enhance')}
                         className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md transition flex items-center gap-1 disabled:opacity-50"
-                        title="Tingkatkan resolusi & pertajam pas foto menggunakan AI Gemini Imagen"
+                        title="Pulihkan & upscale pas foto ke kualitas 4K Ultra HD tanpa mengubah identitas"
                       >
                         <Sparkles className={`w-3 h-3 ${isAiEnhancing ? 'animate-spin' : ''}`} />
-                        <span>{isAiEnhanced ? 'Pertajam Lagi' : '✨ AI Pertajam HD'}</span>
+                        <span>{isAiEnhanced ? '⚡ Upscale 4K Lagi' : '⚡ Upscale 4K'}</span>
                       </button>
 
                       <button
@@ -2984,10 +2984,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                         <Sparkles className="w-5 h-5 text-cyan-400 absolute inset-0 m-auto animate-pulse" />
                       </div>
                       <p className="text-xs font-black text-white tracking-wide">
-                        Memproses AI Imagen Gemini 3.1 Flash Image...
+                        Memproses AI 4K Upscale &amp; Image Restoration...
                       </p>
                       <p className="text-[10px] text-cyan-300 font-medium animate-pulse">
-                        {aiEnhanceProgress || 'Meningkatkan kejernihan ke kualitas studio HD (~10-15s)'}
+                        {aiEnhanceProgress || 'Memulihkan detail wajah & mata ke resolusi 4K Ultra HD (~10-15s)'}
                       </p>
                     </div>
                   )}
@@ -3008,7 +3008,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                       {previewMode === 'photo' && isAiEnhanced && (
                         <div className="absolute top-2 right-2 rounded-lg bg-emerald-950/90 border border-emerald-400/50 px-2 py-0.5 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 shadow-lg backdrop-blur-md">
                           <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
-                          <span>✓ AI Studio HD</span>
+                          <span>✓ 4K Ultra HD</span>
                         </div>
                       )}
                     </div>

@@ -747,7 +747,7 @@ export function BulkSmartCvManager({
         onToast(
           'success',
           mode === 'enhance'
-            ? '✨ Foto profil berhasil dipertajam dengan AI Imagen HD!'
+            ? '⚡ Foto profil berhasil di-upscale ke 4K Ultra HD!'
             : '✨ Pas foto profil baru berhasil digenerate!'
         );
       }
@@ -1648,10 +1648,10 @@ export function BulkSmartCvManager({
                       disabled={isAiModalEnhancing}
                       onClick={() => handleModalAiEnhance('enhance')}
                       className="px-2 py-1 text-[10px] font-bold rounded bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/40 transition flex items-center gap-1 disabled:opacity-50"
-                      title="Pertajam otomatis foto menggunakan AI Gemini Imagen ke kualitas Studio HD"
+                      title="Pulihkan & upscale foto ke kualitas 4K Ultra HD menggunakan AI Gemini Imagen"
                     >
                       <Sparkles className={`w-3 h-3 ${isAiModalEnhancing ? 'animate-spin' : ''}`} />
-                      ⚡ AI Pertajam
+                      ⚡ Upscale 4K
                     </button>
                     <button
                       type="button"

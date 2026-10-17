@@ -4699,6 +4699,114 @@ async function handleAdminAiEnhancePhoto(req, res) {
 
     const genderText = detectedGender === 'wanita' ? 'wanita Indonesia' : 'pria Indonesia';
 
+    const BASE_UPSCALE_4K_PROMPT_CONFIG = {
+      task: "image_restoration_and_4k_upscale",
+      language: "id",
+      input_reference: "gunakan gambar asli sebagai satu-satunya referensi",
+      goal: "Pulihkan gambar yang sangat blur menjadi foto yang lebih tajam, natural, realistis dan berkualitas 4K tanpa mengubah identitas orang pada gambar.",
+      output: {
+        quality: "ultra_high",
+        resolution: "4K",
+        preserve_aspect_ratio: true,
+        format: "PNG",
+        style: "realistic_photography"
+      },
+      restoration: {
+        deblur: "maximum",
+        remove_motion_blur: true,
+        remove_gaussian_blur: true,
+        recover_facial_details: true,
+        recover_hair_details: true,
+        recover_clothing_details: true,
+        reduce_noise: true,
+        remove_compression_artifacts: true,
+        improve_edge_definition: true,
+        improve_dynamic_range: true,
+        correct_exposure: true,
+        correct_white_balance: true,
+        natural_skin_texture: true,
+        sharpening: "high_but_natural"
+      },
+      face_restoration: {
+        priority: "very_high",
+        preserve_original_identity: true,
+        preserve_face_shape: true,
+        preserve_eye_shape: true,
+        preserve_nose_shape: true,
+        preserve_lip_shape: true,
+        preserve_skin_tone: true,
+        preserve_hairstyle: true,
+        preserve_expression: true,
+        do_not_beautify_excessively: true,
+        do_not_generate_new_facial_features: true,
+        instruction: "Rekonstruksi hanya detail yang secara logis berasal dari struktur gambar asli. Jangan mengganti wajah, jangan membuat wajah baru, dan jangan mengubah ciri khas subjek."
+      },
+      detail_enhancement: {
+        eyes: "clear and natural",
+        eyebrows: "restore realistic individual strands",
+        hair: "restore natural individual hair strands",
+        skin: "realistic pores and subtle texture",
+        lips: "natural texture without artificial gloss",
+        clothing: "restore fabric texture and original shape",
+        background: "clean and sharpen moderately while keeping original appearance"
+      },
+      ui_and_text: {
+        preserve_original_layout: true,
+        preserve_existing_labels: true,
+        preserve_existing_colors: true,
+        do_not_add_new_text: true,
+        do_not_change_interface_elements: true
+      },
+      camera_look: {
+        appearance: "high-end smartphone or professional camera",
+        focus: "sharp face",
+        depth: "natural",
+        contrast: "balanced",
+        saturation: "natural",
+        hdr: "subtle",
+        oversharpening: false
+      },
+      negative_prompt: [
+        "different person",
+        "changed identity",
+        "face swap",
+        "new face",
+        "altered facial proportions",
+        "plastic skin",
+        "over-smoothed skin",
+        "AI beauty filter",
+        "anime",
+        "cartoon",
+        "painting",
+        "fake eyelashes",
+        "unrealistic eyes",
+        "extra facial features",
+        "distorted face",
+        "warped hair",
+        "oversharpening",
+        "halo artifacts",
+        "excessive HDR",
+        "unnatural skin color",
+        "invented text",
+        "changed clothing",
+        "changed background",
+        "watermark"
+      ],
+      final_instruction: "Hasil akhir harus terlihat seperti foto asli yang sejak awal diambil menggunakan kamera berkualitas tinggi dalam kondisi fokus sempurna, bukan seperti gambar AI. Pertahankan komposisi, identitas, pose, pakaian, warna, background dan seluruh elemen asli. Tingkatkan hanya kualitas, kejernihan dan resolusinya hingga 4K."
+    };
+
+    function buildUpscale4kPromptJson(name, profession, gText) {
+      const promptObj = {
+        ...BASE_UPSCALE_4K_PROMPT_CONFIG,
+        subject_context: {
+          name: name,
+          profession: profession || 'Staff Profesional',
+          gender: gText || 'pria/wanita'
+        }
+      };
+      return JSON.stringify(promptObj, null, 2);
+    }
+
     // Imagen API credentials & endpoints
     const IMAGEN_API_KEY = process.env.IMAGEN_API_KEY || 'img_6e2911a86ad77d8b72ec040d95546c4392de4c8f250dda44';
     const PRIMARY_IMAGEN_URL = process.env.IMAGEN_LOCAL_URL || 'http://127.0.0.1:8101';
@@ -4741,8 +4849,7 @@ async function handleAdminAiEnhancePhoto(req, res) {
 
     // If mode is 'enhance' and we have an image
     if (mode === 'enhance' && imageUrl) {
-      const prompt = customPrompt ||
-        `Pas foto formal studio profesional ultra HD kualitas 4K, sangat tajam dan jernih untuk pelamar kerja ${genderText}, nama: ${cleanName}, posisi: ${cleanHeadline}. Tingkatkan ketajaman wajah dan mata, hilangkan blur, pencahayaan studio formal rapi, busana formal rapi, latar belakang studio formal polos.`;
+      const prompt = customPrompt || buildUpscale4kPromptJson(cleanName, cleanHeadline, genderText);
 
       try {
         const respData = await callImagen('/v1/images/generations', {
@@ -4785,7 +4892,7 @@ async function handleAdminAiEnhancePhoto(req, res) {
       ok: true,
       photo_url: resultUrl,
       mode,
-      message: mode === 'enhance' ? 'Foto berhasil dipertajam dengan AI Imagen HD!' : 'Foto profil baru berhasil digenerate!',
+      message: mode === 'enhance' ? 'Foto berhasil di-upscale ke 4K Ultra HD!' : 'Foto profil baru berhasil digenerate!',
     });
   } catch (err) {
     console.error('[handleAdminAiEnhancePhoto Error]:', err);
