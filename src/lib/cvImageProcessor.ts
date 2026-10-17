@@ -46,11 +46,17 @@ export async function cropPasFotoFromImage(
 
         if (naturalW <= 0 || naturalH <= 0) return resolve('');
 
+        // Normalize 0-1000 coordinates safely
+        const normY1 = Math.max(0, Math.min(1000, Math.min(ymin, ymax)));
+        const normY2 = Math.max(0, Math.min(1000, Math.max(ymin, ymax)));
+        const normX1 = Math.max(0, Math.min(1000, Math.min(xmin, xmax)));
+        const normX2 = Math.max(0, Math.min(1000, Math.max(xmin, xmax)));
+
         // Convert 0-1000 normalized coordinates to image pixels
-        const rawY1 = (ymin / 1000) * naturalH;
-        const rawX1 = (xmin / 1000) * naturalW;
-        const rawY2 = (ymax / 1000) * naturalH;
-        const rawX2 = (xmax / 1000) * naturalW;
+        const rawY1 = (normY1 / 1000) * naturalH;
+        const rawX1 = (normX1 / 1000) * naturalW;
+        const rawY2 = (normY2 / 1000) * naturalH;
+        const rawX2 = (normX2 / 1000) * naturalW;
 
         const boxW = Math.max(20, rawX2 - rawX1);
         const boxH = Math.max(20, rawY2 - rawY1);
@@ -82,7 +88,7 @@ export async function cropPasFotoFromImage(
           const tempCtx = tempCanvas.getContext('2d');
           let bgColor = '#0f172a';
           if (tempCtx) {
-            tempCtx.drawImage(img, safeX1 + 5, safeY1 + 5, 1, 1, 0, 0, 1, 1);
+            tempCtx.drawImage(img, Math.min(naturalW - 1, safeX1 + 2), Math.min(naturalH - 1, safeY1 + 2), 1, 1, 0, 0, 1, 1);
             const pixel = tempCtx.getImageData(0, 0, 1, 1).data;
             bgColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
           }
@@ -97,7 +103,24 @@ export async function cropPasFotoFromImage(
           const drawH = safeH * scale;
           const drawX = (480 - drawW) / 2;
           const drawY = (480 - drawH) / 2;
-          ctx.drawImage(img, safeX1, safeY1, safeW, safeH, drawX, drawY, drawW, drawH);
+
+          const angle = ((Math.round(rotationAngle || 0) % 360) + 360) % 360;
+          if (angle > 0) {
+            ctx.save();
+            ctx.translate(240, 240);
+            ctx.rotate((angle * Math.PI) / 180);
+            ctx.drawImage(img, safeX1, safeY1, safeW, safeH, -drawW / 2, -drawH / 2, drawW, drawH);
+            ctx.restore();
+          } else {
+            ctx.drawImage(img, safeX1, safeY1, safeW, safeH, drawX, drawY, drawW, drawH);
+          }
+
+          enhancePortraitCanvas(ctx, 480, 480, {
+            sharpenStrength: 0.40,
+            contrastBoost: 1.08,
+            vibrancyBoost: 1.08,
+          });
+
           return resolve(canvas.toDataURL('image/jpeg', 0.92));
         }
 
@@ -109,10 +132,15 @@ export async function cropPasFotoFromImage(
         const hasFaceBox = faceBox && Array.isArray(faceBox) && faceBox.length === 4;
         let fX1 = 0, fY1 = 0, fX2 = 0, fY2 = 0, fW = 0, fH = 0, fCenterX = 0, fCenterY = 0;
         if (hasFaceBox) {
-          fY1 = (faceBox[0] / 1000) * naturalH;
-          fX1 = (faceBox[1] / 1000) * naturalW;
-          fY2 = (faceBox[2] / 1000) * naturalH;
-          fX2 = (faceBox[3] / 1000) * naturalW;
+          const fMinY = Math.max(0, Math.min(1000, Math.min(faceBox[0], faceBox[2])));
+          const fMaxY = Math.max(0, Math.min(1000, Math.max(faceBox[0], faceBox[2])));
+          const fMinX = Math.max(0, Math.min(1000, Math.min(faceBox[1], faceBox[3])));
+          const fMaxX = Math.max(0, Math.min(1000, Math.max(faceBox[1], faceBox[3])));
+
+          fY1 = (fMinY / 1000) * naturalH;
+          fX1 = (fMinX / 1000) * naturalW;
+          fY2 = (fMaxY / 1000) * naturalH;
+          fX2 = (fMaxX / 1000) * naturalW;
           fW = Math.max(10, fX2 - fX1);
           fH = Math.max(10, fY2 - fY1);
           fCenterX = fX1 + fW / 2;
@@ -173,6 +201,12 @@ export async function cropPasFotoFromImage(
           }
         }
 
+        // Clamp crop boundaries strictly within natural image dimensions
+        cropW = Math.max(10, Math.min(naturalW, cropW));
+        cropH = Math.max(10, Math.min(naturalH, cropH));
+        cropX = Math.max(0, Math.min(naturalW - cropW, cropX));
+        cropY = Math.max(0, Math.min(naturalH - cropH, cropY));
+
         const angle = ((Math.round(rotationAngle || 0) % 360) + 360) % 360;
         if (angle > 0) {
           ctx.save();
@@ -184,11 +218,11 @@ export async function cropPasFotoFromImage(
           ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, 480, 480);
         }
 
-        // Automatic HD Portrait Enhancement: Auto-levels, clarity, & crisp unsharp masking
+        // Automatic HD Portrait Enhancement: Natural contrast, healthy vibrant skin tones, & crisp edge clarity
         enhancePortraitCanvas(ctx, 480, 480, {
-          sharpenStrength: 0.60,
-          contrastBoost: 1.18,
-          vibrancyBoost: 1.12,
+          sharpenStrength: 0.45,
+          contrastBoost: 1.08,
+          vibrancyBoost: 1.08,
         });
 
         resolve(canvas.toDataURL('image/jpeg', 0.92));
@@ -203,8 +237,9 @@ export async function cropPasFotoFromImage(
 }
 
 /**
- * Auto-enhance portrait sharpness, contrast, and color richness.
+ * Auto-enhance portrait sharpness, contrast, and color richness safely.
  * Transforms blurry, low-contrast, or hazy photos into crisp, studio-grade portraits.
+ * Strictly guarantees natural skin tones with 0% color inversion or solarization artifacts.
  */
 export function enhancePortraitCanvas(
   ctx: CanvasRenderingContext2D,
@@ -217,38 +252,63 @@ export function enhancePortraitCanvas(
     const data = imgData.data;
     const len = data.length;
 
-    const contrast = options?.contrastBoost ?? 1.18;
-    const vibrancy = options?.vibrancyBoost ?? 1.12;
-    const sharpen = options?.sharpenStrength ?? 0.60;
+    // Normalize contrast factor to a safe positive multiplier:
+    // e.g. 1.08 = 8% contrast boost, 1.15 = 15% contrast boost
+    let contrastFactor = 1.06;
+    if (typeof options?.contrastBoost === 'number' && !isNaN(options.contrastBoost)) {
+      const cb = options.contrastBoost;
+      if (cb > 2) {
+        contrastFactor = 1 + Math.min(0.25, Math.max(-0.25, cb / 255));
+      } else if (cb >= 0) {
+        // Multiplier e.g. 1.18 -> 1 + (0.18)*0.45 = 1.081
+        contrastFactor = 1 + (cb - 1) * 0.45;
+      }
+    }
+    // Hard safety clamp to prevent contrast clipping or inversion
+    contrastFactor = Math.max(0.85, Math.min(1.22, contrastFactor));
 
-    // 1. Contrast expansion & Auto-Levels
-    const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+    // Normalize vibrancy factor (color saturation boost)
+    let vibrancyFactor = 1.05;
+    if (typeof options?.vibrancyBoost === 'number' && !isNaN(options.vibrancyBoost)) {
+      const vb = options.vibrancyBoost;
+      if (vb > 2) {
+        vibrancyFactor = 1 + Math.min(0.25, Math.max(-0.25, vb / 255));
+      } else if (vb >= 0) {
+        vibrancyFactor = 1 + (vb - 1) * 0.45;
+      }
+    }
+    vibrancyFactor = Math.max(0.85, Math.min(1.22, vibrancyFactor));
 
+    // Normalize sharpening weight (Laplacian unsharp masking)
+    // 3x3 convolution weight w: 0.10 - 0.20 gives crisp details without halos
+    const requestedSharpen = options?.sharpenStrength ?? 0.45;
+    const w = Math.max(0, Math.min(0.20, requestedSharpen * 0.22));
+
+    // 1. Contrast expansion & Color Vibrancy (Natural & Pleasing)
     for (let i = 0; i < len; i += 4) {
       let r = data[i];
       let g = data[i + 1];
       let b = data[i + 2];
 
-      // Contrast stretch
-      r = factor * (r - 128) + 128;
-      g = factor * (g - 128) + 128;
-      b = factor * (b - 128) + 128;
+      // Linear contrast adjustment centered at midpoint 128
+      r = contrastFactor * (r - 128) + 128;
+      g = contrastFactor * (g - 128) + 128;
+      b = contrastFactor * (b - 128) + 128;
 
-      // Vibrancy boost
+      // Vibrancy / saturation enhancement
       const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-      r = gray + vibrancy * (r - gray);
-      g = gray + vibrancy * (g - gray);
-      b = gray + vibrancy * (b - gray);
+      r = gray + vibrancyFactor * (r - gray);
+      g = gray + vibrancyFactor * (g - gray);
+      b = gray + vibrancyFactor * (b - gray);
 
-      data[i] = Math.max(0, Math.min(255, r));
-      data[i + 1] = Math.max(0, Math.min(255, g));
-      data[i + 2] = Math.max(0, Math.min(255, b));
+      data[i] = Math.max(0, Math.min(255, Math.round(r)));
+      data[i + 1] = Math.max(0, Math.min(255, Math.round(g)));
+      data[i + 2] = Math.max(0, Math.min(255, Math.round(b)));
     }
 
-    // 2. Unsharp Masking / Laplacian high-pass edge sharpening
-    if (sharpen > 0) {
+    // 2. Unsharp Masking / Laplacian high-pass edge sharpening (Crisp Studio Clarity)
+    if (w > 0.01) {
       const srcCopy = new Uint8ClampedArray(data);
-      const w = sharpen;
       const center = 1 + 4 * w;
 
       for (let y = 1; y < height - 1; y++) {
@@ -266,17 +326,17 @@ export function enhancePortraitCanvas(
           const rVal =
             srcCopy[idx] * center -
             w * (srcCopy[topIdx] + srcCopy[btmIdx] + srcCopy[leftIdx] + srcCopy[rightIdx]);
-          data[idx] = Math.max(0, Math.min(255, rVal));
+          data[idx] = Math.max(0, Math.min(255, Math.round(rVal)));
 
           const gVal =
             srcCopy[idx + 1] * center -
             w * (srcCopy[topIdx + 1] + srcCopy[btmIdx + 1] + srcCopy[leftIdx + 1] + srcCopy[rightIdx + 1]);
-          data[idx + 1] = Math.max(0, Math.min(255, gVal));
+          data[idx + 1] = Math.max(0, Math.min(255, Math.round(gVal)));
 
           const bVal =
             srcCopy[idx + 2] * center -
             w * (srcCopy[topIdx + 2] + srcCopy[btmIdx + 2] + srcCopy[leftIdx + 2] + srcCopy[rightIdx + 2]);
-          data[idx + 2] = Math.max(0, Math.min(255, bVal));
+          data[idx + 2] = Math.max(0, Math.min(255, Math.round(bVal)));
         }
       }
     }
