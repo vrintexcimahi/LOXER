@@ -4795,17 +4795,7 @@ async function handleAdminAiEnhancePhoto(req, res) {
       final_instruction: "Hasil akhir harus terlihat seperti foto asli yang sejak awal diambil menggunakan kamera berkualitas tinggi dalam kondisi fokus sempurna, bukan seperti gambar AI. Pertahankan komposisi, identitas, pose, pakaian, warna, background dan seluruh elemen asli. Tingkatkan hanya kualitas, kejernihan dan resolusinya hingga 4K."
     };
 
-    function buildUpscale4kPromptJson(name, profession, gText) {
-      const promptObj = {
-        ...BASE_UPSCALE_4K_PROMPT_CONFIG,
-        subject_context: {
-          name: name,
-          profession: profession || 'Staff Profesional',
-          gender: gText || 'pria/wanita'
-        }
-      };
-      return JSON.stringify(promptObj, null, 2);
-    }
+    const pureUpscale4kPromptJson = JSON.stringify(BASE_UPSCALE_4K_PROMPT_CONFIG, null, 2);
 
     // Imagen API credentials & endpoints
     const IMAGEN_API_KEY = process.env.IMAGEN_API_KEY || 'img_6e2911a86ad77d8b72ec040d95546c4392de4c8f250dda44';
@@ -4847,52 +4837,64 @@ async function handleAdminAiEnhancePhoto(req, res) {
 
     let resultUrl = '';
 
-    // If mode is 'enhance' and we have an image
-    if (mode === 'enhance' && imageUrl) {
-      const prompt = customPrompt || buildUpscale4kPromptJson(cleanName, cleanHeadline, genderText);
-
-      try {
-        const respData = await callImagen('/v1/images/generations', {
-          prompt,
-          image: imageUrl,
-          model: 'antigravity/gemini-3.1-flash-image',
-          response_format: 'url',
-          n: 1,
+    // Mode 'enhance' (4K Upscale & Image Restoration - NEVER fallback to text-to-image)
+    if (mode === 'enhance') {
+      if (!imageUrl) {
+        return sendJson(res, 400, {
+          ok: false,
+          message: 'Foto referensi asli tidak ditemukan untuk proses 4K upscale.',
         });
-
-        if (respData?.data?.[0]?.url) {
-          resultUrl = respData.data[0].url;
-        }
-      } catch (enhanceErr) {
-        console.warn('[handleAdminAiEnhancePhoto] img2img failed, falling back to /generate:', enhanceErr);
       }
-    }
 
-    // If mode is 'regenerate' or if enhance fallback is needed
-    if (!resultUrl) {
-      const prompt = customPrompt ||
-        `Pas foto formal studio profesional ultra HD kualitas 4K untuk kandidat pelamar kerja ${genderText} bernama ${cleanName}, profesi ${cleanHeadline}. Berpenampilan rapi, busana kerja formal elegan, wajah Indonesia natural, senyum ramah profesional, pencahayaan studio tajam jernih, latar belakang studio polos formal netral.`;
+      const prompt = customPrompt || pureUpscale4kPromptJson;
 
-      const genData = await callImagen('/generate', {
+      const respData = await callImagen('/v1/images/generations', {
         prompt,
+        image: imageUrl,
         model: 'antigravity/gemini-3.1-flash-image',
+        response_format: 'url',
         n: 1,
       });
 
-      if (genData?.images?.[0]) {
-        resultUrl = genData.images[0];
+      if (respData?.data?.[0]?.url) {
+        resultUrl = respData.data[0].url;
       }
+
+      if (!resultUrl) {
+        throw new Error('AI Imagen tidak menghasilkan URL gambar hasil 4K upscale.');
+      }
+
+      return sendJson(res, 200, {
+        ok: true,
+        photo_url: resultUrl,
+        mode: 'enhance',
+        message: 'Foto berhasil di-upscale ke 4K Ultra HD!',
+      });
+    }
+
+    // Mode 'regenerate' (Baru / variasi pas foto studio via text-to-image)
+    const prompt = customPrompt ||
+      `Pas foto formal studio profesional ultra HD kualitas 4K untuk kandidat pelamar kerja ${genderText} bernama ${cleanName}, profesi ${cleanHeadline}. Berpenampilan rapi, busana kerja formal elegan, wajah Indonesia natural, senyum ramah profesional, pencahayaan studio tajam jernih, latar belakang studio polos formal netral.`;
+
+    const genData = await callImagen('/generate', {
+      prompt,
+      model: 'antigravity/gemini-3.1-flash-image',
+      n: 1,
+    });
+
+    if (genData?.images?.[0]) {
+      resultUrl = genData.images[0];
     }
 
     if (!resultUrl) {
-      throw new Error('AI Imagen tidak menghasilkan URL gambar.');
+      throw new Error('AI Imagen tidak menghasilkan URL gambar baru.');
     }
 
     return sendJson(res, 200, {
       ok: true,
       photo_url: resultUrl,
-      mode,
-      message: mode === 'enhance' ? 'Foto berhasil di-upscale ke 4K Ultra HD!' : 'Foto profil baru berhasil digenerate!',
+      mode: 'regenerate',
+      message: 'Foto profil baru berhasil digenerate!',
     });
   } catch (err) {
     console.error('[handleAdminAiEnhancePhoto Error]:', err);

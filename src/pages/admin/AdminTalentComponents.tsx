@@ -1781,6 +1781,12 @@ STATUS: Siap Kerja Segera (Fulltime)`);
   // AI Imagen Photo Enhancer & Generator Handler
   const handleAiEnhancePhoto = async (mode: 'enhance' | 'regenerate' = 'enhance') => {
     if (!formData) return;
+
+    // Kunci foto asli sebelum diproses AI agar selalu bisa di-restore dan dijadikan acuan
+    if (!originalPhotoUrl && formData.photo_url) {
+      setOriginalPhotoUrl(formData.photo_url);
+    }
+
     setIsAiEnhancing(true);
     setAiEnhanceProgress(
       mode === 'enhance'
@@ -1789,7 +1795,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
     );
 
     try {
-      const targetImage = mode === 'enhance' ? (formData.photo_url || originalPhotoUrl) : undefined;
+      // Untuk 4K Upscale & Restorasi, SELALU gunakan foto asli dari CV sebagai referensi
+      const targetImage = mode === 'enhance' ? (originalPhotoUrl || formData.photo_url) : undefined;
       const res = await callAiPhotoEnhancer({
         imageUrl: targetImage,
         fullName: formData.full_name,
@@ -1806,10 +1813,6 @@ STATUS: Siap Kerja Segera (Fulltime)`);
           img.onerror = () => resolve(true);
           img.src = res.photo_url;
         });
-
-        if (!originalPhotoUrl && formData.photo_url) {
-          setOriginalPhotoUrl(formData.photo_url);
-        }
 
         setFormData((prev) => (prev ? { ...prev, photo_url: res.photo_url } : null));
         setIsAiEnhanced(true);

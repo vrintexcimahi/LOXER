@@ -142,18 +142,8 @@ export const BASE_UPSCALE_4K_PROMPT_CONFIG = {
   final_instruction: "Hasil akhir harus terlihat seperti foto asli yang sejak awal diambil menggunakan kamera berkualitas tinggi dalam kondisi fokus sempurna, bukan seperti gambar AI. Pertahankan komposisi, identitas, pose, pakaian, warna, background dan seluruh elemen asli. Tingkatkan hanya kualitas, kejernihan dan resolusinya hingga 4K."
 };
 
-export function buildUpscale4kPromptJson(fullName?: string, headline?: string, gender?: string): string {
-  const promptObj = {
-    ...BASE_UPSCALE_4K_PROMPT_CONFIG,
-    ...(fullName ? {
-      subject_context: {
-        name: fullName,
-        profession: headline || 'Staff Profesional',
-        gender: gender || 'pria/wanita'
-      }
-    } : {})
-  };
-  return JSON.stringify(promptObj, null, 2);
+export function getUpscale4kPromptJson(): string {
+  return JSON.stringify(BASE_UPSCALE_4K_PROMPT_CONFIG, null, 2);
 }
 
 /**
@@ -169,8 +159,8 @@ export async function callAiPhotoEnhancer(
   const cleanName = (params.fullName || 'Kandidat').trim();
   const cleanHeadline = (params.headline || 'Staff Profesional').trim();
 
-  // Generate structured 4K upscale prompt JSON
-  const upscale4kPromptJson = params.customPrompt || buildUpscale4kPromptJson(cleanName, cleanHeadline, detectedGender);
+  // Pure structured 4K upscale restoration JSON prompt from user specification
+  const upscale4kPromptJson = params.customPrompt || getUpscale4kPromptJson();
 
   // 1. Try Backend Proxy First (Fast LAN / Reverse Proxy)
   try {
@@ -187,7 +177,7 @@ export async function callAiPhotoEnhancer(
         headline: cleanHeadline,
         gender: detectedGender,
         mode,
-        customPrompt: upscale4kPromptJson,
+        customPrompt: mode === 'enhance' ? upscale4kPromptJson : params.customPrompt,
       }),
     });
 
@@ -197,8 +187,10 @@ export async function callAiPhotoEnhancer(
         return {
           ok: true,
           photo_url: data.photo_url,
-          message: data.message || 'Berhasil di-upscale ke 4K Ultra HD dengan AI Imagen',
+          message: data.message || (mode === 'enhance' ? 'Berhasil di-upscale ke 4K Ultra HD!' : 'Foto profil baru berhasil digenerate!'),
         };
+      } else if (data.message && mode === 'enhance') {
+        throw new Error(data.message);
       }
     }
   } catch (backendErr) {
@@ -206,44 +198,46 @@ export async function callAiPhotoEnhancer(
   }
 
   // 2. Direct Fallback to Imagen API (https://img.vrintex.web.id)
-  const genderDesc = detectedGender === 'wanita' ? 'wanita Indonesia' : 'pria Indonesia';
-
-  if (mode === 'enhance' && params.imageUrl) {
-    const prompt = upscale4kPromptJson;
-
-    try {
-      const resp = await fetch(`${IMAGEN_PUBLIC_ENDPOINT}/v1/images/generations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': IMAGEN_API_KEY,
-        },
-        body: JSON.stringify({
-          prompt,
-          image: params.imageUrl,
-          model: IMAGEN_MODEL,
-          response_format: 'url',
-          n: 1,
-        }),
-      });
-
-      if (resp.ok) {
-        const json = await resp.json();
-        const url = json?.data?.[0]?.url;
-        if (url) {
-          return {
-            ok: true,
-            photo_url: url,
-            message: 'Foto profil berhasil di-upscale ke 4K Ultra HD!',
-          };
-        }
-      }
-    } catch (directEnhanceErr) {
-      console.warn('[callAiPhotoEnhancer] Direct /v1/images/generations failed, attempting /generate fallback:', directEnhanceErr);
+  if (mode === 'enhance') {
+    if (!params.imageUrl) {
+      throw new Error('Tidak ada gambar referensi asli yang dapat di-upscale.');
     }
+
+    const resp = await fetch(`${IMAGEN_PUBLIC_ENDPOINT}/v1/images/generations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': IMAGEN_API_KEY,
+      },
+      body: JSON.stringify({
+        prompt: upscale4kPromptJson,
+        image: params.imageUrl,
+        model: IMAGEN_MODEL,
+        response_format: 'url',
+        n: 1,
+      }),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '');
+      throw new Error(`AI Imagen gagal melakukan 4K upscale (HTTP ${resp.status}): ${errText.slice(0, 180)}`);
+    }
+
+    const json = await resp.json();
+    const url = json?.data?.[0]?.url;
+    if (!url) {
+      throw new Error('AI Imagen tidak mengembalikan URL gambar hasil restorasi.');
+    }
+
+    return {
+      ok: true,
+      photo_url: url,
+      message: 'Foto profil berhasil di-upscale ke 4K Ultra HD!',
+    };
   }
 
-  // 3. Fallback to /generate (clean new portrait variation)
+  // 3. Mode 'regenerate': generate studio portrait variation
+  const genderDesc = detectedGender === 'wanita' ? 'wanita Indonesia' : 'pria Indonesia';
   const regenPrompt = params.customPrompt ||
     `Pas foto formal studio profesional ultra HD kualitas 4K untuk kandidat pelamar kerja ${genderDesc} bernama ${cleanName}, profesi ${cleanHeadline}. Berpenampilan rapi, busana kerja formal elegan, wajah Indonesia natural, senyum ramah profesional, pencahayaan studio tajam jernih, latar belakang studio polos formal netral.`;
 
