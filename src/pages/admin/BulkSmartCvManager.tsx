@@ -25,6 +25,7 @@ import { cropPasFotoFromImage, generateBlurredCvImage, autoEnhanceImageDataUrl }
 import { cleanDomicileCity, maskPhoneNumber } from '../../lib/contactPrivacyService';
 import { validateDocumentMagicBytes, validateImageMagicBytes } from '../../lib/imageCompressor';
 import { getDefaultPixarAvatar } from '../../lib/avatarService';
+import { callAiPhotoEnhancer } from '../../lib/aiPhotoEnhancerService';
 import { PdfDocumentSplitter } from './PdfDocumentSplitter';
 import { resolveAdminToken, forceRefreshAdminToken } from '../../lib/adminUtils';
 
@@ -132,6 +133,7 @@ export function BulkSmartCvManager({
   const [editingItem, setEditingItem] = useState<BulkCvItem | null>(null);
   const [editFormData, setEditFormData] = useState<BulkCandidateData | null>(null);
   const [editActiveCropMode, setEditActiveCropMode] = useState<'smart_square' | 'tight_face' | 'full_frame'>('smart_square');
+  const [isAiModalEnhancing, setIsAiModalEnhancing] = useState<boolean>(false);
   const [isBulkPublishing, setIsBulkPublishing] = useState<boolean>(false);
   const [bulkPublishProgress, setBulkPublishProgress] = useState<{ current: number; total: number } | null>(null);
   const [showPdfSplitter, setShowPdfSplitter] = useState<boolean>(false);
@@ -706,7 +708,7 @@ export function BulkSmartCvManager({
     reader.readAsDataURL(file);
   };
 
-  // Auto-sharpen current photo in modal
+  // Auto-sharpen current photo in modal with canvas filter
   const handleModalAutoSharpen = async () => {
     if (!editFormData || !editFormData.photo_url) {
       onToast('error', 'Tidak ada foto yang dapat dipertajam.');
@@ -714,9 +716,9 @@ export function BulkSmartCvManager({
     }
     try {
       const sharpened = await autoEnhanceImageDataUrl(editFormData.photo_url, {
-        sharpenStrength: 0.85,
-        contrastBoost: 1.22,
-        vibrancyBoost: 1.15,
+        sharpenStrength: 0.65,
+        contrastBoost: 1.12,
+        vibrancyBoost: 1.10,
       });
       if (sharpened) {
         setEditFormData({ ...editFormData, photo_url: sharpened });
@@ -725,6 +727,36 @@ export function BulkSmartCvManager({
     } catch (err) {
       console.warn('Auto sharpen error:', err);
       onToast('error', 'Gagal mempertajam foto.');
+    }
+  };
+
+  // AI Imagen Enhance & Regenerate in modal
+  const handleModalAiEnhance = async (mode: 'enhance' | 'regenerate' = 'enhance') => {
+    if (!editFormData) return;
+    setIsAiModalEnhancing(true);
+    try {
+      const res = await callAiPhotoEnhancer({
+        imageUrl: mode === 'enhance' ? editFormData.photo_url : undefined,
+        fullName: editFormData.full_name,
+        headline: editFormData.headline,
+        bio: editFormData.bio,
+        mode,
+      });
+      if (res && res.photo_url) {
+        setEditFormData({ ...editFormData, photo_url: res.photo_url });
+        onToast(
+          'success',
+          mode === 'enhance'
+            ? '✨ Foto profil berhasil dipertajam dengan AI Imagen HD!'
+            : '✨ Pas foto profil baru berhasil digenerate!'
+        );
+      }
+    } catch (err: unknown) {
+      console.warn('Modal AI enhance error:', err);
+      const msg = err instanceof Error ? err.message : 'Gagal memproses AI Imagen';
+      onToast('error', `Gagal: ${msg}`);
+    } finally {
+      setIsAiModalEnhancing(false);
     }
   };
 
@@ -1607,9 +1639,29 @@ export function BulkSmartCvManager({
                       type="button"
                       onClick={handleModalAutoSharpen}
                       className="px-2 py-1 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-400/30 transition flex items-center gap-1"
-                      title="Pertajam otomatis foto buram menggunakan filter HD"
+                      title="Pertajam otomatis foto buram menggunakan filter kanvas HD"
                     >
-                      ✨ Pertajam HD
+                      ✨ Pertajam Filter
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isAiModalEnhancing}
+                      onClick={() => handleModalAiEnhance('enhance')}
+                      className="px-2 py-1 text-[10px] font-bold rounded bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/40 transition flex items-center gap-1 disabled:opacity-50"
+                      title="Pertajam otomatis foto menggunakan AI Gemini Imagen ke kualitas Studio HD"
+                    >
+                      <Sparkles className={`w-3 h-3 ${isAiModalEnhancing ? 'animate-spin' : ''}`} />
+                      ⚡ AI Pertajam
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isAiModalEnhancing}
+                      onClick={() => handleModalAiEnhance('regenerate')}
+                      className="px-2 py-1 text-[10px] font-bold rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-400/40 transition flex items-center gap-1 disabled:opacity-50"
+                      title="Generate ulang pas foto profil jika hasil belum sesuai"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isAiModalEnhancing ? 'animate-spin' : ''}`} />
+                      🔄 Buat Ulang
                     </button>
                     <button
                       type="button"

@@ -3809,6 +3809,9 @@ export function createLocalDbMiddleware(env = {}) {
       if (url.startsWith('/api/admin/publish-smart-cv') && req.method === 'POST') {
         return handleAdminPublishSmartCv(req, res);
       }
+      if (url.startsWith('/api/admin/ai-enhance-photo') && req.method === 'POST') {
+        return handleAdminAiEnhancePhoto(req, res);
+      }
       if (url.startsWith('/api/admin/system/optimize-db') && req.method === 'POST') {
         return handleAdminOptimizeDb(req, res);
       }
@@ -4662,6 +4665,137 @@ async function handleSaveSystemSettings(req, res) {
     return sendJson(res, 500, { ok: false, message: err.message || 'Gagal menyimpan pengaturan sistem.' });
   }
 }
+
+// ---------------------------------------------------------------------------
+// Admin AI Photo Enhancer & Regenerator Handler (Imagen Local API)
+// ---------------------------------------------------------------------------
+async function handleAdminAiEnhancePhoto(req, res) {
+  const auth = verifyAdminRequest(req);
+  if (!auth.ok) {
+    return sendJson(res, auth.status, { message: auth.message });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const {
+      imageUrl,
+      fullName,
+      headline,
+      gender,
+      mode = 'enhance', // 'enhance' | 'regenerate'
+      customPrompt,
+    } = body;
+
+    const cleanName = String(fullName || 'Kandidat').trim();
+    const cleanHeadline = String(headline || 'Staff Profesional').trim();
+
+    // Determine gender
+    let detectedGender = gender;
+    if (!detectedGender) {
+      const nLower = cleanName.toLowerCase();
+      const isFemale = /(siti|nur|wati|yani|aeni|tari|yuli|yusni|meis|seli|indri|saskia|putri|dewi|ayu|lia|wulan|fitri|diah|indah|rahayu|novi|kartika|dian|retno|dwi|lestari|tika|widya|ratna|maya|mega|amelia|fadila|fatimah|aulia|safitri|anisa|annisa|mutiara|bella|shinta|intan|desy|desi|vina|eka|anggi|nadia|naysilla|rizky)/i.test(nLower);
+      detectedGender = isFemale ? 'wanita' : 'pria';
+    }
+
+    const genderText = detectedGender === 'wanita' ? 'wanita Indonesia' : 'pria Indonesia';
+
+    // Imagen API credentials & endpoints
+    const IMAGEN_API_KEY = process.env.IMAGEN_API_KEY || 'img_6e2911a86ad77d8b72ec040d95546c4392de4c8f250dda44';
+    const PRIMARY_IMAGEN_URL = process.env.IMAGEN_LOCAL_URL || 'http://127.0.0.1:8101';
+    const FALLBACK_IMAGEN_URL = 'https://img.vrintex.web.id';
+
+    async function callImagen(path, payload) {
+      const urlsToTry = [PRIMARY_IMAGEN_URL, FALLBACK_IMAGEN_URL];
+      let lastError = null;
+
+      for (const baseUrl of urlsToTry) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 65000);
+
+          const resp = await fetch(`${baseUrl}${path}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': IMAGEN_API_KEY,
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+
+          if (resp.ok) {
+            return await resp.json();
+          } else {
+            const errText = await resp.text().catch(() => '');
+            lastError = new Error(`HTTP ${resp.status}: ${errText.slice(0, 200)}`);
+          }
+        } catch (netErr) {
+          lastError = netErr;
+        }
+      }
+      throw lastError || new Error('Gagal menghubungi service AI Imagen');
+    }
+
+    let resultUrl = '';
+
+    // If mode is 'enhance' and we have an image
+    if (mode === 'enhance' && imageUrl) {
+      const prompt = customPrompt ||
+        `Pas foto formal studio profesional ultra HD kualitas 4K, sangat tajam dan jernih untuk pelamar kerja ${genderText}, nama: ${cleanName}, posisi: ${cleanHeadline}. Tingkatkan ketajaman wajah dan mata, hilangkan blur, pencahayaan studio formal rapi, busana formal rapi, latar belakang studio formal polos.`;
+
+      try {
+        const respData = await callImagen('/v1/images/generations', {
+          prompt,
+          image: imageUrl,
+          model: 'antigravity/gemini-3.1-flash-image',
+          response_format: 'url',
+          n: 1,
+        });
+
+        if (respData?.data?.[0]?.url) {
+          resultUrl = respData.data[0].url;
+        }
+      } catch (enhanceErr) {
+        console.warn('[handleAdminAiEnhancePhoto] img2img failed, falling back to /generate:', enhanceErr);
+      }
+    }
+
+    // If mode is 'regenerate' or if enhance fallback is needed
+    if (!resultUrl) {
+      const prompt = customPrompt ||
+        `Pas foto formal studio profesional ultra HD kualitas 4K untuk kandidat pelamar kerja ${genderText} bernama ${cleanName}, profesi ${cleanHeadline}. Berpenampilan rapi, busana kerja formal elegan, wajah Indonesia natural, senyum ramah profesional, pencahayaan studio tajam jernih, latar belakang studio polos formal netral.`;
+
+      const genData = await callImagen('/generate', {
+        prompt,
+        model: 'antigravity/gemini-3.1-flash-image',
+        n: 1,
+      });
+
+      if (genData?.images?.[0]) {
+        resultUrl = genData.images[0];
+      }
+    }
+
+    if (!resultUrl) {
+      throw new Error('AI Imagen tidak menghasilkan URL gambar.');
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      photo_url: resultUrl,
+      mode,
+      message: mode === 'enhance' ? 'Foto berhasil dipertajam dengan AI Imagen HD!' : 'Foto profil baru berhasil digenerate!',
+    });
+  } catch (err) {
+    console.error('[handleAdminAiEnhancePhoto Error]:', err);
+    return sendJson(res, 500, {
+      ok: false,
+      message: err.message || 'Gagal memproses peningkatan foto dengan AI Imagen',
+    });
+  }
+}
+
 
 
 

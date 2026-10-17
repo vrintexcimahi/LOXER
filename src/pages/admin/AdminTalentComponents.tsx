@@ -41,6 +41,7 @@ import { checkIsSuperAdmin } from '../../lib/constants';
 import { maskPhoneNumber, maskEmail, cleanDomicileCity } from '../../lib/contactPrivacyService';
 import { cropPasFotoFromImage, generateBlurredCvImage, autoEnhanceImageDataUrl } from '../../lib/cvImageProcessor';
 import { getDefaultPixarAvatar } from '../../lib/avatarService';
+import { callAiPhotoEnhancer } from '../../lib/aiPhotoEnhancerService';
 import ProtectedTalentChatModal from '../../components/marketplace/ProtectedTalentChatModal';
 import ImageViewerModal from '../../components/ui/ImageViewerModal';
 import { openImageSafelyInNewTab } from '../../lib/imageViewerHelper';
@@ -1313,6 +1314,12 @@ export function SmartAddCvSection({
   const [activeCropMode, setActiveCropMode] = useState<'smart_square' | 'tight_face' | 'full_frame'>('smart_square');
   const customPhotoInputRef = useRef<HTMLInputElement>(null);
 
+  // AI Imagen Photo Enhancer State
+  const [originalPhotoUrl, setOriginalPhotoUrl] = useState<string>('');
+  const [isAiEnhancing, setIsAiEnhancing] = useState<boolean>(false);
+  const [aiEnhanceProgress, setAiEnhanceProgress] = useState<string>('');
+  const [isAiEnhanced, setIsAiEnhanced] = useState<boolean>(false);
+
   const [skillInput, setSkillInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [testChatOpen, setTestChatOpen] = useState(false);
@@ -1662,6 +1669,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       }
 
       const defaultPixar = getDefaultPixarAvatar(cv.full_name, cv.gender, cv.bio);
+      const initialPhoto = croppedPhoto || defaultPixar;
 
       setFormData({
         full_name: cv.full_name || 'Pelamar Kerja',
@@ -1678,12 +1686,15 @@ STATUS: Siap Kerja Segera (Fulltime)`);
         skills: Array.isArray(cv.skills) && cv.skills.length > 0 ? cv.skills : ['Komunikasi', 'Kerja Tim'],
         portfolio_url: blurredCv || cv.portfolio_url || '', // GAMBAR KE-2: CV FULL DENGAN KONTAK DIBLUR
         badge: cv.badge || 'SIAP KERJA',
-        photo_url: croppedPhoto || defaultPixar, // FOTO UTAMA: PAS FOTO HASIL CROP ATAU 3D PIXAR AVATAR
+        photo_url: initialPhoto, // FOTO UTAMA: PAS FOTO HASIL CROP ATAU 3D PIXAR AVATAR
         ai_notes: cv.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Kontak terproteksi privasi)',
         confidence_score: cv.confidence_score || 95,
         educations: cv.educations || [],
         experiences: cv.experiences || [],
       });
+
+      setOriginalPhotoUrl(initialPhoto);
+      setIsAiEnhanced(false);
 
       setIsExtracting(false);
       setExtractStep(0);
@@ -1713,6 +1724,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       );
       if (cropped) {
         setFormData((prev) => (prev ? { ...prev, photo_url: cropped } : null));
+        setOriginalPhotoUrl(cropped);
+        setIsAiEnhanced(false);
         onToast(
           'success',
           `Pas foto disesuaikan ke mode: ${
@@ -1737,6 +1750,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
     reader.onload = () => {
       const result = reader.result as string;
       setFormData((prev) => (prev ? { ...prev, photo_url: result } : null));
+      setOriginalPhotoUrl(result);
+      setIsAiEnhanced(false);
       onToast('success', 'Foto profil berhasil diganti!');
     };
     reader.readAsDataURL(file);
@@ -1749,9 +1764,9 @@ STATUS: Siap Kerja Segera (Fulltime)`);
     }
     try {
       const sharpened = await autoEnhanceImageDataUrl(formData.photo_url, {
-        sharpenStrength: 0.85,
-        contrastBoost: 1.22,
-        vibrancyBoost: 1.15,
+        sharpenStrength: 0.65,
+        contrastBoost: 1.12,
+        vibrancyBoost: 1.10,
       });
       if (sharpened) {
         setFormData((prev) => (prev ? { ...prev, photo_url: sharpened } : null));
@@ -1761,6 +1776,67 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       console.warn('Auto sharpen error:', err);
       onToast('error', 'Gagal mempertajam foto.');
     }
+  };
+
+  // AI Imagen Photo Enhancer & Generator Handler
+  const handleAiEnhancePhoto = async (mode: 'enhance' | 'regenerate' = 'enhance') => {
+    if (!formData) return;
+    setIsAiEnhancing(true);
+    setAiEnhanceProgress(
+      mode === 'enhance'
+        ? 'Mempertajam detail wajah & mata ke kualitas studio HD...'
+        : 'Membuat variasi pas foto studio baru dengan Gemini Imagen...'
+    );
+
+    try {
+      const targetImage = mode === 'enhance' ? (formData.photo_url || originalPhotoUrl) : undefined;
+      const res = await callAiPhotoEnhancer({
+        imageUrl: targetImage,
+        fullName: formData.full_name,
+        headline: formData.headline,
+        bio: formData.bio,
+        mode,
+      });
+
+      if (res && res.photo_url) {
+        // Preload image to avoid blank blink
+        await new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(true);
+          img.src = res.photo_url;
+        });
+
+        if (!originalPhotoUrl && formData.photo_url) {
+          setOriginalPhotoUrl(formData.photo_url);
+        }
+
+        setFormData((prev) => (prev ? { ...prev, photo_url: res.photo_url } : null));
+        setIsAiEnhanced(true);
+        onToast(
+          'success',
+          mode === 'enhance'
+            ? '✨ Foto profil berhasil dipertajam dengan AI Imagen HD!'
+            : '✨ Pas foto profil baru berhasil digenerate!'
+        );
+      } else {
+        throw new Error('AI tidak menghasilkan tautan foto.');
+      }
+    } catch (err: unknown) {
+      console.warn('[handleAiEnhancePhoto] Error:', err);
+      const msg = err instanceof Error ? err.message : 'Gagal menghubungi service AI Imagen.';
+      onToast('error', `Gagal: ${msg}`);
+    } finally {
+      setIsAiEnhancing(false);
+      setAiEnhanceProgress('');
+    }
+  };
+
+  const handleRevertOriginalPhoto = () => {
+    if (!formData || !originalPhotoUrl) return;
+    setFormData((prev) => (prev ? { ...prev, photo_url: originalPhotoUrl } : null));
+    setIsAiEnhanced(false);
+    onToast('info', 'Foto profil dikembalikan ke potongan pas foto asli.');
   };
 
   const handleApplyPixarAvatar = () => {
@@ -2555,9 +2631,29 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                               type="button"
                               onClick={handleAutoSharpen}
                               className="px-2 py-0.5 text-[9px] font-bold rounded bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 text-amber-900 dark:text-amber-300 dark:hover:bg-amber-500/30 border border-amber-300 dark:border-amber-400/30 transition flex items-center gap-1"
-                              title="Pertajam otomatis foto buram"
+                              title="Pertajam otomatis foto buram menggunakan filter kanvas HD"
                             >
-                              ✨ Pertajam HD
+                              ✨ Pertajam Filter
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isAiEnhancing}
+                              onClick={() => handleAiEnhancePhoto('enhance')}
+                              className="px-2 py-0.5 text-[9px] font-bold rounded bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/20 text-cyan-900 dark:text-cyan-300 dark:hover:bg-cyan-500/30 border border-cyan-300 dark:border-cyan-400/30 transition flex items-center gap-1 shadow-sm disabled:opacity-50"
+                              title="Pertajam pas foto menggunakan AI Gemini Imagen ke kualitas Studio HD"
+                            >
+                              <Sparkles className={`w-2.5 h-2.5 text-cyan-500 dark:text-cyan-400 ${isAiEnhancing ? 'animate-spin' : ''}`} />
+                              ⚡ AI Pertajam
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isAiEnhancing}
+                              onClick={() => handleAiEnhancePhoto('regenerate')}
+                              className="px-2 py-0.5 text-[9px] font-bold rounded bg-purple-100 hover:bg-purple-200 dark:bg-purple-500/20 text-purple-900 dark:text-purple-300 dark:hover:bg-purple-500/30 border border-purple-300 dark:border-purple-400/30 transition flex items-center gap-1 shadow-sm disabled:opacity-50"
+                              title="Generate ulang pas foto profil jika hasil belum sesuai"
+                            >
+                              <RefreshCw className={`w-2.5 h-2.5 text-purple-500 dark:text-purple-400 ${isAiEnhancing ? 'animate-spin' : ''}`} />
+                              🔄 Buat Ulang
                             </button>
                             <button
                               type="button"
@@ -2808,37 +2904,94 @@ STATUS: Siap Kerja Segera (Fulltime)`);
               {/* Exact Card Component */}
               <div className="overflow-hidden rounded-2xl border border-sky-200 dark:border-cyan-500/40 bg-white dark:bg-slate-900 shadow-2xl">
                 {/* Media Switcher Tab for Live Preview */}
-                {formData.portfolio_url && (
-                  <div className="p-2 border-b border-slate-200 dark:border-white/10 bg-slate-100/90 dark:bg-slate-950/85 flex items-center justify-between">
+                <div className="p-2 border-b border-slate-200 dark:border-white/10 bg-slate-100/90 dark:bg-slate-950/85 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Pratinjau Media:</span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-white/5">
                       <button
                         type="button"
                         onClick={() => setPreviewMode('photo')}
-                        className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition ${
                           previewMode === 'photo'
                             ? 'bg-cyan-500 text-white shadow'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-200/80 dark:bg-slate-800'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         Foto 1: Pas Foto
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewMode('cv')}
-                        className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition ${
-                          previewMode === 'cv'
-                            ? 'bg-cyan-500 text-white shadow'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-200/80 dark:bg-slate-800'
-                        }`}
-                      >
-                        Foto 2: CV Full (Diblur)
-                      </button>
+                      {formData.portfolio_url && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewMode('cv')}
+                          className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition ${
+                            previewMode === 'cv'
+                              ? 'bg-cyan-500 text-white shadow'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          Foto 2: CV Full (Diblur)
+                        </button>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {/* AI Imagen Quick Actions directly on Preview Header */}
+                  {previewMode === 'photo' && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={isAiEnhancing || !formData.photo_url}
+                        onClick={() => handleAiEnhancePhoto('enhance')}
+                        className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md transition flex items-center gap-1 disabled:opacity-50"
+                        title="Tingkatkan resolusi & pertajam pas foto menggunakan AI Gemini Imagen"
+                      >
+                        <Sparkles className={`w-3 h-3 ${isAiEnhancing ? 'animate-spin' : ''}`} />
+                        <span>{isAiEnhanced ? 'Pertajam Lagi' : '✨ AI Pertajam HD'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isAiEnhancing}
+                        onClick={() => handleAiEnhancePhoto('regenerate')}
+                        className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-md transition flex items-center gap-1 disabled:opacity-50"
+                        title="Generate ulang pas foto profil jika hasil belum sesuai"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isAiEnhancing ? 'animate-spin' : ''}`} />
+                        <span>🔄 Generate Ulang</span>
+                      </button>
+
+                      {originalPhotoUrl && formData.photo_url !== originalPhotoUrl && (
+                        <button
+                          type="button"
+                          disabled={isAiEnhancing}
+                          onClick={handleRevertOriginalPhoto}
+                          className="px-1.5 py-0.5 text-[9px] font-semibold text-rose-600 dark:text-rose-300 hover:underline transition"
+                          title="Kembalikan ke foto asli dari CV"
+                        >
+                          ↩️ Foto Asli
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-slate-100 via-sky-50 to-blue-100/60 dark:from-slate-800 dark:via-slate-900 dark:to-cyan-950/40 p-3">
+                  {/* AI Enhancing Loading Overlay on Preview Photo */}
+                  {isAiEnhancing && previewMode === 'photo' && (
+                    <div className="absolute inset-3 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md rounded-2xl p-4 text-center space-y-2 border border-cyan-500/40 shadow-2xl">
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin" />
+                        <Sparkles className="w-5 h-5 text-cyan-400 absolute inset-0 m-auto animate-pulse" />
+                      </div>
+                      <p className="text-xs font-black text-white tracking-wide">
+                        Memproses AI Imagen Gemini 3.1 Flash Image...
+                      </p>
+                      <p className="text-[10px] text-cyan-300 font-medium animate-pulse">
+                        {aiEnhanceProgress || 'Meningkatkan kejernihan ke kualitas studio HD (~10-15s)'}
+                      </p>
+                    </div>
+                  )}
+
                   {(previewMode === 'cv' && formData.portfolio_url ? formData.portfolio_url : formData.photo_url) ? (
                     <div className="relative h-full w-full overflow-hidden rounded-2xl">
                       <img
@@ -2850,6 +3003,12 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                         <div className="absolute top-2 right-2 rounded-lg bg-slate-950/90 border border-emerald-500/40 px-2 py-0.5 text-[9px] font-bold text-emerald-300 flex items-center gap-1 shadow-lg">
                           <Lock className="w-2.5 h-2.5 text-emerald-400" />
                           <span>Kontak Diblur</span>
+                        </div>
+                      )}
+                      {previewMode === 'photo' && isAiEnhanced && (
+                        <div className="absolute top-2 right-2 rounded-lg bg-emerald-950/90 border border-emerald-400/50 px-2 py-0.5 text-[9px] font-extrabold text-emerald-300 flex items-center gap-1 shadow-lg backdrop-blur-md">
+                          <Sparkles className="w-2.5 h-2.5 text-emerald-400" />
+                          <span>✓ AI Studio HD</span>
                         </div>
                       )}
                     </div>
