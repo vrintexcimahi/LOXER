@@ -5,7 +5,6 @@ import {
   Award, Filter
 } from 'lucide-react';
 import TestimonialsSlider from '../components/reviews/TestimonialsSlider';
-import ClayHero from '../components/ui/ClayHero';
 import useClayReveal from '../hooks/useClayReveal';
 import HeroBannerSlideshow from '../components/banner/HeroBannerSlideshow';
 
@@ -124,9 +123,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
   return (
     <div ref={presentationRef} className="loxer-landing overflow-x-hidden pb-20 md:pb-0">
 
-      <ClayHero onRegister={onRegister} />
-
-      <div className="max-w-7xl mx-auto px-4 pt-4 pb-2">
+      <div className="max-w-7xl mx-auto px-4 pt-20 sm:pt-24 md:pt-28 pb-4">
         <HeroBannerSlideshow onRegister={onRegister} />
       </div>
 
