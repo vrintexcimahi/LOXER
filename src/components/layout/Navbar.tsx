@@ -1,471 +1,205 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, ChevronRight, User, LogOut, Settings, ShieldCheck, Download, Briefcase, Users, Zap, ShoppingBag } from 'lucide-react';
-import { useAuth } from '../../contexts/useAuth';
+import { CheckCircle2 } from 'lucide-react';
+import AppLogo from '../ui/AppLogo';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 import { useAppAccess } from '../../contexts/AppAccessContext';
-import AppLogo from '../ui/AppLogo';
-import ThemeToggle from '../ui/ThemeToggle';
-import NotificationBell from '../ui/NotificationBell';
-import AndroidToast from '../ui/AndroidToast';
-
 import { UserRole } from '../../lib/types';
 
-interface NavbarProps {
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+function GooglePlayIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" className="flex-shrink-0" style={{ flexShrink: 0 }}>
+      <path fill="#4285F4" d="M3.6 1.5C3.3 1.9 3.1 2.5 3.1 3.2v17.6c0 .7.2 1.3.5 1.7l9.8-9.8L3.6 1.5z" />
+      <path fill="#FBBC04" d="M16.9 9.3l-3.5 3.4 3.5 3.5 3.9-2.3c.5-.3.8-.8.8-1.4s-.3-1.1-.8-1.4l-3.9-1.8z" />
+      <path fill="#EA4335" d="M13.4 12.7L3.6 22.5c.3.3.8.4 1.3.3l12-6.8-3.5-3.3z" />
+      <path fill="#34A853" d="M13.4 11.3l3.5-3.4L4.9 1.2C4.4 1.1 3.9 1.2 3.6 1.5l9.8 9.8z" />
+    </svg>
+  );
+}
+
+function AppStoreIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" className="flex-shrink-0" style={{ flexShrink: 0 }}>
+      <rect width="24" height="24" rx="5.5" fill="#007AFF" />
+      <path
+        d="M16.5 17.5L12 8.2l-4.5 9.3h2l.9-1.9h3.2l.9 1.9h2zm-4.5-6.5l1.1 2.5h-2.2L12 11z"
+        fill="#FFFFFF"
+      />
+    </svg>
+  );
+}
+
+export interface NavbarProps {
   onLogin?: () => void;
   onRegister?: (role?: UserRole) => void;
 }
 
+export default function Navbar({ onLogin }: NavbarProps) {
+  const { openSecretAdminModal } = useAppAccess();
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-export default function Navbar({ onLogin: _onLogin, onRegister: _onRegister }: NavbarProps) {
-  const { user, userMeta, signOut } = useAuth();
-  const {
-    isSuperAdmin,
-    openInstallModal,
-    openSecretAdminModal,
-    lockSuperAdmin,
-  } = useAppAccess();
-  const {
-    isUnlocked,
-    handleTriggerClick,
-    toastMessage,
-    toastVisible,
-    setToastVisible,
-  } = useAdminEasterEgg({
+  const { isUnlocked, handleTriggerClick } = useAdminEasterEgg({
     totalClicks: 5,
     notifyStartClick: 2,
     onUnlocked: () => {
       openSecretAdminModal();
     },
   });
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const [currentPath, setCurrentPath] = useState(() =>
-    typeof window !== 'undefined' ? window.location.pathname : '/'
-  );
-  const [currentSearch, setCurrentSearch] = useState(() =>
-    typeof window !== 'undefined' ? window.location.search : ''
-  );
 
   useEffect(() => {
-    const handleLocationChange = () => {
-      setCurrentPath(window.location.pathname);
-      setCurrentSearch(window.location.search);
+    if (typeof window !== 'undefined') {
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (navigator as unknown as { standalone?: boolean }).standalone === true;
+      if (isStandalone) {
+        setIsInstalled(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+      (window as unknown as { __pwaInstallPrompt?: BeforeInstallPromptEvent }).__pwaInstallPrompt = e as BeforeInstallPromptEvent;
     };
 
-    window.addEventListener('popstate', handleLocationChange);
-    return () => window.removeEventListener('popstate', handleLocationChange);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    };
   }, []);
 
-  const isIklanLokerActive =
-    (currentPath === '/browse' || currentPath === '/seeker/browse') &&
-    !currentSearch.includes('category=freelance');
-
-  const isPelamarKerjaActive =
-    (currentPath === '/talents' || currentPath === '/pelamar' || currentPath === '/pelamar-kerja') &&
-    (currentSearch.includes('availability=fulltime') || currentSearch.includes('type=pelamar'));
-
-  const isFreelancerActive =
-    ((currentPath === '/talents' || currentPath === '/freelance' || currentPath === '/jasa') &&
-      (currentSearch.includes('availability=freelance') || currentSearch.includes('type=freelance'))) ||
-    currentSearch.includes('category=freelance');
-
-  const isMarketplaceActive =
-    currentPath === '/marketplace' || currentPath === '/products';
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const getDashboardPath = () => {
-    if (!userMeta) return '/';
-    if (userMeta.role === 'admin' || userMeta.role === 'superadmin') return '/admin/dashboard';
-    return userMeta.role === 'employer' ? '/employer/dashboard' : '/seeker/dashboard';
+  const showToast = (msg: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMsg(msg);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMsg(null);
+    }, 4500);
   };
 
-  const handleSignOut = async () => {
-    setUserMenuOpen(false);
-    setMobileOpen(false);
-    await signOut();
-    window.location.assign('/');
+  const triggerInstall = async (platform: 'playstore' | 'appstore') => {
+    if (typeof window === 'undefined') return;
+
+    const promptEvent =
+      installPrompt ||
+      (window as unknown as { __pwaInstallPrompt?: BeforeInstallPromptEvent }).__pwaInstallPrompt;
+
+    if (promptEvent && typeof promptEvent.prompt === 'function') {
+      try {
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        if (choice?.outcome === 'accepted') {
+          setIsInstalled(true);
+          showToast('Terima kasih! LOXER PWA sedang dipasang di perangkat Anda.');
+        }
+        setInstallPrompt(null);
+        (window as unknown as { __pwaInstallPrompt?: BeforeInstallPromptEvent | null }).__pwaInstallPrompt = null;
+        return;
+      } catch (err) {
+        console.warn('Install prompt error:', err);
+      }
+    }
+
+    if (platform === 'playstore') {
+      const link = document.createElement('a');
+      link.href = '/loxer.apk';
+      link.download = 'LOXER-App.apk';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Mengunduh berkas aplikasi LOXER...');
+    } else {
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIos) {
+        showToast("Ketuk ikon Bagikan (Share) di Safari > pilih 'Tambahkan ke Layar Utama'");
+      } else {
+        showToast("Buka menu browser (⋮) > pilih 'Install Aplikasi' / 'Tambahkan ke Layar Utama'");
+      }
+    }
+  };
+
+  const handleSkip = () => {
+    if (onLogin && window.location.pathname === '/login') {
+      onLogin();
+      return;
+    }
+
+    const mainEl = document.getElementById('main-content') || document.querySelector('main') || document.querySelector('.max-w-7xl');
+    if (mainEl) {
+      mainEl.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 320, behavior: 'smooth' });
+    }
   };
 
   return (
-    <nav
-      className={`loxer-navbar fixed top-0 left-0 right-0 z-50 pt-safe transition-all duration-300 ${
-        scrolled
-          ? 'bg-[#0F172A]/95 backdrop-blur-md shadow-xl shadow-sky-900/20'
-          : 'bg-slate-900/95 backdrop-blur-md'
-      }`}
-    >
-      <div className="w-full max-w-[min(100%,1920px)] mx-auto px-[clamp(16px,3vw,48px)]">
-        <div className="flex items-center justify-between h-14 sm:h-16">
-          {/* Logo with Easter Egg Trigger */}
-          <a
-            href="/"
-            onClick={(e) => {
-              if (e.detail > 1) {
-                e.preventDefault();
-              }
-              handleTriggerClick(e);
-            }}
-            className="flex items-center gap-2 group active-press select-none cursor-pointer"
-            title={isUnlocked ? 'Mode Developer / Administrator Aktif' : undefined}
+    <header className="loxer-pwa-header w-full bg-[#dff0ff] dark:bg-slate-900 border-b border-sky-100 dark:border-slate-800 transition-colors pt-safe pb-4 px-4 select-none">
+      <div className="w-full max-w-xl mx-auto flex flex-col items-center">
+        <div className="w-full flex items-center justify-between py-2.5">
+          <div className="w-14" aria-hidden="true" />
+
+          <div
+            onClick={handleTriggerClick}
+            className="flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+            title={isUnlocked ? 'Mode Administrator Aktif' : undefined}
           >
-            <AppLogo variant="navbar" className="group-hover:brightness-110 transition" textClassName="text-xl font-black tracking-tight" />
-          </a>
-
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-5 lg:gap-7">
-            {/* 1. Iklan Loker */}
-            <a
-              href="/browse"
-              className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
-                isIklanLokerActive ? 'text-cyan-400 font-semibold' : 'text-slate-300 hover:text-cyan-400'
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Iklan Loker</span>
-              <span
-                className={`absolute -bottom-1 left-0 h-0.5 bg-cyan-400 transition-all duration-300 ${
-                  isIklanLokerActive ? 'w-full' : 'w-0 group-hover:w-full'
-                }`}
-              />
-            </a>
-
-            {/* 2. Pelamar Kerja */}
-            <a
-              href="/talents?availability=fulltime"
-              className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
-                isPelamarKerjaActive ? 'text-cyan-400 font-semibold' : 'text-slate-300 hover:text-cyan-400'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Pelamar Kerja</span>
-              <span
-                className={`absolute -bottom-1 left-0 h-0.5 bg-cyan-400 transition-all duration-300 ${
-                  isPelamarKerjaActive ? 'w-full' : 'w-0 group-hover:w-full'
-                }`}
-              />
-            </a>
-
-            {/* 3. Jasa Mandiri */}
-            <a
-              href="/talents?availability=freelance"
-              className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
-                isFreelancerActive ? 'text-amber-400 font-semibold' : 'text-slate-300 hover:text-amber-400'
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Jasa</span>
-              <span
-                className={`absolute -bottom-1 left-0 h-0.5 bg-amber-400 transition-all duration-300 ${
-                  isFreelancerActive ? 'w-full' : 'w-0 group-hover:w-full'
-                }`}
-              />
-            </a>
-
-            {/* 4. Marketplace (Produk Digital / Sekon / Lainnya) */}
-            <a
-              href="/marketplace"
-              className={`text-sm font-medium transition-colors duration-200 relative group flex items-center gap-1.5 ${
-                isMarketplaceActive ? 'text-cyan-400 font-semibold' : 'text-slate-300 hover:text-cyan-400'
-              }`}
-            >
-              <ShoppingBag className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Marketplace</span>
-              <span
-                className={`absolute -bottom-1 left-0 h-0.5 bg-cyan-400 transition-all duration-300 ${
-                  isMarketplaceActive ? 'w-full' : 'w-0 group-hover:w-full'
-                }`}
-              />
-            </a>
-
-            {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin' || isSuperAdmin) && (
-              <a
-                href="/admin/dashboard"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 hover:bg-cyan-500/30 transition shadow-sm animate-pulse"
-                title="Panel Administrator God Mode"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                <span>God Mode</span>
-              </a>
-            )}
+            <AppLogo variant="navbar" height={36} textClassName="text-2xl font-black tracking-tight text-slate-900 dark:text-white" />
           </div>
 
-
-
-          {/* Right Actions */}
-          <div className="hidden md:flex items-center gap-3">
-            {/* Super Admin Bypass Active Indicator */}
-            {isSuperAdmin && (
-              <div className="flex items-center gap-1.5 animate-pulse">
-                <a
-                  href="/admin/dashboard"
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 hover:bg-cyan-500/30 transition shadow-sm"
-                  title="Super Admin Bypass Web Aktif - Buka Dashboard"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Super Admin</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={lockSuperAdmin}
-                  className="text-[10px] text-slate-400 hover:text-rose-400 transition underline cursor-pointer"
-                  title="Kunci kembali mode Super Admin"
-                >
-                  Kunci
-                </button>
-              </div>
-            )}
-
-
-            <button
-              type="button"
-              onClick={() => openInstallModal('Download & Pasang Aplikasi')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-400/30 transition shadow-sm cursor-pointer active:scale-95"
-              title="Unduh / Pasang Aplikasi LOXER"
-            >
-              <Download className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Aplikasi LOXER</span>
-            </button>
-
-            <ThemeToggle compact />
-            {user && userMeta ? (
-              <>
-                {/* Notifications */}
-                <div onClick={() => setUserMenuOpen(false)}>
-                  <NotificationBell />
-                </div>
-
-                {/* Dashboard Link */}
-                <a
-                  href={getDashboardPath()}
-                  className="text-slate-300 hover:text-white text-sm font-medium transition-colors"
-                >
-                  Dashboard
-                </a>
-
-                {/* User Menu */}
-                <div ref={userMenuRef} className="relative">
-                  <button
-                    onClick={() => { setUserMenuOpen(!userMenuOpen); }}
-                    className="flex items-center gap-2 glass rounded-full px-3 py-1.5 text-white text-sm hover:bg-white/15 transition-colors"
-                  >
-                    <div className="w-6 h-6 gradient-cta rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {(userMeta.email || '?')[0].toUpperCase()}
-                    </div>
-                    <span className="max-w-[100px] truncate text-xs">{userMeta.email}</span>
-                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                  </button>
-                  {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-sky-100 overflow-hidden z-50">
-                      <a href={getDashboardPath()} className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 transition-colors">
-                        <User className="w-4 h-4 text-sky-500" /> Profile
-                      </a>
-                      <a href={userMeta.role === 'employer' ? '/employer/company' : (userMeta.role === 'admin' || userMeta.role === 'superadmin') ? '/admin/dashboard' : '/seeker/profile'} className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 transition-colors">
-                        <Settings className="w-4 h-4 text-sky-500" /> Settings
-                      </a>
-                      {(userMeta.role === 'admin' || userMeta.role === 'superadmin') ? (
-                        <a
-                          href="/admin/dashboard"
-                          className="mx-3 mb-2 mt-1 flex items-center gap-2 rounded-lg border border-cyan-500/20 px-4 py-2 text-sm text-cyan-500 hover:bg-cyan-500/10"
-                        >
-                          <ShieldCheck className="w-4 h-4" />
-                          Admin (Administrator)
-                        </a>
-                      ) : null}
-                      <hr className="border-sky-100" />
-                      <button
-                        onClick={handleSignOut}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <LogOut className="w-4 h-4" /> Sign Out
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : isUnlocked || isSuperAdmin ? (
-              <a
-                href="/admin/dashboard"
-                className="gradient-cta text-white rounded-full px-4 py-1.5 text-xs font-semibold shadow-lg shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all inline-flex items-center gap-1.5"
-              >
-                <ShieldCheck className="w-3.5 h-3.5" /> Portal Admin
-              </a>
-            ) : null}
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg active-press"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label={mobileOpen ? 'Tutup Menu' : 'Buka Menu'}
-          >
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu Drawer */}
-      {mobileOpen && (
-        <div className="loxer-mobile-menu max-h-[calc(100dvh-140px)] overflow-y-auto overscroll-contain md:hidden bg-[#0F172A]/98 backdrop-blur-xl border-t border-white/10 px-5 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] flex flex-col gap-4 animate-fade-up">
-          <div className="flex justify-start">
-            <ThemeToggle />
-          </div>
-
-          {/* Menu Data Tampilan (1 Baris 3 Grid) & Marketplace */}
-          <div className="flex flex-col gap-2.5">
-            <div className="grid grid-cols-3 gap-2">
-              {/* 1. Iklan Loker */}
-              <a
-                href="/browse"
-                onClick={() => setMobileOpen(false)}
-                className={`group flex flex-col items-center justify-center py-2.5 px-1.5 rounded-xl border transition-all duration-200 active:scale-95 text-center ${
-                  isIklanLokerActive
-                    ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 font-semibold shadow-[0_0_15px_rgba(6,182,212,0.25)]'
-                    : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-cyan-500/30'
-                }`}
-              >
-                <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110 ${
-                    isIklanLokerActive
-                      ? 'bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/40'
-                      : 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20'
-                  }`}
-                >
-                  <Briefcase className="w-4 h-4" />
-                </div>
-                <span className="text-[11px] font-medium leading-tight">Iklan Loker</span>
-              </a>
-
-              {/* 2. Pelamar Kerja */}
-              <a
-                href="/talents?availability=fulltime"
-                onClick={() => setMobileOpen(false)}
-                className={`group flex flex-col items-center justify-center py-2.5 px-1.5 rounded-xl border transition-all duration-200 active:scale-95 text-center ${
-                  isPelamarKerjaActive
-                    ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 font-semibold shadow-[0_0_15px_rgba(6,182,212,0.25)]'
-                    : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-cyan-500/30'
-                }`}
-              >
-                <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110 ${
-                    isPelamarKerjaActive
-                      ? 'bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/40'
-                      : 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                </div>
-                <span className="text-[11px] font-medium leading-tight">Pelamar Kerja</span>
-              </a>
-
-              {/* 3. Freelancer / Jasa */}
-              <a
-                href="/talents?availability=freelance"
-                onClick={() => setMobileOpen(false)}
-                className={`group flex flex-col items-center justify-center py-2.5 px-1.5 rounded-xl border transition-all duration-200 active:scale-95 text-center ${
-                  isFreelancerActive
-                    ? 'bg-amber-500/20 border-amber-400/60 text-amber-300 font-semibold shadow-[0_0_15px_rgba(245,158,11,0.25)]'
-                    : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-amber-500/30'
-                }`}
-              >
-                <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110 ${
-                    isFreelancerActive
-                      ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/40'
-                      : 'bg-amber-500/15 text-amber-400 border border-amber-400/20'
-                  }`}
-                >
-                  <Zap className="w-4 h-4" />
-                </div>
-                <span className="text-[11px] font-medium leading-tight">Jasa</span>
-              </a>
-            </div>
-
-            {/* 4. Marketplace Card */}
-            <a
-              href="/marketplace"
-              onClick={() => setMobileOpen(false)}
-              className={`group relative overflow-hidden flex items-center justify-between p-2.5 px-3 rounded-xl border transition-all duration-200 active:scale-[0.98] ${
-                isMarketplaceActive
-                  ? 'bg-gradient-to-r from-cyan-500/25 via-sky-500/20 to-cyan-500/10 border-cyan-400/60 text-cyan-200 shadow-md shadow-cyan-950/40'
-                  : 'bg-gradient-to-r from-white/[0.04] to-cyan-500/[0.03] border-white/10 text-slate-300 hover:text-white hover:border-cyan-500/30 hover:bg-white/[0.08]'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
-                    isMarketplaceActive
-                      ? 'bg-cyan-400 text-slate-950 shadow-md shadow-cyan-400/40'
-                      : 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/20'
-                  }`}
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                </div>
-                <div className="text-left">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-white tracking-tight">Marketplace</span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
-                      PRODUK & JASA
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
-                    Jual beli produk digital, fisik & kebutuhan kerja
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all shrink-0" />
-            </a>
-          </div>
-          {/* Mobile Install App / Download APK Button */}
           <button
             type="button"
-            onClick={() => {
-              openInstallModal('Pasang / Download Aplikasi LOXER');
-              setMobileOpen(false);
-            }}
-            className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500/25 to-sky-500/25 hover:bg-cyan-500/35 text-cyan-300 border border-cyan-400/40 text-sm font-bold transition cursor-pointer"
+            onClick={handleSkip}
+            className="w-14 text-right text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
           >
-            <Download className="w-4 h-4 text-cyan-400" />
-            <span>Download APK / Pasang Aplikasi</span>
+            Lewati
           </button>
-          <hr className="border-white/10" />
-          {user ? (
-            <>
-              <a href={getDashboardPath()} className="text-white font-medium text-sm">Dashboard</a>
-              {(isUnlocked || userMeta?.role === 'admin' || userMeta?.role === 'superadmin' || isSuperAdmin) ? (
-                <a href="/admin/dashboard" className="text-cyan-300 font-medium text-sm inline-flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-cyan-400" /> Mode Administrator (God Mode)
-                </a>
-              ) : null}
-              <button onClick={handleSignOut} className="text-red-400 text-sm text-left font-medium">Sign Out</button>
-            </>
-          ) : (
-            <>
-              {(isUnlocked || isSuperAdmin) && (
-                <a
-                  href="/admin/dashboard"
-                  onClick={() => setMobileOpen(false)}
-                  className="gradient-cta text-white rounded-xl px-5 py-2.5 text-sm font-semibold w-full text-center inline-flex items-center justify-center gap-2"
-                >
-                  <ShieldCheck className="w-4 h-4" /> Portal Admin
-                </a>
-              )}
-            </>
-          )}
         </div>
-      )}
 
-      <AndroidToast
-        message={toastMessage}
-        visible={toastVisible}
-        onDismiss={() => setToastVisible(false)}
-      />
-    </nav>
+        <div className="w-full max-w-sm grid grid-cols-2 gap-3 mt-2.5">
+          <button
+            type="button"
+            onClick={() => triggerInstall('playstore')}
+            className="flex items-center justify-center gap-2.5 min-h-[46px] px-4 py-2.5 rounded-full bg-white dark:bg-slate-800 border border-sky-200/90 dark:border-slate-700 text-slate-900 dark:text-white font-extrabold text-xs shadow-sm hover:shadow-md hover:border-sky-300 active:scale-95 transition-all cursor-pointer"
+            aria-label="Install LOXER via Play Store"
+          >
+            <GooglePlayIcon />
+            <span className="tracking-tight">Play Store</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => triggerInstall('appstore')}
+            className="flex items-center justify-center gap-2.5 min-h-[46px] px-4 py-2.5 rounded-full bg-white dark:bg-slate-800 border border-sky-200/90 dark:border-slate-700 text-slate-900 dark:text-white font-extrabold text-xs shadow-sm hover:shadow-md hover:border-sky-300 active:scale-95 transition-all cursor-pointer"
+            aria-label="Install LOXER via App Store"
+          >
+            <AppStoreIcon />
+            <span className="tracking-tight">App Store</span>
+          </button>
+        </div>
+
+        {isInstalled && (
+          <div className="mt-2 text-center animate-fade-in">
+            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1.5">
+              <CheckCircle2 size={13} />
+              Aplikasi LOXER Sudah Terpasang
+            </span>
+          </div>
+        )}
+
+        {toastMsg && (
+          <div className="mt-2 px-3.5 py-1.5 rounded-xl bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 text-[11px] font-medium shadow-lg animate-fade-in text-center max-w-xs">
+            {toastMsg}
+          </div>
+        )}
+      </div>
+    </header>
   );
 }
