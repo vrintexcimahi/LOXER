@@ -38,7 +38,7 @@ export interface NavbarProps {
   onRegister?: (role?: UserRole) => void;
 }
 
-export default function Navbar({ onLogin }: NavbarProps) {
+export default function Navbar({ onLogin: _onLogin }: NavbarProps) {
   const { openSecretAdminModal } = useAppAccess();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -126,26 +126,10 @@ export default function Navbar({ onLogin }: NavbarProps) {
     }
   };
 
-  const handleSkip = () => {
-    if (onLogin && window.location.pathname === '/login') {
-      onLogin();
-      return;
-    }
-
-    const mainEl = document.getElementById('main-content') || document.querySelector('main') || document.querySelector('.max-w-7xl');
-    if (mainEl) {
-      mainEl.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: 320, behavior: 'smooth' });
-    }
-  };
-
   return (
-    <header className="loxer-pwa-header w-full bg-[#dff0ff] dark:bg-slate-900 border-b border-sky-100 dark:border-slate-800 transition-colors pt-safe pb-4 px-4 select-none">
+    <header className="loxer-pwa-header w-full bg-transparent border-0 pt-safe pb-2 px-4 select-none">
       <div className="w-full max-w-xl mx-auto flex flex-col items-center">
-        <div className="w-full flex items-center justify-between py-2.5">
-          <div className="w-14" aria-hidden="true" />
-
+        <div className="w-full flex items-center justify-center py-2">
           <div
             onClick={handleTriggerClick}
             className="flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
@@ -153,14 +137,6 @@ export default function Navbar({ onLogin }: NavbarProps) {
           >
             <AppLogo variant="navbar" height={36} textClassName="text-2xl font-black tracking-tight text-slate-900 dark:text-white" />
           </div>
-
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="w-14 text-right text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-          >
-            Lewati
-          </button>
         </div>
 
         <div className="w-full max-w-sm grid grid-cols-2 gap-3 mt-2.5">
