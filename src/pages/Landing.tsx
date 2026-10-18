@@ -123,7 +123,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
   return (
     <div ref={presentationRef} className="loxer-landing overflow-x-hidden pb-20 md:pb-0">
 
-      <div className="max-w-7xl mx-auto px-4 pt-3 sm:pt-5 pb-4">
+      <div className="max-w-7xl mx-auto px-4 pt-1 sm:pt-2 pb-4">
         <HeroBannerSlideshow onRegister={onRegister} />
       </div>
 

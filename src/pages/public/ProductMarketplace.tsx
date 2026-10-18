@@ -331,7 +331,7 @@ export default function ProductMarketplace() {
         </div>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-1 sm:pt-2 pb-6 sm:pb-8 space-y-5 sm:space-y-6">
         {/* ===================== HERO SECTION ===================== */}
         <section className="relative overflow-hidden rounded-3xl border border-cyan-500/25 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/70 p-4 sm:p-6 lg:p-7 shadow-2xl">
           <div className="absolute -right-16 -top-16 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />

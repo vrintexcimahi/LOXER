@@ -127,37 +127,41 @@ export default function Navbar({ onLogin: _onLogin }: NavbarProps) {
   };
 
   return (
-    <header className="loxer-pwa-header w-full bg-transparent border-0 pt-safe pb-2 px-4 select-none">
+    <header className="loxer-pwa-header w-full bg-transparent border-0 pt-safe pb-1 px-4 select-none">
       <div className="w-full max-w-xl mx-auto flex flex-col items-center">
-        <div className="w-full flex items-center justify-center py-2">
+        <div className="w-full flex items-center justify-center py-1">
           <div
             onClick={handleTriggerClick}
             className="flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
             title={isUnlocked ? 'Mode Administrator Aktif' : undefined}
           >
-            <AppLogo variant="navbar" height={36} textClassName="text-2xl font-black tracking-tight text-slate-900 dark:text-white" />
+            <AppLogo variant="navbar" height={34} textClassName="text-2xl font-black tracking-tight text-slate-900 dark:text-white" />
           </div>
         </div>
 
-        <div className="w-full max-w-xs sm:max-w-sm grid grid-cols-2 gap-3 mt-2">
+        <div className="w-full max-w-xs sm:max-w-sm grid grid-cols-2 gap-2.5 mt-1">
           <button
             type="button"
             onClick={() => triggerInstall('playstore')}
-            className="flex items-center justify-center gap-2.5 min-h-[44px] px-4 py-2 rounded-full bg-gradient-to-b from-white via-sky-50/80 to-blue-100/90 dark:from-slate-800 dark:via-slate-800 dark:to-sky-950/80 border border-sky-300/80 dark:border-sky-500/40 text-[#0a192f] dark:text-white font-extrabold text-xs sm:text-sm tracking-tight shadow-md shadow-sky-500/10 hover:shadow-lg hover:shadow-sky-500/20 hover:border-sky-400 active:scale-95 transition-all cursor-pointer select-none"
+            className="flex items-center justify-center gap-2 min-h-[42px] px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white border border-sky-300/40 font-extrabold text-xs sm:text-sm tracking-tight shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/40 hover:brightness-110 active:scale-95 transition-all cursor-pointer select-none"
             aria-label="Install LOXER via Play Store"
           >
-            <GooglePlayIcon />
-            <span>Play Store</span>
+            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm p-0.5">
+              <GooglePlayIcon />
+            </div>
+            <span className="drop-shadow-sm">Play Store</span>
           </button>
 
           <button
             type="button"
             onClick={() => triggerInstall('appstore')}
-            className="flex items-center justify-center gap-2.5 min-h-[44px] px-4 py-2 rounded-full bg-gradient-to-b from-white via-sky-50/80 to-blue-100/90 dark:from-slate-800 dark:via-slate-800 dark:to-sky-950/80 border border-sky-300/80 dark:border-sky-500/40 text-[#0a192f] dark:text-white font-extrabold text-xs sm:text-sm tracking-tight shadow-md shadow-sky-500/10 hover:shadow-lg hover:shadow-sky-500/20 hover:border-sky-400 active:scale-95 transition-all cursor-pointer select-none"
+            className="flex items-center justify-center gap-2 min-h-[42px] px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white border border-sky-300/40 font-extrabold text-xs sm:text-sm tracking-tight shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/40 hover:brightness-110 active:scale-95 transition-all cursor-pointer select-none"
             aria-label="Install LOXER via App Store"
           >
-            <AppStoreIcon />
-            <span>App Store</span>
+            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm p-0.5">
+              <AppStoreIcon />
+            </div>
+            <span className="drop-shadow-sm">App Store</span>
           </button>
         </div>
 
