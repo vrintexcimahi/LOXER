@@ -9,8 +9,9 @@ export default function Footer() {
   return (
     <footer className="loxer-footer bg-[#0F172A] text-slate-400">
       <div className="w-full max-w-[min(100%,1920px)] mx-auto px-[clamp(16px,3vw,48px)] py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-          <div className="col-span-1 md:col-span-1">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8 lg:gap-12">
+          {/* Brand Info */}
+          <div className="w-full lg:max-w-xs shrink-0">
             <div
               onClick={handleTriggerClick}
               className="flex items-center gap-2 mb-4 cursor-pointer select-none group"
@@ -34,53 +35,56 @@ export default function Footer() {
             </div>
           </div>
 
-          <div>
-            <h4 className="text-white font-semibold text-sm mb-4">Pencari Kerja</h4>
-            <ul className="space-y-3">
-              {['Browse Lowongan', 'Buat Profil', 'Lacak Lamaran', 'Tips Karir', 'Blog'].map((item) => (
-                <li key={item}>
-                  <a href="#" className="text-slate-500 hover:text-cyan-400 text-sm transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* 3 Jajar Side-by-Side Columns */}
+          <div className="w-full flex-1 grid grid-cols-3 gap-3 sm:gap-6 lg:gap-10">
+            <div>
+              <h4 className="text-white font-semibold text-xs sm:text-sm mb-3 sm:mb-4">Pencari Kerja</h4>
+              <ul className="space-y-2.5 sm:space-y-3">
+                {['Browse Lowongan', 'Buat Profil', 'Lacak Lamaran', 'Tips Karir', 'Blog'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-slate-500 hover:text-cyan-400 text-xs sm:text-sm transition-colors block">
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          <div>
-            <h4 className="text-white font-semibold text-sm mb-4">Perekrut</h4>
-            <ul className="space-y-3">
-              {['Pasang Lowongan', 'Magic Filter', 'Dashboard HR', 'Paket Harga', 'API'].map((item) => (
-                <li key={item}>
-                  <a href="#" className="text-slate-500 hover:text-cyan-400 text-sm transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+            <div>
+              <h4 className="text-white font-semibold text-xs sm:text-sm mb-3 sm:mb-4">Perekrut</h4>
+              <ul className="space-y-2.5 sm:space-y-3">
+                {['Pasang Lowongan', 'Magic Filter', 'Dashboard HR', 'Paket Harga', 'API'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-slate-500 hover:text-cyan-400 text-xs sm:text-sm transition-colors block">
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          <div>
-            <h4 className="text-white font-semibold text-sm mb-4">Perusahaan</h4>
-            <ul className="space-y-3">
-              {['Tentang Kami', 'Karir', 'Privasi', 'Syarat & Ketentuan', 'Kontak'].map((item) => (
-                <li key={item}>
-                  <a href="#" className="text-slate-500 hover:text-cyan-400 text-sm transition-colors">
-                    {item}
+            <div>
+              <h4 className="text-white font-semibold text-xs sm:text-sm mb-3 sm:mb-4">Perusahaan</h4>
+              <ul className="space-y-2.5 sm:space-y-3">
+                {['Tentang Kami', 'Karir', 'Privasi', 'Syarat & Ketentuan', 'Kontak'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-slate-500 hover:text-cyan-400 text-xs sm:text-sm transition-colors block">
+                      {item}
+                    </a>
+                  </li>
+                ))}
+                <li>
+                  <a
+                    href="/downloads/loxer-app.apk"
+                    download="loxer-app.apk"
+                    className="text-slate-500 hover:text-cyan-400 text-xs sm:text-sm transition-colors text-left cursor-pointer flex flex-wrap items-center gap-1 pt-1"
+                  >
+                    <span>Download APK</span>
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Android</span>
                   </a>
                 </li>
-              ))}
-              <li>
-                <a
-                  href="/downloads/loxer-app.apk"
-                  download="loxer-app.apk"
-                  className="text-slate-500 hover:text-cyan-400 text-sm transition-colors text-left cursor-pointer flex items-center gap-1.5"
-                >
-                  <span>Download APK Resmi</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Android</span>
-                </a>
-              </li>
-            </ul>
+              </ul>
+            </div>
           </div>
         </div>
 
