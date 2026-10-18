@@ -139,25 +139,25 @@ export default function Navbar({ onLogin: _onLogin }: NavbarProps) {
           </div>
         </div>
 
-        <div className="w-full max-w-sm grid grid-cols-2 gap-3 mt-2.5">
+        <div className="w-full max-w-xs sm:max-w-sm grid grid-cols-2 gap-3 mt-2">
           <button
             type="button"
             onClick={() => triggerInstall('playstore')}
-            className="flex items-center justify-center gap-2.5 min-h-[46px] px-4 py-2.5 rounded-full bg-white dark:bg-slate-800 border border-sky-200/90 dark:border-slate-700 text-slate-900 dark:text-white font-extrabold text-xs shadow-sm hover:shadow-md hover:border-sky-300 active:scale-95 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-2.5 min-h-[44px] px-4 py-2 rounded-full bg-gradient-to-b from-white via-sky-50/80 to-blue-100/90 dark:from-slate-800 dark:via-slate-800 dark:to-sky-950/80 border border-sky-300/80 dark:border-sky-500/40 text-[#0a192f] dark:text-white font-extrabold text-xs sm:text-sm tracking-tight shadow-md shadow-sky-500/10 hover:shadow-lg hover:shadow-sky-500/20 hover:border-sky-400 active:scale-95 transition-all cursor-pointer select-none"
             aria-label="Install LOXER via Play Store"
           >
             <GooglePlayIcon />
-            <span className="tracking-tight">Play Store</span>
+            <span>Play Store</span>
           </button>
 
           <button
             type="button"
             onClick={() => triggerInstall('appstore')}
-            className="flex items-center justify-center gap-2.5 min-h-[46px] px-4 py-2.5 rounded-full bg-white dark:bg-slate-800 border border-sky-200/90 dark:border-slate-700 text-slate-900 dark:text-white font-extrabold text-xs shadow-sm hover:shadow-md hover:border-sky-300 active:scale-95 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-2.5 min-h-[44px] px-4 py-2 rounded-full bg-gradient-to-b from-white via-sky-50/80 to-blue-100/90 dark:from-slate-800 dark:via-slate-800 dark:to-sky-950/80 border border-sky-300/80 dark:border-sky-500/40 text-[#0a192f] dark:text-white font-extrabold text-xs sm:text-sm tracking-tight shadow-md shadow-sky-500/10 hover:shadow-lg hover:shadow-sky-500/20 hover:border-sky-400 active:scale-95 transition-all cursor-pointer select-none"
             aria-label="Install LOXER via App Store"
           >
             <AppStoreIcon />
-            <span className="tracking-tight">App Store</span>
+            <span>App Store</span>
           </button>
         </div>
 
