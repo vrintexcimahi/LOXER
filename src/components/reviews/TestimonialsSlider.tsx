@@ -2,20 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { allReviews, arrangeReviewsForSlider, type ReviewItem } from '../../lib/reviews';
 
-function getCardsPerView(width: number) {
-  if (width < 560) return 1;
-  if (width < 960) return 2;
-  return 3;
-}
+const CARDS_PER_VIEW = 2;
 
 function ReviewCard({ item }: { item: ReviewItem }) {
   return (
     <article
       data-review-card="true"
-      className="h-full min-w-0 min-h-[210px] rounded-xl sm:rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-sky-700/85 to-cyan-500/85 p-2.5 sm:p-4 md:p-6 shadow-md shadow-sky-900/25 backdrop-blur-sm flex flex-col justify-between"
+      className="h-full min-w-0 min-h-[170px] sm:min-h-[210px] rounded-xl sm:rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-sky-700/85 to-cyan-500/85 p-2.5 sm:p-4 md:p-5 shadow-md shadow-sky-900/25 backdrop-blur-sm flex flex-col justify-between"
     >
       <div>
-        <div className="mb-1.5 sm:mb-2 md:mb-3 flex items-center gap-0.5 sm:gap-1">
+        <div className="mb-1 sm:mb-2 flex items-center gap-0.5">
           {Array.from({ length: item.rating }).map((_, index) => (
             <Star
               key={`${item.id}-star-${index}`}
@@ -24,12 +20,12 @@ function ReviewCard({ item }: { item: ReviewItem }) {
           ))}
         </div>
 
-        <p className="text-sm leading-relaxed text-white/95 break-words">
+        <p className="text-xs sm:text-sm leading-relaxed text-white/95 line-clamp-3 sm:line-clamp-4 break-words">
           "{item.text}"
         </p>
       </div>
 
-      <div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-3 pt-1.5 sm:pt-2 border-t border-white/15">
+      <div className="mt-2 flex items-center gap-2 pt-2 border-t border-white/15">
         <img
           src={item.avatarPath}
           alt={item.name}
@@ -37,13 +33,13 @@ function ReviewCard({ item }: { item: ReviewItem }) {
           decoding="async"
           width="40"
           height="40"
-          className="h-6 w-6 sm:h-8 sm:w-8 md:h-11 md:w-11 flex-shrink-0 rounded-full ring-1.5 ring-white/70 shadow-sm object-cover object-center"
+          className="h-7 w-7 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0 rounded-full ring-1.5 ring-white/70 shadow-sm object-cover object-center"
         />
         <div className="min-w-0 flex-1">
-          <p className="break-words text-[11px] sm:text-xs md:text-sm font-semibold text-white leading-tight">
+          <p className="truncate text-[11px] sm:text-xs md:text-sm font-semibold text-white leading-tight">
             {item.name}
           </p>
-          <p className="break-words text-[11px] sm:text-[11px] md:text-xs text-cyan-100/90 leading-tight">
+          <p className="truncate text-[10px] sm:text-[11px] md:text-xs text-cyan-100/90 leading-tight">
             {item.company}
           </p>
         </div>
@@ -54,7 +50,7 @@ function ReviewCard({ item }: { item: ReviewItem }) {
 
 export default function TestimonialsSlider() {
   const reviews = useMemo(() => arrangeReviewsForSlider(allReviews), []);
-  const [cardsPerView, setCardsPerView] = useState(() => getCardsPerView(typeof window !== 'undefined' ? window.innerWidth : 1200));
+  const [cardsPerView, setCardsPerView] = useState(CARDS_PER_VIEW);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stepWidth, setStepWidth] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -63,15 +59,15 @@ export default function TestimonialsSlider() {
   const maxIndex = Math.max(0, reviews.length - cardsPerView);
   const visibleStart = reviews.length === 0 ? 0 : currentIndex + 1;
   const visibleEnd = reviews.length === 0 ? 0 : Math.min(currentIndex + cardsPerView, reviews.length);
-  const gapPx = cardsPerView === 2 ? 8 : 16;
+  const gapPx = 10;
 
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     const measure = () => {
       const width = viewport.clientWidth;
-      const count = getCardsPerView(width);
-      const gap = count === 2 ? 8 : 16;
+      const count = CARDS_PER_VIEW;
+      const gap = 10;
       setCardsPerView(count);
       setStepWidth((width - (count - 1) * gap) / count + gap);
     };
@@ -86,11 +82,11 @@ export default function TestimonialsSlider() {
   }, [maxIndex]);
 
   useEffect(() => {
-    if (isPaused || cardsPerView === 1 || window.matchMedia('(prefers-reduced-motion: reduce)').matches || reviews.length <= cardsPerView) return;
+    if (isPaused || window.matchMedia('(prefers-reduced-motion: reduce)').matches || reviews.length <= cardsPerView) return;
 
     const timer = window.setInterval(() => {
       setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
-    }, 2400);
+    }, 3000);
 
     return () => window.clearInterval(timer);
   }, [cardsPerView, isPaused, maxIndex, reviews.length]);
