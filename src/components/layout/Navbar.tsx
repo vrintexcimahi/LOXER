@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import AppLogo from '../ui/AppLogo';
+import ThemeToggle from '../ui/ThemeToggle';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { UserRole } from '../../lib/types';
@@ -129,13 +130,21 @@ export default function Navbar({ onLogin: _onLogin }: NavbarProps) {
   return (
     <header className="loxer-pwa-header w-full bg-transparent border-0 pt-safe pb-1 px-4 select-none">
       <div className="w-full max-w-xl mx-auto flex flex-col items-center">
-        <div className="w-full flex items-center justify-center py-1">
+        <div className="w-full flex items-center justify-between py-1">
+          <div className="w-9" aria-hidden="true" />
+
+          {/* Centered Brand Logo with Admin Trigger */}
           <div
             onClick={handleTriggerClick}
             className="flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
             title={isUnlocked ? 'Mode Administrator Aktif' : undefined}
           >
             <AppLogo variant="navbar" height={34} textClassName="text-2xl font-black tracking-tight text-slate-900 dark:text-white" />
+          </div>
+
+          {/* Top-Right Theme Toggle (Icon Only) */}
+          <div className="w-9 flex items-center justify-end">
+            <ThemeToggle compact className="!rounded-full !h-8 !w-8 shadow-none border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm" />
           </div>
         </div>
 

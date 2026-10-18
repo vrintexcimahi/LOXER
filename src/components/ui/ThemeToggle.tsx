@@ -4,9 +4,10 @@ import { useTheme } from '../../contexts/useTheme';
 interface ThemeToggleProps {
   compact?: boolean;
   variant?: 'light' | 'dark';
+  className?: string;
 }
 
-export default function ThemeToggle({ compact = false, variant = 'light' }: ThemeToggleProps) {
+export default function ThemeToggle({ compact = false, variant = 'light', className = '' }: ThemeToggleProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -25,7 +26,7 @@ export default function ThemeToggle({ compact = false, variant = 'light' }: Them
       title={isDark ? 'Aktifkan light mode' : 'Aktifkan dark mode'}
       className={`loxer-theme-toggle inline-flex items-center justify-center rounded-xl border transition-all ${
         compact ? 'h-9 w-9 sm:h-10 sm:w-10' : ''
-      } ${variantClass}`}
+      } ${variantClass} ${className}`}
     >
       {isDark ? <SunMedium className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       {!compact ? <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span> : null}
