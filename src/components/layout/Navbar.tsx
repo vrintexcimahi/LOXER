@@ -139,29 +139,25 @@ export default function Navbar({ onLogin: _onLogin }: NavbarProps) {
           </div>
         </div>
 
-        <div className="w-full max-w-xs sm:max-w-sm grid grid-cols-2 gap-2.5 mt-1">
+        <div className="welcome-store-row">
           <button
             type="button"
             onClick={() => triggerInstall('playstore')}
-            className="flex items-center justify-center gap-2 min-h-[42px] px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white border border-sky-300/40 font-extrabold text-xs sm:text-sm tracking-tight shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/40 hover:brightness-110 active:scale-95 transition-all cursor-pointer select-none"
+            className="store-install-btn"
             aria-label="Install LOXER via Play Store"
           >
-            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm p-0.5">
-              <GooglePlayIcon />
-            </div>
-            <span className="drop-shadow-sm">Play Store</span>
+            <GooglePlayIcon />
+            <span>Play Store</span>
           </button>
 
           <button
             type="button"
             onClick={() => triggerInstall('appstore')}
-            className="flex items-center justify-center gap-2 min-h-[42px] px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white border border-sky-300/40 font-extrabold text-xs sm:text-sm tracking-tight shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/40 hover:brightness-110 active:scale-95 transition-all cursor-pointer select-none"
+            className="store-install-btn"
             aria-label="Install LOXER via App Store"
           >
-            <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm p-0.5">
-              <AppStoreIcon />
-            </div>
-            <span className="drop-shadow-sm">App Store</span>
+            <AppStoreIcon />
+            <span>App Store</span>
           </button>
         </div>
 

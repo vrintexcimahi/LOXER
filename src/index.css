@@ -606,5 +606,66 @@ table tbody tr {
   transition: background-color 150ms ease;
 }
 
+/* ==============================================================================
+   PWA Store Install Buttons (Exact Gojasa Design System)
+   ============================================================================== */
+.welcome-store-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  max-width: 440px;
+  margin: 6px auto 8px;
+}
+.store-install-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #e0f2fe 100%);
+  border: 1px solid rgba(0, 130, 252, 0.32);
+  color: #0b2b61;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 130, 252, 0.12), inset 0 1px 0 #ffffff;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.dark .store-install-btn {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #f8fafc;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.store-install-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 130, 252, 0.22);
+  border-color: rgba(0, 130, 252, 0.55);
+  background: linear-gradient(180deg, #ffffff 0%, #bae6fd 100%);
+}
+.dark .store-install-btn:hover {
+  background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+  border-color: rgba(56, 189, 248, 0.6);
+}
+.store-install-btn:active {
+  transform: translateY(1px);
+  filter: brightness(0.96);
+}
+.store-install-btn span {
+  color: #0b2b61;
+  letter-spacing: -0.2px;
+  font-weight: 800;
+  font-size: 13px;
+}
+.dark .store-install-btn span {
+  color: #f8fafc;
+}
+
+
 
 
