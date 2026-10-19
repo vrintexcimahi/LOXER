@@ -1,8 +1,8 @@
 // ==============================================================================
-// LOXER Progressive Web App Service Worker (v2.1.0)
+// LOXER Progressive Web App Service Worker (v2.2.0)
 // ==============================================================================
 
-const CACHE_NAME = 'loxer-pwa-v2.1.0';
+const CACHE_NAME = 'loxer-pwa-v2.2.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

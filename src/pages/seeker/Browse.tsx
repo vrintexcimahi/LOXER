@@ -88,7 +88,7 @@ export default function Browse() {
       window.location.search.includes('role=freelancer'));
 
   return (
-    <div className="loxer-workspace min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-sky-500 selection:text-black pb-20 md:pb-0">
+    <div className="loxer-workspace min-h-screen bg-slate-50 dark:bg-[#071220] text-slate-800 dark:text-slate-100 flex flex-col selection:bg-sky-500 selection:text-black pb-20 md:pb-0 transition-colors duration-200">
       {/* Public Navbar */}
       <Navbar
         onLogin={() => setAuthMode('login')}

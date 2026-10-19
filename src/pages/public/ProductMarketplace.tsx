@@ -312,7 +312,7 @@ export default function ProductMarketplace() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black pb-24 md:pb-0">
+    <div className="loxer-workspace min-h-screen bg-slate-50 dark:bg-[#071220] text-slate-800 dark:text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black pb-24 md:pb-0 transition-colors duration-200">
       {/* Public Navbar */}
       <Navbar
         onLogin={() => setAuthMode('login')}

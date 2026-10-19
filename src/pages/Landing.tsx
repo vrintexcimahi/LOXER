@@ -128,41 +128,41 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
       </div>
 
       {/* ─── STATS STRIP ──────────────────────────────────── */}
-      <section className="bg-slate-900/90 dark:bg-slate-950/90 border-y border-cyan-500/15 py-6 sm:py-8 backdrop-blur-md relative z-10">
+      <section className="bg-white/80 dark:bg-slate-950/90 border-y border-slate-200 dark:border-cyan-500/15 py-6 sm:py-8 backdrop-blur-md relative z-10 transition-colors">
         <div className="max-w-[min(100%,1440px)] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8">
           {stats.map((s, i) => (
-            <div key={i} className={`text-center ${i < 3 ? 'md:border-r md:border-cyan-500/15' : ''}`}>
+            <div key={i} className={`text-center ${i < 3 ? 'md:border-r border-slate-200 dark:border-cyan-500/15' : ''}`}>
               <CountUp target={s.value} />
-              <p className="text-slate-400 text-xs sm:text-sm mt-1 font-medium">{s.label}</p>
+              <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mt-1 font-medium">{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ─── FOR SEEKERS ──────────────────────────────────── */}
-      <section id="features" className="bg-slate-950 py-10 sm:py-16 px-3 sm:px-4 relative">
+      <section id="features" className="bg-slate-50/60 dark:bg-slate-950 py-10 sm:py-16 px-3 sm:px-4 relative transition-colors">
         <div className="max-w-[min(100%,1600px)] mx-auto px-1 sm:px-4 lg:px-8">
           <div className="text-center mb-8 sm:mb-12">
             <span className="inline-block gradient-badge text-slate-950 text-xs font-bold rounded-full px-4 py-1 mb-3 shadow-md shadow-cyan-500/20">
               Untuk Pencari Kerja
             </span>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-2 sm:mb-3">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2 sm:mb-3">
               Lamar Lebih Cepat, <span className="text-gradient">Raih Lebih Banyak</span>
             </h2>
-            <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
               Profil lengkap satu kali, lamar ke ribuan lowongan impian tanpa repot unggah CV berulang.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
             {seekerFeatures.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="group relative bg-slate-900/80 rounded-2xl border border-slate-800 hover:border-cyan-400/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-cyan-500/15 overflow-hidden flex flex-col justify-between">
+              <div key={title} className="group relative bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-cyan-400/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-cyan-500/15 overflow-hidden flex flex-col justify-between">
                 <div className="h-1 bg-gradient-to-r from-cyan-400 to-sky-500 absolute top-0 inset-x-0 opacity-70 group-hover:opacity-100 transition-opacity" />
                 <div>
                   <div className="loxer-feature-icon w-12 h-12 gradient-cta rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/30 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                     <Icon className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-white font-bold text-base sm:text-lg mb-2">{title}</h3>
-                  <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">{desc}</p>
+                  <h3 className="text-slate-900 dark:text-white font-bold text-base sm:text-lg mb-2">{title}</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed">{desc}</p>
                 </div>
               </div>
             ))}
@@ -177,16 +177,16 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
       </section>
 
       {/* ─── FOR EMPLOYERS ────────────────────────────────── */}
-      <section id="employer-section" className="py-10 sm:py-16 px-3 sm:px-4 bg-slate-900/60 border-t border-slate-800">
+      <section id="employer-section" className="py-10 sm:py-16 px-3 sm:px-4 bg-white/70 dark:bg-slate-900/60 border-t border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-[min(100%,1600px)] mx-auto px-1 sm:px-4 lg:px-8">
           <div className="text-center mb-8 sm:mb-12">
             <span className="inline-block gradient-badge text-slate-950 text-xs font-bold rounded-full px-4 py-1 mb-3 shadow-md shadow-sky-500/20">
               Untuk Perekrut &amp; Perusahaan
             </span>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-2 sm:mb-3">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2 sm:mb-3">
               Rekrut Lebih Cerdas, <span className="text-gradient">Lebih Efisien</span>
             </h2>
-            <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
               Dari posting lowongan hingga jadwal interview — kelola seluruh alur rekrutmen dalam satu dashboard terpusat.
             </p>
           </div>
@@ -195,15 +195,15 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
             {employerFeatures.map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
-                className="group relative bg-slate-900/80 rounded-2xl border border-slate-800 hover:border-sky-400/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-sky-500/15 overflow-hidden flex flex-col justify-between"
+                className="group relative bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-sky-400/50 p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-sky-500/15 overflow-hidden flex flex-col justify-between"
               >
                 <div className="h-1 bg-gradient-to-r from-sky-400 to-cyan-500 absolute top-0 inset-x-0 opacity-70 group-hover:opacity-100 transition-opacity" />
                 <div>
                   <div className="loxer-feature-icon w-12 h-12 gradient-card rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-sky-500/30 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
                     <Icon className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-white font-bold text-base sm:text-lg mb-2">{title}</h3>
-                  <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">{desc}</p>
+                  <h3 className="text-slate-900 dark:text-white font-bold text-base sm:text-lg mb-2">{title}</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed">{desc}</p>
                 </div>
               </div>
             ))}
@@ -222,16 +222,16 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
       </section>
 
       {/* ─── HOW IT WORKS ─────────────────────────────────── */}
-      <section id="how-it-works" className="bg-slate-950 py-10 sm:py-16 px-3 sm:px-4 border-t border-slate-800">
+      <section id="how-it-works" className="bg-slate-50/60 dark:bg-slate-950 py-10 sm:py-16 px-3 sm:px-4 border-t border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-[min(100%,1440px)] mx-auto px-1 sm:px-4 lg:px-8">
           <div className="text-center mb-8 sm:mb-12">
             <span className="inline-block gradient-badge text-slate-950 text-xs font-bold rounded-full px-4 py-1 mb-3">
               Cara Kerja
             </span>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-2 sm:mb-3">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2 sm:mb-3">
               Mulai dalam <span className="text-gradient">4 Langkah Mudah</span>
             </h2>
-            <p className="text-slate-400 text-xs sm:text-sm max-w-lg mx-auto">
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm max-w-lg mx-auto">
               Proses cepat tanpa birokrasi berbelit, langsung terhubung dengan hiring manager.
             </p>
           </div>
@@ -244,7 +244,7 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
               {steps.map(({ icon: Icon, title, desc, color }, i) => (
                 <div
                   key={i}
-                  className="text-center relative p-5 rounded-2xl bg-slate-900/50 border border-slate-800/80 hover:border-cyan-400/40 transition-all duration-300 hover:-translate-y-1.5"
+                  className="text-center relative p-5 rounded-2xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 hover:border-cyan-400/40 transition-all duration-300 hover:-translate-y-1.5 shadow-sm dark:shadow-none"
                 >
                   <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center mx-auto mb-3.5 shadow-lg shadow-sky-500/25 relative z-10 group`}>
                     <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
@@ -252,8 +252,8 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
                       {i + 1}
                     </div>
                   </div>
-                  <h3 className="text-white font-bold text-sm sm:text-base mb-1.5">{title}</h3>
-                  <p className="text-slate-400 text-xs leading-relaxed">{desc}</p>
+                  <h3 className="text-slate-900 dark:text-white font-bold text-sm sm:text-base mb-1.5">{title}</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{desc}</p>
                 </div>
               ))}
             </div>
@@ -264,16 +264,16 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
       <TestimonialsSlider />
 
       {/* ─── TRUSTED COMPANIES ────────────────────────────── */}
-      <section className="bg-slate-900/80 py-8 sm:py-12 px-3 sm:px-4 border-y border-slate-800">
+      <section className="bg-white/90 dark:bg-slate-900/80 py-8 sm:py-12 px-3 sm:px-4 border-y border-slate-200 dark:border-slate-800 transition-colors">
         <div className="max-w-[min(100%,1440px)] mx-auto text-center px-2">
-          <p className="text-slate-400 text-xs sm:text-sm font-semibold uppercase tracking-widest mb-6">
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-semibold uppercase tracking-widest mb-6">
             Dipercaya Perusahaan &amp; Startup Terkemuka
           </p>
           <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 opacity-75">
             {['Tokopedia', 'Gojek', 'Traveloka', 'Bukalapak', 'OVO', 'Shopee', 'Grab', 'Dana'].map((c) => (
               <div key={c} className="flex items-center gap-2 hover:opacity-100 transition-opacity">
-                <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                <span className="text-slate-300 font-bold text-xs sm:text-sm">{c}</span>
+                <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500 dark:text-cyan-400" />
+                <span className="text-slate-700 dark:text-slate-300 font-bold text-xs sm:text-sm">{c}</span>
               </div>
             ))}
           </div>

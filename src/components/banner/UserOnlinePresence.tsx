@@ -123,7 +123,7 @@ export default function UserOnlinePresence({ className = '' }: UserOnlinePresenc
         <a
           key={group.key}
           href={group.href}
-          className="animate-status-pill group relative flex items-center justify-between gap-1.5 sm:gap-2.5 rounded-xl sm:rounded-2xl border border-cyan-400/25 bg-slate-900/85 hover:bg-slate-900/95 hover:border-cyan-400/50 px-2.5 py-2 sm:px-4 sm:py-2.5 text-slate-100 shadow-lg shadow-cyan-950/40 backdrop-blur-md transition-all duration-200 min-w-0 w-full overflow-hidden active:scale-[0.98] whitespace-nowrap"
+          className="animate-status-pill group relative flex items-center justify-between gap-1.5 sm:gap-2.5 rounded-xl sm:rounded-2xl border border-sky-200/90 dark:border-cyan-400/25 bg-white/95 dark:bg-slate-900/85 hover:bg-white dark:hover:bg-slate-900/95 hover:border-sky-400/60 dark:hover:border-cyan-400/50 px-2.5 py-2 sm:px-4 sm:py-2.5 text-slate-800 dark:text-slate-100 shadow-sm dark:shadow-lg dark:shadow-cyan-950/40 backdrop-blur-md transition-all duration-200 min-w-0 w-full overflow-hidden active:scale-[0.98] whitespace-nowrap"
           title={`${group.label} (${group.description}) - ${group.online} online. Klik untuk membuka.`}
         >
           {/* Subtle gradient hover highlight */}
@@ -135,23 +135,23 @@ export default function UserOnlinePresence({ className = '' }: UserOnlinePresenc
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.85)]" />
             </span>
-            <span className="font-bold text-white text-[11px] sm:text-xs md:text-sm truncate">
+            <span className="font-bold text-slate-900 dark:text-white text-[11px] sm:text-xs md:text-sm truncate">
               {group.label}
-              <span className="hidden sm:inline lg:hidden text-slate-300 font-normal text-[10px] sm:text-xs ml-1">
+              <span className="hidden sm:inline lg:hidden text-slate-500 dark:text-slate-300 font-normal text-[10px] sm:text-xs ml-1">
                 ({group.shortDescription || group.description})
               </span>
-              <span className="hidden lg:inline text-slate-300 font-normal text-[10px] sm:text-xs ml-1">
+              <span className="hidden lg:inline text-slate-500 dark:text-slate-300 font-normal text-[10px] sm:text-xs ml-1">
                 ({group.description})
               </span>
             </span>
           </div>
 
           {/* Right: Online Count Badge (1 baris bersamaan) */}
-          <div className="flex items-center gap-1 text-[10px] sm:text-xs flex-shrink-0 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
-            <span className="font-bold text-cyan-300 group-hover:text-cyan-100 transition-colors">
+          <div className="flex items-center gap-1 text-[10px] sm:text-xs flex-shrink-0 bg-sky-50 dark:bg-cyan-500/10 px-2 py-0.5 rounded-full border border-sky-200/80 dark:border-cyan-400/20">
+            <span className="font-bold text-sky-700 dark:text-cyan-300 group-hover:text-sky-900 dark:group-hover:text-cyan-100 transition-colors">
               {group.online}
             </span>
-            <span className="text-slate-400 text-[9px] sm:text-[11px] hidden sm:inline">online</span>
+            <span className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[11px] hidden sm:inline">online</span>
           </div>
         </a>
       ))}

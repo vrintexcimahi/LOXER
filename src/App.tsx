@@ -345,7 +345,7 @@ VITE_SUPABASE_ANON_KEY=...`}
           {page}
         </Suspense>
       ) : (
-        <div className="bg-sky-50 min-h-screen pb-20 md:pb-0">
+        <div className="bg-slate-50 dark:bg-[#071220] text-slate-800 dark:text-slate-100 min-h-screen pb-20 md:pb-0 transition-colors duration-200">
           <Navbar
             onLogin={() => setAuthMode('login')}
             onRegister={handleOpenRegister}
