@@ -16,6 +16,11 @@ import {
   Wrench,
   Download,
   Sliders,
+  BarChart3,
+  ShieldCheck,
+  Radio,
+  Shield,
+  Flag,
 } from 'lucide-react';
 import AppLogo from '../../components/ui/AppLogo';
 import ThemeToggle from '../../components/ui/ThemeToggle';
@@ -47,13 +52,25 @@ function classNames(...values: Array<string | false | null | undefined>) {
 }
 
 const CORE_ITEMS: NavItem[] = [
-  { href: '/admin/partners', label: 'Child Panel Mitra', description: 'Cabang digital, pemilik & aktivasi mitra', icon: Building2 },
   { href: '/admin/dashboard', label: 'Dashboard Admin', description: 'Pantau statistik dan kesehatan platform', icon: Home },
   { href: '/admin/users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', icon: Users },
   { href: '/admin/applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', icon: ListChecks },
   { href: '/admin/companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', icon: Building2 },
   { href: '/admin/jasa', label: 'Manajemen Jasa', description: 'Kelola penyedia & katalog iklan layanan', icon: Wrench },
+  { href: '/admin/partners', label: 'Child Panel Mitra', description: 'Cabang digital, pemilik & aktivasi mitra', icon: Building2 },
+];
+
+const CONTENT_BRAND_ITEMS: NavItem[] = [
+  { href: '/admin/settings', label: 'Brand & Desain Studio', description: 'Identitas brand, tema, aset & logo', icon: Sliders },
+  { href: '/admin/moderation', label: 'Moderasi Konten', description: 'Verifikasi loker, smart CV & jasa', icon: ShieldCheck },
+  { href: '/admin/broadcast', label: 'Broadcast Sistem', description: 'Pengumuman, push & banner alert', icon: Radio },
+];
+
+const PLATFORM_SECURITY_ITEMS: NavItem[] = [
+  { href: '/admin/analytics', label: 'Analitik 360°', description: 'Pertumbuhan, funnel & engagement data', icon: BarChart3 },
+  { href: '/admin/flags', label: 'Feature Flags', description: 'Remote config, kill switch & rilis modul', icon: Flag },
   { href: '/admin/integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', icon: Link2 },
+  { href: '/admin/security', label: 'Pusat Keamanan', description: 'Audit RBAC, proteksi brute-force & sesi', icon: Shield },
 ];
 
 const MOBILE_NAV_ITEMS: { href: string; label: string; icon: typeof Home }[] = [
@@ -159,12 +176,6 @@ export default function GodModeLayout({ title, description, actions, children }:
         description: 'Dual-view testing workbench',
         icon: Smartphone,
       },
-      {
-        href: '/admin/settings',
-        label: 'Pengaturan Sistem',
-        description: 'Warna manual, aset media & kontrol sistem',
-        icon: Sliders,
-      },
     ],
     [unresolvedErrorCount]
   );
@@ -172,7 +183,7 @@ export default function GodModeLayout({ title, description, actions, children }:
   const isAdmin = Boolean(user && (userMeta?.role === 'admin' || isDefaultAdminAccount));
   const assistantGuides = useMemo(
     () =>
-      [...CORE_ITEMS, ...systemToolsItems].flatMap((item) => {
+      [...CORE_ITEMS, ...CONTENT_BRAND_ITEMS, ...PLATFORM_SECURITY_ITEMS, ...systemToolsItems].flatMap((item) => {
         const guide = adminGuideContent[item.href];
         if (!guide) return [];
 
@@ -234,11 +245,13 @@ export default function GodModeLayout({ title, description, actions, children }:
 
           <div className="dashboard-sidebar-scroll min-h-0 flex-1 space-y-6 overflow-y-auto px-3 py-4">
             {!isCollapsed && <SidebarSection title="Core Admin" items={CORE_ITEMS} pathname={pathname} closeMobile={closeMobile} />}
+            {!isCollapsed && <SidebarSection title="Konten & Brand" items={CONTENT_BRAND_ITEMS} pathname={pathname} closeMobile={closeMobile} />}
+            {!isCollapsed && <SidebarSection title="Platform & Keamanan" items={PLATFORM_SECURITY_ITEMS} pathname={pathname} closeMobile={closeMobile} />}
             {!isCollapsed && <SidebarSection title="System Tools" items={systemToolsItems} pathname={pathname} closeMobile={closeMobile} />}
 
             {isCollapsed && (
               <div className="space-y-2">
-                {[...CORE_ITEMS, ...systemToolsItems].map((item) => {
+                {[...CORE_ITEMS, ...CONTENT_BRAND_ITEMS, ...PLATFORM_SECURITY_ITEMS, ...systemToolsItems].map((item) => {
                   const active = pathname === item.href;
                   const Icon = item.icon;
                   return (
