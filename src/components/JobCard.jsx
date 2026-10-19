@@ -198,11 +198,11 @@ export default function JobCard({ job, onSelectJob }) {
   return (
     <div
       onClick={isInternal && onSelectJob ? handleCardClick : undefined}
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 border-white/10 bg-slate-900/80 hover:border-sky-500/40 hover:bg-slate-900 shadow-md sm:shadow-lg shadow-black/40 ${isInternal && onSelectJob ? 'cursor-pointer' : ''}`}
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-900/80 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10 shadow-md ${isInternal && onSelectJob ? 'cursor-pointer' : ''}`}
     >
       {/* Top Banner — Job Logo & Info */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-sky-950/40 p-2 sm:p-4 pb-2 sm:pb-3">
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent pointer-events-none" />
+      <div className="relative overflow-hidden bg-gradient-to-br from-sky-50 via-slate-100 to-blue-50/60 dark:from-slate-800 dark:via-slate-900 dark:to-sky-950/40 p-2 sm:p-4 pb-2 sm:pb-3 border-b border-slate-200/80 dark:border-white/5">
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-200/30 dark:from-slate-950 via-transparent to-transparent pointer-events-none" />
 
         {/* Provider Badge - top left */}
         <div className="relative z-10 flex items-start justify-between gap-1 mb-2 sm:mb-3">
@@ -215,7 +215,7 @@ export default function JobCard({ job, onSelectJob }) {
             </span>
           </span>
           {isInternal && (
-            <span className="flex items-center gap-0.5 rounded border border-amber-500/40 bg-amber-500/20 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold text-amber-300 backdrop-blur-md shrink-0">
+            <span className="flex items-center gap-0.5 rounded border border-amber-500/40 bg-amber-500/20 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold text-amber-700 dark:text-amber-300 backdrop-blur-md shrink-0">
               ⭐<span className="hidden sm:inline"> Prioritas</span>
             </span>
           )}
@@ -223,11 +223,11 @@ export default function JobCard({ job, onSelectJob }) {
 
         {/* Company Logo + Name */}
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border border-white/10 bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
             {logoUrl ? (
               <img src={logoUrl} alt={companyName} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-sky-300 font-black text-sm sm:text-xl">{initial}</span>
+              <span className="text-sky-600 dark:text-sky-300 font-black text-sm sm:text-xl">{initial}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -236,35 +236,41 @@ export default function JobCard({ job, onSelectJob }) {
               target={isInternal ? '_self' : '_blank'}
               rel={isInternal ? undefined : 'noreferrer'}
               onClick={handleCardClick}
-              className="text-xs sm:text-sm font-extrabold text-white tracking-tight sm:tracking-wide hover:text-sky-400 transition-colors line-clamp-2 leading-tight"
+              className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight sm:tracking-wide hover:text-sky-600 dark:hover:text-sky-400 transition-colors line-clamp-2 leading-tight"
             >
               {job.title}
             </a>
-            <p className="flex items-center gap-1 mt-0.5 sm:mt-1 text-[9px] sm:text-[11px] text-slate-400 truncate">
-              <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-sky-400 shrink-0" />
-              <span className="truncate">{companyName}</span>
+            <p className="flex items-center gap-1 mt-0.5 sm:mt-1 text-[9px] sm:text-[11px] text-slate-600 dark:text-slate-400 truncate">
+              <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-sky-600 dark:text-sky-400 shrink-0" />
+              <span className="truncate font-semibold">{companyName}</span>
+              {(isInternal || job.is_verified || job.company_verified) && (
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300 text-[8px] font-bold shrink-0 ml-0.5" title="Perusahaan Terverifikasi Resmi">
+                  <CheckCircle2 className="w-2.5 h-2.5 text-sky-600 dark:text-sky-400" />
+                  <span className="hidden sm:inline">Terverifikasi</span>
+                </span>
+              )}
             </p>
           </div>
           {/* External link icon (Desktop only) */}
-          <div className="hidden sm:flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900/60 border border-white/20 text-slate-300">
-            {isInternal ? <ShieldCheck className="h-3 w-3 text-sky-400" /> : <Pin className="h-3 w-3" />}
+          <div className="hidden sm:flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-white/20 text-slate-500 dark:text-slate-300">
+            {isInternal ? <ShieldCheck className="h-3 w-3 text-sky-600 dark:text-sky-400" /> : <Pin className="h-3 w-3" />}
           </div>
         </div>
 
         {/* Location & Date row at bottom */}
         <div className="relative z-10 mt-2 sm:mt-3 flex items-center justify-between gap-1">
-          <span className="text-[8px] sm:text-[10px] font-semibold text-sky-200/90 drop-shadow flex items-center gap-0.5 truncate">
-            <MapPin className="h-2.5 w-2.5 text-sky-400 shrink-0" />
+          <span className="text-[8px] sm:text-[10px] font-semibold text-slate-700 dark:text-sky-200/90 drop-shadow-sm flex items-center gap-0.5 truncate">
+            <MapPin className="h-2.5 w-2.5 text-sky-600 dark:text-sky-400 shrink-0" />
             <span className="truncate">{job.locations || 'Indonesia'}</span>
           </span>
           <div className="flex items-center gap-1 shrink-0">
             {isRemote && (
-              <span className="rounded border border-emerald-500/40 bg-emerald-500/20 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold text-emerald-300 backdrop-blur-md">
+              <span className="rounded border border-emerald-500/40 bg-emerald-500/20 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold text-emerald-700 dark:text-emerald-300 backdrop-blur-md">
                 Remote
               </span>
             )}
-            <span className="hidden sm:flex text-[10px] font-mono text-slate-300 drop-shadow items-center gap-1">
-              <Clock3 className="h-2.5 w-2.5 text-amber-400" />
+            <span className="hidden sm:flex text-[10px] font-mono text-slate-500 dark:text-slate-300 items-center gap-1">
+              <Clock3 className="h-2.5 w-2.5 text-amber-500 dark:text-amber-400" />
               {formatPublishedDate(job.date)}
             </span>
           </div>
@@ -274,21 +280,21 @@ export default function JobCard({ job, onSelectJob }) {
       {/* Card Body */}
       <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3">
         {/* Salary */}
-        <div className="flex items-baseline justify-between rounded-lg bg-slate-950/60 border border-white/5 px-2 py-1.5 sm:px-2.5 sm:py-1.5">
-          <span className="text-[8px] sm:text-[10px] text-slate-400">Gaji:</span>
-          <span className="text-[9px] sm:text-xs font-bold text-emerald-300 flex items-center gap-1 truncate">
-            <Coins className="h-3 w-3 text-emerald-400 shrink-0" />
+        <div className="flex items-baseline justify-between rounded-lg bg-slate-100/80 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 px-2 py-1.5 sm:px-2.5 sm:py-1.5">
+          <span className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-medium">Gaji:</span>
+          <span className="text-[9px] sm:text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1 truncate">
+            <Coins className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">{formatSalary(job)}</span>
           </span>
         </div>
 
         {/* Description snippet (Desktop only) */}
-        <p className="hidden sm:block text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+        <p className="hidden sm:block text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
           {shortSummary || 'Deskripsi lowongan pekerjaan tidak tersedia.'}
         </p>
 
         {/* Mobile Action Button (1 column) */}
-        <div className="sm:hidden pt-1.5 border-t border-white/5">
+        <div className="sm:hidden pt-1.5 border-t border-slate-100 dark:border-white/5">
           <button
             onClick={isInternal && onSelectJob ? handleCardClick : handleExternalApply}
             className="w-full inline-flex items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-400 px-2 py-1.5 text-[10px] font-bold text-slate-950 shadow-sm hover:from-sky-400 hover:to-cyan-300 active:scale-[0.98] cursor-pointer"

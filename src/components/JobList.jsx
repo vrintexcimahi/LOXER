@@ -215,17 +215,17 @@ export default function JobList({
               onChange={(e) => setKeywords(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
               placeholder="Cari posisi (Frontend, Barista, Manager...), keahlian, atau perusahaan..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-white/10 bg-slate-900/90 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-sky-400 shadow-inner"
+              className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/90 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-500 shadow-sm"
             />
           </div>
 
-          <div className="loxer-job-filters">
+          <div className="loxer-job-filters flex items-center gap-2">
             {/* Contract Type */}
             <select
               aria-label="Jenis kontrak"
               value={contractType}
               onChange={(e) => setContractType(e.target.value)}
-              className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-sky-400"
+              className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:border-sky-500 shadow-sm"
             >
               {CONTRACT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -239,13 +239,13 @@ export default function JobList({
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Kota / Remote"
-              className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 w-28 sm:w-36"
+              className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-500 w-28 sm:w-36 shadow-sm"
             />
 
             <button
               onClick={handleSubmit}
               title="Cari lowongan"
-              className="p-2.5 rounded-2xl bg-sky-500 text-white hover:bg-sky-400 transition-colors shadow-md shadow-sky-500/20"
+              className="p-2.5 rounded-2xl bg-sky-500 text-white hover:bg-sky-400 transition-colors shadow-md shadow-sky-500/20 cursor-pointer"
             >
               <Search className="w-4 h-4" />
             </button>
@@ -253,7 +253,7 @@ export default function JobList({
             <button
               onClick={() => void loadJobs(page)}
               title="Segarkan data"
-              className="p-2.5 rounded-2xl border border-white/10 bg-slate-900 text-slate-400 hover:text-white transition-colors"
+              className="p-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shadow-sm"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -262,7 +262,7 @@ export default function JobList({
 
         {/* Quick Multi-Location Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-          <span className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider pl-1 shrink-0">Area:</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider pl-1 shrink-0">Area:</span>
           {QUICK_LOCATIONS.map((loc) => {
             const active = location === loc.value;
             return (
@@ -277,8 +277,8 @@ export default function JobList({
                 }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                   active
-                    ? 'bg-sky-400 text-slate-950 font-bold shadow-sm shadow-sky-500/25'
-                    : 'bg-slate-900/80 border border-white/5 text-slate-400 hover:text-white hover:border-white/15'
+                    ? 'bg-sky-500 text-white font-bold shadow-sm shadow-sky-500/25'
+                    : 'bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/15'
                 }`}
               >
                 {loc.label}
@@ -364,15 +364,15 @@ export default function JobList({
 
       {/* Empty State */}
       {!loading && type !== 'LOCATIONS' && filteredJobs.length === 0 && !error ? (
-        <div className="text-center py-16 px-4 rounded-3xl border border-dashed border-white/10 bg-slate-900/30">
-          <SearchX className="w-12 h-12 mx-auto text-slate-600 mb-3" />
-          <h3 className="text-base font-bold text-white mb-1">Belum ada lowongan yang cocok</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
+        <div className="text-center py-16 px-4 rounded-3xl border border-dashed border-slate-300 dark:border-white/10 bg-white/60 dark:bg-slate-900/30">
+          <SearchX className="w-12 h-12 mx-auto text-slate-400 dark:text-slate-600 mb-3" />
+          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">Belum ada lowongan yang cocok</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400 max-w-sm mx-auto mb-4">
             Coba kata kunci lain, perluas lokasi, atau ganti pilihan sumber penyedia lowongan.
           </p>
           <button
             onClick={handleReset}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/30"
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-500/10 border border-sky-300 dark:border-sky-500/30"
           >
             Reset Semua Filter
           </button>
@@ -384,20 +384,20 @@ export default function JobList({
         <>
           {/* Results Header */}
           <div className="flex items-center justify-between">
-            <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-sky-400" />
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-sky-500 dark:text-sky-400" />
               Daftar Lowongan ({filteredJobs.length})
               {selectedCategory !== 'Semua' && (
-                <span className="text-xs font-normal text-slate-400">— {selectedCategory}</span>
+                <span className="text-xs font-normal text-slate-500 dark:text-slate-400">— {selectedCategory}</span>
               )}
             </h2>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 {keywords || location
                   ? `${keywords || 'Semua posisi'}${location ? ` | ${location}` : ''}`
                   : 'Semua posisi terbaru'}
               </span>
-              <span className="inline-flex items-center gap-1 text-xs text-slate-500 border border-white/10 rounded-full px-2 py-0.5">
+              <span className="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10 rounded-full px-2 py-0.5 bg-white/80 dark:bg-slate-900/80">
                 <Compass className="h-3 w-3" />
                 Hal {page}
               </span>
@@ -416,17 +416,17 @@ export default function JobList({
           </div>
 
           {/* Pagination */}
-          <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-slate-900/80 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-slate-400">
-              Halaman <span className="font-semibold text-white">{page}</span> dari{' '}
-              <span className="font-semibold text-white">{totalPages}</span>
+          <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Halaman <span className="font-semibold text-slate-900 dark:text-white">{page}</span> dari{' '}
+              <span className="font-semibold text-slate-900 dark:text-white">{totalPages}</span>
             </p>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => handlePageChange(page - 1)}
                 disabled={page <= 1 || loading}
-                className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-sky-400 transition hover:border-sky-400/30 hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-sky-600 dark:text-sky-400 transition hover:border-sky-400/50 hover:text-sky-700 dark:hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Sebelumnya
               </button>
