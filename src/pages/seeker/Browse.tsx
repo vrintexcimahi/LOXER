@@ -12,7 +12,6 @@ import JobList from '../../components/JobList';
 import JobDetailModal from '../../components/jobs/JobDetailModal';
 import AuthModal from '../auth/AuthModal';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
-import HeroBannerSlideshow from '../../components/banner/HeroBannerSlideshow';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { UserRole } from '../../lib/types';
 
@@ -96,22 +95,13 @@ export default function Browse() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-1 sm:pt-2 pb-6 sm:pb-8 space-y-5 sm:space-y-6">
-        {/* Hero Section: Large Slideshow on Top, Compact Text Underneath */}
-        <section className="relative overflow-hidden rounded-3xl border border-sky-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-4 sm:p-6 lg:p-7 shadow-2xl">
+        {/* Compact Header & Actions */}
+        <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-sky-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 p-4 sm:p-5 lg:p-6 shadow-xl">
           <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
           <div className="absolute -left-12 -bottom-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
 
-          {/* 1. Large Slideshow on Top */}
-          <div className="relative z-10 w-full mb-4 sm:mb-5">
-            <HeroBannerSlideshow
-              initialSlide={0}
-              variant="embedded"
-              onRegister={handleOpenRegister}
-            />
-          </div>
-
-          {/* 2. Compact Text & Actions Below */}
-          <div className="relative z-10 border-t border-white/10 pt-3.5 sm:pt-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Compact Text & Actions */}
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1.5 max-w-3xl">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-sky-500/10 text-sky-300 border border-sky-500/30">
