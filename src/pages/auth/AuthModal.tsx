@@ -435,25 +435,20 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
   }, []);
 
   const modalContent = (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4 sm:p-6">
       {/* Overlay */}
-      <div className="fixed inset-0 bg-[#0F172A]/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-[#0F172A]/75 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Panel / Bottom Sheet */}
-      <div className="loxer-auth-modal relative w-full max-w-md max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-3xl border border-sky-100 bg-white shadow-2xl shadow-sky-900/20 animate-fade-up pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {/* Android Native Visual Drag Handle */}
-        <div className="sm:hidden pt-3 pb-1 flex justify-center">
-          <div className="bottom-sheet-handle" />
-        </div>
-
+      {/* Panel / Centered Modal */}
+      <div className="loxer-auth-modal relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-2xl shadow-slate-950/40 animate-fade-in my-auto">
         {/* Header gradient accent */}
-        <div className="h-1.5 gradient-cta" />
+        <div className="h-1.5 gradient-cta rounded-t-3xl" />
 
-        <div className="max-h-[calc(88dvh-2rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto p-5 sm:p-8">
+        <div className="p-5 sm:p-7">
           {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 text-slate-400 hover:text-sky-600 transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full active-press"
+            className="absolute top-4 right-4 sm:top-5 sm:right-5 text-slate-400 hover:text-sky-600 dark:hover:text-cyan-400 transition-colors p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full active-press z-20 cursor-pointer"
             aria-label="Tutup Dialog"
           >
             <X className="w-5 h-5" />
@@ -794,16 +789,16 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-sky-100" />
+              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
               <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">atau</span>
-              <div className="h-px flex-1 bg-sky-100" />
+              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
             </div>
 
             <button
               type="button"
               onClick={handleGoogleAuth}
               disabled={loading}
-              className="w-full rounded-xl border border-sky-200 bg-white py-3 font-semibold text-sm text-slate-700 shadow-sm hover:bg-sky-50 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-colors"
+              className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/80 py-3 font-semibold text-sm text-slate-700 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-colors"
             >
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
