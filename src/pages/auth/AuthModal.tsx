@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check, ShieldCheck, Sparkles, Key, Wrench, Smartphone } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, Building2, UserCheck, Phone, ArrowRight, Check, ShieldCheck, Sparkles, Key, Smartphone } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { UserRole } from '../../lib/types';
@@ -561,7 +561,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
 
           {/* Role Selection (Register only) */}
           {mode === 'register' && (
-            <div className={`grid gap-3 mb-6 ${isUnlocked ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+            <div className={`grid gap-3 mb-6 ${isUnlocked ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <button
                 type="button"
                 onClick={() => setRole('seeker')}
@@ -575,8 +575,8 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
                   <UserCheck className={`w-4 h-4 sm:w-5 sm:h-5 ${role === 'seeker' ? 'text-white' : 'text-sky-400'}`} />
                 </div>
                 <div className="text-center">
-                  <p className={`font-semibold text-xs ${role === 'seeker' ? 'text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300'}`}>Seeker</p>
-                  <p className="text-slate-400 text-[10px]">(Pencari Kerja)</p>
+                  <p className={`font-semibold text-xs ${role === 'seeker' ? 'text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300'}`}>Pencari Kerja</p>
+                  <p className="text-slate-400 text-[10px]">(Pelamar / Pekerja)</p>
                 </div>
               </button>
 
@@ -593,26 +593,8 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
                   <Building2 className={`w-4 h-4 sm:w-5 sm:h-5 ${role === 'employer' ? 'text-white' : 'text-sky-400'}`} />
                 </div>
                 <div className="text-center">
-                  <p className={`font-semibold text-xs ${role === 'employer' ? 'text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300'}`}>Employer</p>
-                  <p className="text-slate-400 text-[10px]">(Perusahaan)</p>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRole('freelancer')}
-                className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-3.5 sm:p-4 transition-all duration-200 ${
-                  role === 'freelancer'
-                    ? 'border-amber-500 bg-amber-50 shadow-md shadow-amber-500/10 dark:bg-amber-950/40 dark:border-amber-400'
-                    : 'border-sky-100 bg-white hover:border-amber-200 dark:bg-slate-900/60 dark:border-white/10'
-                }`}
-              >
-                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${role === 'freelancer' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30' : 'bg-amber-100 dark:bg-slate-800'}`}>
-                  <Wrench className={`w-4 h-4 sm:w-5 sm:h-5 ${role === 'freelancer' ? 'text-white' : 'text-amber-500'}`} />
-                </div>
-                <div className="text-center">
-                  <p className={`font-semibold text-xs ${role === 'freelancer' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-600 dark:text-slate-300'}`}>Jasa</p>
-                  <p className="text-slate-400 text-[10px]">(Penyedia Jasa Mandiri)</p>
+                  <p className={`font-semibold text-xs ${role === 'employer' ? 'text-sky-700 dark:text-sky-300' : 'text-slate-600 dark:text-slate-300'}`}>Perusahaan</p>
+                  <p className="text-slate-400 text-[10px]">(Perekrut / HRD)</p>
                 </div>
               </button>
 
@@ -632,7 +614,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
                   </div>
                   <div className="text-center">
                     <p className="font-semibold text-xs text-cyan-400">Admin</p>
-                    <p className="text-cyan-300/70 text-[10px]">(God Mode)</p>
+                    <p className="text-slate-400 text-[10px]">(Administrator)</p>
                   </div>
                 </button>
               )}

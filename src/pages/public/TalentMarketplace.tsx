@@ -1,13 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
   Search,
-  Sparkles,
   Users,
   ArrowRight,
   RefreshCw,
   PlusCircle,
   ShieldCheck,
-  Zap,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
@@ -24,18 +22,15 @@ import { useAppAccess } from '../../contexts/AppAccessContext';
 
 const CATEGORIES = [
   'Semua',
-  'Servis Elektronik & Komputer',
-  'Bengkel & Otomotif',
-  'Pijat, Refleksi & Terapi Kesehatan',
-  'Kebersihan & Cleaning Service',
-  'Pertukangan & Renovasi Bangunan',
-  'Salon, Barbershop & Perawatan',
-  'Pengantaran, Logistik & Angkut Barang',
-  'Les Privat & Kursus Mandiri',
-  'Fotografi & Multimedia',
-  'Desain, Percetakan & Sablon',
-  'Teknologi & IT Mandiri',
-  'Jasa Rumah Tangga & Lainnya',
+  'Administrasi & HRD',
+  'Kasir, Barista & F&B',
+  'Sales, Marketing & Promosi',
+  'Operator Produksi & Gudang',
+  'Teknisi, IT & Multimedia',
+  'Driver, Logistik & Pengantaran',
+  'Keuangan & Akuntansi',
+  'Customer Service & Resepsionis',
+  'Pendidikan & Pengajar',
 ];
 
 export default function TalentMarketplace() {
@@ -87,32 +82,14 @@ export default function TalentMarketplace() {
   }, []);
 
   const heroContent = useMemo(() => {
-    if (selectedAvailability === 'fulltime') {
-      return {
-        badge: 'Bursa Pelamar Kerja & Talent Terverifikasi',
-        title: 'Temukan Pelamar Kerja Siap Rekrut Langsung',
-        highlight: 'Karir Purna Waktu (Fulltime)',
-        desc: 'Jelajahi portofolio, biodata, dan keahlian pelamar kerja aktif yang siap bergabung secara profesional di perusahaan Anda.',
-        icon: Users,
-      };
-    }
-    if (selectedAvailability === 'freelance') {
-      return {
-        badge: 'Bursa Penyedia Jasa Mandiri & Layanan Panggilan',
-        title: 'Temukan Penyedia Jasa Mandiri Terpercaya',
-        highlight: 'Layanan Panggilan & Di Tempat',
-        desc: 'Pesan jasa pijat & refleksi, bengkel motor/mobil, servis komputer & elektronik, pertukangan, kebersihan, dan aneka keahlian jasa mandiri profesional.',
-        icon: Zap,
-      };
-    }
     return {
-      badge: 'Marketplace Pencari Kerja & Reverse Hiring',
-      title: 'Temukan Talent Siap Kerja &',
-      highlight: 'Tawarkan Pekerjaan Langsung',
-      desc: 'Jelajahi portofolio, biodata, dan keahlian pencari kerja terverifikasi. Perusahaan dapat langsung menawarkan posisi kerja resmi dengan proteksi transaksi dan kontrak kerja terintegrasi di platform LOXER.',
-      icon: Sparkles,
+      badge: 'Bursa Pekerja & Pelamar Siap Rekrut',
+      title: 'Temukan Pekerja Berbakat &',
+      highlight: 'Rekrut Kandidat Langsung',
+      desc: 'Jelajahi profil, biodata, dan keahlian pelamar kerja aktif terverifikasi. Perusahaan dapat langsung mengundang wawancara dan mengirim penawaran kerja resmi.',
+      icon: Users,
     };
-  }, [selectedAvailability]);
+  }, []);
 
   const fetchTalents = async () => {
     setLoading(true);
@@ -197,7 +174,7 @@ export default function TalentMarketplace() {
   };
 
   const handleNavigatePost = () => {
-    if (!requireApp('Posting Biodata & Jasa')) {
+    if (!requireApp('Lengkapi Profil CV Pekerja')) {
       return;
     }
     if (!user) {
@@ -205,7 +182,7 @@ export default function TalentMarketplace() {
       setAuthMode('login');
       return;
     }
-    window.location.href = '/seeker/marketplace';
+    window.location.href = '/seeker/profile';
   };
 
   return (
@@ -225,7 +202,7 @@ export default function TalentMarketplace() {
           {/* 1. Large Slideshow on Top */}
           <div className="relative z-10 w-full mb-4 sm:mb-5">
             <HeroBannerSlideshow
-              initialSlide={selectedAvailability === 'freelance' ? 2 : 1}
+              initialSlide={1}
               variant="embedded"
               onRegister={handleOpenRegister}
             />

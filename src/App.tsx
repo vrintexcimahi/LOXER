@@ -39,8 +39,6 @@ const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const DeveloperWorkbench = lazy(() => import('./pages/admin/DeveloperWorkbench'));
 const AdminSystemSettings = lazy(() => import('./pages/admin/AdminSystemSettings'));
 const TalentMarketplace = lazy(() => import('./pages/public/TalentMarketplace'));
-const SeekerMarketplace = lazy(() => import('./pages/seeker/SeekerMarketplace'));
-const ProductMarketplace = lazy(() => import('./pages/public/ProductMarketplace'));
 const AdminPartners = lazy(() => import('./pages/admin/AdminPartners'));
 const PartnerAccess = lazy(() => import('./pages/partner/PartnerAccess'));
 const PartnerProgram = lazy(() => import('./pages/partner/PartnerProgram'));
@@ -128,7 +126,7 @@ function Router() {
     if (previewRole === 'admin') return '/admin/dashboard';
     if (previewRole === 'employer') return '/employer/dashboard';
     if (previewRole === 'seeker') return '/seeker/dashboard';
-    if (previewRole === 'freelancer' || previewRole === 'jasa') return '/seeker/marketplace';
+    if (previewRole === 'freelancer' || previewRole === 'jasa') return '/talents';
     if (!user || !effectiveRole) return '/';
     if (effectiveRole === 'admin' || effectiveRole === 'superadmin') return '/admin/dashboard';
     return effectiveRole === 'employer' ? '/employer/dashboard' : '/seeker/dashboard';
@@ -225,8 +223,14 @@ VITE_SUPABASE_ANON_KEY=...`}
     if (path === '/browse' || path === '/seeker/browse') return <Browse />;
     if (path === '/seeker/applications') return isRoleAuthorized('seeker') ? <Applications /> : null;
     if (path === '/seeker/profile') return isRoleAuthorized('seeker') ? <SeekerProfile /> : null;
-    if (path === '/seeker/marketplace') return isRoleAuthorized('seeker') ? <SeekerMarketplace /> : null;
-    if (path === '/marketplace' || path === '/products') return <ProductMarketplace />;
+    if (path === '/seeker/marketplace') {
+      window.location.replace('/seeker/dashboard');
+      return null;
+    }
+    if (path === '/marketplace' || path === '/products') {
+      window.location.replace('/browse');
+      return null;
+    }
     if (path === '/talents' || path === '/employer/talents' || path === '/pelamar' || path === '/pelamar-kerja' || path === '/freelance' || path === '/jasa') return <TalentMarketplace />;
     if (path === '/employer/dashboard') return isRoleAuthorized('employer') ? <EmployerDashboard /> : null;
     if (path === '/employer/jobs') return isRoleAuthorized('employer') ? <JobListings /> : null;

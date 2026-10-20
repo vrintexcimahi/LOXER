@@ -1,5 +1,5 @@
 import { ReactNode, useMemo } from 'react';
-import { Home, Search, FileText, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Sparkles } from 'lucide-react';
+import { Home, Search, FileText, User, LogOut, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import AppLogo from '../ui/AppLogo';
 import ClayIcon from '../ui/ClayIcon';
@@ -12,9 +12,8 @@ import { seekerGuideContent } from '../../lib/dashboardGuideContent';
 const navItems = [
   { label: 'Dashboard', description: 'Ringkasan progres pencarian kerja', icon: Home, href: '/seeker/dashboard' },
   { label: 'Cari Lowongan', description: 'Temukan posisi yang sesuai profilmu', icon: Search, href: '/seeker/browse' },
-  { label: 'Marketplace Saya', description: 'Publikasikan biodata & penawaran jasa kerja', icon: Sparkles, href: '/seeker/marketplace' },
   { label: 'Lamaran Saya', description: 'Pantau status semua aplikasi kerja', icon: FileText, href: '/seeker/applications' },
-  { label: 'Profil', description: 'Perbarui CV dan data personal', icon: User, href: '/seeker/profile' },
+  { label: 'Profil CV', description: 'Perbarui CV dan data personal', icon: User, href: '/seeker/profile' },
 ];
 
 interface SeekerLayoutProps {
@@ -55,39 +54,18 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
     window.location.assign('/');
   };
 
-  const isFreelancer =
-    typeof window !== 'undefined' &&
-    (new URLSearchParams(window.location.search).get('preview_role') === 'freelancer' ||
-      new URLSearchParams(window.location.search).get('preview_role') === 'jasa' ||
-      new URLSearchParams(window.location.search).get('category') === 'freelance' ||
-      new URLSearchParams(window.location.search).get('category') === 'jasa' ||
-      userMeta?.role === 'freelancer' ||
-      window.location.pathname.includes('freelance') ||
-      currentPath.includes('freelance'));
-
-  const roleBadgeLabel = isFreelancer ? 'Jasa' : 'Pencari Kerja';
-  const roleBadgeClass = isFreelancer
-    ? 'bg-amber-500/20 border border-amber-400/40 text-amber-300 shadow-sm shadow-amber-500/20'
-    : 'bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 shadow-sm shadow-cyan-500/20';
+  const isFreelancer = false;
+  const roleBadgeLabel = 'Pencari Kerja';
+  const roleBadgeClass = 'bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 shadow-sm shadow-cyan-500/20';
 
   const mobileNavItems = useMemo(() => {
-    if (isFreelancer) {
-      return [
-        { label: 'Home', icon: Home, href: '/seeker/dashboard?preview_role=freelancer' },
-        { label: 'Order', icon: Search, href: '/seeker/browse?category=jasa&preview_role=freelancer' },
-        { label: 'Jasa Saya', icon: Sparkles, href: '/seeker/marketplace?preview_role=freelancer', isCenterAction: true },
-        { label: 'Tawaran', icon: FileText, href: '/seeker/applications?preview_role=freelancer' },
-        { label: 'Profil', icon: User, href: '/seeker/profile?preview_role=freelancer' },
-      ];
-    }
     return [
       { label: 'Home', icon: Home, href: '/seeker/dashboard' },
       { label: 'Cari Kerja', icon: Search, href: '/seeker/browse' },
-      { label: 'Marketplace', icon: Sparkles, href: '/seeker/marketplace', isCenterAction: true },
-      { label: 'Lamaran', icon: FileText, href: '/seeker/applications' },
-      { label: 'Profil', icon: User, href: '/seeker/profile' },
+      { label: 'Lamaran', icon: FileText, href: '/seeker/applications', isCenterAction: true },
+      { label: 'Profil CV', icon: User, href: '/seeker/profile' },
     ];
-  }, [isFreelancer]);
+  }, []);
 
   return (
     <div className="loxer-workspace flex min-h-screen bg-sky-50">

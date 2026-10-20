@@ -1,4 +1,4 @@
-import { Home, Search, ShoppingBag, User, Briefcase, Users } from 'lucide-react';
+import { Home, Search, User, Briefcase, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import ClayIcon from '../ui/ClayIcon';
 
@@ -30,7 +30,7 @@ export default function PublicMobileBottomNav({
 
   const navItems: NavItem[] = [
     {
-      label: 'Home',
+      label: 'Beranda',
       icon: Home,
       href: '/',
       active: currentPath === '/',
@@ -39,13 +39,13 @@ export default function PublicMobileBottomNav({
       label: 'Iklan Loker',
       icon: Search,
       href: '/browse',
-      active: currentPath.startsWith('/browse'),
+      active: currentPath.startsWith('/browse') || currentPath === '/seeker/browse',
     },
     {
-      label: 'Marketplace',
-      icon: ShoppingBag,
-      href: '/marketplace',
-      active: currentPath.startsWith('/marketplace'),
+      label: 'Pekerja',
+      icon: Users,
+      href: '/talents',
+      active: currentPath.startsWith('/talents'),
       isCenterAction: true,
     },
     {
@@ -55,10 +55,10 @@ export default function PublicMobileBottomNav({
       active: currentPath.startsWith('/employer'),
     },
     {
-      label: user ? 'Profil' : 'Bursa Talent',
-      icon: user ? User : Users,
-      href: user ? getDashboardPath() : '/talents',
-      active: currentPath.startsWith('/talents'),
+      label: user ? 'Akun' : 'Masuk',
+      icon: User,
+      href: user ? getDashboardPath() : '/seeker/dashboard',
+      active: currentPath.startsWith('/seeker') && !currentPath.startsWith('/seeker/browse'),
     },
   ];
 

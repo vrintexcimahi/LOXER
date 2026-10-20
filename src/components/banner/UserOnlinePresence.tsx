@@ -27,16 +27,7 @@ const USER_PRESENCE_GROUPS: PresenceGroup[] = [
     shortDescription: 'Perusahaan',
     minOnline: 250,
     maxOnline: 3500,
-    href: '/talents?availability=fulltime',
-  },
-  {
-    key: 'freelancer',
-    label: 'Jasa',
-    description: 'Penyedia Jasa Mandiri',
-    shortDescription: 'Jasa Mandiri',
-    minOnline: 150,
-    maxOnline: 1750,
-    href: '/talents?availability=freelance',
+    href: '/talents',
   },
 ];
 
