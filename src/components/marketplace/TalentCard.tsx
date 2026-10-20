@@ -207,13 +207,13 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
             </button>
           </div>
 
-          {/* Salary / Rate Expectations */}
-          <div className="mt-1.5 sm:mt-2.5 flex items-baseline justify-between rounded-md sm:rounded-lg bg-slate-950/60 border border-white/5 px-2 py-1 sm:px-2.5 sm:py-1.5">
-            <span className="text-[8px] sm:text-[10px] text-slate-400">Tarif:</span>
-            <span className="text-[10px] sm:text-xs font-bold text-cyan-300 truncate">
+          {/* Salary Expectations */}
+          <div className="mt-1.5 sm:mt-2.5 flex items-baseline justify-between rounded-md sm:rounded-lg bg-slate-100/90 dark:bg-slate-950/60 border border-slate-200/90 dark:border-white/5 px-2 py-1 sm:px-2.5 sm:py-1.5">
+            <span className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-semibold">Gaji:</span>
+            <span className={`text-[10px] sm:text-xs font-bold truncate ${talent.expected_salary > 0 ? 'text-cyan-700 dark:text-cyan-300' : 'text-amber-700 dark:text-amber-300'}`}>
               {talent.expected_salary > 0
                 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
-                : '-'}
+                : 'Negosiasi'}
             </span>
           </div>
 

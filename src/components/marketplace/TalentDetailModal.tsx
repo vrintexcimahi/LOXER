@@ -244,13 +244,13 @@ export default function TalentDetailModal({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-xl border border-white/5 bg-slate-800/60 p-3">
               <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-medium">
-                Ekspektasi Tarif
+                Ekspektasi Gaji
               </span>
               <span className="text-base sm:text-lg font-bold text-emerald-400 block mt-0.5">
-                {talent.expected_salary > 0 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')}` : '-'}
+                {talent.expected_salary > 0 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')}` : 'Negosiasi'}
               </span>
               <span className="text-[10px] text-slate-400 font-semibold">
-                {talent.expected_salary > 0 ? rateLabel : 'Tidak dicantumkan'}
+                {talent.expected_salary > 0 ? rateLabel : 'Dapat dinegosiasikan'}
               </span>
             </div>
 

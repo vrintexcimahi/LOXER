@@ -278,11 +278,11 @@ export function AdminTalentDetailModal({
         {/* Financial & Status Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="rounded-xl border border-white/5 bg-slate-950/60 p-3">
-            <span className="text-[10px] uppercase font-bold text-slate-400">Ekspektasi Tarif / Gaji</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400">Ekspektasi Gaji</span>
             <p className="mt-1 text-sm font-extrabold text-cyan-300">
               {talent.expected_salary > 0
                 ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
-                : '-'}
+                : 'Negosiasi'}
             </p>
           </div>
           <div className="rounded-xl border border-white/5 bg-slate-950/60 p-3">
@@ -949,13 +949,13 @@ export function AdminTalentCatalogSection({
                     </h3>
                     <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-300 line-clamp-1 mt-0.5 font-medium">{talent.headline}</p>
 
-                    {/* Salary / Rate */}
+                    {/* Salary */}
                     <div className="mt-1.5 sm:mt-2 flex items-center justify-between rounded-lg sm:rounded-xl bg-slate-100/90 dark:bg-slate-950/60 border border-slate-200/90 dark:border-white/5 px-2 py-1 sm:px-2.5 sm:py-1.5">
-                      <span className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Tarif:</span>
-                      <span className="text-[10px] sm:text-xs font-black text-cyan-700 dark:text-cyan-400 truncate">
+                      <span className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Gaji:</span>
+                      <span className={`text-[10px] sm:text-xs font-black truncate ${talent.expected_salary > 0 ? 'text-cyan-700 dark:text-cyan-400' : 'text-amber-700 dark:text-amber-400'}`}>
                         {talent.expected_salary > 0
                           ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} ${rateLabel}`
-                          : '-'}
+                          : 'Negosiasi'}
                       </span>
                     </div>
 
@@ -1070,7 +1070,7 @@ export function AdminTalentCatalogSection({
                 <th className="px-4 py-3 text-left">Foto & Nama</th>
                 <th className="px-4 py-3 text-left">Posisi / Headline</th>
                 <th className="px-4 py-3 text-left">Kategori & Kota</th>
-                <th className="px-4 py-3 text-left">Ekspektasi Tarif</th>
+                <th className="px-4 py-3 text-left">Ekspektasi Gaji</th>
                 <th className="px-4 py-3 text-left">Ketersediaan</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-left">Aksi</th>
@@ -1117,7 +1117,7 @@ export function AdminTalentCatalogSection({
                     <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-300">
                       {talent.expected_salary > 0
                         ? `Rp ${talent.expected_salary.toLocaleString('id-ID')} / bln`
-                        : '-'}
+                        : 'Negosiasi'}
                     </td>
                     <td className="px-4 py-3 capitalize">{talent.availability || 'fulltime'}</td>
                     <td className="px-4 py-3">
@@ -2435,8 +2435,8 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">
-                    Ekspektasi Gaji / Tarif (Rp)
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    Ekspektasi Gaji (Rp)
                   </label>
                   <input
                     type="number"
@@ -3056,11 +3056,11 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                   <p className="text-xs text-slate-600 dark:text-slate-300 font-medium line-clamp-1">{formData.headline}</p>
 
                   <div className="flex items-center justify-between rounded-xl bg-slate-100 dark:bg-slate-950/60 border border-slate-200 dark:border-white/5 px-2.5 py-1.5">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Tarif:</span>
-                    <span className="text-xs font-black text-cyan-700 dark:text-cyan-400">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Gaji:</span>
+                    <span className={`text-xs font-black ${formData.expected_salary > 0 ? 'text-cyan-700 dark:text-cyan-400' : 'text-amber-700 dark:text-amber-400'}`}>
                       {formData.expected_salary > 0
                         ? `Rp ${formData.expected_salary.toLocaleString('id-ID')} / bln`
-                        : '-'}
+                        : 'Negosiasi'}
                     </span>
                   </div>
 
