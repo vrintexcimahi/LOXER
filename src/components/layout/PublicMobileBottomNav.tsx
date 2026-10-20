@@ -1,4 +1,4 @@
-import { Home, Search, User, Briefcase, Users } from 'lucide-react';
+import { Home, Search, User, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import ClayIcon from '../ui/ClayIcon';
 
@@ -9,11 +9,12 @@ interface PublicMobileBottomNavProps {
 
 export default function PublicMobileBottomNav({
   currentPath = typeof window !== 'undefined' ? window.location.pathname : '/',
+  onLogin,
 }: PublicMobileBottomNavProps) {
   const { user, userMeta } = useAuth();
 
   const getDashboardPath = () => {
-    if (!userMeta) return '/';
+    if (!userMeta) return '/seeker/dashboard';
     if (userMeta.role === 'employer') return '/employer/dashboard';
     if (userMeta.role === 'admin' || userMeta.role === 'superadmin') return '/admin/dashboard';
     return '/seeker/dashboard';
@@ -46,18 +47,12 @@ export default function PublicMobileBottomNav({
       icon: Users,
       href: '/talents',
       active: currentPath.startsWith('/talents'),
-      isCenterAction: true,
-    },
-    {
-      label: user ? 'Dashboard' : 'Untuk HRD',
-      icon: Briefcase,
-      href: user ? getDashboardPath() : '/#employer-section',
-      active: currentPath.startsWith('/employer'),
     },
     {
       label: user ? 'Akun' : 'Masuk',
       icon: User,
       href: user ? getDashboardPath() : '/seeker/dashboard',
+      onClick: !user && onLogin ? onLogin : undefined,
       active: currentPath.startsWith('/seeker') && !currentPath.startsWith('/seeker/browse'),
     },
   ];
