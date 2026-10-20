@@ -238,22 +238,22 @@ export default function Landing({ onLogin, onRegister }: LandingProps) {
 
           <div className="relative">
             {/* Glowing Progressive Connector line */}
-            <div className="hidden md:block absolute top-10 left-[12.5%] right-[12.5%] h-0.5 bg-gradient-to-r from-sky-500 via-cyan-400 to-teal-400 opacity-40 shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
+            <div className="hidden sm:block absolute top-7 md:top-8 left-[12.5%] right-[12.5%] h-0.5 bg-gradient-to-r from-sky-500 via-cyan-400 to-teal-400 opacity-40 shadow-[0_0_10px_rgba(6,182,212,0.5)] pointer-events-none" />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-3 md:gap-6 lg:gap-8">
               {steps.map(({ icon: Icon, title, desc, color }, i) => (
                 <div
                   key={i}
-                  className="text-center relative p-5 rounded-2xl bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 hover:border-cyan-400/40 transition-all duration-300 hover:-translate-y-1.5 shadow-sm dark:shadow-none"
+                  className="text-center relative p-2 sm:p-3.5 md:p-5 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 hover:border-cyan-400/40 transition-all duration-300 hover:-translate-y-1 shadow-sm dark:shadow-none flex flex-col items-center justify-start"
                 >
-                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center mx-auto mb-3.5 shadow-lg shadow-sky-500/25 relative z-10 group`}>
-                    <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-950 border-2 border-cyan-400 rounded-full flex items-center justify-center text-cyan-300 text-xs font-black shadow-md">
+                  <div className={`w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center mx-auto mb-2 sm:mb-3 shadow-md sm:shadow-lg shadow-sky-500/20 relative z-10 shrink-0 group`}>
+                    <Icon className="w-4 h-4 sm:w-6 sm:h-6 md:w-7 md:h-7 text-white" />
+                    <div className="absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 bg-slate-950 border sm:border-2 border-cyan-400 rounded-full flex items-center justify-center text-cyan-300 text-[8px] sm:text-[10px] md:text-xs font-black shadow-md">
                       {i + 1}
                     </div>
                   </div>
-                  <h3 className="text-slate-900 dark:text-white font-bold text-sm sm:text-base mb-1.5">{title}</h3>
-                  <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{desc}</p>
+                  <h3 className="text-slate-900 dark:text-white font-extrabold sm:font-bold text-[10px] sm:text-xs md:text-sm lg:text-base mb-1 leading-tight sm:leading-snug">{title}</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-[8px] sm:text-[10px] md:text-xs leading-tight sm:leading-relaxed line-clamp-3 sm:line-clamp-none">{desc}</p>
                 </div>
               ))}
             </div>
