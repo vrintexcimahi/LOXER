@@ -35,18 +35,6 @@ const CATEGORIES = [
 export default function TalentMarketplace() {
   const { user } = useAuth();
   const { requireApp } = useAppAccess();
-  const parseAvailabilityFromUrl = () => {
-    if (typeof window === 'undefined') return 'all';
-    const params = new URLSearchParams(window.location.search);
-    const avail = params.get('availability');
-    if (avail && ['all', 'fulltime', 'freelance', 'parttime', 'remote'].includes(avail.toLowerCase())) {
-      return avail.toLowerCase();
-    }
-    const type = params.get('type') || params.get('tab');
-    if (type === 'pelamar' || type === 'pelamar-kerja' || type === 'fulltime') return 'fulltime';
-    if (type === 'freelance' || type === 'freelancer' || type === 'jasa') return 'freelance';
-    return 'all';
-  };
 
   const [talents, setTalents] = useState<TalentMarketplacePost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +47,6 @@ export default function TalentMarketplace() {
     const cat = new URLSearchParams(window.location.search).get('category');
     return cat && CATEGORIES.includes(cat) ? cat : 'Semua';
   });
-  const [selectedAvailability, setSelectedAvailability] = useState<string>(parseAvailabilityFromUrl);
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedTalent, setSelectedTalent] = useState<TalentMarketplacePost | null>(null);
   const [chatTalent, setChatTalent] = useState<TalentMarketplacePost | null>(null);
@@ -68,7 +55,6 @@ export default function TalentMarketplace() {
 
   useEffect(() => {
     const handleUrlChange = () => {
-      setSelectedAvailability(parseAvailabilityFromUrl());
       const params = new URLSearchParams(window.location.search);
       const q = params.get('q');
       if (q !== null) setSearchQuery(q);
@@ -138,10 +124,6 @@ export default function TalentMarketplace() {
       const matchesCategory =
         selectedCategory === 'Semua' || t.category === selectedCategory;
 
-      const matchesAvailability =
-        selectedAvailability === 'all' ||
-        t.availability.toLowerCase() === selectedAvailability.toLowerCase();
-
       const matchesCity =
         selectedCity === 'all' ||
         t.domicile_city.toLowerCase() === selectedCity.toLowerCase();
@@ -160,9 +142,9 @@ export default function TalentMarketplace() {
         skillsStr.toLowerCase().includes(q) ||
         (t.seeker_profiles?.full_name || '').toLowerCase().includes(q);
 
-      return matchesCategory && matchesAvailability && matchesCity && matchesQuery;
+      return matchesCategory && matchesCity && matchesQuery;
     });
-  }, [talents, selectedCategory, selectedAvailability, selectedCity, searchQuery]);
+  }, [talents, selectedCategory, selectedCity, searchQuery]);
 
   const handleOpenRegister = (role: UserRole = 'seeker') => {
     if (!requireApp('Mendaftar Akun')) {
@@ -251,44 +233,17 @@ export default function TalentMarketplace() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari keahlian (React, Barista, Desain), nama, atau posisi..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-white/10 bg-slate-900/90 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 shadow-inner"
+                className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/90 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-400 shadow-sm"
               />
             </div>
 
-            {/* Availability Filter */}
-            <div className="loxer-talent-filters">
-              <select
-                aria-label="Kategori ketersediaan talent"
-                value={selectedAvailability}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedAvailability(val);
-                  const params = new URLSearchParams(window.location.search);
-                  if (val === 'all') {
-                    params.delete('availability');
-                    params.delete('type');
-                    params.delete('tab');
-                  } else {
-                    params.set('availability', val);
-                  }
-                  const newSearch = params.toString() ? `?${params.toString()}` : '';
-                  window.history.pushState({}, '', `${window.location.pathname}${newSearch}`);
-                }}
-                className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400"
-              >
-                <option value="all">Semua Kategori (Marketplace)</option>
-                <option value="fulltime">Pelamar Kerja (Fulltime)</option>
-                <option value="freelance">Jasa (Penyedia Jasa Mandiri)</option>
-                <option value="parttime">Part-time</option>
-                <option value="remote">Layanan Panggilan / Remote</option>
-              </select>
-
-              {/* City Filter */}
+            {/* City Filter & Refresh */}
+            <div className="loxer-talent-filters flex items-center gap-2">
               <select
                 aria-label="Kota talent"
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-slate-900 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400"
+                className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:border-cyan-400 shadow-sm"
               >
                 <option value="all">Semua Kota</option>
                 {cities.map((c) => (
@@ -301,7 +256,7 @@ export default function TalentMarketplace() {
               <button
                 onClick={fetchTalents}
                 title="Segarkan data"
-                className="p-2.5 rounded-2xl border border-white/10 bg-slate-900 text-slate-400 hover:text-white transition-colors"
+                className="p-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shadow-sm"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
@@ -367,7 +322,6 @@ export default function TalentMarketplace() {
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedCategory('Semua');
-                  setSelectedAvailability('all');
                   setSelectedCity('all');
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/30"
