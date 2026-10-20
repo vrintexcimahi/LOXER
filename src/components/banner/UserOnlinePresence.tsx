@@ -106,7 +106,7 @@ export default function UserOnlinePresence({ className = '' }: UserOnlinePresenc
 
   return (
     <div
-      className={`w-full grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 ${className}`}
+      className={`w-full grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4 ${className}`}
       role="region"
       aria-label="Statistik Pengguna Online Real-time"
     >
