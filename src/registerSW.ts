@@ -1,28 +1,37 @@
 // ==============================================================================
-// LOXER Service Worker Cleanup & PWA Decommissioning
-// Akses Web PWA dinonaktifkan, fokus penuh pada Aplikasi Mobile APK Android
+// LOXER Progressive Web App Service Worker Registration
+// Mengaktifkan PWA Cache, Offline Support & 1-Click Install
 // ==============================================================================
 
 export function registerServiceWorker() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-  // Pastikan seluruh service worker lama di-unregister
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const registration of registrations) {
-      registration.unregister();
-    }
-  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then((registration) => {
+        console.log('[LOXER PWA] Service Worker terdaftar dengan scope:', registration.scope);
 
-  // Bersihkan sisa cache storage PWA lama
-  if ('caches' in window) {
-    caches.keys().then((keys) => {
-      for (const key of keys) {
-        if (key.includes('loxer')) {
-          caches.delete(key);
-        }
-      }
-    });
-  }
+        // Periksa update service worker berkala
+        registration.onupdatefound = () => {
+          const installingWorker = registration.installing;
+          if (installingWorker) {
+            installingWorker.onstatechange = () => {
+              if (installingWorker.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  console.log('[LOXER PWA] Versi baru tersedia, siap di-refresh.');
+                } else {
+                  console.log('[LOXER PWA] Konten disimpan offline pertama kali.');
+                }
+              }
+            };
+          }
+        };
+      })
+      .catch((error) => {
+        console.warn('[LOXER PWA] Gagal mendaftarkan Service Worker:', error);
+      });
+  });
 }
 
 export function applyPwaUpdate(): void {

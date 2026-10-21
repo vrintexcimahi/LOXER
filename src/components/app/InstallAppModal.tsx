@@ -2,13 +2,15 @@ import { useState } from 'react';
 import {
   X,
   Smartphone,
-  Download,
   Zap,
-  ShieldCheck,
   CheckCircle,
   Sparkles,
   Lock,
+  PlusSquare,
+  Share2,
+  MoreVertical,
 } from 'lucide-react';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 interface InstallAppModalProps {
   isOpen: boolean;
@@ -23,20 +25,28 @@ export default function InstallAppModal({
   onClose,
   onOpenSecretAdmin,
 }: InstallAppModalProps) {
-  const [downloadStarted, setDownloadStarted] = useState(false);
+  const { promptInstall } = usePWAInstall();
+  const [showManualGuide, setShowManualGuide] = useState(false);
+  const [installedSuccess, setInstalledSuccess] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleDownloadApk = () => {
-    setDownloadStarted(true);
-    // Trigger download of official release APK
-    const link = document.createElement('a');
-    link.href = '/downloads/loxer-app.apk';
-    link.setAttribute('download', 'loxer-app.apk');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleInstallPwa = async () => {
+    // 1. Coba prompt native PWA
+    const success = await promptInstall();
+    if (success) {
+      setInstalledSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+      return;
+    }
+
+    // 2. Jika prompt native belum/tidak tersedia di browser ini
+    setShowManualGuide(true);
   };
+
+  const isIos = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-fade-in">
@@ -55,9 +65,9 @@ export default function InstallAppModal({
         <div className="flex items-center gap-2 mb-3">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
             <Smartphone className="w-3.5 h-3.5" />
-            Aplikasi Resmi Android (APK)
+            Aplikasi Resmi LOXER (PWA)
           </div>
-          <span className="text-xs text-slate-400">Web Browser Hanya View-Only</span>
+          <span className="text-xs text-slate-400">Instalasi Instan 1-Klik</span>
         </div>
 
         {/* Title & App Icon */}
@@ -67,10 +77,10 @@ export default function InstallAppModal({
           </div>
           <div>
             <h3 className="text-lg sm:text-xl font-black text-white leading-tight">
-              Gunakan Aplikasi Mobile APK untuk Akses Penuh
+              Pasang LOXER ke Layar Utama Ponsel Anda
             </h3>
             <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
-              Untuk mengakses fitur <strong className="text-cyan-300 font-semibold">{actionTitle}</strong>, mendaftar akun, dan melamar lowongan, wajib menggunakan <strong>Aplikasi Resmi Android LOXER (APK)</strong>.
+              Untuk mengakses fitur <strong className="text-cyan-300 font-semibold">{actionTitle}</strong>, mendaftar akun, dan melamar lowongan, pasang aplikasi <strong>LOXER PWA</strong> langsung ke HP Anda.
             </p>
           </div>
         </div>
@@ -83,61 +93,78 @@ export default function InstallAppModal({
               <span className="text-[11px] font-bold">Lamar 1-Klik</span>
             </div>
             <p className="text-[10px] sm:text-[11px] text-slate-400 leading-tight">
-              Lamar pekerjaan instan langsung dari ponsel Android.
+              Lamar lowongan seketika langsung dari layar utama ponsel.
             </p>
           </div>
 
           <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between">
             <div className="flex items-center gap-2 text-emerald-400 mb-1">
               <CheckCircle className="w-4 h-4" />
-              <span className="text-[11px] font-bold">Chat &amp; Beli Aman</span>
+              <span className="text-[11px] font-bold">Resmi &amp; Terverifikasi</span>
             </div>
             <p className="text-[10px] sm:text-[11px] text-slate-400 leading-tight">
-              Kontak WhatsApp penjual &amp; rekrutmen terverifikasi resmi.
+              Terhubung langsung dengan hiring manager perusahaan terverifikasi.
             </p>
           </div>
 
           <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between">
             <div className="flex items-center gap-2 text-sky-400 mb-1">
-              <ShieldCheck className="w-4 h-4" />
-              <span className="text-[11px] font-bold">Data Terenkripsi</span>
+              <Smartphone className="w-4 h-4" />
+              <span className="text-[11px] font-bold">Akses Offline Cepat</span>
             </div>
             <p className="text-[10px] sm:text-[11px] text-slate-400 leading-tight">
-              Perlindungan privasi data profil &amp; kredensial pengguna.
+              Membuka katalog kerja instan tanpa jeda loading berat.
             </p>
           </div>
 
           <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-between">
             <div className="flex items-center gap-2 text-amber-400 mb-1">
               <Sparkles className="w-4 h-4" />
-              <span className="text-[11px] font-bold">Sangat Ringan</span>
+              <span className="text-[11px] font-bold">Instalasi Bersih</span>
             </div>
             <p className="text-[10px] sm:text-[11px] text-slate-400 leading-tight">
-              Hanya 1.6 MB, hemat kuota dan responsif di smartphone.
+              Tanpa file APK, aman, hemat memori, dan bebas update manual.
             </p>
           </div>
         </div>
 
-        {/* Download & Installation CTAs */}
+        {/* Installation CTAs */}
         <div className="space-y-3 mt-5">
-          {/* Primary APK Download Button */}
+          {/* Primary 1-Click PWA Install Button */}
           <button
             type="button"
-            onClick={handleDownloadApk}
+            onClick={handleInstallPwa}
             className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-xl shadow-cyan-500/30 active:scale-[0.98] transition cursor-pointer"
           >
-            <Download className="w-5 h-5" />
-            <span>Download APK Resmi Android (1.6 MB)</span>
+            <Smartphone className="w-5 h-5" />
+            <span>Pasang Aplikasi LOXER Sekarang</span>
           </button>
 
-          {/* Download Notification Alert */}
-          {downloadStarted && (
-            <div className="p-3.5 rounded-xl bg-cyan-950/70 border border-cyan-400/40 text-xs text-cyan-200 flex items-start gap-2.5 animate-fade-in">
-              <CheckCircle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-white block">File APK sedang diunduh!</span>
-                Buka file <strong className="text-cyan-300">loxer-app.apk</strong> di smartphone Android Anda, izinkan instalasi sumber ini jika diminta, lalu buka aplikasi untuk akses penuh tanpa batas.
-              </div>
+          {/* Success Notification */}
+          {installedSuccess && (
+            <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-400/40 text-xs text-emerald-200 flex items-center gap-2.5 animate-fade-in">
+              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Aplikasi LOXER PWA berhasil dipasang di layar utama!</span>
+            </div>
+          )}
+
+          {/* Fallback Manual Guide if prompt is unavailable */}
+          {showManualGuide && (
+            <div className="p-4 rounded-2xl bg-white/5 border border-cyan-400/30 text-xs text-slate-200 space-y-2 animate-fade-in">
+              <p className="font-bold text-cyan-300">Cara Memasang Langsung ke HP:</p>
+              {isIos ? (
+                <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                  <li>Ketuk ikon <strong className="text-white inline-flex items-center gap-1"><Share2 className="w-3 h-3 inline" /> Bagikan</strong> di Safari.</li>
+                  <li>Pilih menu <strong className="text-white inline-flex items-center gap-1"><PlusSquare className="w-3 h-3 inline" /> Tambahkan ke Layar Utama</strong>.</li>
+                  <li>Ketuk <strong className="text-cyan-300">Tambah</strong> di pojok kanan atas. Selesai!</li>
+                </ol>
+              ) : (
+                <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                  <li>Ketuk menu <strong className="text-white inline-flex items-center gap-1"><MoreVertical className="w-3 h-3 inline" /> titik tiga</strong> di pojok kanan atas browser.</li>
+                  <li>Pilih <strong className="text-white">"Install Aplikasi"</strong> atau <strong className="text-white">"Tambahkan ke Layar Utama"</strong>.</li>
+                  <li>Ikon aplikasi LOXER langsung tampil di layar HP Anda.</li>
+                </ol>
+              )}
             </div>
           )}
         </div>

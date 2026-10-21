@@ -18,6 +18,11 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/branding/icon192.png" />
     <link rel="apple-touch-icon" sizes="192x192" href="/branding/icon192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/branding/icon512.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LOXER" />
     <meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#0284c7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0284c7" />
@@ -93,14 +98,19 @@
         }
       });
 
-      // Nonaktifkan Web PWA & Unregister seluruh residual Service Worker
-      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          for (var i = 0; i < regs.length; i++) {
-            regs[i].unregister();
-          }
-        });
-      }
+      // Early PWA Install Prompt Listener (Capture sebelum bundle React ter-mount)
+      window.__pwaInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.__pwaInstallPrompt = e;
+        if (typeof window.dispatchEvent === 'function') {
+          window.dispatchEvent(new CustomEvent('loxer:pwa-ready'));
+        }
+      });
+      window.addEventListener('appinstalled', function() {
+        window.__pwaInstallPrompt = null;
+        console.log('[LOXER] PWA berhasil dipasang di perangkat!');
+      });
     </script>
   </head>
   <body style="margin: 0;">
