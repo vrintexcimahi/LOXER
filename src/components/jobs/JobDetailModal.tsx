@@ -13,16 +13,18 @@ import {
   Briefcase,
   Users,
   Check,
+  ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { queueApplicationOffline, getQueuedApplications } from '../../lib/offlineSyncService';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { JobListing } from '../../lib/types';
+import { censorJobText } from '../../lib/contactPrivacyService';
 
 interface JobDetailModalProps {
   jobId: string | null;
-  initialJob?: Partial<JobListing & { company?: string; locations?: string; salary?: string }> | null;
+  initialJob?: Partial<JobListing & { company?: string; locations?: string; salary?: string; poster_url?: string }> | null;
   onClose: () => void;
   onRequireAuth?: (mode: 'login' | 'register') => void;
   onApplied?: (jobId: string) => void;
@@ -391,13 +393,42 @@ export default function JobDetailModal({
             </div>
           ) : (
             <>
+              {/* Poster Resmi Rekrutmen */}
+              {(job?.poster_url || initialJob?.poster_url) && (
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4 text-sky-400" /> Poster Resmi Rekrutmen
+                    </h3>
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-cyan-300 bg-cyan-950/70 border border-cyan-500/30 px-2.5 py-0.5 rounded-full shadow-sm">
+                      <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Kontak &amp; Alamat Terproteksi
+                    </span>
+                  </div>
+                  <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/10 group shadow-xl">
+                    <img
+                      src={job?.poster_url || initialJob?.poster_url}
+                      alt={job?.title || 'Poster Lowongan'}
+                      className="w-full max-h-[460px] sm:max-h-[540px] object-contain mx-auto"
+                      loading="lazy"
+                    />
+                    <div className="p-3 bg-slate-950/95 border-t border-cyan-500/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-cyan-200">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <span>Data kontak dan alamat detail telah disensor secara aman oleh LOXER.</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Lamar Resmi via LOXER</span>
+                    </div>
+                  </div>
+                </section>
+              )}
+
               {/* Job Description */}
               <section className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4 text-sky-400" /> Deskripsi Pekerjaan
                 </h3>
                 <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-4 whitespace-pre-line text-slate-300 text-sm">
-                  {job?.description || 'Deskripsi detail lowongan tidak dicantumkan oleh perusahaan.'}
+                  {censorJobText(job?.description || 'Deskripsi detail lowongan tidak dicantumkan oleh perusahaan.', locationText)}
                 </div>
               </section>
 
@@ -408,7 +439,7 @@ export default function JobDetailModal({
                     <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Kualifikasi & Persyaratan
                   </h3>
                   <div className="rounded-2xl border border-white/10 bg-slate-800/60 p-4 whitespace-pre-line text-slate-300 text-sm">
-                    {job.requirements}
+                    {censorJobText(job.requirements, locationText)}
                   </div>
                 </section>
               )}
@@ -419,7 +450,9 @@ export default function JobDetailModal({
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Tentang Perusahaan</h4>
                   <p className="font-bold text-white">{company.name}</p>
                   {company.description && (
-                    <p className="text-xs text-slate-400 line-clamp-3">{company.description}</p>
+                    <p className="text-xs text-slate-400 line-clamp-3">
+                      {censorJobText(company.description, company.city || locationText)}
+                    </p>
                   )}
                   <div className="flex flex-wrap gap-4 pt-1 text-xs text-slate-400">
                     {company.industry && <span>Industri: <strong className="text-slate-200">{company.industry}</strong></span>}

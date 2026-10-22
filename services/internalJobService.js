@@ -72,6 +72,7 @@ export function searchInternalJobs(params = {}) {
         j.salary_max, 
         j.description, 
         j.requirements, 
+        j.poster_url,
         j.created_at,
         c.name AS company_name,
         c.logo_url AS company_logo
@@ -104,11 +105,15 @@ export function searchInternalJobs(params = {}) {
         salary_currency_code: 'IDR',
         salary_type: 'M',
         description: job.description || job.requirements || 'Deskripsi lowongan internal LOXER.',
+        requirements: job.requirements || '',
+        poster_url: job.poster_url || '',
+        company_logo: job.company_logo || '',
         url: `/seeker/browse?job_id=${job.id}`,
         date: job.created_at || new Date().toISOString(),
         site: 'LOXER Mitra',
         source: 'LOXER Verified Employer',
         is_internal: true,
+        is_verified: true,
         job_id: job.id,
       };
     });

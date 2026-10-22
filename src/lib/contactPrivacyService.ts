@@ -245,3 +245,37 @@ export function validateMessageSafety(text: string): { isRisky: boolean; alertTe
 
   return { isRisky: false, alertText: null };
 }
+
+/**
+ * Sensor rapi bagian kontak (telepon, WhatsApp, email, link) dan alamat detail pada deskripsi/persyaratan loker
+ */
+export function censorJobText(text: string | null | undefined, defaultCity = 'Bandung / Cimahi'): string {
+  if (!text) return '';
+  let res = String(text);
+
+  // 1. Phone numbers / WhatsApp (+62..., 08..., dll)
+  res = res.replace(/(\+?62|08|\b0[1-9])[\s.-]*(\d[\s.-]*){7,12}\d/gi, (match) => {
+    const digits = match.replace(/\D/g, '');
+    const prefix = digits.startsWith('62') ? '0' + digits.slice(2, 5) : digits.slice(0, 4);
+    return `${prefix}••••• (Kontak Terproteksi)`;
+  });
+
+  // 2. Email addresses
+  res = res.replace(/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi, (_match, u, d) => {
+    const prefix = u.length > 3 ? u.slice(0, 3) : u[0] || 'u';
+    return `${prefix}•••••@${d} (Email Terproteksi)`;
+  });
+
+  // 3. Web links & social handles
+  res = res.replace(/https?:\/\/[^\s]+/gi, '[🔒 Link Pendaftaran Resmi di LOXER]');
+  res = res.replace(/mailto:[^\s]+/gi, '[🔒 Pendaftaran Terproteksi Sistem]');
+  res = res.replace(/wa\.me\/[^\s]+/gi, '[🔒 WhatsApp Terproteksi]');
+
+  // 4. Street / full address keywords
+  res = res.replace(/\b(jl\.?|jalan|gang|gg\.?|komplek|perumahan|kp\.?|kampung|rt\b|rw\b)\s+[^,\n.]+/gi, () => {
+    const cleanCity = defaultCity.replace(/^kota\s+|^kabupaten\s+/i, '').trim();
+    return `Area ${cleanCity || 'Terverifikasi'} (Alamat Lengkap Terverifikasi LOXER)`;
+  });
+
+  return res;
+}

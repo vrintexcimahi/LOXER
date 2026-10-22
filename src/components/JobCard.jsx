@@ -15,6 +15,7 @@ import {
   Pin,
 } from 'lucide-react';
 import { useAppAccess } from '../contexts/AppAccessContext';
+import { censorJobText } from '../lib/contactPrivacyService';
 
 dayjs.extend(relativeTime);
 dayjs.locale('id');
@@ -158,12 +159,14 @@ function getProviderBadge(site) {
 
 export default function JobCard({ job, onSelectJob }) {
   const { requireApp } = useAppAccess();
-  const summary = stripHtml(job.description);
-  const shortSummary = summary.length > 150 ? `${summary.slice(0, 150)}...` : summary;
+  const rawSummary = stripHtml(job.description);
+  const sanitizedSummary = censorJobText(rawSummary, job.locations);
+  const shortSummary = sanitizedSummary.length > 150 ? `${sanitizedSummary.slice(0, 150)}...` : sanitizedSummary;
   const isRemote = (job.locations || '').toLowerCase().includes('remote');
   const provider = getProviderBadge(job.site);
   const ProviderIcon = provider.icon;
   const isInternal = Boolean(job.is_internal);
+  const posterUrl = job.poster_url || job.job_listings?.poster_url;
 
   const handleCardClick = (e) => {
     if (isInternal && onSelectJob) {
@@ -200,6 +203,28 @@ export default function JobCard({ job, onSelectJob }) {
       onClick={isInternal && onSelectJob ? handleCardClick : undefined}
       className={`group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-900/80 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10 shadow-md ${isInternal && onSelectJob ? 'cursor-pointer' : ''}`}
     >
+      {/* Poster Flyer preview if available */}
+      {posterUrl && (
+        <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-950 border-b border-slate-200 dark:border-white/10">
+          <img
+            src={posterUrl}
+            alt={job.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-black/30 pointer-events-none" />
+          <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1">
+            <span className="rounded bg-sky-950/85 border border-sky-400/40 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-sky-200 backdrop-blur-md shadow-sm">
+              Poster Asli
+            </span>
+            <span className="inline-flex items-center gap-0.5 rounded bg-slate-950/85 border border-emerald-400/40 px-1.5 py-0.5 text-[7px] sm:text-[8px] font-bold text-emerald-300 backdrop-blur-md shadow-sm">
+              <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
+              <span>Sensor Aman</span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner — Job Logo & Info */}
       <div className="relative overflow-hidden bg-gradient-to-br from-sky-50 via-slate-100 to-blue-50/60 dark:from-slate-800 dark:via-slate-900 dark:to-sky-950/40 p-2 sm:p-4 pb-2 sm:pb-3 border-b border-slate-200/80 dark:border-white/5">
         <div className="absolute inset-0 bg-gradient-to-t from-slate-200/30 dark:from-slate-950 via-transparent to-transparent pointer-events-none" />

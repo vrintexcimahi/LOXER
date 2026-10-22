@@ -86,6 +86,7 @@ export interface JobListing {
   salary_max: number;
   description: string;
   requirements: string;
+  poster_url?: string;
   quota: number;
   status: JobStatus;
   created_at: string;
