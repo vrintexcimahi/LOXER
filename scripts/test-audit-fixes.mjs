@@ -1097,6 +1097,41 @@ async function testAuditFixes() {
       '60. Performance (Rec 25): Admin successfully executes SQLite optimization and WAL checkpoint'
     );
 
+    // 61. Security (AUD-028): Pagination SQL Injection Guard
+    const injRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        table: 'job_listings',
+        action: 'select',
+        limit: "10; DROP TABLE users;--",
+      }),
+    });
+    const injData = await injRes.json();
+    assert(injRes.status === 200 && Array.isArray(injData.data), '61. Security (AUD-028): Malicious limit string safely coerced without SQL syntax error or injection');
+
+    const rangeInjRes = await fetch(`${baseUrl}/api/local/db/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        table: 'job_listings',
+        action: 'select',
+        range: { from: "0; DROP TABLE users", to: "4" },
+      }),
+    });
+    const rangeInjData = await rangeInjRes.json();
+    assert(rangeInjRes.status === 200 && Array.isArray(rangeInjData.data) && rangeInjData.data.length <= 5, '61.1 Security (AUD-028): Range pagination parameters safely coerced to bounded integers');
+
+    // 62. Reliability (AUD-026): End-of-Suite Foreign Key Integrity & Self-Healing
+    const finalFkErrors = queryAll('PRAGMA foreign_key_check');
+    assert(finalFkErrors.length === 0, `62. Reliability (AUD-026): Database foreign key check clean with 0 violations (${finalFkErrors.length} found)`);
+
     // Clean up temporary fixtures
     if (tempJobId) execute("DELETE FROM job_listings WHERE id = ?", [tempJobId]);
     if (tempCompId) execute("DELETE FROM companies WHERE id = ?", [tempCompId]);

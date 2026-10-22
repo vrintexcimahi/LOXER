@@ -27,6 +27,10 @@ if (fs.existsSync(CHECKPOINT_PATH)) {
   } catch {
     processedMap = {};
   }
+function saveCheckpointAtomic(map) {
+  const tmpPath = `${CHECKPOINT_PATH}.tmp.${process.pid}`;
+  fs.writeFileSync(tmpPath, JSON.stringify(map, null, 2), 'utf-8');
+  fs.renameSync(tmpPath, CHECKPOINT_PATH);
 }
 
 const db = new DatabaseSync(DB_PATH);
@@ -98,6 +102,28 @@ for (let i = 0; i < targetBatch.length; i++) {
 
     // 5. Simpan / Temukan Perusahaan
     const cleanCompName = String(jobData.company_name).trim();
+    const cleanJobTitle = String(jobData.title).trim();
+
+    // Check duplicate by title + company
+    const existingJob = db.prepare(`
+      SELECT j.id FROM job_listings j
+      JOIN companies c ON j.company_id = c.id
+      WHERE LOWER(j.title) = LOWER(?) AND LOWER(c.name) = LOWER(?)
+    `).get(cleanJobTitle, cleanCompName);
+
+    if (existingJob) {
+      console.log(`   ⏭️ Lowongan [${cleanJobTitle}] di [${cleanCompName}] sudah terdaftar sebelumnya (ID: ${existingJob.id}), lewati...`);
+      processedMap[filename] = {
+        job_id: existingJob.id,
+        title: cleanJobTitle,
+        company: cleanCompName,
+        status: 'duplicate_skipped',
+        processed_at: new Date().toISOString(),
+      };
+      saveCheckpointAtomic(processedMap);
+      continue;
+    }
+
     let company = db.prepare('SELECT id, name FROM companies WHERE LOWER(name) = LOWER(?)').get(cleanCompName);
 
     const now = new Date().toISOString();
@@ -171,7 +197,7 @@ for (let i = 0; i < targetBatch.length; i++) {
       company: cleanCompName,
       processed_at: now,
     };
-    fs.writeFileSync(CHECKPOINT_PATH, JSON.stringify(processedMap, null, 2), 'utf-8');
+    saveCheckpointAtomic(processedMap);
 
     successCount++;
     console.log(`   ✅ Lowongan berhasil dipublikasikan (ID: ${jobId})`);

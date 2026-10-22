@@ -38,4 +38,7 @@ data/browser-fb-profile/
 public/uploads/fb_scraped/
 !public/uploads/fb_scraped/sample_cv_azqy.png
 data/backups/
-
+data/*.local_backup
+data/smart_add_checkpoint.json
+public/uploads/posters/
+artifacts/

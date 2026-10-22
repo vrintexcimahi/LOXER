@@ -273,8 +273,10 @@ export function getLocalDb() {
         CREATE INDEX IF NOT EXISTS idx_job_listings_status ON job_listings(status);
         CREATE INDEX IF NOT EXISTS idx_job_listings_company_id ON job_listings(company_id);
         CREATE INDEX IF NOT EXISTS idx_job_listings_created_at ON job_listings(created_at);
+        CREATE INDEX IF NOT EXISTS idx_jobs_active_created ON job_listings(created_at DESC) WHERE status = 'active';
         CREATE INDEX IF NOT EXISTS idx_talent_posts_headline ON talent_marketplace_posts(headline);
         CREATE INDEX IF NOT EXISTS idx_talent_posts_category ON talent_marketplace_posts(category);
+        CREATE INDEX IF NOT EXISTS idx_talent_posts_published ON talent_marketplace_posts(created_at DESC) WHERE status = 'published';
       `);
     } catch {
       // ignore
@@ -434,9 +436,9 @@ export function getLocalDb() {
         DELETE FROM talent_marketplace_posts
         WHERE seeker_id NOT IN (SELECT id FROM seeker_profiles);
 
-        -- Decouple and clean any auto-generated dummy CV users from previous smart add runs
-        UPDATE seeker_profiles SET user_id = NULL WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'cv_%@loxer.local');
-        UPDATE talent_marketplace_posts SET user_id = NULL WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'cv_%@loxer.local');
+        -- Decouple and clean any auto-generated dummy CV users from previous smart add runs or deleted test users
+        UPDATE seeker_profiles SET user_id = NULL WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users);
+        UPDATE talent_marketplace_posts SET user_id = NULL WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users);
         DELETE FROM users_meta WHERE email LIKE 'cv_%@loxer.local';
         DELETE FROM users WHERE email LIKE 'cv_%@loxer.local';
       `);
@@ -1172,6 +1174,15 @@ export function restoreDatabaseSnapshot(filename) {
   const fullPath = getSnapshotFilePath(filename);
   if (!fullPath) {
     throw new Error('Berkas snapshot tidak valid atau tidak ditemukan.');
+  }
+
+  // Verify snapshot magic header (SQLite format 3) before touching active database (Saran 43)
+  const fd = fs.openSync(fullPath, 'r');
+  const magic = Buffer.alloc(16);
+  fs.readSync(fd, magic, 0, 16, 0);
+  fs.closeSync(fd);
+  if (magic.toString('utf8', 0, 15) !== 'SQLite format 3') {
+    throw new Error('Berkas snapshot rusak atau bukan format SQLite yang valid.');
   }
 
   // Close active DatabaseSync connection if open

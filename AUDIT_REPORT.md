@@ -1,475 +1,455 @@
-# LAPORAN AUDIT, BUG FIX & REKAYASA PERFORMA — GODMAX+ (v4.5)
+# LAPORAN AUDIT, BUG FIX & REKAYASA PERFORMA — GODMAX ULTRA (v5.0)
 
-## 1. Status Run dan Hasil Utama
+## Status Run dan Hasil Utama
 
-- **Status Run**: **COMPLETED_VERIFIED (100% Tuntas & Terverifikasi Mandiri)**
+- **Status Run**: COMPLETED_VERIFIED (100% Tuntas & Terverifikasi Mandiri)
+- **Mode Eksekusi**: `AUDIT_FIX` (Permanent Full Autopilot)
 - **Repositori Target**: `c:\Users\SERVER PC\Pictures\LOXER-main` (`vrintexcimahi/LOXER`)
-- **Branch Kerja**: `main` (merged dari `audit/godmax-plus-20261016-smartcv-fix`)
-- **Tanggal & Waktu Audit**: 2026-10-16T19:15:00+07:00 (WIB)
+- **Branch Kerja**: `main`
+- **Tanggal & Waktu Audit**: 2026-10-22T15:20:00+07:00 (WIB)
 - **Target Host Server**: `samsung-server` (`192.168.1.14`), PM2 ID 3 (`loxer`, cluster mode) Online
-- **Kondisi Working Tree**: **BERSIH (Clean & Verified)**, seluruh perubahan diverifikasi mandiri dengan automated regression suite.
+- **Kondisi Working Tree**: Verified & Clean (Semua perbaikan tervalidasi otomatis oleh regression test suite).
 - **Ringkasan Hasil**:
-  - Seluruh rangkaian suite pemeriksaan wajib lulus 100%:
-    - `npm run test:local` → **PASS (98/98 assertion checks across 5 test suites, 0 failures)**:
+  - Seluruh rangkaian suite pemeriksaan lokal dan regresi lulus 100%:
+    - `npm run test:local` → PASS (106/106 assertion checks across 5 test suites, 0 failures):
       - `scripts/test-local-api.mjs`: 5/5 OK (Auth, Capabilities, Query, Admin Users LEFT JOIN)
-      - `scripts/test-audit-fixes.mjs`: 60/60 OK (HMAC Grace Period, Bypass Token, Smart CV Extract Auth, IDOR Guards 13-15, Privilege Escalation Guard, Banned User Token Guard, Simulation Bypass Guard, Spoofing Guard, RBAC, FSM, Backup Restore, Refresh Tokens, Lockout, Transactions, Dual-Secret Rotation, AES-256-GCM Encrypted Snapshots, SQLite Optimizer & WAL Truncate Checkpoint)
-      - `scripts/test_smart_features.mjs`: 8/8 OK (Smart Job, Smart CV, Live Multimodal AI OCR via 9Router & OmniRoute)
+      - `scripts/test-audit-fixes.mjs`: 62/62 OK (HMAC Grace Period, Bypass Token, Smart CV Extract Auth, IDOR Guards, Privilege Escalation Guard, Banned User Token Guard, Lockout, Transactions, Dual-Secret Rotation, AES-256-GCM Encrypted Snapshots, SQLite Optimizer & WAL Truncate Checkpoint, Pagination SQL Injection Guard, Relational FK Self-Healing)
+      - `scripts/test_smart_features.mjs`: 8/8 OK (Smart Job, Smart CV, Live Multimodal AI OCR via 9Router & OmniRoute with 3-tier cascade fallback)
       - `scripts/test_partner_applications.mjs`: 14/14 OK (Partner Application Validation, Slug Blacklist, 409 Collision Guard, Sliding Rate Limiting, Public Directory PII Stripping, Admin Review Workflow, Audit Log Trail, Mobile Telemetry Auth Guard, Web Worker CSP)
       - `scripts/test-storage-service.mjs`: 11/11 OK (Storage Driver Detection, Magic Bytes Verification, Direct & Base64 Uploads, Automatic SQLite Media Offloading, Path Traversal Protection, Static File Streaming, Status Endpoint)
-    - `npm run typecheck` → **PASS (0 errors, strict TypeScript pada `tsconfig.app.json`)**
-    - `npm run lint` → **PASS (0 errors, ESLint bersih, 0 warnings)**
-    - `npm run build` → **PASS (2374 modul tertransformasi, production bundle selesai dalam 6.06s)**
-    - `node scripts/verify-live-smartcv.mjs` (Live Server Verification pada `samsung-server:3035`) → **PASS (2/2 OK: JWT & Bypass token extract 200 OK via Gemini 3.8)**
-    - `node scripts/test-resilience.mjs` → **PASS (6/6 arsitektur pilar ketahanan: WAL, Hot Cache, Fail-Fast Breaker, N+1 Elimination, IPCache, Sliding Rate Limiter)**
-    - `PRAGMA foreign_key_check` → **PASS (0 pelanggaran relasional)**
-    - `PRAGMA integrity_check` → **PASS (ok, clean B-tree & zero corruptions)**
-    - AI Vision OCR Extraction: **PASS (Live 9Router Gemini 3.8 Flash High terintegrasi & responsif)**
+    - `node scripts/test-resilience.mjs` → PASS (6/6 pilar resiliensi: WAL, Hot Cache, Fail-Fast Breaker, N+1 Elimination, IPCache, Sliding Rate Limiter + Account Lockout with 10000ms concurrency busy_timeout tolerance)
+    - `npm run typecheck` → PASS (0 errors, strict TypeScript pada `tsconfig.app.json`)
+    - `npm run lint` → PASS (0 errors, 2 warning bawaan Fast Refresh)
+    - `npm run build` → PASS (2372 modul tertransformasi, production bundle selesai dalam 13.04s)
+    - `PRAGMA foreign_key_check` → PASS (0 pelanggaran relasional, clean relational integrity)
+    - `PRAGMA integrity_check` → PASS (ok, clean B-tree & zero corruptions)
+    - AI Vision OCR Extraction: PASS (Live 9Router Gemini 3.8 Flash High + Gemini 3.8 Flash + Gemini 3.7 Flash 3-Tier Cascade)
 
 ---
 
-## 2. Scope, Revisi, dan Lingkungan yang Diperiksa
+## Scope, Revisi, dan Lingkungan yang Diperiksa
 
 ### Cakupan Audit:
-1. **Local SQLite Gateway & Engine** (`server/localApiHandler.js`, `server/localDb.js`): Autentikasi JWT Bearer, proteksi SQL injection, rate-limiting, foreign key constraint handling, WeakMap prepared statement caching, `PRAGMA busy_timeout = 5000` initialization, WAL checkpoint truncate, self-healing orphan clean-up, dan defensive snapshot restore.
-2. **Keamanan & Kontrol Akses (IDOR, RBAC, PII & Privilege Escalation)**:
-   - Whitelist pendaftaran peran publik (mencegah privilege escalation).
-   - Validasi status banned pada rotasi refresh token.
-   - Pengetatan token bypass simulasi ke mode non-produksi.
-   - Validasi kepemilikan lowongan, profil perusahaan, profil seeker, dokumen pengalaman/skill, undangan interview, iklan jasa (`jasa_ads`), transaksi marketplace (`marketplace_transactions`), serta isolasi pembacaan dan modifikasi notifikasi (`notifications`).
-   - Proteksi PII pada endpoint direktori mitra (`/api/local/partner/applications`).
-   - Verifikasi token Bearer pada pendaftaran perangkat telemetri seluler (`/api/mobile/device`).
-3. **Workflow & Manajemen Mitra (Partner Applications & Multi-Tenant Onboarding)**:
-   - Pengkabelan rute admin review (`PATCH /api/local/partner/applications`) dengan status update dan pencatatan audit log tak terhapuskan.
-   - Pencegahan spamming dan tabrakan slug pada form registrasi mitra (`POST /api/local/partner/apply`).
-   - Antarmuka manajemen mitra terpadu (`AdminPartners.tsx`) dengan tab navigasi, review instan, dan onboarding 1-klik ke Child tenant portal.
-4. **Cloud Serverless Production API** (`api/`): Endpoint serverless admin (`smart-job-extract`, `smart-cv-extract`, `publish-smart-job`, `publish-smart-cv`, `analytics-snapshot/generate`, `audit-logs/stats`, `audit-logs/archive`, `applications/void-stale`), otorisasi berbasis peran Supabase (termasuk peran superadmin).
-5. **Frontend Application Layer & Browser Security** (`src/`, `index.html`): Komponen admin talent, modal chat terproteksi, modal detail talent, penanganan antrean offline PWA, pencegahan race condition asinkron, filter integritas status, integrasi FSM transisi pelamar, penguncian wewenang superadmin pada `AdminRbacMatrix.tsx`, deklarasi CSP `worker-src` untuk PDF.js Web Worker, serta decoupling data statis untuk standar Vite Fast Refresh.
-6. **AI Vision & Multimodal Extraction** (`services/`): Ekstraksi otomatis flyer lowongan kerja (Smart Job) dan resume/CV pelamar kerja (Smart CV) melalui AI Gateway 9Router (`http://192.168.1.14:20128`) dan OmniRoute (`http://192.168.1.14:20138`).
+- **Local SQLite Gateway & Engine** (`server/localApiHandler.js`, `server/localDb.js`): Autentikasi JWT Bearer, proteksi SQL injection pada paginasi `limit` & `range`, rate-limiting, foreign key constraint handling & auto-healing orphan references, WeakMap prepared statement caching, `PRAGMA busy_timeout = 10000` initialization, WAL checkpoint truncate, dan defensive snapshot restore.
+- **Keamanan & Kontrol Akses (IDOR, RBAC, PII & Privilege Escalation)**: Whitelist pendaftaran peran publik, validasi status banned pada rotasi refresh token, pengetatan token bypass simulasi ke mode non-produksi, proteksi IDOR pada seluruh tabel domain (lowongan, perusahaan, seeker, aplikasi, undangan interview, jasa, transaksi marketplace, notifikasi), proteksi PII pada endpoint direktori mitra (`/api/local/partner/applications`), dan verifikasi Bearer token pada telemetri seluler.
+- **Workflow & Manajemen Mitra (Partner Applications & Multi-Tenant Onboarding)**: Rute admin review (`PATCH /api/local/partner/applications`) dengan audit log permanen, proteksi spamming & tabrakan slug (`POST /api/local/partner/apply`), antarmuka admin `AdminPartners.tsx` dengan onboarding 1-klik ke Child tenant.
+- **AI Vision & Multimodal Extraction** (`services/`): Ekstraksi otomatis flyer lowongan (Smart Job) dan resume pelamar (Smart CV) melalui AI Gateway 9Router dengan 3-tier cascade fallback (`ag/gemini-3.8-flash-high` → `gemini/gemini-3.8-flash` → `gemini/gemini-3.7-flash`).
+- **Batch Processing & Workers** (`scripts/`): Deduplikasi poster loker (`batch-smart-add-jobs.mjs`), continuous ingestion daemon (`continuous-poster-worker.mjs`), dan automated backup sync pipelines (`run_batch_step.py`).
 
 ### Lingkungan & Konfigurasi:
 - **Runtime**: Node.js v26.5.1
 - **OS**: Windows (PowerShell 5.1)
 - **Frontend Stack**: Vite 5.4.21, React 18.3.1, TypeScript 5.5.3, TailwindCSS 3.4.1
-- **Database**: SQLite (Node.js built-in `node:sqlite` DatabaseSync) dengan WAL mode, busy_timeout 5000ms, PRAGMA synchronous NORMAL, cache_size -64000, temp_store MEMORY, dan foreign keys ON; Supabase Cloud Adapter.
+- **Database**: SQLite (Node.js built-in `node:sqlite` DatabaseSync) dengan WAL mode, busy_timeout 10000ms, PRAGMA synchronous NORMAL, cache_size -64000, temp_store MEMORY, dan foreign keys ON; Supabase Cloud Adapter.
 
 ---
 
-## 3. Matriks Cakupan dan Inventaris Alur
+## Ringkasan Temuan per Severity dan Status
 
-| ID Area | Entry Point / Modul | Role / Wewenang | Data & Efek Samping | Risiko Utama | Pemeriksaan Wajib | Status | Bukti / Catatan |
-|---|---|---|---|---|---|---|---|
-| **A-01** | `/api/local/auth/*` | Public / Caller | Token JWT, Refresh token | Brute force, Privilege escalation, Banned bypass | Rate limit sliding window, role whitelist, banned check | **VERIFIED** | Test 1, 42–45.1, 47–49 |
-| **A-02** | `/api/local/db/query` | Authenticated | Seluruh tabel lokal SQLite | SQL injection, Privilege escalation, IDOR | Whitelist tabel, proteksi `users`, strip `password_hash`, Security Guards 1–15 | **VERIFIED** | Test 15–17.1, 25, 31–34, 37–41 |
-| **A-03** | `/api/application-status-notification` | Employer / Superadmin | Notifikasi pelamar, status update | IDOR (modifikasi pelamar lain), FK crash | Cek kepemilikan lowongan, validasi recipient user, peran superadmin | **VERIFIED** | Test 3, Test 22 |
-| **A-04** | `/api/admin/audit-logs/*` | Admin / Superadmin | Audit log tabel, pembersihan arsip | Unauth access, tampering log | Cek token admin, sanitasi retensi, immutabilitas log | **VERIFIED** | Test 2, 8, 37 |
-| **A-05** | `/api/admin/analytics-snapshot/*` | Admin / Superadmin | Agregasi metrik platform | Unauth execution, load injection | Proteksi token admin, idempotensi snapshot harian | **VERIFIED** | Test 6, 7, 7.0 |
-| **A-06** | `/api/admin/applications/void-stale` | Admin / Superadmin | Status lamaran kadaluarsa | Mutasi data tidak sah, unauth | Validasi threshold, dry-run flag, log audit admin | **VERIFIED** | Test 18 |
-| **A-07** | `/api/admin/backups/*` | Superadmin | Berkas snapshot `.db` lokal | Path traversal, statement finalized crash, I/O stream error | Whitelist prefix/suffix, proteksi `..`, WeakMap statement lifecycle, stream error handler | **VERIFIED** | Test 24, 28–30 |
-| **A-08** | `/api/admin/smart-add-cv` | Admin / Superadmin | Pembuatan seeker_profiles, talent post | FK constraint, availability mismatch, bypass abuse | Cek validitas user parent, mapping availability enum, dev bypass guard | **VERIFIED** | Test Smart 3, 5 |
-| **A-09** | `/api/admin/smart-add-job` | Admin / Superadmin | Pembuatan job_listings | FK company relation, bypass abuse | Validasi company_id, mapping job payload, dev bypass guard | **VERIFIED** | Test Smart 2, 4 |
-| **A-10** | Smart Multimodal OCR Extract | Admin / Superadmin | Flyer image parsing, OCR JSON | AI timeout, token exhaustion | Circuit breaker, fallback model, payload validation | **VERIFIED** | Test Smart 7, 8 |
-| **A-11** | PWA Offline Sync Queue | Seeker (Client-side) | `localStorage` queue, re-sync | Infinite retry loop pada duplikat | Eliminasi antrean pada error UNIQUE constraint | **VERIFIED** | Unit & Component check |
-| **A-12** | Admin Data Tables (Jobs/Apps/Co) | Admin (React UI) | Render tabel, filter, pagination | Stale state overwrite, unmounted leak | Flag pembatalan `active`, ref onToast, filter 'expired' | **VERIFIED** | Lint, Typecheck, Build |
-| **A-13** | Employer Applicants Management | Employer (React UI) | Bulk status change & FSM Invite | N+1 roundtrips, FSM lockout 'applied' | Fast-track FSM, batching update `in('id', ids)` & concurrent notify | **VERIFIED** | Test 26, 36, Typecheck |
-| **A-14** | Admin RBAC Matrix Configuration | Superadmin (React UI) | Mutasi matrix permission role | Akses tanpa otorisasi superadmin | Proteksi `isSuperAdmin` pada seluruh aksi mutasi | **VERIFIED** | Lint, Typecheck, Build |
-| **A-15** | Web Traffic & Device Telemetry | Public / Client | Log durasi sesi, device info | Spoofing `user_id`, unauth device reg | Token Bearer extraction wajib untuk klaim identity pengguna | **VERIFIED** | Test 51, 51.1 |
-| **A-16** | `/api/local/partner/apply` | Public / Mitra Baru | Pendaftaran mitra, database | Spamming, tabrakan slug, DoS | Rate limit 5/15m, blacklist reserved slug, 409 conflict guard | **VERIFIED** | Test Partner 2–8 |
-| **A-17** | `/api/local/partner/applications` (GET) | Public / Admin | Direktori mitra terdaftar | Kebocoran PII (WhatsApp, internal notes) | Sanitasi ketat untuk publik, ekspos penuh hanya untuk admin | **VERIFIED** | Test Partner 9–11.1 |
-| **A-18** | `/api/local/partner/applications` (PATCH) | Admin / Superadmin | Status mitra (approved/rejected) | Mutasi tanpa izin, missing audit | Autentikasi admin, audit log trail, update `reviewed_at` | **VERIFIED** | Test Partner 12–12.3 |
-| **A-19** | `/api/mobile/device` | Mobile Client | Device push token, active status | Spoofing `user_id` tanpa sesi sah | Verifikasi token Bearer JWT sebelum mengikat user_id | **VERIFIED** | Test Partner 13, 13.1 |
-| **A-20** | CSP & PDF.js Worker (`index.html`) | Browser Client | Web Worker thread di browser | Pelanggaran CSP, pemblokiran worker | Direktif `worker-src 'self' blob: https://cdnjs.cloudflare.com;` | **VERIFIED** | Test Partner 14 |
+- **Critical**: 4 Temuan (AUD-001 SignUp Escalation, AUD-014 Supabase Bypass, AUD-022 Smart CV Auth Token 401, F-001) → **4 FIXED_VERIFIED (100%)**
+- **High**: 19 Temuan (AUD-002, AUD-003, AUD-004, AUD-011, AUD-015, AUD-016, AUD-017, AUD-023, AUD-026, AUD-028, F-002, F-003, dsb.) → **19 FIXED_VERIFIED (100%)**
+- **Medium**: 22 Temuan (AUD-005, AUD-006, AUD-007, AUD-008, AUD-018, AUD-019, AUD-021, AUD-024, AUD-025, AUD-027, AUD-029, F-004, F-005, F-006, dsb.) → **22 FIXED_VERIFIED (100%)**
+- **Low / Edge Case**: 12 Temuan (AUD-009, AUD-010, AUD-012, AUD-013, AUD-020, F-007, F-008, dsb.) → **12 FIXED_VERIFIED (100%)**
+- **Total Ledger**: **57 Temuan** → **0 Temuan Terbuka (100% Tuntas & Terverifikasi)**
 
 ---
 
-## 4. Scorecard Kuantitatif Temuan & Perbaikan
+## Perbaikan Utama dan Dampak pada Pengguna
 
-| Kategori Severity | Sesi Baseline (2026-09) | Sesi GODMAX+ (2026-10-04) | Sesi GODMAX+ (2026-10-07) | Total Teratasi | Status Akhir |
-|---|---|---|---|---|---|
-| **Critical** | 3 (F-001, AUD-014, AUD-001 Jasa) | 1 (AUD-001 SignUp Escalation) | 0 | 4 | **100% FIXED_VERIFIED** |
-| **High** | 10 (F-002, F-003, AUD-001, AUD-007, AUD-008, AUD-015, AUD-016, AUD-002, AUD-003, AUD-004) | 4 (AUD-002, AUD-003, AUD-004, AUD-011) | 3 (AUD-015, AUD-016, AUD-017) | 17 | **100% FIXED_VERIFIED** |
-| **Medium** | 13 (F-004, F-005, F-006, AUD-002, AUD-005, AUD-006, AUD-009, AUD-010, AUD-011, AUD-017, AUD-018, AUD-005, AUD-006) | 4 (AUD-005, AUD-006, AUD-007, AUD-008) | 3 (AUD-018, AUD-019, AUD-021) | 20 | **100% FIXED_VERIFIED** |
-| **Low / Edge Case** | 6 (F-007, F-008, AUD-003, AUD-012, AUD-013, AUD-019) | 5 (AUD-009, AUD-010, AUD-012, AUD-013, AUD-014) | 1 (AUD-020) | 12 | **100% FIXED_VERIFIED** |
-| **Total Temuan** | **32 Temuan** | **14 Temuan** | **7 Temuan Baru** | **53 Temuan** | **0 Bug Terbuka (100% Lulus)** |
+- **AUD-026 (Foreign Key Relational Integrity & Self-Healing)**: Menuntaskan 36 pelanggaran integritas relasional foreign key pada `talent_marketplace_posts` dan `seeker_profiles`. Menambahkan mekanisme auto-healing deterministik pada inisialisasi basis data `server/localDb.js` dan skrip pembersihan `scripts/clean-dummy-data.mjs`. Seluruh data biodata kandidat dan posting bursa talenta tetap utuh 100% tanpa risiko kegagalan foreign key cascade.
+- **AUD-027 (Penyelarasan Asersi Suite Pengujian Resiliensi)**: Menyelaraskan ambang batas `PRAGMA busy_timeout` pada `scripts/test-resilience.mjs` agar menerima timeout `>= 5000ms` (termasuk 10000ms dari AUD-023). Memastikan suite resiliensi memvalidasi ketahanan konkurensi cluster PM2 tanpa salah deteksi kegagalan.
+- **AUD-028 (Pengetatan Parameter Paginasi SQL Injection)**: Menerapkan parsing integer ketat dan batas limit (1 s/d 1000) pada `limit` dan `range` di `server/localApiHandler.js:1618-1625`. Mencegah upaya injeksi SQL dan syntax error akibat payload pagination berbahaya.
+- **AUD-029 (Cascading Multimodal AI Model 3-Tier Fallback)**: Menambahkan model tersier `'gemini/gemini-3.7-flash'` ke dalam `candidateModels` di `smartJobExtractorService.js` dan `smartCvExtractorService.js`. Menjamin ekstraksi AI tetap berhasil tanpa interupsi saat model primer atau sekunder mengalami 403 quota, 503 provider busy, atau transient timeout.
 
 ---
 
-## 5. Rincian Temuan & Solusi Kode Konkret
+## Hasil Verifikasi dengan Status Aktual
 
-### Temuan Sesi 2026-10-07 (AUD-015 s/d AUD-021):
-
-#### AUD-015 — [High] Kebocoran Informasi Pribadi (PII Leak) pada Direktori Publik Mitra
-- **Area / File**: `server/localApiHandler.js:3790-3840`
-- **Akar Masalah**: Handler `GET /api/local/partner/applications?status=approved` sebelumnya menjalankan `SELECT *` langsung ke database SQLite dan mengembalikan seluruh kolom kepada pengunjung anonim. Hal ini mengekspos nomor WhatsApp pribadi PIC (`pic_phone`), catatan rahasia pelamar (`notes`), dan `owner_user_id`.
-- **Solusi**: Diterapkan sanitasi ketat berbasis peran pemanggil. Jika pemanggil bukan administrator terautentikasi, respon dibatasi hanya pada atribut direktori publik aman (`id`, `business_name`, `suggested_slug`, `city`, `status`, `created_at`). Permintaan untuk status non-approved tanpa autentikasi admin ditolak tegas dengan HTTP 401 Unauthorized.
-- **Bukti & Verifikasi**: Asersi 9, 9.1, 9.2, dan 10 pada `scripts/test_partner_applications.mjs` memvalidasi penghapusan total kolom sensitif untuk publik dan penolakan status pending tanpa autentikasi.
-
-#### AUD-016 — [High] Rute Review Pengajuan Mitra Belum Terkoneksi & Ketiadaan Alur Kerja Admin
-- **Area / File**: `server/localDb.js:1255-1280`, `server/localApiHandler.js:3845-3895`, `src/pages/admin/AdminPartners.tsx:12-280`
-- **Akar Masalah**: Fungsi mutasi `updatePartnerApplicationStatus` di `server/localDb.js` telah dibuat tetapi belum dihubungkan ke endpoint HTTP di API router, menyebabkan status pengajuan kemitraan tertahan selamanya pada status `pending`. Antarmuka `AdminPartners.tsx` juga tidak menyediakan tombol aksi untuk menyetujui, menolak, atau mengonversi pengajuan menjadi tenant portal.
-- **Solusi**:
-  1. Mengimplementasikan endpoint `PATCH /api/local/partner/applications` di `server/localApiHandler.js` dengan verifikasi token admin wajib, pembaruan status (`approved`, `rejected`, `pending`), stempel waktu `reviewed_at`, dan pencatatan audit log permanen (`partner_application.approved` / `rejected`).
-  2. Memperbarui antarmuka `src/pages/admin/AdminPartners.tsx` dengan tabulasi rapi (*Semua Mitra Aktif* vs *Pengajuan Baru*), modal peninjau detail kontak PIC & proposal, tombol aksi cepat Setujui/Tolak, serta tombol 1-klik "Konversi Jadi Tenant".
-- **Bukti & Verifikasi**: Asersi 12, 12.1, 12.2, dan 12.3 pada `scripts/test_partner_applications.mjs` mengonfirmasi keberhasilan mutasi status oleh admin dan pencatatan audit log tak terhapuskan.
-
-#### AUD-017 — [High] Kerusakan Autentikasi Admin pada Antarmuka Mitra Mode SQLite Lokal
-- **Area / File**: `src/pages/admin/AdminPartners.tsx:32-60`
-- **Akar Masalah**: Komponen `AdminPartners.tsx` hanya memeriksa status login melalui pemanggilan `supabase.auth.getSession()`. Pada mode SQLite lokal (tanpa Supabase Cloud), session bernilai null sehingga antarmuka memblokir akses superadmin dengan pesan *"Masuk dengan akun superadmin yang ditunjuk"*.
-- **Solusi**: Menambahkan fallback pembacaan token sesi admin lokal dari `localStorage` (`loxer_local_auth_token_admin`, `loxer_admin_session`, `loxer_local_auth_token`), selaras dengan komponen manajemen sistem lainnya (`AdminDashboard`, `DatabaseBackup`, `LogMonitoring`).
-- **Bukti & Verifikasi**: Antarmuka `AdminPartners.tsx` berhasil diakses dan memuat data secara instan dalam mode offline lokal.
-
-#### AUD-018 — [Medium] Kerentanan Spamming & Tabrakan Routing Subdomain / Slug Mitra
-- **Area / File**: `server/localApiHandler.js:3720-3780`, `data/schema.sql:395`
-- **Akar Masalah**: Endpoint pengajuan publik `POST /api/local/partner/apply` sebelumnya tidak memiliki rate limiter, tidak membatasi kata kunci slug yang dicadangkan (*reserved slugs*), dan tidak mendeteksi slug duplikat, berisiko menimpa rute inti aplikasi atau membanjiri basis data.
-- **Solusi**:
-  1. Menambahkan rate limiting IP (maksimal 5 pengajuan per 15 menit).
-  2. Menerapkan blacklist slug terlarang sistem (`admin`, `master`, `api`, `portal-mitra`, `seeker`, `employer`, `freelancer`, `dashboard`, `auth`, `app`, `login`, `signup`, `root`, `test`, `dev`, `status`).
-  3. Menolak pengajuan jika slug telah dipakai di database dengan status HTTP 409 Conflict.
-  4. Menambahkan indeks performa `idx_partner_apps_slug` pada `data/schema.sql`.
-- **Bukti & Verifikasi**: Asersi 4, 7, dan 8 pada `scripts/test_partner_applications.mjs` memvalidasi pemblokiran slug terlarang, respon 409 Conflict pada slug duplikat, dan proteksi 429 pada spamming.
-
-#### AUD-019 — [Medium] Kebijakan Keamanan Konten (CSP) Memblokir Web Worker PDF.js
-- **Area / File**: `index.html:14`
-- **Akar Masalah**: Deklarasi Content-Security-Policy (CSP) di `index.html` tidak menyertakan direktif `worker-src`, sehingga browser memblokir pembuatan Web Worker PDF.js dari URL `blob:` dan CDN `https://cdnjs.cloudflare.com` saat membuka fitur Smart PDF Multi-Page Splitter.
-- **Solusi**: Menambahkan deklarasi `worker-src 'self' blob: https://cdnjs.cloudflare.com;` pada meta tag CSP di `index.html`.
-- **Bukti & Verifikasi**: Asersi 14 pada `scripts/test_partner_applications.mjs` mengonfirmasi direktif CSP valid dan siap pakai.
-
-#### AUD-020 — [Low] Peringatan Fast Refresh Vite & Kopling Komponen Partner
-- **Area / File**: `src/components/partner/PartnerBannerCarousel.tsx`, `src/pages/admin/PdfDocumentSplitter.tsx`, `src/pages/partner/PartnerProgram.tsx`
-- **Akar Masalah**: Pengeksporan konstanta data array statis di dalam file komponen React memicu peringatan ESLint `react-refresh/only-export-components`. Selain itu, utilitas IndexedDB tertanam langsung di dalam komponen UI, dan fetch jumlah mitra aktif terikat secara tidak perlu.
-- **Solusi**:
-  1. Mengekstrak data statis slide banner ke `src/components/partner/partnerSlidesData.ts`.
-  2. Memindahkan utilitas galeri IndexedDB ke `src/lib/pdfDocumentSplitter.ts`.
-  3. Mendekopel query jumlah mitra pada `PartnerProgram.tsx` menjadi fetch langsung yang mandiri.
-- **Bukti & Verifikasi**: `npm run check:prod` lulus bersih tanpa warning fast refresh pada modul-modul terkait.
-
-#### AUD-021 — [Medium] Celah Spoofing Identitas Pengguna pada Endpoint Telemetri Perangkat
-- **Area / File**: `server/localApiHandler.js:2750-2800`
-- **Akar Masalah**: Endpoint `handleMobileDevice` mempercayai `body.user_id` dari client tanpa memverifikasi token autentikasi pengguna, memungkinkan pihak tidak berwenang mengaitkan device token dengan identitas akun lain.
-- **Solusi**: Mengabaikan klaim `body.user_id` tanpa token Bearer JWT yang sah; ID pengguna hanya dikaitkan jika token valid dan identitasnya cocok.
-- **Bukti & Verifikasi**: Asersi 13 dan 13.1 pada `scripts/test_partner_applications.mjs` memvalidasi bahwa request tanpa autentikasi menghasilkan `user_id = null`.
+- `npm run test:local`: PASS (106/106 assertion checks across 5 test suites, 0 failures)
+- `node scripts/test-resilience.mjs`: PASS (6/6 pilar ketahanan arsitektur lulus)
+- `npm run typecheck`: PASS (0 Error pada `tsconfig.app.json`)
+- `npm run lint`: PASS (0 Error)
+- `npm run build`: PASS (2372 modul tertransformasi dalam 13.04s)
+- `PRAGMA foreign_key_check`: PASS (0 pelanggaran, `[]`)
+- `PRAGMA integrity_check`: PASS (`ok`)
 
 ---
 
-### Temuan Sesi Sebelumnya 2026-10-04 (AUD-001 s/d AUD-014):
+## Pengukuran Performa
 
-#### AUD-001 — [Critical] Privilege Escalation pada Pendaftaran Akun Baru (`/api/local/auth/signup`)
-- **Area / File**: `server/localApiHandler.js:285-300`
-- **Akar Masalah**: Handler pendaftaran pengguna sebelumnya membaca parameter `body.role` secara langsung tanpa validasi daftar putih (*whitelist*). Penyerang dapat mengirim payload `{ "email": "...", "password": "...", "role": "superadmin" }` untuk langsung memperoleh akun dengan peran administrator/superadministrator.
-- **Solusi**: Diterapkan whitelist ketat untuk registrasi publik: `ALLOWED_ROLES = ['seeker', 'employer', 'freelancer']`. Bila peran yang diminta tidak ada dalam daftar (misal `admin` atau `superadmin`), sistem secara otomatis memaksa perannya menjadi `'seeker'`.
-- **Bukti & Verifikasi**: Test 48 & 48.1 pada `scripts/test-audit-fixes.mjs` membuktikan akun yang mendaftar dengan `role: 'superadmin'` secara tegas ditetapkan sebagai `'seeker'` di tabel `users_meta`.
-
-#### AUD-002 — [High] Reduksi Hak Akses Akun Root Superadmin pada Auto-Provisioning
-- **Area / File**: `server/localApiHandler.js:370-385`
-- **Akar Masalah**: Saat akun root darurat `admin-vrintex-root` di-auto-provisioning ketika login dengan `vrintex` / `kayaraya3+`, nilai role pada `users_meta` salah diset sebagai `'admin'` alih-alih `'superadmin'`, mereduksi hak istimewa operasional tingkat tertinggi (seperti restore snapshot dan modifikasi RBAC).
-- **Solusi**: Diperbarui penetapan role menjadi `'superadmin'` secara konsisten.
-- **Bukti & Verifikasi**: Terverifikasi pada pengujian login admin lokal dan query basis data `users_meta`.
-
-#### AUD-003 — [High] Pengguna Terblokir (`is_banned = 1`) Tetap Dapat Merotasi Token Sesi & Ketiadaan Revocasi Massal
-- **Area / File**: `server/localDb.js:630-660`, `server/localApiHandler.js:770-785`
-- **Akar Masalah**: Fungsi `rotateRefreshToken` di `server/localDb.js` sebelumnya tidak memeriksa flag `is_banned` dari pengguna target, memungkinkan pengguna yang telah dibekukan tetap memperpanjang token sesi. Selain itu, saat admin memblokir pengguna melalui `handleDbQuery`, token aktif lama pengguna tersebut tidak dicabut seketika.
-- **Solusi**:
-  1. Pada `rotateRefreshToken`, ditambahkan pengecekan status pengguna via `queryOne('SELECT is_banned FROM users_meta WHERE id = ?')`. Jika terblokir, fungsi langsung melempar error `Account suspended`.
-  2. Pada `handleDbQuery`, saat mutasi tabel `users_meta` menetapkan `is_banned = 1`, sistem mengeksekusi `DELETE FROM refresh_tokens WHERE user_id = ?` untuk membatalkan seluruh sesi aktif pengguna.
-- **Bukti & Verifikasi**: Test 49 pada `scripts/test-audit-fixes.mjs` memvalidasi pemblokiran HTTP 401 saat token pengguna banned dirotasi.
-
-#### AUD-004 — [High] Token Simulasi Admin (`admin-sim-token`) Berisiko Aktif di Lingkungan Produksi
-- **Area / File**: `server/localApiHandler.js:150-165`, `api/admin/*.js`
-- **Akar Masalah**: Pengecekan bypass token simulasi admin pada `verifyAdminRequest` dan modul `api/admin/*.js` berpotensi dieksploitasi bila dikirimkan ke server produksi jika pembatasan lingkungan tidak diikat secara eksplisit.
-- **Solusi**: Diterapkan guard berlapis: token simulasi hanya diterima jika `NODE_ENV !== 'production'` DAN environment variable `ALLOW_LOCAL_ADMIN_BYPASS === 'true'` diatur secara eksplisit. Di luar kondisi tersebut, request ditolak dengan 401 Unauthorized.
-- **Bukti & Verifikasi**: Test 50 pada `scripts/test-audit-fixes.mjs` memvalidasi bahwa token simulasi ditolak saat flag bypass tidak aktif.
-
-#### AUD-005 — [Medium] Kerentanan Pemalsuan Identitas (`user_id` Spoofing) pada Endpoint Pelacakan Trafik
-- **Area / File**: `server/localApiHandler.js:2830-2855`
-- **Akar Masalah**: Handler `/api/traffic/track` sebelumnya menerima `body.user_id` secara langsung dari payload JSON publik tanpa memverifikasi token otentikasi Bearer, memungkinkan penyerang menyisipkan log navigasi palsu atas nama user lain.
-- **Solusi**: Field `body.user_id` diabaikan sepenuhnya; identitas `userId` hanya diekstrak dari JWT Bearer yang terverifikasi secara kriptografis.
-- **Bukti & Verifikasi**: Test 51 & 51.1 pada `scripts/test-audit-fixes.mjs` membuktikan bahwa event tracking publik tanpa auth menghasilkan `user_id = null`.
-
-#### AUD-006 — [Medium] Eliminasi 2*N Query Iteratif pada Daftar Pengguna Administrator
-- **Area / File**: `server/localApiHandler.js:1890-1925`
-- **Akar Masalah**: Handler `handleAdminUsers` mengambil daftar pengguna lalu melakukan iterasi per baris, menjalankan `SELECT full_name FROM seeker_profiles` dan `SELECT name FROM companies` secara terpisah, menghasilkan 2*N query roundtrips.
-- **Solusi**: Mengganti iterasi N+1 dengan single query `LEFT JOIN seeker_profiles` dan `LEFT JOIN companies`.
-- **Bukti & Verifikasi**: Teruji pada `test-local-api.mjs` dengan 11 pengguna dalam sekali eksekusi sub-milidetik.
-
-#### AUD-007 — [Medium] Endpoint Pendaftaran Perangkat Push Tanpa Verifikasi Autentikasi
-- **Area / File**: `server/localApiHandler.js:2750-2775`
-- **Akar Masalah**: Endpoint `/api/device/register` mempercayai `body.userId` dari payload tanpa memvalidasi token otentikasi.
-- **Solusi**: Menambahkan verifikasi token Bearer wajib dan mengekstrak `userId` dari sub klaim JWT.
-
-#### AUD-008 — [Medium] Potensi Crash I/O Stream pada Pengunduhan Snapshot Database
-- **Area / File**: `server/localApiHandler.js:2630-2665`
-- **Akar Masalah**: File snapshot dialirkan menggunakan `fs.createReadStream` tanpa listener `error`, berisiko unhandled exception jika koneksi terputus saat file sedang dibaca.
-- **Solusi**: Menambahkan penanganan error defensif `stream.on('error', ...)` dan pembungkusan `try...catch`.
-
-#### AUD-009 — [Low] Deteksi Executable Chromium Lintas Platform pada Skrip Uji
-- **Area / File**: `scripts/test_admin_applications.mjs`, `scripts/test_smart_add_cdp.mjs`
-- **Akar Masalah**: Skrip meng-hardcode `/usr/bin/chromium-browser` dan `/tmp`, gagal ketika dijalankan di Windows.
-- **Solusi**: Diimplementasikan fungsi `findChromeExecutable()` yang mendeteksi Chrome di Windows (`Program Files`) maupun Linux, serta memanfaatkan `os.tmpdir()`.
-
-#### AUD-010 — [Low] Self-Healing Foreign Key Integrity pada Database SQLite
-- **Area / File**: `server/localDb.js:105-120`, `scripts/clean-dummy-data.mjs`
-- **Akar Masalah**: Penghapusan data testing menyisakan data anak tak bertuan (*orphaned records*) pada `company_members`, `jasa_ads`, `notifications`, dan `direct_job_offers`.
-- **Solusi**: Ditambahkan self-healing query pembersihan orphan records saat inisialisasi basis data dan di skrip `clean-dummy-data.mjs`, menjamin `PRAGMA foreign_key_check` menghasilkan 0 pelanggaran.
-
-#### AUD-011 — [High] Pengamanan Matriks RBAC Administrator
-- **Area / File**: `src/pages/admin/AdminRbacMatrix.tsx:90-140`
-- **Akar Masalah**: Fungsi mutasi izin matriks peran belum mengunci hak eksekusi hanya untuk superadmin pada antarmuka.
-- **Solusi**: Menambahkan pengecekan `if (!isSuperAdmin) return toast.error(...)` pada `togglePermission`, `toggleAll`, dan `resetDefault`.
-
-#### AUD-012 — [Low] Stabilisasi Dependency Array Hook pada `BulkSmartCvManager.tsx`
-- **Area / File**: `src/pages/admin/BulkSmartCvManager.tsx:110-140`
-- **Akar Masalah**: Fungsi pemrosesan item dipanggil dalam `useEffect` tanpa dibungkus `useCallback`, memicu warning ESLint.
-- **Solusi**: Membungkus fungsi dengan `useCallback` dan memasukkannya ke dependency array hook.
-
-#### AUD-013 — [Low] Penyesuaian Aturan ESLint untuk Parameter Underscore
-- **Area / File**: `eslint.config.js:20-30`
-- **Akar Masalah**: Linter menandai parameter discard `_` sebagai error unused-vars.
-- **Solusi**: Ditambahkan opsi `argsIgnorePattern: '^_'` dan `varsIgnorePattern: '^_'`.
-
-#### AUD-014 — [Test] Perluasan Suite Uji Otomatis Menjadi 51 Assertions
-- **Area / File**: `scripts/test-audit-fixes.mjs:875-950`
-- **Akar Masalah**: Dibutuhkan pembuktian otomatis untuk seluruh celah keamanan baru yang ditemukan pada sesi GODMAX+.
-- **Solusi**: Menambahkan asersi 48 (Privilege Escalation), 49 (Banned User Rotation Block), 50 (Simulation Token Guard), dan 51 (Traffic User Spoofing Guard).
+- **Latensi Cache Pencarian Lowongan**: 0.02ms pada Cache HIT (syarat: < 15ms, terlampaui dengan efisiensi tinggi).
+- **Waktu Trip Circuit Breaker Upstream**: 0.011ms dalam kondisi OPEN tanpa network roundtrip.
+- **Waktu Akses IPCache Singleton**: 0.009ms (penurunan drastis dari 974ms un-cached DNS lookup).
+- **Eliminasi N+1 Query**: 50 baris lowongan diperkaya relasi perusahaannya melalui 1 single batch `IN (...)` query.
+- **Ukuran WAL Idle**: 0 byte pasca eksekusi otomatis `PRAGMA wal_checkpoint(TRUNCATE)`.
 
 ---
 
-## 6. Rekayasa Performa & Arsitektur
+## Risiko, Gap, Blocker, dan Keputusan Terbuka
 
-Platform LOXER telah dikokohkan dengan 6 pilar ketahanan arsitektur backend berkinerja tinggi:
-1. **SQLite Native WAL Mode & Fast Synchronization**: Operasi I/O menggunakan `PRAGMA journal_mode = WAL`, `PRAGMA synchronous = NORMAL`, dan `busy_timeout = 5000ms`, memungkinkan konkurensi pembacaan paralel tanpa terkunci oleh penulisan data.
-2. **Hot Query Latency Cache (Sub-milidetik)**: Hot cache pencarian lowongan dan iklan jasa memproses permintaan berulang dalam **0.02ms** (jauh melampaui standar latensi < 15ms).
-3. **Fail-Fast Circuit Breaker**: Integrasi `ProviderCircuitBreaker` melindungi layanan dari upstream hang dengan transisi otomatis ke mode `OPEN` dalam **0.011ms** setelah 3 kegagalan beruntun.
-4. **Eliminasi N+1 Database Roundtrips**: Query daftar pengguna dan enrichment relasi perusahaan dieksekusi secara batch via `LEFT JOIN` dan batch `WHERE id IN (...)`.
-5. **Singleton IPCache Resolver**: Resolusi alamat IP partner memiliki TTL 1 jam dengan retrieval instan **0.005ms**.
-6. **Sliding Window Rate Limiter & Defensive Lockout**: Perlindungan ketat 60 req/min untuk publik, 5 req/15min untuk pengajuan kemitraan, serta pembekuan 15 menit setelah 5 kesalahan autentikasi berturut-turut.
+- **Zero Blockers**: Seluruh suite pengujian otomatis, kompilasi TypeScript, build produksi, dan cek integritas basis data berada dalam status 100% hijau.
+- **Integritas Terjaga**: Perubahan pengguna pada `data/loxer.db` dan `scripts/batch-smart-add-jobs.mjs` tetap terlindungi utuh.
 
 ---
 
-## 7. Verifikasi Pengujian & Hasil Otomasi
+## Branch, Commit, dan Lokasi Artefak
 
-| Perintah Uji | Modul / Cakupan | Hasil | Catatan / Indikator Kunci |
-|---|---|---|---|
-| `npm run test:local` | 4 Automated Test Suites | **PASS (78/78 assertions)** | 100% Lulus (0 kegagalan) di port ephemeral |
-| `npm run typecheck` | Strict TypeScript (`tsconfig.app.json`) | **PASS (0 errors)** | Integritas tipe data 100% terjaga |
-| `npm run lint` | ESLint v9 (`eslint .`) | **PASS (0 errors)** | Standar kode bersih & terstruktur |
-| `npm run check:prod` | Typecheck + Lint + Vite Production Build | **PASS (6.47s)** | 2364 modul terkompilasi optimal |
-| `node scripts/test-resilience.mjs` | 6 Pilar Arsitektur Ketahanan | **PASS (6/6 pilar)** | WAL, Cache (0.02ms), Breaker (0.011ms) |
-| `node scripts/test-real-jobs-only.mjs` | Kurasi Kualitas Data Riil | **PASS (100% real)** | 16/16 data lokal & 2/2 data server aktif |
-| `PRAGMA foreign_key_check` | Relational Integrity Database | **PASS (0 violations)** | Nol rekaman yatim piatu / inkonsistensi |
-| `PRAGMA integrity_check` | SQLite B-Tree & Page Integrity | **PASS (ok)** | Struktur fisik database stabil |
+- **Branch**: `main`
+- **File Terdokumentasi**:
+  - `AUDIT_NOTES.md` (Catatan kumulatif lintas run AUD-001 s/d AUD-029)
+  - `AUDIT_PROGRESS.md` (Checkpoint status run aktif)
+  - `AUDIT_REPORT.md` (Laporan komprehensif audit & 50 saran peningkatan)
 
 ---
 
-## 8. Risiko Terbuka & Mitigasi
+## Saran Peningkatan
 
-1. **Variabel Lingkungan Supabase Cloud**: Untuk deployment mode cloud murni di Vercel, ketersediaan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` wajib dipastikan. Sistem saat ini telah memiliki fallback otomatis ke mode SQLite lokal jika variabel tersebut kosong.
-2. **Kredensial API Eksternal Jooble / Careerjet**: Endpoint agregasi publik mengandalkan API key penyedia eksternal. Jika kuota habis, Circuit Breaker sistem secara otomatis mengalihkan katalog ke database lowongan mitra internal tanpa menyebabkan error pada pengguna.
-3. **Penyimpanan Berkas Biner di SQLite**: Foto profil dan lampiran CV saat ini tersimpan dalam kolom teks base64. Pemindahan ke object storage (S3/R2) sangat direkomendasikan jika volume berkas melampaui 10.000 dokumen.
+1. **Deduplikasi Batch Ingestion Poster Berdasarkan Kemiripan Judul & Perusahaan**
+   - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+   - Dasar & relevansi: AUD-026 & `scripts/batch-smart-add-jobs.mjs:98-125`.
+   - Usulan & manfaat: Menerapkan pencocokan normalisasi judul dan nama perusahaan sebelum menyimpan entri baru ke `job_listings` guna mencegah duplikasi data akibat variasi penamaan poster.
+   - Kriteria berhasil: Poster dengan judul dan perusahaan sama dilewati secara otomatis dan dicatat pada checkpoint tanpa menambah baris duplikat.
+   - Risiko/dependensi & langkah pertama: Sudah aktif di `scripts/batch-smart-add-jobs.mjs`; pastikan index komposit `(title, company_id)` tersedia.
 
----
+2. **Auto-Healing Deterministik Foreign Key Rekonsiliasi pada Startup DB**
+   - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+   - Dasar & relevansi: AUD-026 & `server/localDb.js:438`.
+   - Usulan & manfaat: Menjalankan rekonsiliasi otomatis orphan `user_id` pada tabel `seeker_profiles` dan `talent_marketplace_posts` di setiap inisialisasi basis data.
+   - Kriteria berhasil: `PRAGMA foreign_key_check` selalu menghasilkan 0 pelanggaran bahkan setelah penghapusan akun dummy atau import data eksternal.
+   - Risiko/dependensi & langkah pertama: Telah diaktifkan di `server/localDb.js`; verifikasi konsistensi pada cold restart.
 
-## 9. Rekomendasi Terstruktur (1–20)
+3. **Bound Sanitasi dan Safe Coercion Parameter Paginasi Limit & Range**
+   - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+   - Dasar & relevansi: AUD-028 & `server/localApiHandler.js:1618-1625`.
+   - Usulan & manfaat: Mencegah interpolasi string mentah pada klausa `LIMIT` dan `OFFSET` dengan memaksakan konversi `parseInt` bernilai positif dan batas atas maksimal 1000 item.
+   - Kriteria berhasil: Payload paginasi berisi string SQL tidak valid atau angka negatif otomatis dikonversi ke bound aman tanpa melempar SQL syntax error.
+   - Risiko/dependensi & langkah pertama: Terverifikasi pada Test 61 dan 61.1 di `scripts/test-audit-fixes.mjs`.
 
-Berikut adalah **tepat 20 rekomendasi terstruktur, terukur, dan berorientasi hasil** untuk platform LOXER:
+4. **Cascading Multimodal Model AI Failover 3-Tingkat (Flash High, Flash, 3.7 Flash)**
+   - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+   - Dasar & relevansi: AUD-029 & `services/smartJobExtractorService.js:195`, `services/smartCvExtractorService.js:238`.
+   - Usulan & manfaat: Menyediakan 3 lapis kandidat model Gemini pada 9Router untuk mengantisipasi lonjakan beban, kuota 403, dan transient timeout 65s.
+   - Kriteria berhasil: Ekstraksi poster loker dan CV tetap berhasil mengekstrak JSON valid saat model primer sibuk.
+   - Risiko/dependensi & langkah pertama: Telah aktif di kedua service dan tervalidasi pada `test_smart_features.mjs`.
 
-1. **Implementasi Refresh Token Rotasi Otomatis pada Local Auth Gateway** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: keamanan | P1 | M.
-   - Dasar: `server/localDb.js:570-660`, `server/localApiHandler.js:275-400`.
-   - Masalah/peluang dan pendekatan: Telah diimplementasikan tabel `refresh_tokens`, fungsi `createRefreshToken`, `rotateRefreshToken` (dengan cek banned user), `revokeRefreshToken`, serta endpoint `/api/local/auth/refresh` dan `/api/local/auth/revoke`. Rotasi token menggunakan sistem sekali pakai (*single-use rotation*) dan token usang langsung dicabut.
-   - Manfaat: Mengurangi risiko pembajakan sesi jangka panjang dan meningkatkan kepatuhan keamanan data pengguna.
-   - Kriteria berhasil: Login mengembalikan pasangan token, rotasi token sukses menerbitkan token baru dan mencabut token lama, percobaan replay token lama ditolak dengan 401. Terverifikasi 100% pada Test 42–45.1 dan Test 49.
-   - Dependensi/risiko dan langkah pertama: Sudah terimplementasi dan teruji pada pipeline otomatis.
+5. **Enforcement PRAGMA foreign_key_check Sebelum Sinkronisasi Server Produksi**
+   - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+   - Dasar & relevansi: AUD-026 & `scripts/run_batch_step.py:35`.
+   - Usulan & manfaat: Menambahkan asersi `cur_chk.execute('PRAGMA foreign_key_check;')` ke dalam pipeline sync database produksi agar basis data dengan pelanggaran relasional tidak pernah terkirim ke live server.
+   - Kriteria berhasil: Skrip sinkronisasi membatalkan deployment otomatis jika terdeteksi inkonsistensi foreign key.
+   - Risiko/dependensi & langkah pertama: Tambahkan pengecekan foreign key di `scripts/run_batch_step.py`.
 
-2. **Penerapan Automated Database Backup Cron ke Storage Terisolasi** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: operasional | P1 | S.
-   - Dasar: `server/localDb.js:780-820, 925-955`, `data/loxer.db`.
-   - Masalah/peluang dan pendekatan: Telah diintegrasikan `startAutoBackupSchedule()` yang berjalan secara background scheduler (`.unref()`) pada bootstrap basis data, memicu `createDatabaseSnapshot('cron-auto')` dan menjalankan `pruneOldSnapshots(7)` untuk mempertahankan maksimal 7 arsip terbaru.
-   - Manfaat: Mencegah kehilangan data operasional akibat kegagalan perangkat keras atau insiden crash tanpa intervensi manual.
-   - Kriteria berhasil: Berkas backup `.db` otomatis terbentuk di direktori `data/backups/` dengan pembersihan arsip kadaluarsa secara berkala.
-   - Dependensi/risiko dan langkah pertama: Sudah aktif di `server/localDb.js`.
+6. **Grace Window Toleran pada Suite Pengujian Resiliensi Concurrency Busy Timeout**
+   - Jenis / prioritas / effort: PERBAIKAN • P2 • S.
+   - Dasar & relevansi: AUD-027 & `scripts/test-resilience.mjs:47`.
+   - Usulan & manfaat: Menyesuaikan asersi timeout pada `test-resilience.mjs` agar mendukung rentang `>= 5000ms`, selaras dengan kebutuhan cluster PM2.
+   - Kriteria berhasil: Suite pengujian resiliensi berjalan 100% sukses tanpa false-positive failure saat busy_timeout disetel ke 10000ms.
+   - Risiko/dependensi & langkah pertama: Telah terimplementasi dan terverifikasi pada eksekusi `node scripts/test-resilience.mjs`.
 
-3. **Rate Limiting Adaptif Berbasis IP dan Akun pada Endpoint Auth** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: keamanan | P1 | S.
-   - Dasar: `services/resilienceService.js:395-485`, `server/localApiHandler.js:300-360`.
-   - Masalah/peluang dan pendekatan: Telah diimplementasikan `AccountLockoutManager` pada `resilienceService.js` dan diintegrasikan pada alur login. Sistem secara adaptif melacak kegagalan autentikasi per akun/email, dan mengunci akun selama 15 menit setelah 5 kali kesalahan kata sandi berturut-turut dengan status HTTP 429 berpesan informatif.
-   - Manfaat: Melindungi akun pengguna dan administrator dari serangan brute-force dan credential stuffing.
-   - Kriteria berhasil: Akun terkunci sementara pada percobaan login gagal ke-5 dengan respons HTTP 429. Terverifikasi pada Test 47.
-   - Dependensi/risiko dan langkah pertama: Sudah terintegrasi dan teruji pada pipeline otomatis.
+7. **Isolasi Koneksi dan Idempotent Lock pada Proses Batch Poster Worker**
+   - Jenis / prioritas / effort: PERFORMA • P1 • M.
+   - Dasar & relevansi: `scripts/continuous-poster-worker.mjs` & concurrency SQLite WAL.
+   - Usulan & manfaat: Menambahkan mekanisme file lock (`.batch.lock`) agar dua worker proses batching tidak berjalan bersamaan dan memicu konflik database.
+   - Kriteria berhasil: Menolak inisialisasi instance kedua saat worker pertama masih aktif memproses poster.
+   - Risiko/dependensi & langkah pertama: Gunakan `fs.openSync(..., 'wx')` pada startup `continuous-poster-worker.mjs`.
 
-4. **Transisi File Storage CV dan Logo ke CDN / Object Storage (S3 / Cloudflare R2)** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: arsitektur | P1 | L.
-   - Dasar: `server/storageService.js:1-260`, `server/localApiHandler.js:3505-3570`, `src/lib/storageService.ts:1-110`, `scripts/test-storage-service.mjs:1-220`.
-   - Masalah/peluang dan pendekatan: Telah diimplementasikan layer abstraksi penyimpanan `server/storageService.js` yang mendukung Cloudflare R2 / AWS S3 menggunakan REST API SigV4 (tanpa dependensi eksternal) serta adapter fallback penyimpanan disk lokal di `public/uploads/`. Handler mutasi basis data lokal `handleDbQuery` secara otomatis mengekstrak berkas biner Base64 pada kolom profil (`photo_url`, `resume_url`), logo perusahaan (`logo_url`), dan flyer lowongan (`flyer_url`) menjadi URL publik sebelum disimpan ke tabel SQLite.
-   - Manfaat: Mencegah pembengkakan ukuran berkas `data/loxer.db`, mempercepat backup database hingga 90%, dan memastikan ukuran database tetap stabil di bawah 20MB.
-   - Kriteria berhasil: Berkas Base64 otomatis diekstraksi ke disk/cloud storage, database SQLite hanya menyimpan URL publik, direktori uploads dilindungi dari path traversal, dan terverifikasi pada suite uji `test-storage-service.mjs`.
-   - Dependensi/risiko dan langkah pertama: Sudah aktif dan teruji pada pipeline otomatis (`npm run test:local`).
+8. **Automated Deadlock Recovery & Retry pada Write Transactions SQLite**
+   - Jenis / prioritas / effort: PERFORMA • P1 • M.
+   - Dasar & relevansi: AUD-023 & `server/localDb.js:874` (`withTransaction`).
+   - Usulan & manfaat: Melengkapi helper `withTransaction()` dengan loop auto-retry (hingga 3 kali dengan backoff acak 50-200ms) saat menerima error `SQLITE_BUSY`.
+   - Kriteria berhasil: Transaksi mutasi berhasil diselesaikan tanpa melempar 500 Internal Error pada kondisi beban transaksi serentak tinggi.
+   - Risiko/dependensi & langkah pertama: Bungkus eksekusi callback `withTransaction` dengan error handler khusus untuk kode `SQLITE_BUSY`.
 
-5. **Konsolidasi Notifikasi Telegram Admin untuk Peringatan Keamanan Kritis** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: operasional | P2 | S.
-   - Dasar: `src/lib/backupService.ts:40-95`, `server/localApiHandler.js:310-330`.
-   - Masalah/peluang dan pendekatan: Telah disediakan webhook Telegram untuk pelaporan backup otomatis dan penguncian akun mencurigakan (brute-force alert).
-   - Manfaat: Tim operasional menerima pemberitahuan instan saat terjadi anomali keamanan tanpa harus standby di dasbor monitoring.
-   - Kriteria berhasil: Pesan alert terkirim ke channel Telegram saat threshold percobaan login terlampaui.
-   - Dependensi/risiko dan langkah pertama: Konfigurasi bot token dan chat ID di settings admin.
+9. **Streaming Parser JSON untuk File Upload dan Resume Ukuran Besar**
+   - Jenis / prioritas / effort: PERFORMA • P2 • M.
+   - Dasar & relevansi: `server/localApiHandler.js:parseJsonBody` & Rekomendasi 26.
+   - Usulan & manfaat: Menggunakan stream parser inkremental untuk payload base64 dokumen CV di atas 5MB guna meminimalkan penggunaan memori heap V8.
+   - Kriteria berhasil: Alokasi memory RSS server stabil di bawah 250MB saat menerima 10 unggahan resume simultan.
+   - Risiko/dependensi & langkah pertama: Evaluasi modul streaming JSON parser pada endpoint `/api/admin/smart-cv-extract`.
 
-6. **Indeks Komposit Pencarian Multi-Kolom pada Tabel Lowongan dan Pelamar** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: performa | P2 | S.
-   - Dasar: `data/schema.sql:380-405`.
-   - Masalah/peluang dan pendekatan: Telah ditambahkan indeks komposit `idx_job_listings_status_created`, `idx_applications_job_seeker`, dan `idx_partner_apps_slug` pada DDL skema database SQLite.
-   - Manfaat: Mengurangi waktu pemindaian tabel dari O(N) menjadi O(log N) saat melakukan filter status dan pengurutan kronologis.
-   - Kriteria berhasil: Eksekusi query filter lowongan aktif selesai dalam waktu < 1 milidetik pada dataset ribuan baris.
-   - Dependensi/risiko dan langkah pertama: Sudah aktif di `data/schema.sql`.
+10. **Pemulihan Otomatis Status Batch Worker Melalui Checkpoint Journaling**
+    - Jenis / prioritas / effort: FITUR • P2 • M.
+    - Dasar & relevansi: `data/smart_add_checkpoint.json` & atomic rename.
+    - Usulan & manfaat: Menggunakan penulisan berkas sementara dan atomic rename (`fs.renameSync`) pada `smart_add_checkpoint.json` agar file checkpoint tidak korup jika proses mati mendadak saat I/O.
+    - Kriteria berhasil: File checkpoint selalu berformat JSON valid tanpa risiko truncation 0-byte saat power cut atau process termination.
+    - Risiko/dependensi & langkah pertama: Buat helper `saveCheckpointAtomic()` di `batch-smart-add-jobs.mjs`.
 
-7. **Audit Trail Immutability & Anti-Tampering pada Log Aktivitas Sistem** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: keamanan | P1 | S.
-   - Dasar: `server/localApiHandler.js:2100-2130`, `data/schema.sql:280-310`.
-   - Masalah/peluang dan pendekatan: Tabel `audit_logs` telah dilindungi secara ketat dari operasi mutasi langsung (`UPDATE` dan `DELETE` diblokir dengan HTTP 403 Forbidden). Setiap aksi administratif penting (termasuk persetujuan aplikasi mitra AUD-016) secara otomatis merekam entri audit log permanen.
-   - Manfaat: Menjamin integritas jejak audit untuk kebutuhan forensik dan kepatuhan regulasi keamanan data.
-   - Kriteria berhasil: Percobaan manipulasi atau penghapusan record audit_logs menghasilkan error 403. Terverifikasi pada Test 16.1 dan Test Partner 12.3.
-   - Dependensi/risiko dan langkah pertama: Sudah aktif di gateway API lokal.
+11. **Enkripsi Kredensial dan Secret Environment dengan Rotasi Berkala Zero-Downtime**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • M.
+    - Dasar & relevansi: Rekomendasi 22 & `scripts/rotate-jwt-secret.mjs`.
+    - Usulan & manfaat: Mengintegrasikan cron mingguan untuk rotasi kunci sesi JWT otomatis menggunakan dual-secret verification yang sudah teruji.
+    - Kriteria berhasil: Sesi pengguna tetap aktif tanpa logout massal saat kunci kriptografis diperbarui.
+    - Risiko/dependensi & langkah pertama: Jadwalkan eksekusi `rotate-jwt-secret.mjs` di crontab host produksi.
 
-8. **Circuit Breaker Fallback untuk Provider AI Ekstraksi (9Router & OmniRoute)** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: keandalan | P1 | M.
-   - Dasar: `services/resilienceService.js:120-220`, `services/smartJobExtractorService.js`.
-   - Masalah/peluang dan pendekatan: Telah diintegrasikan `ProviderCircuitBreaker` dengan threshold 3 kali kegagalan dan fail-fast 10 detik. Jika endpoint utama 9Router tidak merespon, sistem langsung mengalihkan rute pemrosesan ke OmniRoute tanpa memblokir thread HTTP.
-   - Manfaat: Mencegah penumpukan antrean koneksi gantung saat model AI eksternal mengalami latensi tinggi.
-   - Kriteria berhasil: Transisi status breaker dari CLOSED ke OPEN teruji dalam waktu 0.011ms pada simulasi timeout.
-   - Dependensi/risiko dan langkah pertama: Terverifikasi pada pengujian pilar ketahanan `test-resilience.mjs`.
+12. **Pruning Otomatis Media Poster yang Gagal Diposting pada Folder Temp Uploads**
+    - Jenis / prioritas / effort: PERBAIKAN • P2 • S.
+    - Dasar & relevansi: `public/uploads/posters` disk usage.
+    - Usulan & manfaat: Menambahkan fungsi pembersihan file poster sementara yang tidak terasosiasi dengan `job_listings` aktif setelah lewat dari 7 hari.
+    - Kriteria berhasil: Folder upload poster bersih dari gambar orphan, menghemat kapasitas disk storage server.
+    - Risiko/dependensi & langkah pertama: Bandingkan isi folder `public/uploads/posters` dengan kolom `photo_url` di `job_listings`.
 
-9. **Sanitasi Output HTML / Markdown pada Deskripsi Lowongan & Profil Publik** `[STATUS: SELESAI & TERVERIFIKASI]`
-   - Jenis / prioritas / effort: keamanan | P1 | S.
-   - Dasar: `src/pages/seeker/JobDetailModal.tsx`, `src/pages/employer/CompanyProfile.tsx`.
-   - Masalah/peluang dan pendekatan: Seluruh rendering konten yang bersumber dari input pengguna menggunakan escaping teks murni atau library sanitasi DOMPurify sebelum diinjeksikan ke DOM.
-   - Manfaat: Mencegah serangan Cross-Site Scripting (XSS) tersimpan (Stored XSS) pada halaman publik.
-   - Kriteria berhasil: Payload HTML berbahaya seperti `<script>` atau atribut `onload` dinetralisir sepenuhnya.
-   - Dependensi/risiko dan langkah pertama: Sudah aktif di komponen UI.
+13. **Verifikasi Magic Bytes Menyeluruh pada Seluruh Jalur Ingesti Gambar Poster**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+    - Dasar & relevansi: `server/storageService.js:50` & `batch-smart-add-jobs.mjs`.
+    - Usulan & manfaat: Memastikan seluruh gambar flyer dan poster loker yang diproses oleh AI Extractor tervalidasi tanda tangan berkasnya (JPEG/PNG/WEBP) sebelum dibuka oleh buffer memory.
+    - Kriteria berhasil: File berekstensi palsu langsung ditolak sebelum diproses oleh model vision.
+    - Risiko/dependensi & langkah pertama: Panggil `validateMagicBytes()` pada awal loop pemrosesan file di `batch-smart-add-jobs.mjs`.
 
-10. **Sinkronisasi Dua Arah Token Sesi Simulasi dan LocalStorage Utama** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: perbaikan | P2 | S.
-    - Dasar: `src/lib/simSession.ts:170-220`, `src/lib/localClient.ts:45-60`, `src/contexts/AuthContext.tsx:325-360`.
-    - Masalah/peluang dan pendekatan: Telah diterapkan pembersihan atomik pada `switchSimRole` dan `clearAllSimSessions`. Pergantian role simulasi secara otomatis mencabut token sesi lama dan menghapus kunci `loxer_admin_unlocked` dan `app_admin_unlocked` dari `sessionStorage` saat berpindah ke role non-admin. Komponen `AuthProvider` pada `AuthContext.tsx` kini mendengarkan event `loxer:sim-session-switched` dan `loxer:sim-session-cleared` untuk mengosongkan cache profil lama dan memuat ulang metadata sesi baru seketika.
-    - Manfaat: Mencegah residual metadata pengguna lama tampil pada antarmuka saat berpindah akun atau beralih simulasi tanpa memerlukan reload browser penuh.
-    - Kriteria berhasil: Berpindah role simulasi membersihkan state memori profil pengguna seketika dan mengisolasi otorisasi peran secara atomik.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif di `simSession.ts` dan `AuthContext.tsx`.
+14. **Index Parsial SQLite untuk Query Lowongan Aktif dan Bursa Talenta Terpublikasi**
+    - Jenis / prioritas / effort: PERFORMA • P1 • S.
+    - Dasar & relevansi: `data/schema.sql` query hot-path.
+    - Usulan & manfaat: Membuat indeks parsial `CREATE INDEX idx_jobs_active ON job_listings(created_at DESC) WHERE status = 'active'` untuk mempercepat filter lowongan publik.
+    - Kriteria berhasil: Waktu eksekusi query lowongan publik di bawah 1ms pada volume puluhan ribu data.
+    - Risiko/dependensi & langkah pertama: Jalankan migrasi penambahan indeks parsial di `server/localDb.js`.
 
-11. **Pemberitahuan Kadaluarsa Lowongan Otomatis ke Employer** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: fitur | P2 | M.
-    - Dasar: `server/localDb.js:1030-1040, 1140-1190`, `server/localApiHandler.js:3535-3565`.
-    - Masalah/peluang dan pendekatan: Telah diintegrasikan `notifyExpiringJobListings(3)` pada siklus backup harian dan timer berkala basis data lokal, yang secara otomatis memicu notifikasi peringatan `job_expiring` kepada employer ketika lowongan aktif tersisa ≤ 3 hari. Endpoint `/api/jobs/extend` juga telah dilindungi dengan IDOR guard kepemilikan perusahaan.
-    - Manfaat: Mengurangi lowongan usang yang tidak terurus dan memberikan opsi 1 klik perpanjangan lowongan kepada rekruter.
-    - Kriteria berhasil: Employer menerima notifikasi in-app otomatis sebelum lowongan kedaluwarsa.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif di `server/localDb.js` dan `server/localApiHandler.js`.
+15. **Cache HTTP ETag dan Client-Side SWR untuk Lowongan Kerja Publik**
+    - Jenis / prioritas / effort: PERFORMA • P1 • M.
+    - Dasar & relevansi: `src/components/JobList.jsx` & `/api/jobs`.
+    - Usulan & manfaat: Menambahkan header `ETag` berbasis hash query hasil lowongan pada endpoint `/api/jobs` agar client menerima HTTP 304 Not Modified jika tidak ada data baru.
+    - Kriteria berhasil: Menghemat transfer bandwidth hingga 80% untuk pengguna yang sering merefresh halaman pencarian.
+    - Risiko/dependensi & langkah pertama: Hitung hash MD5 dari response array di `handleUnifiedJobs` dan set header `ETag`.
 
-12. **Validasi File Signature (Magic Bytes) pada Seluruh Jalur Unggah Dokumen** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: keamanan | P2 | S.
-    - Dasar: `src/lib/imageCompressor.ts:30-80`, `src/pages/admin/BulkSmartCvManager.tsx:170-205`.
-    - Masalah/peluang dan pendekatan: Validasi file signature biner `validateDocumentMagicBytes(file)` dan `validateImageMagicBytes(file)` telah diterapkan pada fungsi `addFilesToQueue` di Admin Bulk Smart CV Manager. Berkas yang tidak memiliki header magic bytes otentik langsung ditolak dari antrean pemrosesan dengan notifikasi error.
-    - Manfaat: Mencegah berkas biner/executable berbahaya yang disamarkan sebagai `.pdf` atau `.png` diproses ke pipeline AI atau storage sistem.
-    - Kriteria berhasil: Berkas dengan signature tidak valid otomatis ditolak sebelum parsing dimulai.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif di `BulkSmartCvManager.tsx`.
+16. **Validasi Skema JSON-LD Terstruktur pada Halaman Lowongan untuk Google Jobs SEO**
+    - Jenis / prioritas / effort: FITUR • P2 • M.
+    - Dasar & relevansi: `index.html` & job detail schema.
+    - Usulan & manfaat: Menyisipkan script tag `<script type="application/ld+json">` dengan schema `JobPosting` terstandarisasi Schema.org pada detail lowongan publik.
+    - Kriteria berhasil: Google Rich Results Test memvalidasi skema lowongan LOXER tanpa peringatan atau kesalahan.
+    - Risiko/dependensi & langkah pertama: Buat komponen generator JSON-LD di `src/components/JobJsonLd.tsx`.
 
-13. **Cache Invalidation Realtime pada Perubahan Lowongan Kerja dan Iklan Jasa** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: performa | P2 | S.
-    - Dasar: `server/localApiHandler.js:1636, 1685, 1728, 1791`.
-    - Masalah/peluang dan pendekatan: Pembersihan hot cache `jobSearchCache.clear()` telah diperluas ke mutasi tabel `jasa_ads` dan `talent_marketplace_posts` pada operasi insert, update, delete, dan upsert di gateway database lokal.
-    - Manfaat: Data iklan jasa dan profil talent terbaru langsung tampil seketika pada katalog pencarian tanpa menunggu masa kedaluwarsa TTL cache.
-    - Kriteria berhasil: Mutasi iklan jasa atau profil talent langsung mengosongkan cache terkait secara konsisten.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif di `server/localApiHandler.js`.
+17. **Dukungan Virtual List / Windowing untuk Rendering Ribuan Lowongan Kerja**
+    - Jenis / prioritas / effort: PERFORMA • P2 • M.
+    - Dasar & relevansi: `src/pages/seeker/Browse.tsx` DOM node count.
+    - Usulan & manfaat: Menerapkan virtual windowing pada daftar lowongan pencari kerja saat jumlah hasil melebihi 100 kartu.
+    - Kriteria berhasil: Frame rate browser stabil di 60 FPS saat scrolling cepat tanpa lag rendering.
+    - Risiko/dependensi & langkah pertama: Evaluasi integrasi utility windowing ringan pada komponen kartu lowongan.
 
-14. **Enkripsi Kredensial Bot Telegram pada LocalStorage Administrator** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: perbaikan | P2 | S.
-    - Dasar: `src/lib/backupService.ts:235-300` (`TELEGRAM_CONFIG_KEY`).
-    - Masalah/peluang dan pendekatan: Telah ditingkatkan skema penyimpanan kredensial Telegram dengan enkripsi `enc:v2:` berbasis keystream hashing acak ber-nonce 12-byte (`crypto.getRandomValues`) yang dicampur dengan salt perangkat browser. Format ciphertext baru acak dan tidak berulang pada storage, dengan backward-compatibility penuh untuk skema lama `enc:v1:` dan plain JSON.
-    - Manfaat: Melindungi token bot Telegram dan Chat ID dari pembacaan oleh script eksternal atau inspeksi storage tidak berwenang.
-    - Kriteria berhasil: Token tersimpan dalam format ciphertext acak ber-prefix `enc:v2:nonce:cipher` dan terdekripsi sempurna saat diakses aplikasi.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif di `src/lib/backupService.ts`.
+18. **Circuit Breaker Multi-Host untuk 9Router dan Upstream AI Provider**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • M.
+    - Dasar & relevansi: `services/resilienceService.js` & AI vision calls.
+    - Usulan & manfaat: Mengintegrasikan instance `ProviderCircuitBreaker` tersendiri khusus untuk pemanggilan API 9Router dengan threshold 5 kegagalan dan cooldown 30 detik.
+    - Kriteria berhasil: Permintaan ekstraksi dialihkan langsung ke mode offline/fallback tanpa menggantung request pengguna saat AI host tidak dapat dijangkau.
+    - Risiko/dependensi & langkah pertama: Instansiasi circuit breaker di `services/smartJobExtractorService.js`.
 
-15. **Indikator Progres Interaktif pada Eksekusi Auto-Void Lamaran Kadaluarsa** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: fitur | P3 | S.
-    - Dasar: `src/pages/admin/AdminDashboard.tsx:4710-5280`, `server/localApiHandler.js:3620-3670`.
-    - Masalah/peluang dan pendekatan: Telah diintegrasikan modal interaktif `VoidStaleModal` pada sub-tab Monitoring Lamaran di Dashboard Admin, menggantikan dialog bawaan `window.prompt`. Modal menyediakan selector batas waktu (14, 30, 60, 90 hari), tombol pratinjau live (`dry_run: true`) dengan tampilan jumlah data terdampak dan tanggal batas, serta tombol eksekusi dengan feedback spinner progres real-time.
-    - Manfaat: Administrator memperoleh kejelasan visual dan transparansi data sebelum memutasi status lamaran usang menjadi expired secara permanen.
-    - Kriteria berhasil: Admin dapat melihat counter pratinjau lamaran sebelum mengeksekusi konfirmasi kadaluarsa dengan feedback sukses.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif di `AdminDashboard.tsx`.
+19. **Pembersihan Rutin dan Kompaksi Otomatis Basis Data SQLite (VACUUM INTO Backup)**
+    - Jenis / prioritas / effort: PERFORMA • P2 • S.
+    - Dasar & relevansi: `server/localDb.js:optimizeLocalDatabase`.
+    - Usulan & manfaat: Memanfaatkan perintah `VACUUM INTO` untuk membuat snapshot backup yang terkompaksi secara bersamaan tanpa mengunci database aktif.
+    - Kriteria berhasil: Berkas cadangan snapshot berukuran minimalis tanpa fragmentasi ruang kosong.
+    - Risiko/dependensi & langkah pertama: Tambahkan opsi kompaksi pada `createDatabaseSnapshot()` di `localDb.js`.
 
-16. **Pengurangan Re-render Kalender Jadwal Wawancara pada `Applicants.tsx`** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: performa | P3 | S.
-    - Dasar: `src/pages/employer/Applicants.tsx:1005-1080`.
-    - Masalah/peluang dan pendekatan: Komponen `InterviewInviteModal` dan `BulkInterviewInviteModal` telah diisolasi dan dibungkus dengan `React.memo`, memisahkan form input waktu, lokasi, dan catatan interview dari re-render daftar pelamar.
-    - Manfaat: Interaksi pengetikan catatan dan pemilihan jadwal wawancara terasa instan tanpa lagging pada daftar ratusan pelamar.
-    - Kriteria berhasil: Pengetikan pada form undangan interview tidak memicu re-render ulang pada baris tabel pelamar kerja di latar belakang.
-    - Dependensi/risiko dan langkah pertama: Sudah terisolasi di `src/pages/employer/Applicants.tsx`.
+20. **Isolasi File Storage CDN S3/R2 Asinkron dengan Background Offload Worker**
+    - Jenis / prioritas / effort: PERFORMA • P1 • L.
+    - Dasar & relevansi: `server/storageService.js` offload latency.
+    - Usulan & manfaat: Menjalankan pemindahan berkas unggahan dari disk lokal ke Cloudflare R2 / AWS S3 menggunakan antrean asinkron latar belakang.
+    - Kriteria berhasil: Endpoint upload merespon instan (<50ms) dan file dipindahkan ke CDN dalam waktu <5 detik.
+    - Risiko/dependensi & langkah pertama: Rancang job queue in-memory sederhana untuk offloader berkas di `storageService.js`.
 
-17. **Dukungan Filter Multi-Lokasi pada Pencarian Lowongan Publik** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: fitur | P3 | M.
-    - Dasar: `services/internalJobService.js:30-48`, `services/fbScraperJobService.js:23-38`, `src/components/JobList.jsx:40-275`.
-    - Masalah/peluang dan pendekatan: Telah ditambahkan pemecahan string lokasi multi-kota (`location.split(/[,;|]+/)`) dengan multi-clause `OR` pada query backend internal maupun Facebook Group AI. Pada antarmuka `JobList.jsx`, telah disediakan chips filter cepat multi-wilayah ("Bandung Raya", "Kota Cimahi", "Kota Bandung", "Kab. Bandung", "Jabodetabek", "Remote / WFH").
-    - Manfaat: Pencari kerja dapat memfilter lowongan di beberapa kawasan aglomerasi sekaligus dengan satu klik atau input gabungan.
-    - Kriteria berhasil: Pencarian mencakup seluruh lowongan di salah satu kota yang dipilih secara akurat.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif di `fbScraperJobService.js` dan `JobList.jsx`.
+21. **Audit Trail Lengkap dan Pelacakan IP untuk Setiap Aksi Mutasi Administrator**
+    - Jenis / prioritas / effort: FITUR • P2 • M.
+    - Dasar & relevansi: `data/schema.sql:audit_logs` & AUD-016.
+    - Usulan & manfaat: Memastikan seluruh operasi persetujuan mitra, perubahan peran, dan penghapusan data mencatat alamat IP asli client dan User-Agent.
+    - Kriteria berhasil: Tabel `audit_logs` merekam entri audit yang lengkap untuk kebutuhan forensik keamanan.
+    - Risiko/dependensi & langkah pertama: Teruskan `getClientIp(req)` ke helper pencatatan audit di `server/localApiHandler.js`.
 
-18. **Mekanisme Exponential Backoff pada Sinkronisasi Background PWA** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: performa | P3 | S.
-    - Dasar: `src/lib/offlineSyncService.ts:19-43, 190-220`.
-    - Masalah/peluang dan pendekatan: Telah diimplementasikan `recordQueueFailure` dengan jeda bertingkat eksponensial (`Math.min(Math.pow(2, retries) * 1000, 60000)`: 2s, 4s, 8s, 16s, 32s, maks 60s) serta pemeriksaan `nextRetryAt` sebelum pemrosesan ulang antrean offline aplikasi.
-    - Manfaat: Menghindari pemborosan baterai perangkat mobile dan mencegah spamming server saat koneksi internet berfluktuasi.
-    - Kriteria berhasil: Antrean offline yang gagal menunda percobaan ulang berikutnya sesuai interval jeda eksponensial.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif di `offlineSyncService.ts`.
+22. **Proteksi Rate Limiting IP Adaptif Berdasarkan Scoring Reputasi Permintaan**
+    - Jenis / prioritas / effort: PERBAIKAN • P2 • M.
+    - Dasar & relevansi: `services/resilienceService.js:SlidingWindowRateLimiter`.
+    - Usulan & manfaat: Menurunkan batas kuota request secara otomatis untuk alamat IP yang sering memicu error 400 Bad Request atau 404 Not Found berturut-turut.
+    - Kriteria berhasil: Menangkal scraping agresif dan vulnerability scanning tanpa mempengaruhi traffic pengguna normal.
+    - Risiko/dependensi & langkah pertama: Tambahkan tracking pelanggaran pada `SlidingWindowRateLimiter`.
 
-19. **Pembersihan Log Aktivitas Pengguna Lama (`user_activity_logs`) Secara Berkala** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: pemeliharaan | P3 | S.
-    - Dasar: `data/schema.sql:350-380`, `server/localDb.js:180-195, 545-555`.
-    - Masalah/peluang dan pendekatan: Tabel `user_activity_logs` mencatat event navigasi dan klik pengguna. Dibuat helper `purgeOldActivityLogs(maxDays = 60)` dan dihubungkan ke interval maintenance 1 jam dengan `.unref()`.
-    - Manfaat: Menjaga ukuran storage database tetap ramping dan mematuhi prinsip minimalisasi data privasi.
-    - Kriteria berhasil: Eksekusi otomatis pembersihan log aktivitas di atas 60 hari pada inisialisasi dan timer berkala.
-    - Dependensi/risiko dan langkah pertama: Sudah terimplementasi di `server/localDb.js`.
+23. **Normalisasi Nama Kota dan Deteksi Koordinat Otomatis Menggunakan Geocoding Cache**
+    - Jenis / prioritas / effort: FITUR • P2 • M.
+    - Dasar & relevansi: `services/smartJobExtractorService.js` cleanDomicileCity.
+    - Usulan & manfaat: Menyimpan kamus relasi kota, latitude, dan longitude terpadu di SQLite untuk mempermudah pencarian lowongan berbasis radius jarak.
+    - Kriteria berhasil: Nilai `domicile_lat` dan `domicile_lng` terisi otomatis saat kota teridentifikasi.
+    - Risiko/dependensi & langkah pertama: Buat tabel referensi `city_coordinates` dengan indeks nama kota.
 
-20. **Dark Mode & Tema Adaptif Sistem Operasi untuk Seluruh Halaman Dashboard** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: fitur | P3 | M.
-    - Dasar: `src/contexts/ThemeContext.tsx:1-180`, `src/contexts/theme-context.ts:1-18`, `src/contexts/DeviceContext.tsx:120-145`, `src/pages/employer/EmployerDashboard.tsx`, `src/pages/seeker/SeekerDashboard.tsx`, `src/pages/employer/Applicants.tsx`.
-    - Masalah/peluang dan pendekatan: Telah diselaraskan sistem tema `ThemeContext` dengan dukungan preferensi adaptif OS (`prefers-color-scheme`) dinamis secara real-time serta sinkronisasi dwiarah dengan tabel `user_preferences` di basis data. Seluruh halaman dashboard (`EmployerDashboard`, `SeekerDashboard`, `Applicants`) telah dilengkapi dengan varian kelas `dark:` Tailwind berpalet harmonis dark slate, menjamin kontras teks dan kartu yang tajam.
-    - Manfaat: Kenyamanan visual maksimal bagi pengguna di segala kondisi pencahayaan dan retensi preferensi tema lintas perangkat.
-    - Kriteria berhasil: Antarmuka beralih otomatis mengikuti preferensi sistem operasi, pengguna dapat mengatur tema manual secara persisten, dan tampilan dashboard beradaptasi mulus dalam mode gelap tanpa masalah kontras.
-    - Dependensi/risiko dan langkah pertama: Sudah aktif dan terverifikasi pada pipeline build produksi dan typecheck.
+24. **Filter Pencarian Multi-Kategori dan Rentang Gaji Interaktif pada Bursa Talenta**
+    - Jenis / prioritas / effort: FITUR • P2 • M.
+    - Dasar & relevansi: `src/pages/employer/TalentMarketplace.tsx`.
+    - Usulan & manfaat: Menambahkan slider rentang gaji ekspektasi dan checkbox multi-kategori pada halaman eksplorasi talenta bagi perusahaan.
+    - Kriteria berhasil: Rekruter dapat menyaring kandidat berdasarkan batasan budget gaji secara presisi.
+    - Risiko/dependensi & langkah pertama: Hubungkan filter salary ke parameter query `/api/local/db/query`.
 
-21. **Silent JWT Background Refresh & Visibility Keepalive** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: keamanan & UX | P1 | S.
-    - Dasar: `src/contexts/AuthContext.tsx:180-240`.
-    - Masalah/peluang dan pendekatan: Sesi pengguna dapat tiba-tiba terputus saat token JWT mencapai batas masa aktif tanpa disadari. Diimplementasikan penjadwalan refresh otomatis di latar belakang 5 menit sebelum token expired, serta penanganan event `visibilitychange` dan window `focus` agar saat pengguna kembali ke tab, sesi langsung divalidasi dan diperpanjang tanpa logout mendadak.
-    - Manfaat: Menghilangkan gangguan logout tak terduga bagi administrator dan pencari kerja saat sedang mengisi formulir atau melakukan screening pelamar.
-    - Kriteria berhasil: Refresh otomatis terpanggil secara transparan dan token baru diperbarui di context dan storage.
+25. **Pencegahan Double-Submit Lamaran Kerja via Client-Side Token Idempotency**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+    - Dasar & relevansi: `src/pages/seeker/Browse.tsx` apply modal.
+    - Usulan & manfaat: Menghasilkan UUID unik `idempotency_key` pada form lamaran kerja yang dikirimkan bersama request untuk mencegah pengajuan ganda saat jaringan lambat.
+    - Kriteria berhasil: Klik ganda pada tombol kirim lamaran tidak menduplikasi baris di tabel `applications`.
+    - Risiko/dependensi & langkah pertama: Nonaktifkan tombol segera setelah klik pertama dan sertakan token unik.
 
-22. **Zero-Downtime Secret Key Rotation via Dual-Secret Verification** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: keamanan | P1 | M.
-    - Dasar: `server/localDb.js:15-30, 668-700`, `scripts/rotate-jwt-secret.mjs:1-120`.
-    - Masalah/peluang dan pendekatan: Pergantian `JWT_SECRET` pada server produksi biasanya langsung membatalkan seluruh sesi login aktif. Diterapkan arsitektur dual-secret (`getJwtSecrets()`) yang memvalidasi token terhadap `JWT_SECRET` aktif dan `JWT_PREVIOUS_SECRET` masa transisi. Disediakan CLI tool mandiri `scripts/rotate-jwt-secret.mjs` untuk rotasi kunci kriptografis 256-bit otomatis tanpa downtime.
-    - Manfaat: Memenuhi standar keamanan enterprise untuk rotasi kunci periodik tanpa memutus sesi pengguna yang sedang aktif.
-    - Kriteria berhasil: Token lama tetap terverifikasi sah selama periode rotasi grace window, teruji pada Test 55.
+26. **Notifikasi WhatsApp Webhook Asinkron untuk Pembaruan Status Lamaran**
+    - Jenis / prioritas / effort: FITUR • P2 • M.
+    - Dasar & relevansi: `services/applicationStatusNotification.js`.
+    - Usulan & manfaat: Menghubungkan webhook gateway WhatsApp otomatis saat employer memindahkan status lamaran ke tahap wawancara atau diterima.
+    - Kriteria berhasil: Pencari kerja menerima pesan WhatsApp konfirmasi jadwal interview secara real-time.
+    - Risiko/dependensi & langkah pertama: Pasang dispatcher webhook di `buildApplicationStatusNotification`.
 
-23. **Encrypted SQLite Snapshot Archiving via AES-256-GCM** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: keamanan & privasi | P1 | M.
-    - Dasar: `server/localDb.js:1078-1180`, `server/localApiHandler.js:3764-3772, 3880-3990`.
-    - Masalah/peluang dan pendekatan: Berkas snapshot `.db` berisikan data PII dan kredensial sensitif. Disediakan fungsi snapshot terenkripsi `createEncryptedDatabaseSnapshot` dan dekripsi pemulihan `restoreEncryptedDatabaseSnapshot` dengan PBKDF2 (100.000 iterasi, SHA-256), 96-bit IV acak, authentication tag 16-byte, serta magic header `LXEN`.
-    - Manfaat: Mencegah kebocoran data jika file backup dicadangkan ke cold storage eksternal atau disalin tanpa izin.
-    - Kriteria berhasil: Snapshot berekstensi `.enc.db` aman tersimpan, menolak passphrase salah dengan HTTP 500/error, dan pulih sempurna dengan passphrase yang valid (Test 56-58).
+27. **Kompresi Gambar Otomatis Berbasis WebP Sebelum Persistensi ke Storage**
+    - Jenis / prioritas / effort: PERFORMA • P2 • S.
+    - Dasar & relevansi: `public/uploads` bandwidth & storage efficiency.
+    - Usulan & manfaat: Melakukan konversi format gambar poster dan foto pelamar ke format WebP terkompresi dengan kualitas 80%.
+    - Kriteria berhasil: Ukuran rata-rata file gambar turun dari ~1.2MB menjadi ~150KB tanpa penurunan ketajaman visual.
+    - Risiko/dependensi & langkah pertama: Manfaatkan library pemroses gambar native pada upload pipeline.
 
-24. **Resilient Smart CV Processing Queue with Exponential Backoff** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: keandalan | P2 | S.
-    - Dasar: `src/pages/admin/BulkSmartCvManager.tsx:280-350`.
-    - Masalah/peluang dan pendekatan: Permintaan ekstraksi AI secara batch ke model Gemini 3.8 dapat mengalami rate limit (429) atau server overload (502/503/504) saat antrean padat. Diimplementasikan loop retry bertingkat eksponensial (1.5s, 3s, maks 6s) dengan jitter dan update status real-time pada UI batch manager.
-    - Manfaat: Meningkatkan throughput ekstraksi resume massal hingga 100% tuntas tanpa intervensi manual pengulangan dari admin.
-    - Kriteria berhasil: Antrean resume otomatis melakukan retry saat server sibuk dan melanjutkan pemrosesan dokumen berikutnya secara mulus.
+28. **State Recovery Interaktif Saat Sesi Browser Terputus Menggunakan IndexedDB Cache**
+    - Jenis / prioritas / effort: FITUR • P2 • M.
+    - Dasar & relevansi: `src/lib/offlineSyncService.ts`.
+    - Usulan & manfaat: Menyimpan draft isian form lowongan kerja dan profil pelamar di IndexedDB lokal secara berkala.
+    - Kriteria berhasil: Data formulir yang belum disimpan otomatis pulih saat pengguna membuka kembali browser pasca crash atau refresh tak sengaja.
+    - Risiko/dependensi & langkah pertama: Hubungkan hook auto-save ke `offlineSyncService`.
 
-25. **Automated SQLite VACUUM, Optimizer Execution & WAL Truncation Maintenance** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: performa & pemeliharaan | P2 | S.
-    - Dasar: `server/localDb.js:586-595, 1040-1055, 1365-1420`, `server/localApiHandler.js:3780-3790, 4010-4050`.
-    - Masalah/peluang dan pendekatan: Write-Ahead Log (WAL) SQLite dapat membesar pada server berjam terbang tinggi jika tidak di-truncate secara berkala. Dibuat `optimizeLocalDatabase()` yang mengeksekusi `PRAGMA wal_checkpoint(TRUNCATE)` untuk membersihkan frame WAL serta `PRAGMA optimize` untuk merefresh query cost planner statistics. Dihubungkan ke interval 1 jam, auto-backup cron, serta endpoint admin `POST /api/admin/system/optimize-db`.
-    - Manfaat: Ukuran WAL terkontrol di 0 byte pada kondisi idle, kinerja eksekusi query query planner selalu optimal, dan database terhindar dari fragmentasi disk.
-    - Kriteria berhasil: Terverifikasi pada Test 59 (blokir unauth 401) dan Test 60 (eksekusi admin sukses 200 OK dengan status WAL dan integritas ok).
+29. **Dashboard Metrik Kuantitatif Kesehatan Server dan Status Klaster PM2**
+    - Jenis / prioritas / effort: FITUR • P2 • M.
+    - Dasar & relevansi: `src/pages/admin/AdminDashboard.tsx`.
+    - Usulan & manfaat: Menampilkan visualisasi utilisasi CPU, memori heap, latensi koneksi basis data, dan status proses worker di dashboard superadmin.
+    - Kriteria berhasil: Admin dapat memantau kesehatan server secara visual dalam satu tampilan terpadu.
+    - Risiko/dependensi & langkah pertama: Buat endpoint status terproteksi `GET /api/admin/system/metrics`.
 
-26. **Global Request Body Payload Limiting & Malformed JSON Guard** `[STATUS: SELESAI & TERVERIFIKASI]`
-    - Jenis / prioritas / effort: keamanan & stabilitas | P1 | S.
-    - Dasar: `server/localApiHandler.js:100-135, 3610-3620, 3785-3795`.
-    - Masalah/peluang dan pendekatan: Request body berukuran masif dapat memicu memory exhaustion Denial-of-Service pada proses Node.js. Fungsi `parseJsonBody(req, maxBytes)` kini menerapkan pengawasan byte stream ketat dengan batas ambang batas memori aman (default 25MB) yang langsung memutus pembacaan stream dan mengembalikan HTTP 413 Payload Too Large. Seluruh alur middleware Express/Vite juga dilindungi oleh exception handler global untuk mencegah crash proses.
-    - Manfaat: Menjaga stabilitas heap memori server terhadap payload berbahaya dan serangan denial-of-service.
-    - Kriteria berhasil: Payload melebihi kapasitas ditolak dengan status 413, data malformed ditangani secara anggun, dan server tetap beroperasi normal.
+30. **Automated Snapshot Replication ke Secondary Remote Backup Host via SSH/SFTP**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • L.
+    - Dasar & relevansi: `server/localDb.js:createDatabaseSnapshot`.
+    - Usulan & manfaat: Menjadwalkan penyalinan otomatis file snapshot `.enc.db` ke server cadangan terpisah setiap malam via protokol SFTP aman.
+    - Kriteria berhasil: Backup basis data terenkripsi tersedia di luar lingkungan host utama untuk mitigasi disaster recovery.
+    - Risiko/dependensi & langkah pertama: Siapkan cronjob shell script pendorong snapshot terenkripsi.
 
+31. **Pengendalian Strict Content-Security-Policy (CSP) Nonce-Based pada Runtime Production**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • M.
+    - Dasar & relevansi: `index.html` inline script hygiene.
+    - Usulan & manfaat: Menerapkan CSP berbasis cryptographic nonce pada seluruh skrip inline di `index.html` guna mencegah serangan XSS tingkat lanjut.
+    - Kriteria berhasil: Browser menolak injeksi script eksternal tanpa nonce yang valid.
+    - Risiko/dependensi & langkah pertama: Integrasikan middleware pembuat nonce pada handler HTML Vite server.
+
+32. **Self-Healing Otomatis Indeks Full-Text Search (FTS5) untuk Judul Lowongan**
+    - Jenis / prioritas / effort: PERFORMA • P2 • M.
+    - Dasar & relevansi: SQLite FTS5 table indexing.
+    - Usulan & manfaat: Membangun virtual table `job_listings_fts` menggunakan modul SQLite FTS5 untuk mendukung pencarian kata kunci dengan typo-tolerance dan ranking BM25.
+    - Kriteria berhasil: Pencarian lowongan dengan kata kunci parsial menghasilkan pencocokan relevan dalam <2ms.
+    - Risiko/dependensi & langkah pertama: Buat trigger sinkronisasi otomatis antara `job_listings` dan tabel virtual FTS5.
+
+33. **Validasi Strict URL Eksternal pada Link Pendaftaran Lowongan untuk Mencegah Phishing**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+    - Dasar & relevansi: `job_listings.application_url` domain whitelist.
+    - Usulan & manfaat: Memvalidasi bahwa tautan eksternal pendaftaran lowongan kerja menggunakan protokol HTTPS dan bukan domain phishing atau pemendek URL mencurigakan.
+    - Kriteria berhasil: URL berisiko ditolak saat validasi formulir lowongan.
+    - Risiko/dependensi & langkah pertama: Terapkan regex validator URL di `smartJobExtractorService.js` dan backend handler.
+
+34. **Pemisahan Chunk Vendor React dan Recharts untuk Mengurangi First-Load Bundle Size**
+    - Jenis / prioritas / effort: PERFORMA • P2 • S.
+    - Dasar & relevansi: `vite.config.ts` manualChunks output.
+    - Usulan & manfaat: Memisahkan modul berat seperti `@measured/puck` dan `recharts` ke dalam chunk dinamis terpisah yang hanya dimuat saat halaman admin dibuka.
+    - Kriteria berhasil: Ukuran initial bundle JavaScript publik turun di bawah 150KB gzip.
+    - Risiko/dependensi & langkah pertama: Sesuaikan konfigurasi `rollupOptions.output.manualChunks` di `vite.config.ts`.
+
+35. **Mode Pemeliharaan (Maintenance Mode) Tersentralisasi dengan Bypass Admin Token**
+    - Jenis / prioritas / effort: FITUR • P2 • S.
+    - Dasar & relevansi: `server/localApiHandler.js` middleware switch.
+    - Usulan & manfaat: Menyediakan flag global pemeliharaan sistem di mana pengguna umum melihat halaman maintenance ramah pengguna sementara administrator tetap dapat mengakses panel kontrol.
+    - Kriteria berhasil: Pengguna menerima HTTP 503 dengan estimasi durasi pemeliharaan, admin tetap dapat login.
+    - Risiko/dependensi & langkah pertama: Tambahkan middleware pengecekan flag `MAINTENANCE_MODE` di `localApiHandler.js`.
+
+36. **Penyelarasan Format Tanggal dan Timezone Konsisten (WIB / UTC) Lintas Endpoint**
+    - Jenis / prioritas / effort: PERBAIKAN • P2 • S.
+    - Dasar & relevansi: `dayjs` formatter & SQLite `datetime('now')`.
+    - Usulan & manfaat: Memastikan seluruh timestamp disimpan dalam format ISO-8601 UTC di basis data dan dikonversi ke Waktu Indonesia Barat (WIB) pada lapisan presentasi pengguna.
+    - Kriteria berhasil: Ketiadaan selisih waktu 7 jam pada tanggal publikasi dan riwayat lamaran.
+    - Risiko/dependensi & langkah pertama: Standarisasi helper pemformatan tanggal pada frontend dan backend.
+
+37. **Ekspor CSV Laporan Transaksi dan Lamaran Kerja dengan Enkoding UTF-8 BOM**
+    - Jenis / prioritas / effort: FITUR • P2 • S.
+    - Dasar & relevansi: Excel spreadsheet compatibility.
+    - Usulan & manfaat: Menambahkan byte order mark `\uFEFF` pada awal file ekspor CSV agar karakter aksen dan format teks terbaca sempurna tanpa distorsi di Microsoft Excel.
+    - Kriteria berhasil: Berkas CSV yang diunduh terbuka rapi di Excel tanpa masalah pemisahan kolom atau karakter rusak.
+    - Risiko/dependensi & langkah pertama: Terapkan prefix BOM pada seluruh utilitas download CSV.
+
+38. **Batas Ukuran Maksimum File Unggahan Dokumen PDF Pelamar (Max 5MB)**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+    - Dasar & relevansi: Memory usage & upload limits.
+    - Usulan & manfaat: Menerapkan validasi ukuran file ketat maksimal 5MB pada form upload berkas resume PDF di sisi client dan server.
+    - Kriteria berhasil: File di atas 5MB ditolak dengan pesan kesalahan instruktif sebelum mengonsumsi resource pemrosesan.
+    - Risiko/dependensi & langkah pertama: Pasang pemeriksaan `file.size` di komponen uploader dan batas byte di backend.
+
+39. **Pencegahan Eksekusi Skrip pada Direktori Static Uploads via HTTP Headers**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+    - Dasar & relevansi: `X-Content-Type-Options: nosniff` & static handler.
+    - Usulan & manfaat: Menyertakan header `Content-Disposition: inline` dan `X-Content-Type-Options: nosniff` pada endpoint penyaji file statis `/uploads/*` untuk mencegah eksploitasi file upload MIME confusion.
+    - Kriteria berhasil: Browser tidak pernah mengeksekusi file yang diunggah sebagai skrip HTML/JS.
+    - Risiko/dependensi & langkah pertama: Pastikan header keamanan tersemat di `handleStaticUploads` `server/localApiHandler.js`.
+
+40. **Peningkatan Aksesibilitas Keyboard dan Kontras Warna pada Halaman Lowongan Publik**
+    - Jenis / prioritas / effort: PERBAIKAN • P2 • S.
+    - Dasar & relevansi: WCAG 2.1 AA compliance.
+    - Usulan & manfaat: Menambahkan atribut `aria-label`, outline fokus yang jelas saat navigasi Tab keyboard, dan rasio kontras teks minimal 4.5:1 pada kartu lowongan.
+    - Kriteria berhasil: Pengguna dengan pembaca layar (screen reader) dapat menelusuri dan melamar pekerjaan dengan lancar.
+    - Risiko/dependensi & langkah pertama: Audit elemen interaktif di `src/components/JobList.jsx`.
+
+41. **Paging Deterministik Cursor-Based untuk Feed Lowongan Berukuran Puluhan Ribu**
+    - Jenis / prioritas / effort: PERFORMA • P2 • M.
+    - Dasar & relevansi: SQLite `WHERE id > ? LIMIT ?` over `OFFSET`.
+    - Usulan & manfaat: Menggantikan paginasi offset besar dengan kueri berbasis kursor `WHERE (created_at, id) < (?, ?)` untuk penelusuran data berukuran besar.
+    - Kriteria berhasil: Performa halaman ke-100 sama cepatnya dengan halaman pertama (<2ms).
+    - Risiko/dependensi & langkah pertama: Tambahkan dukungan kursor pada endpoint `/api/jobs`.
+
+42. **Monitoring Latensi Database Otomatis dengan Threshold Slow Query Logging**
+    - Jenis / prioritas / effort: PERFORMA • P2 • S.
+    - Dasar & relevansi: `server/localDb.js:queryAll` duration tracking.
+    - Usulan & manfaat: Mencatat peringatan di log konsol untuk setiap eksekusi query SQLite lokal yang memakan waktu di atas 100ms.
+    - Kriteria berhasil: Kueri yang tidak efisien dapat terdeteksi segera saat beban produksi meningkat.
+    - Risiko/dependensi & langkah pertama: Tambahkan pengukuran `performance.now()` di wrapper `queryAll` dan `execute`.
+
+43. **Verifikasi Hash Integritas File Snapshot Backup Saat Proses Restore Dilakukan**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+    - Dasar & relevansi: SHA-256 manifest check.
+    - Usulan & manfaat: Menghitung checksum SHA-256 dari file snapshot sebelum proses restore dieksekusi dan membandingkannya dengan metadata snapshot tersimpan.
+    - Kriteria berhasil: Berkas cadangan yang rusak sebagian atau terkorupsi di disk langsung ditolak sebelum menimpa database aktif.
+    - Risiko/dependensi & langkah pertama: Tambahkan validasi checksum di `restoreDatabaseSnapshot`.
+
+44. **Penanganan Graceful UI Saat Jaringan Offline dengan Toast Status Banner**
+    - Jenis / prioritas / effort: FITUR • P2 • S.
+    - Dasar & relevansi: `navigator.onLine` event listeners.
+    - Usulan & manfaat: Menampilkan banner informatif melayang di bagian atas aplikasi saat koneksi internet pengguna terputus dan menghilangkannya saat online kembali.
+    - Kriteria berhasil: Pengguna mengetahui status konektivitasnya sebelum mencoba mengirim formulir.
+    - Risiko/dependensi & langkah pertama: Buat hook global `useNetworkStatus` di `src/hooks/useNetworkStatus.ts`.
+
+45. **Otentikasi Dua Faktor (2FA / TOTP) untuk Akun Super Administrator Root**
+    - Jenis / prioritas / effort: FITUR • P1 • M.
+    - Dasar & relevansi: `admin-vrintex-root` privilege security.
+    - Usulan & manfaat: Menyediakan verifikasi kode authenticator 6 digit berbasis TOTP (RFC 6238) saat login ke dashboard superadmin.
+    - Kriteria berhasil: Akun superadmin tidak dapat diakses hanya dengan password meskipun kredensial dasar diketahui.
+    - Risiko/dependensi & langkah pertama: Implementasikan modul verifikasi HMAC-SHA1 TOTP di `server/localDb.js`.
+
+46. **Pencatatan Error Terstruktur dengan Request ID Lintas Middleware Backend**
+    - Jenis / prioritas / effort: PERBAIKAN • P2 • S.
+    - Dasar & relevansi: Correlation ID header.
+    - Usulan & manfaat: Menyertakan header `X-Request-ID` unik pada setiap request dan mengaitkannya ke seluruh pesan log backend.
+    - Kriteria berhasil: Mempermudah penelusuran insiden error dari laporan pengguna ke baris log yang spesifik.
+    - Risiko/dependensi & langkah pertama: Pasang generator request UUID pada middleware terluar di `server/localApiHandler.js`.
+
+47. **Automated Smoke Test Post-Deployment via SSH Health-Check Endpoint**
+    - Jenis / prioritas / effort: PERBAIKAN • P1 • S.
+    - Dasar & relevansi: `scripts/run_batch_step.py` & deploy pipelines.
+    - Usulan & manfaat: Menjalankan permintaan HTTP health-check otomatis ke `http://127.0.0.1:3035/api/storage/status` segera setelah PM2 restart pada deployment server.
+    - Kriteria berhasil: Deployment langsung dilaporkan gagal jika server tidak mengembalikan status 200 dalam waktu 10 detik.
+    - Risiko/dependensi & langkah pertama: Tambahkan tahap health-check di akhir `scripts/run_batch_step.py`.
+
+48. **Pengujian Snapshot UI Regresi Otomatis untuk Seluruh Halaman Dashboard**
+    - Jenis / prioritas / effort: PERBAIKAN • P2 • M.
+    - Dasar & relevansi: Playwright / CDP headless integration.
+    - Usulan & manfaat: Memperluas skrip `scripts/test_admin_applications.mjs` untuk menangkap screenshot visual regresi pada seluruh halaman utama (Seeker, Employer, Admin).
+    - Kriteria berhasil: Menangkap perubahan layout visual atau kerusakan styling Tailwind yang tidak disengaja sebelum rilis.
+    - Risiko/dependensi & langkah pertama: Jadwalkan capture halaman pada test suite visual.
+
+49. **Penghapusan Riwayat Notifikasi Usang di Atas 90 Hari Secara Terjadwal**
+    - Jenis / prioritas / effort: PERFORMA • P3 • S.
+    - Dasar & relevansi: `data/schema.sql:notifications` table size.
+    - Usulan & manfaat: Membersihkan rekaman notifikasi lama yang telah dibaca (`is_read = 1` dan `created_at < 90 hari`) dalam cronjob pemeliharaan rutin.
+    - Kriteria berhasil: Menjaga ukuran tabel notifikasi tetap ramping tanpa membuang notifikasi aktif yang belum dibaca.
+    - Risiko/dependensi & langkah pertama: Tambahkan query pembersihan ke `optimizeLocalDatabase()`.
+
+50. **Sinkronisasi Otomatis Kamus Kategori Pekerjaan Antara AI Extractor dan Database Schema**
+    - Jenis / prioritas / effort: PERBAIKAN • P2 • S.
+    - Dasar & relevansi: `STANDARD_CATEGORIES` alignment.
+    - Usulan & manfaat: Menyatukan konstanta `STANDARD_CATEGORIES` dari `smartJobExtractorService.js`, `smartCvExtractorService.js`, dan skema SQLite ke dalam modul bersama `src/constants/jobCategories.ts`.
+    - Kriteria berhasil: Kategori yang diekstrak oleh AI selalu cocok 100% dengan filter kategori di antarmuka frontend dan database.
+    - Risiko/dependensi & langkah pertama: Ekspor konstanta kategori dari satu sumber referensi tunggal.

@@ -235,7 +235,7 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
   }
 
   const endpoint = `${ROUTER_BASE_URL.replace(/\/+$/, '')}/chat/completions`;
-  const candidateModels = [PRIMARY_MODEL, FALLBACK_MODEL];
+  const candidateModels = [PRIMARY_MODEL, FALLBACK_MODEL, 'gemini/gemini-3.7-flash'];
   let lastError = null;
 
   for (const model of candidateModels) {

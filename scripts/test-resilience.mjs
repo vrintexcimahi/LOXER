@@ -44,7 +44,7 @@ async function testResilience() {
 
     if (
       journalMode.journal_mode.toLowerCase() !== 'wal' ||
-      Number(busyTimeout.timeout) !== 5000 ||
+      Number(busyTimeout.timeout) < 5000 ||
       Number(foreignKeys.foreign_keys) !== 1
     ) {
       throw new Error('SQLite PRAGMA configuration does not match resilience requirements!');

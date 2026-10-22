@@ -1616,11 +1616,14 @@ async function handleDbQuery(req, res) {
       }
 
       let paginationSql = '';
-      if (range) {
-        const limitCount = range.to - range.from + 1;
-        paginationSql = `LIMIT ${limitCount} OFFSET ${range.from}`;
-      } else if (limit) {
-        paginationSql = `LIMIT ${limit}`;
+      if (range && typeof range.from !== 'undefined' && typeof range.to !== 'undefined') {
+        const from = Math.max(0, parseInt(range.from, 10) || 0);
+        const to = Math.max(from, parseInt(range.to, 10) || 0);
+        const limitCount = Math.max(1, Math.min(1000, to - from + 1));
+        paginationSql = `LIMIT ${limitCount} OFFSET ${from}`;
+      } else if (limit !== undefined && limit !== null) {
+        const cleanLimit = Math.max(1, Math.min(1000, parseInt(limit, 10) || 50));
+        paginationSql = `LIMIT ${cleanLimit}`;
       }
 
       let exactCount = null;
@@ -3568,6 +3571,7 @@ function handleStaticUploads(req, res) {
   res.setHeader('Content-Length', stat.size);
   res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', 'inline');
 
   const stream = fs.createReadStream(safePath);
   stream.on('error', (err) => {

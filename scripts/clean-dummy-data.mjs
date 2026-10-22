@@ -75,6 +75,8 @@ try {
   console.log(`- Histori fb_scraped_posts tes simulasi dibersihkan: ${delScraped.changes} baris`);
 
   // 7. Clean any orphaned foreign key records (AUD-010 Data Integrity Guard)
+  db.prepare('UPDATE seeker_profiles SET user_id = NULL WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users)').run();
+  db.prepare('UPDATE talent_marketplace_posts SET user_id = NULL WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users)').run();
   const delOrphanMembers = db.prepare('DELETE FROM company_members WHERE user_id NOT IN (SELECT id FROM users) OR company_id NOT IN (SELECT id FROM companies)').run();
   const delOrphanNotifs = db.prepare('DELETE FROM notifications WHERE user_id NOT IN (SELECT id FROM users)').run();
   const delOrphanJasa = db.prepare('DELETE FROM jasa_ads WHERE user_id NOT IN (SELECT id FROM users)').run();
