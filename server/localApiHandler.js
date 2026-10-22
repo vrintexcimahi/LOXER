@@ -4401,17 +4401,13 @@ async function handleAdminPublishSmartCv(req, res) {
       return sendJson(res, 400, { message: 'Nama lengkap dan headline posisi wajib diisi.' });
     }
 
+    if (!photo_url || String(photo_url).trim() === '') {
+      return sendJson(res, 400, { message: 'Postingan wajib ada pas foto pekerja! Silakan upload pas foto terlebih dahulu.' });
+    }
+
     const cleanName = String(full_name).trim();
     const now = new Date().toISOString();
-
-    // 1. Avatar fallback if no photo is provided
-    let finalPhotoUrl = photo_url || '';
-    if (!finalPhotoUrl) {
-      const nLower = cleanName.toLowerCase();
-      const isFemale = /(siti|nur|wati|yani|aeni|tari|yuli|yusni|meis|seli|indri|saskia|putri|dewi|ayu|lia|wulan|fitri|diah|indah|rahayu|novi|kartika|dian|retno|dwi|lestari|tika|widya|ratna|maya|mega|amelia|fadila|fatimah|aulia|safitri|anisa|annisa|mutiara|bella|shinta|intan|desy|desi|vina|eka|anggi|nadia)/i.test(nLower);
-      const variant = (cleanName.length % 2) + 1;
-      finalPhotoUrl = isFemale ? `/avatars/pixar_female_${variant}.jpg` : `/avatars/pixar_male_${variant}.jpg`;
-    }
+    const finalPhotoUrl = String(photo_url).trim();
 
     // 2. Candidate Deduplication (Mencari profil seeker non-user berdasarkan nama dan nomor kontak)
     let seeker = null;

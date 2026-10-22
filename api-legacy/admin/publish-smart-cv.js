@@ -87,6 +87,11 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (!photo_url || String(photo_url).trim() === '') {
+      res.status(400).json({ message: 'Postingan wajib ada pas foto pekerja! Silakan upload pas foto terlebih dahulu.' });
+      return;
+    }
+
     const cleanName = String(full_name).trim();
     const now = new Date().toISOString();
     

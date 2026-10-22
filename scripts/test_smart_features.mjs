@@ -85,11 +85,44 @@ async function runSmartFeaturesTest() {
         confidence_score: 96,
       }),
     });
-    const publishCvData = await publishCvRes.json();
-    if (!publishCvRes.ok || !publishCvData.ok) {
-      throw new Error(`Publish smart CV failed: ${publishCvData.message || publishCvRes.status}`);
+    const publishWithoutPhotoData = await publishCvRes.json();
+    if (publishCvRes.status !== 400 || !publishWithoutPhotoData.message?.includes('wajib ada pas foto')) {
+      throw new Error(`Expected 400 mandatory photo error, got ${publishCvRes.status}: ${JSON.stringify(publishWithoutPhotoData)}`);
     }
-    console.log('✅ 3. Smart Add CV API published successfully (Post ID:', publishCvData.post_id, ')');
+    console.log('✅ 3.0 Mandatory worker photo validation strictly enforced (HTTP 400 returned when photo is missing)');
+
+    // 3.1 Publish with valid candidate photo
+    const publishWithPhotoRes = await fetch(`${baseUrl}/api/admin/publish-smart-cv`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        full_name: 'Dewi Lestari',
+        headline: 'Staff Administrasi & Akuntansi',
+        category: 'Administrasi & Keuangan',
+        availability: 'immediate',
+        experience_years: 2,
+        expected_salary: 4500000,
+        rate_type: 'monthly',
+        domicile_city: 'Cimahi',
+        whatsapp_number: '081234567890',
+        email: 'dewi.lestari@example.com',
+        bio: 'Lulusan Akuntansi dengan pengalaman 2 tahun pembukuan dan administrasi perkantoran.',
+        skills: ['Microsoft Excel', 'Jurnal Keuangan', 'Administrasi Dokumen', 'Pajak Dasar'],
+        portfolio_url: '',
+        badge: 'SIAP KERJA',
+        photo_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
+        ai_notes: 'Terekstraksi dengan AI Vision Gemini 3.8',
+        confidence_score: 96,
+      }),
+    });
+    const publishCvData = await publishWithPhotoRes.json();
+    if (!publishWithPhotoRes.ok || !publishCvData.ok) {
+      throw new Error(`Publish smart CV failed: ${publishCvData.message || publishWithPhotoRes.status}`);
+    }
+    console.log('✅ 3.1 Smart Add CV API published successfully with valid worker photo (Post ID:', publishCvData.post_id, ')');
 
     // 4. Test Job Listings Query with company relation
     const queryJobsRes = await fetch(`${baseUrl}/api/local/db/query`, {

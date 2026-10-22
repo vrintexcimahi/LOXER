@@ -1684,8 +1684,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
         }
       }
 
-      const defaultPixar = getDefaultPixarAvatar(cv.full_name, cv.gender, cv.bio);
-      const initialPhoto = croppedPhoto || defaultPixar;
+      const initialPhoto = croppedPhoto || '';
 
       setFormData({
         full_name: cv.full_name || 'Pelamar Kerja',
@@ -1702,7 +1701,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
         skills: Array.isArray(cv.skills) && cv.skills.length > 0 ? cv.skills : ['Komunikasi', 'Kerja Tim'],
         portfolio_url: blurredCv || cv.portfolio_url || '', // GAMBAR KE-2: CV FULL DENGAN KONTAK DIBLUR
         badge: cv.badge || 'SIAP KERJA',
-        photo_url: initialPhoto, // FOTO UTAMA: PAS FOTO HASIL CROP ATAU 3D PIXAR AVATAR
+        photo_url: initialPhoto, // FOTO UTAMA: PAS FOTO ASLI HASIL CROP ATAU KOSONG (WAJIB FOTO ASLI)
         ai_notes: cv.ai_notes || 'Biodata diekstrak secara otomatis oleh Agen AI Gemini 3.8 LOXER (Kontak terproteksi privasi)',
         confidence_score: cv.confidence_score || 95,
         educations: cv.educations || [],
@@ -1714,7 +1713,11 @@ STATUS: Siap Kerja Segera (Fulltime)`);
 
       setIsExtracting(false);
       setExtractStep(0);
-      onToast('success', 'Biodata CV berhasil diekstrak! Pas foto terpotong 1:1 presisi & kontak CV disensor.');
+      if (!initialPhoto) {
+        onToast('info', 'Biodata CV diekstrak. Pas foto tidak terdeteksi di CV, silakan upload pas foto pekerja secara manual sebelum diterbitkan.');
+      } else {
+        onToast('success', 'Biodata CV berhasil diekstrak! Pas foto terpotong 1:1 presisi & kontak CV disensor.');
+      }
     } catch (err: unknown) {
       console.error('[SmartAddCv Extract Error]:', err);
       setIsExtracting(false);
@@ -1916,6 +1919,10 @@ STATUS: Siap Kerja Segera (Fulltime)`);
     if (!formData) return;
     if (!formData.full_name || !formData.headline) {
       onToast('error', 'Nama lengkap dan headline posisi wajib diisi.');
+      return;
+    }
+    if (!formData.photo_url || formData.photo_url.trim() === '') {
+      onToast('error', 'Postingan wajib ada pas foto pekerja! Silakan upload pas foto terlebih dahulu.');
       return;
     }
 
@@ -2617,24 +2624,28 @@ STATUS: Siap Kerja Segera (Fulltime)`);
                           <span>AI Presisi (0% Bocor Teks)</span>
                         </span>
                       ) : (
-                        <span className="text-[9px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded border border-slate-200 dark:border-transparent">
-                          Inisial Default
+                        <span className="text-[9px] font-bold text-rose-800 dark:text-rose-300 bg-rose-100 dark:bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-500/30 flex items-center gap-1">
+                          <AlertTriangle className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
+                          <span>Wajib Pas Foto</span>
                         </span>
                       )}
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-slate-950 flex items-center justify-center shadow-inner">
+                      <div className="h-16 w-16 shrink-0 rounded-xl overflow-hidden border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-slate-950 flex flex-col items-center justify-center shadow-inner">
                         {formData.photo_url ? (
                           <img src={formData.photo_url} alt="Pas Foto" className="h-full w-full object-cover object-center" />
                         ) : (
-                          <span className="text-xl font-black text-cyan-700 dark:text-cyan-300">{formData.full_name.charAt(0).toUpperCase()}</span>
+                          <div className="flex flex-col items-center justify-center p-1 text-center">
+                            <Camera className="w-4 h-4 text-slate-400 mb-0.5" />
+                            <span className="text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase">Tanpa Foto</span>
+                          </div>
                         )}
                       </div>
                       <div className="flex-1 space-y-1.5">
                         <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-snug">
                           {formData.photo_url
                             ? 'Wajah kandidat terpotong 1:1 presisi dari lembar CV tanpa teks luar.'
-                            : 'Tidak ada pas foto di lembar CV. Inisial nama otomatis digunakan.'}
+                            : 'Pas foto tidak terdeteksi di lembar CV. Upload pas foto pekerja secara manual agar dapat diterbitkan.'}
                         </p>
 
                         {/* Interactive Re-Crop Mode Selector */}
