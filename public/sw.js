@@ -1,8 +1,8 @@
 // ==============================================================================
-// LOXER Progressive Web App Service Worker (v3.7.0)
+// LOXER Progressive Web App Service Worker (v3.8.0)
 // ==============================================================================
 
-const CACHE_NAME = 'loxer-pwa-v3.7.0';
+const CACHE_NAME = 'loxer-pwa-v3.8.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -84,6 +84,22 @@ self.addEventListener('fetch', (event) => {
 
   // Never persistent-cache live authentication or mutations API
   if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Uploads: Network-first to always serve fresh uncached images
+  if (url.pathname.startsWith('/uploads/')) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const cloned = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(request))
+    );
     return;
   }
 

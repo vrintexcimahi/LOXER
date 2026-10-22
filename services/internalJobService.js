@@ -106,7 +106,7 @@ export function searchInternalJobs(params = {}) {
         salary_type: 'M',
         description: job.description || job.requirements || 'Deskripsi lowongan internal LOXER.',
         requirements: job.requirements || '',
-        poster_url: job.poster_url || '',
+        poster_url: job.poster_url ? `${job.poster_url}?v=clean` : '',
         company_logo: job.company_logo || '',
         url: `/seeker/browse?job_id=${job.id}`,
         date: job.created_at || new Date().toISOString(),

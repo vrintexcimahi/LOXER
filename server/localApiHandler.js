@@ -3566,10 +3566,12 @@ function handleStaticUploads(req, res) {
   const contentType = contentTypes[ext] || 'application/octet-stream';
   const stat = fs.statSync(safePath);
 
+  const isPoster = pathname.startsWith('/uploads/posters/');
+
   res.statusCode = 200;
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Length', stat.size);
-  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+  res.setHeader('Cache-Control', isPoster ? 'no-cache, no-store, must-revalidate' : 'public, max-age=86400, stale-while-revalidate=604800');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', 'inline');
 
