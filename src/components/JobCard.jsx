@@ -166,7 +166,8 @@ export default function JobCard({ job, onSelectJob }) {
   const provider = getProviderBadge(job.site);
   const ProviderIcon = provider.icon;
   const isInternal = Boolean(job.is_internal);
-  const posterUrl = job.poster_url || job.job_listings?.poster_url;
+  const rawPoster = job.poster_url || job.job_listings?.poster_url;
+  const posterUrl = rawPoster ? `${rawPoster.split('?')[0]}?v=clean-v2` : '';
 
   const handleCardClick = (e) => {
     if (isInternal && onSelectJob) {

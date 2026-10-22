@@ -402,7 +402,7 @@ export default function JobDetailModal({
                   </div>
                   <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/10 shadow-2xl flex flex-col items-center">
                     <img
-                      src={job?.poster_url || initialJob?.poster_url}
+                      src={`${(job?.poster_url || initialJob?.poster_url || '').split('?')[0]}?v=clean-v2`}
                       alt={job?.title || 'Poster Lowongan'}
                       className="w-full h-auto max-h-[750px] object-contain mx-auto"
                       loading="lazy"

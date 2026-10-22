@@ -793,6 +793,9 @@ function enrichRowsRelations(table, rows) {
     for (const row of rows) {
       if (row) {
         row.companies = row.company_id ? companyMap.get(row.company_id) || null : null;
+        if (row.poster_url && typeof row.poster_url === 'string') {
+          row.poster_url = `${row.poster_url.split('?')[0]}?v=clean-v2`;
+        }
       }
     }
     return rows;
@@ -815,6 +818,9 @@ function enrichRowsRelations(table, rows) {
       for (const job of jobs) {
         if (job) {
           job.companies = job.company_id ? companyMap.get(job.company_id) || null : null;
+          if (job.poster_url && typeof job.poster_url === 'string') {
+            job.poster_url = `${job.poster_url.split('?')[0]}?v=clean-v2`;
+          }
         }
       }
       jobMap = new Map(jobs.map((j) => [j.id, j]));
