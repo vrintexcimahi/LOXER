@@ -11,25 +11,34 @@ export interface BoundingBox {
   xmax: number;
 }
 
-export type PasFotoCropMode = 'smart_square' | 'tight_face' | 'full_frame';
+export type PasFotoCropMode = 'smart_square' | 'tight_face' | 'full_frame' | 'wide_portrait';
+
+export interface CropAdjustOptions {
+  zoom?: number;       // 0.5 to 2.5 (1.0 = proporsional pas foto, <1 = zoom out / bahu luas, >1 = zoom in)
+  panX?: number;       // -100 to +100 (%)
+  panY?: number;       // -100 to +100 (%)
+}
 
 /**
  * Crop candidate's portrait (pas foto) from the uploaded CV document with LEVEL MAX SKILL.
  * - Guarantees 0% bleed of surrounding CV text / document lines
- * - Centered squarely on the candidate's face & shoulders
- * - Supports tight face mode, smart square 1:1, or full portrait framing
+ * - Centered squarely on the candidate's face & shoulders with natural headroom
+ * - Supports smart square 1:1, tight face, full frame, and interactive zoom/pan adjustment
  *
  * @param sourceImage Base64 Data URL or Image URL
  * @param photoBox Normalized bounding box [ymin, xmin, ymax, xmax] in 0-1000 scale
  * @param faceBox Optional tight face bounding box [ymin, xmin, ymax, xmax] in 0-1000 scale
- * @param mode Crop mode: 'smart_square' (default 1:1), 'tight_face', or 'full_frame'
+ * @param mode Crop mode: 'smart_square' (default 1:1), 'tight_face', 'full_frame', or 'wide_portrait'
+ * @param rotationAngle Optional rotation angle (0, 90, 180, 270)
+ * @param adjustOptions Optional manual zoom (0.5 - 2.5) and panX/panY (-100 to 100) offsets
  */
 export async function cropPasFotoFromImage(
   sourceImage: string,
   photoBox?: [number, number, number, number] | null,
   faceBox?: [number, number, number, number] | null,
   mode: PasFotoCropMode = 'smart_square',
-  rotationAngle: number = 0
+  rotationAngle: number = 0,
+  adjustOptions?: CropAdjustOptions
 ): Promise<string> {
   if (!sourceImage || !photoBox || !Array.isArray(photoBox) || photoBox.length !== 4) {
     return '';
@@ -150,58 +159,57 @@ export async function cropPasFotoFromImage(
           fCenterY = fY1 + fH / 2;
         }
 
-        // Circular badge / Canva frame detector:
-        // When aspect ratio is near 1:1, or face is small relative to box (fH / safeH < 0.45)
-        const isNearSquare = Math.abs(safeW - safeH) / Math.max(safeW, safeH) < 0.18;
-        const isSmallFaceInBigFrame = hasFaceBox && fH / safeH < 0.44;
+        // Base dimension for proportional 1:1 portrait (Pas Foto Proporsional):
+        // Avoid artificial shrink to 52-70% which caused the extreme over-zoom!
+        let baseDim = Math.min(safeW, safeH);
 
         if (mode === 'tight_face' && hasFaceBox) {
-          const fDim = Math.max(fW, fH) * 1.5;
-          cropW = Math.min(safeW, fDim);
-          cropH = cropW;
-          cropX = Math.max(safeX1, Math.min(safeX2 - cropW, fCenterX - cropW / 2));
-          cropY = Math.max(safeY1, Math.min(safeY2 - cropH, fCenterY - cropH * 0.45));
-        } else if (hasFaceBox && (isNearSquare || isSmallFaceInBigFrame)) {
-          // Precise inner crop for circular / Canva badge photos:
-          // Inscribe square tightly inside the circle (radius * sqrt(2) ~= 0.707)
-          // To eliminate 100% of outer paper color, circle stroke lines, and dark corner bleeds!
-          const targetDim = Math.max(fH * 2.1, fW * 2.3);
-          const maxInscribed = Math.min(safeW, safeH) * 0.70;
-          const dim = Math.max(Math.min(targetDim, maxInscribed), Math.min(safeW, safeH) * 0.52);
-
-          cropW = dim;
-          cropH = dim;
-          cropX = Math.max(safeX1, Math.min(safeX2 - dim, fCenterX - dim / 2));
-          cropY = Math.max(safeY1, Math.min(safeY2 - dim, fCenterY - dim * 0.40));
+          // Focused close-up mode: tight framing around face
+          baseDim = Math.min(safeW, Math.max(fW * 1.55, fH * 1.55));
+        } else if (mode === 'wide_portrait') {
+          // Extra breathing room showing full chest, collar & wide shoulders
+          baseDim = Math.max(safeW, safeH * 0.95);
         } else {
-          // Standard smart_square mode (1:1 aspect ratio)
-          if (safeH >= safeW) {
-            // Standard vertical passport photo (3:4, 2:3, etc.)
-            const dim = safeW;
-            cropW = dim;
-            cropH = dim;
-            cropX = safeX1;
+          // Standard smart_square (Default 1:1 Pas Foto):
+          // Uses the full safe photo box (96-98%) with balanced headroom and chest room
+          baseDim = Math.min(safeW, safeH) * 0.98;
+        }
 
-            if (hasFaceBox) {
-              const targetY = fCenterY - dim * 0.42;
-              cropY = Math.max(safeY1, Math.min(safeY2 - dim, targetY));
-            } else {
-              cropY = safeY1 + Math.max(0, (safeH - dim) * 0.12);
-              cropY = Math.min(cropY, safeY2 - dim);
-            }
-          } else {
-            // Landscape photo
-            const dim = safeH;
-            cropW = dim;
-            cropH = dim;
-            cropY = safeY1;
+        // Apply interactive user zoom & pan if provided
+        const zoom = Math.max(0.5, Math.min(2.5, adjustOptions?.zoom ?? 1.0));
+        const panXPercent = Math.max(-100, Math.min(100, adjustOptions?.panX ?? 0));
+        const panYPercent = Math.max(-100, Math.min(100, adjustOptions?.panY ?? 0));
 
-            if (hasFaceBox) {
-              cropX = Math.max(safeX1, Math.min(safeX2 - dim, fCenterX - dim / 2));
-            } else {
-              cropX = safeX1 + (safeW - dim) / 2;
-            }
-          }
+        // When zoom < 1.0, finalDim expands (zooms out, showing more shoulders/hijab/hair)
+        // When zoom > 1.0, finalDim contracts (zooms in closer to face)
+        const finalDim = baseDim / zoom;
+
+        // Positioning center:
+        // For professional portraits, eye level / center of face sits around 38-40% from top of 1:1 frame
+        let centerX = hasFaceBox ? fCenterX : (safeX1 + safeW / 2);
+        let centerY = hasFaceBox
+          ? (fCenterY - finalDim * 0.40) + (finalDim / 2)
+          : (safeY1 + safeH / 2);
+
+        // Apply manual pan offsets (in percentage of finalDim)
+        centerX += (panXPercent / 100) * finalDim;
+        centerY += (panYPercent / 100) * finalDim;
+
+        cropW = finalDim;
+        cropH = finalDim;
+        cropX = centerX - finalDim / 2;
+        cropY = centerY - finalDim / 2;
+
+        // Allow graceful expansion outside safe box when user explicitly zooms out (up to full document bounds)
+        if (cropX < 0) cropX = 0;
+        if (cropY < 0) cropY = 0;
+        if (cropX + cropW > naturalW) {
+          cropX = Math.max(0, naturalW - cropW);
+          cropW = Math.min(naturalW, cropW);
+        }
+        if (cropY + cropH > naturalH) {
+          cropY = Math.max(0, naturalH - cropH);
+          cropH = Math.min(naturalH, cropH);
         }
 
         // Clamp crop boundaries strictly within natural image dimensions

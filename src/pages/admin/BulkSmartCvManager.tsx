@@ -19,9 +19,18 @@ import {
   Check,
   X,
   Scissors,
+  ZoomIn,
+  Sliders,
+  RotateCcw,
+  Move,
 } from 'lucide-react';
 import { ToastType } from './AdminTalentComponents';
-import { cropPasFotoFromImage, generateBlurredCvImage, autoEnhanceImageDataUrl } from '../../lib/cvImageProcessor';
+import {
+  cropPasFotoFromImage,
+  generateBlurredCvImage,
+  autoEnhanceImageDataUrl,
+  PasFotoCropMode,
+} from '../../lib/cvImageProcessor';
 import { cleanDomicileCity, maskPhoneNumber } from '../../lib/contactPrivacyService';
 import { validateDocumentMagicBytes, validateImageMagicBytes } from '../../lib/imageCompressor';
 import { getDefaultPixarAvatar } from '../../lib/avatarService';
@@ -132,7 +141,11 @@ export function BulkSmartCvManager({
   // Modal Detail / Quick Edit
   const [editingItem, setEditingItem] = useState<BulkCvItem | null>(null);
   const [editFormData, setEditFormData] = useState<BulkCandidateData | null>(null);
-  const [editActiveCropMode, setEditActiveCropMode] = useState<'smart_square' | 'tight_face' | 'full_frame'>('smart_square');
+  const [editActiveCropMode, setEditActiveCropMode] = useState<PasFotoCropMode>('smart_square');
+  const [editCropZoom, setEditCropZoom] = useState<number>(1.0);
+  const [editCropPanX, setEditCropPanX] = useState<number>(0);
+  const [editCropPanY, setEditCropPanY] = useState<number>(0);
+  const [showModalCropAdjuster, setShowModalCropAdjuster] = useState<boolean>(false);
   const [isAiModalEnhancing, setIsAiModalEnhancing] = useState<boolean>(false);
   const [isBulkPublishing, setIsBulkPublishing] = useState<boolean>(false);
   const [bulkPublishProgress, setBulkPublishProgress] = useState<{ current: number; total: number } | null>(null);
@@ -670,30 +683,73 @@ export function BulkSmartCvManager({
     setEditingItem(item);
     setEditFormData({ ...item.data });
     setEditActiveCropMode('smart_square');
+    setEditCropZoom(1.0);
+    setEditCropPanX(0);
+    setEditCropPanY(0);
+    setShowModalCropAdjuster(false);
   };
 
-  // Re-crop inside modal
-  const handleModalReCrop = async (mode: 'smart_square' | 'tight_face' | 'full_frame') => {
+  // Re-crop inside modal with live zoom & pan fine-tuning
+  const handleModalApplyCropAdjust = async (
+    newMode?: PasFotoCropMode,
+    newZoom?: number,
+    newPanX?: number,
+    newPanY?: number
+  ) => {
     if (!editingItem || !editingItem.rawImageBase64 || !editingItem.rawPhotoBox) {
       onToast('error', 'Tidak ada koordinat foto asli untuk di-crop ulang.');
       return;
     }
-    setEditActiveCropMode(mode);
+    const m = newMode ?? editActiveCropMode;
+    const z = newZoom !== undefined ? newZoom : editCropZoom;
+    const px = newPanX !== undefined ? newPanX : editCropPanX;
+    const py = newPanY !== undefined ? newPanY : editCropPanY;
+
+    if (newMode) setEditActiveCropMode(m);
+    if (newZoom !== undefined) setEditCropZoom(z);
+    if (newPanX !== undefined) setEditCropPanX(px);
+    if (newPanY !== undefined) setEditCropPanY(py);
+
     try {
       const cropped = await cropPasFotoFromImage(
         editingItem.rawImageBase64,
         editingItem.rawPhotoBox,
         editingItem.rawFaceBox,
-        mode
+        m,
+        0,
+        { zoom: z, panX: px, panY: py }
       );
       if (cropped && editFormData) {
         setEditFormData({ ...editFormData, photo_url: cropped });
-        onToast('success', `Crop disesuaikan: ${mode}`);
       }
     } catch (cropErr) {
-      console.warn('Modal re-crop error:', cropErr);
+      console.warn('Modal crop adjust error:', cropErr);
       onToast('error', 'Gagal memotong ulang foto.');
     }
+  };
+
+  const handleModalResetCrop = () => {
+    setEditCropZoom(1.0);
+    setEditCropPanX(0);
+    setEditCropPanY(0);
+    handleModalApplyCropAdjust(editActiveCropMode, 1.0, 0, 0);
+    onToast('info', 'Posisi dan zoom pas foto direset ke standar 1:1.');
+  };
+
+  const handleModalReCrop = async (mode: PasFotoCropMode) => {
+    await handleModalApplyCropAdjust(mode);
+    onToast(
+      'success',
+      `Pas foto disesuaikan: ${
+        mode === 'smart_square'
+          ? 'Pas Foto Proporsional 1:1'
+          : mode === 'tight_face'
+          ? 'Fokus Wajah'
+          : mode === 'wide_portrait'
+          ? 'Lebar Bahu'
+          : 'Foto Penuh'
+      }`
+    );
   };
 
   // Custom photo upload in modal
@@ -1601,76 +1657,244 @@ export function BulkSmartCvManager({
                   />
                 </div>
                 <div className="space-y-2 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleModalReCrop('smart_square')}
-                      className={`px-2 py-1 text-[10px] font-bold rounded transition ${
-                        editActiveCropMode === 'smart_square'
-                          ? 'bg-cyan-500 text-slate-950'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      🎯 1:1 Wajah
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleModalReCrop('tight_face')}
-                      className={`px-2 py-1 text-[10px] font-bold rounded transition ${
-                        editActiveCropMode === 'tight_face'
-                          ? 'bg-cyan-500 text-slate-950'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      🔍 Zoom
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleModalReCrop('full_frame')}
-                      className={`px-2 py-1 text-[10px] font-bold rounded transition ${
-                        editActiveCropMode === 'full_frame'
-                          ? 'bg-cyan-500 text-slate-950'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      🖼️ Penuh
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleModalAutoSharpen}
-                      className="px-2 py-1 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-400/30 transition flex items-center gap-1"
-                      title="Pertajam otomatis foto buram menggunakan filter kanvas HD"
-                    >
-                      ✨ Pertajam Filter
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isAiModalEnhancing}
-                      onClick={() => handleModalAiEnhance('enhance')}
-                      className="px-2 py-1 text-[10px] font-bold rounded bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/40 transition flex items-center gap-1 disabled:opacity-50"
-                      title="Pulihkan & upscale foto ke kualitas 4K Ultra HD menggunakan AI Gemini Imagen"
-                    >
-                      <Sparkles className={`w-3 h-3 ${isAiModalEnhancing ? 'animate-spin' : ''}`} />
-                      ⚡ Upscale 4K
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isAiModalEnhancing}
-                      onClick={() => handleModalAiEnhance('regenerate')}
-                      className="px-2 py-1 text-[10px] font-bold rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-400/40 transition flex items-center gap-1 disabled:opacity-50"
-                      title="Generate ulang pas foto profil jika hasil belum sesuai"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${isAiModalEnhancing ? 'animate-spin' : ''}`} />
-                      🔄 Buat Ulang
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleModalPixarAvatar}
-                      className="px-2 py-1 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 hover:bg-violet-500/30 border border-violet-400/30 transition flex items-center gap-1"
-                      title="Gunakan ilustrasi 3D Pixar Avatar sesuai gender"
-                    >
-                      🎨 3D Avatar
-                    </button>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleModalReCrop('smart_square')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded transition ${
+                          editActiveCropMode === 'smart_square' && !showModalCropAdjuster
+                            ? 'bg-cyan-500 text-slate-950 shadow'
+                            : 'bg-slate-800 text-slate-300 hover:text-white'
+                        }`}
+                        title="Crop 1:1 proporsional standar ID (kepala, dahi & bahu seimbang)"
+                      >
+                        👤 1:1 Normal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleModalReCrop('tight_face')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded transition ${
+                          editActiveCropMode === 'tight_face' && !showModalCropAdjuster
+                            ? 'bg-cyan-500 text-slate-950 shadow'
+                            : 'bg-slate-800 text-slate-300 hover:text-white'
+                        }`}
+                        title="Crop zoom fokus wajah terpusat"
+                      >
+                        🔍 Fokus Wajah
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleModalReCrop('wide_portrait')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded transition ${
+                          editActiveCropMode === 'wide_portrait' && !showModalCropAdjuster
+                            ? 'bg-cyan-500 text-slate-950 shadow'
+                            : 'bg-slate-800 text-slate-300 hover:text-white'
+                        }`}
+                        title="Framing lebih luas hingga pundak & dada"
+                      >
+                        📐 Bahu Luas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleModalReCrop('full_frame')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded transition ${
+                          editActiveCropMode === 'full_frame' && !showModalCropAdjuster
+                            ? 'bg-cyan-500 text-slate-950 shadow'
+                            : 'bg-slate-800 text-slate-300 hover:text-white'
+                        }`}
+                        title="Pas foto penuh sesuai bounding box asli dokumen"
+                      >
+                        🖼️ Penuh
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowModalCropAdjuster((prev) => !prev)}
+                        className={`px-2 py-1 text-[10px] font-bold rounded transition flex items-center gap-1 ${
+                          showModalCropAdjuster
+                            ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                            : 'bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-900/60'
+                        }`}
+                        title="Atur zoom (perbesar/perkecil) dan geser posisi pas foto"
+                      >
+                        <Sliders className="w-3 h-3" />
+                        <span>{showModalCropAdjuster ? 'Tutup Pengatur' : '🎛️ Atur Crop & Zoom'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleModalAutoSharpen}
+                        className="px-2 py-1 text-[10px] font-bold rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-400/30 transition flex items-center gap-1"
+                        title="Pertajam otomatis foto buram menggunakan filter kanvas HD"
+                      >
+                        ✨ Filter HD
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isAiModalEnhancing}
+                        onClick={() => handleModalAiEnhance('enhance')}
+                        className="px-2 py-1 text-[10px] font-bold rounded bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-400/40 transition flex items-center gap-1 disabled:opacity-50"
+                        title="Pulihkan & upscale foto ke kualitas 4K Ultra HD menggunakan AI Gemini Imagen"
+                      >
+                        <Sparkles className={`w-3 h-3 ${isAiModalEnhancing ? 'animate-spin' : ''}`} />
+                        ⚡ 4K
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isAiModalEnhancing}
+                        onClick={() => handleModalAiEnhance('regenerate')}
+                        className="px-2 py-1 text-[10px] font-bold rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-400/40 transition flex items-center gap-1 disabled:opacity-50"
+                        title="Generate ulang pas foto profil jika hasil belum sesuai"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isAiModalEnhancing ? 'animate-spin' : ''}`} />
+                        🔄 AI Baru
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleModalPixarAvatar}
+                        className="px-2 py-1 text-[10px] font-bold rounded bg-violet-500/20 text-violet-300 hover:bg-violet-500/30 border border-violet-400/30 transition flex items-center gap-1"
+                        title="Gunakan ilustrasi 3D Pixar Avatar sesuai gender"
+                      >
+                        🎨 3D Avatar
+                      </button>
+                    </div>
+
+                    {/* Panel Pengatur Interaktif di Modal */}
+                    {showModalCropAdjuster && (
+                      <div className="rounded-xl border border-cyan-500/40 bg-slate-900/90 p-3 space-y-2.5 shadow-md animate-fade-in text-xs">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                          <div className="flex items-center gap-1.5 text-cyan-300 font-bold text-[11px]">
+                            <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>Penyesuaian Manual Pas Foto (Zoom &amp; Geser)</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleModalResetCrop}
+                            className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1 transition"
+                            title="Kembalikan posisi &amp; zoom ke standar 1:1"
+                          >
+                            <RotateCcw className="w-2.5 h-2.5" />
+                            <span>Reset Standar</span>
+                          </button>
+                        </div>
+
+                        {/* Zoom Slider */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300">
+                            <span className="flex items-center gap-1">
+                              <ZoomIn className="w-3 h-3 text-cyan-400" />
+                              <span>Tingkat Zoom Framing:</span>
+                            </span>
+                            <span className="font-mono font-bold text-cyan-400">
+                              {editCropZoom.toFixed(2)}x {editCropZoom < 1.0 ? '(Zoom Out / Lebih Luas)' : editCropZoom > 1.0 ? '(Zoom In / Wajah)' : '(Normal)'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleModalApplyCropAdjust(undefined, Math.max(0.6, Number((editCropZoom - 0.1).toFixed(2))))}
+                              className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 border border-white/10 hover:bg-slate-700 transition"
+                            >
+                              - 0.1x
+                            </button>
+                            <input
+                              type="range"
+                              min="0.6"
+                              max="1.8"
+                              step="0.05"
+                              value={editCropZoom}
+                              onChange={(e) => handleModalApplyCropAdjust(undefined, parseFloat(e.target.value))}
+                              className="flex-1 accent-cyan-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleModalApplyCropAdjust(undefined, Math.min(1.8, Number((editCropZoom + 0.1).toFixed(2))))}
+                              className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 border border-white/10 hover:bg-slate-700 transition"
+                            >
+                              + 0.1x
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Pan Y Slider */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300">
+                            <span className="flex items-center gap-1">
+                              <Move className="w-3 h-3 text-cyan-400" />
+                              <span>Posisi Vertikal (Atas ↔ Bawah):</span>
+                            </span>
+                            <span className="font-mono text-cyan-400">
+                              {editCropPanY > 0 ? `+${editCropPanY}% (Turun)` : editCropPanY < 0 ? `${editCropPanY}% (Naik)` : '0% (Tengah)'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleModalApplyCropAdjust(undefined, undefined, undefined, Math.max(-50, editCropPanY - 5))}
+                              className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 border border-white/10 hover:bg-slate-700 transition"
+                              title="Geser ke atas untuk melihat leher & bahu lebih banyak"
+                            >
+                              ▲ Naik
+                            </button>
+                            <input
+                              type="range"
+                              min="-40"
+                              max="40"
+                              step="2"
+                              value={editCropPanY}
+                              onChange={(e) => handleModalApplyCropAdjust(undefined, undefined, undefined, parseInt(e.target.value, 10))}
+                              className="flex-1 accent-cyan-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleModalApplyCropAdjust(undefined, undefined, undefined, Math.min(50, editCropPanY + 5))}
+                              className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 border border-white/10 hover:bg-slate-700 transition"
+                              title="Geser ke bawah untuk melihat dahi & rambut lebih banyak"
+                            >
+                              ▼ Turun
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Pan X Slider */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-300">
+                            <span>Posisi Horizontal (Kiri ↔ Kanan):</span>
+                            <span className="font-mono text-cyan-400">
+                              {editCropPanX > 0 ? `+${editCropPanX}% (Kanan)` : editCropPanX < 0 ? `${editCropPanX}% (Kiri)` : '0% (Tengah)'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleModalApplyCropAdjust(undefined, undefined, Math.max(-40, editCropPanX - 5), undefined)}
+                              className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 border border-white/10 hover:bg-slate-700 transition"
+                            >
+                              ◄ Kiri
+                            </button>
+                            <input
+                              type="range"
+                              min="-40"
+                              max="40"
+                              step="2"
+                              value={editCropPanX}
+                              onChange={(e) => handleModalApplyCropAdjust(undefined, undefined, parseInt(e.target.value, 10), undefined)}
+                              className="flex-1 accent-cyan-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleModalApplyCropAdjust(undefined, undefined, Math.min(40, editCropPanX + 5), undefined)}
+                              className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-800 border border-white/10 hover:bg-slate-700 transition"
+                            >
+                              ► Kanan
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] text-slate-400 italic">
+                          💡 Tips: Geser slider Zoom ke kiri (misal 0.8x) jika foto kandidat terpotong dahi/hijab atau terlalu rapat dengan wajah.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
