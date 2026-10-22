@@ -13,7 +13,6 @@ import {
   Briefcase,
   Users,
   Check,
-  ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
@@ -400,24 +399,14 @@ export default function JobDetailModal({
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                       <Sparkles className="h-4 w-4 text-sky-400" /> Poster Resmi Rekrutmen
                     </h3>
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-cyan-300 bg-cyan-950/70 border border-cyan-500/30 px-2.5 py-0.5 rounded-full shadow-sm">
-                      <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Kontak &amp; Alamat Terproteksi
-                    </span>
                   </div>
-                  <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/10 group shadow-2xl flex flex-col items-center">
+                  <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/10 shadow-2xl flex flex-col items-center">
                     <img
                       src={job?.poster_url || initialJob?.poster_url}
                       alt={job?.title || 'Poster Lowongan'}
                       className="w-full h-auto max-h-[750px] object-contain mx-auto"
                       loading="lazy"
                     />
-                    <div className="w-full p-3 bg-slate-950/95 border-t border-cyan-500/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-cyan-200">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
-                        <span>Data kontak dan alamat detail telah disensor secara aman oleh sistem LOXER.</span>
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Lamar Resmi via Tombol LOXER</span>
-                    </div>
                   </div>
                 </section>
               )}
