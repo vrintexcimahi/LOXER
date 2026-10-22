@@ -134,7 +134,8 @@ export function BulkSmartCvManager({
 }: BulkSmartCvManagerProps) {
   const [items, setItems] = useState<BulkCvItem[]>([]);
   const [isQueueRunning, setIsQueueRunning] = useState<boolean>(true);
-  const [concurrency, setConcurrency] = useState<number>(2);
+  const [concurrency, setConcurrency] = useState<number>(3); // Default cepat 3x
+  const [queueTick, setQueueTick] = useState<number>(0);
   const [activeFilter, setActiveFilter] = useState<'all' | 'ready' | 'pending_photo' | 'processing' | 'published' | 'error'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
@@ -154,7 +155,7 @@ export function BulkSmartCvManager({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const customPhotoRef = useRef<HTMLInputElement>(null);
-  const isProcessingRef = useRef<boolean>(false);
+  const activeItemIdsRef = useRef<Set<string>>(new Set());
 
   // Load PDF.js helper
   const loadPdfJs = async (): Promise<PdfJsLibrary | null> => {
@@ -500,34 +501,47 @@ export function BulkSmartCvManager({
     }
   }, []);
 
-  // Queue runner effect
+  // Dynamic Multi-Worker Queue Runner (Continuous Pipeline)
+  // Each worker slot independently picks the next pending document as soon as free
   useEffect(() => {
-    if (!isQueueRunning || isProcessingRef.current) return;
+    if (!isQueueRunning) return;
 
-    const runWorker = async () => {
-      isProcessingRef.current = true;
+    const activeSet = activeItemIdsRef.current;
 
-      // Find pending items
-      const pendingItems = items.filter((it) => it.status === 'pending');
-      const activeItems = items.filter((it) => it.status === 'reading' || it.status === 'extracting');
-
-      if (pendingItems.length === 0 || activeItems.length >= concurrency) {
-        isProcessingRef.current = false;
-        return;
+    // Prune IDs that are no longer in items or are no longer active
+    const currentItemMap = new Map(items.map((it) => [it.id, it.status]));
+    for (const id of Array.from(activeSet)) {
+      const st = currentItemMap.get(id);
+      if (!st || (st !== 'reading' && st !== 'extracting' && st !== 'pending')) {
+        activeSet.delete(id);
       }
+    }
 
-      const availableSlots = concurrency - activeItems.length;
-      const nextBatch = pendingItems.slice(0, availableSlots);
+    const availableSlots = Math.max(0, concurrency - activeSet.size);
+    if (availableSlots <= 0) return;
 
-      await Promise.all(nextBatch.map((item) => processSingleItem(item)));
-      isProcessingRef.current = false;
-    };
+    // Find pending items not yet assigned to any active worker
+    const eligiblePending = items.filter(
+      (it) => it.status === 'pending' && !activeSet.has(it.id)
+    );
 
-    runWorker();
-  }, [items, isQueueRunning, concurrency, processSingleItem]);
+    if (eligiblePending.length === 0) return;
+
+    const toDispatch = eligiblePending.slice(0, availableSlots);
+
+    toDispatch.forEach((item) => {
+      activeSet.add(item.id);
+      processSingleItem(item).finally(() => {
+        activeSet.delete(item.id);
+        // Promptly notify the queue to pull the next pending document into this freed slot
+        setQueueTick((t) => (t + 1) % 1000000);
+      });
+    });
+  }, [items, isQueueRunning, concurrency, queueTick, processSingleItem]);
 
   // Retry a failed item
   const handleRetryItem = (id: string) => {
+    activeItemIdsRef.current.delete(id);
     setItems((prev) =>
       prev.map((it) => (it.id === id ? { ...it, status: 'pending', progress: 0, errorMsg: undefined } : it))
     );
@@ -537,9 +551,13 @@ export function BulkSmartCvManager({
   // Retry all failed items
   const handleRetryAllErrors = () => {
     setItems((prev) =>
-      prev.map((it) =>
-        it.status === 'error' ? { ...it, status: 'pending', progress: 0, errorMsg: undefined } : it
-      )
+      prev.map((it) => {
+        if (it.status === 'error') {
+          activeItemIdsRef.current.delete(it.id);
+          return { ...it, status: 'pending', progress: 0, errorMsg: undefined };
+        }
+        return it;
+      })
     );
     setIsQueueRunning(true);
     onToast('info', 'Mengulangi semua berkas yang gagal diekstrak.');
@@ -547,6 +565,7 @@ export function BulkSmartCvManager({
 
   // Remove single item
   const handleRemoveItem = (id: string) => {
+    activeItemIdsRef.current.delete(id);
     setItems((prev) => prev.filter((it) => it.id !== id));
   };
 
@@ -560,6 +579,7 @@ export function BulkSmartCvManager({
   const handleClearAll = () => {
     if (items.length === 0) return;
     if (confirm('Kosongkan semua daftar antrean berkas CV?')) {
+      activeItemIdsRef.current.clear();
       setItems([]);
       onToast('info', 'Daftar antrean CV berhasil dikosongkan.');
     }
@@ -1055,40 +1075,49 @@ export function BulkSmartCvManager({
                   {overallPercent}% Selesai
                 </span>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                {readyCount} siap diterbitkan • {publishedCount} sudah terbit • {processingCount} sedang diekstrak • {errorCount} gagal
+              <p className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                <span>{readyCount} siap diterbitkan • {publishedCount} sudah terbit • {processingCount} sedang diekstrak • {errorCount} gagal</span>
+                {concurrency >= 10 && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 inline-flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" /> Multi-Worker Turbo {concurrency}x Aktif
+                  </span>
+                )}
               </p>
             </div>
 
             {/* Controls */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Concurrency Selector */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-950 text-xs">
-                <span className="text-slate-600 dark:text-slate-400 text-[11px] font-semibold">Kecepatan:</span>
-                <button
-                  type="button"
-                  onClick={() => setConcurrency(1)}
-                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 1 ? 'bg-amber-500 text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                  title="1 Worker (Stabil / Ringan)"
-                >
-                  1x
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConcurrency(2)}
-                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 2 ? 'bg-amber-500 text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                  title="2 Worker (Standar Rekomendasi)"
-                >
-                  2x
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConcurrency(3)}
-                  className={`px-2 py-0.5 rounded font-bold transition ${concurrency === 3 ? 'bg-amber-500 text-slate-950' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                  title="3 Worker (Cepat)"
-                >
-                  3x
-                </button>
+              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-950 text-xs">
+                <span className="text-slate-600 dark:text-slate-400 text-[11px] font-semibold pr-1">Kecepatan:</span>
+                {[
+                  { speed: 1, label: '1x', title: '1 Worker (Stabil / Ringan)' },
+                  { speed: 2, label: '2x', title: '2 Worker (Standar)' },
+                  { speed: 3, label: '3x', title: '3 Worker (Cepat)' },
+                  { speed: 5, label: '5x', title: '5 Worker (Sangat Cepat)' },
+                  { speed: 10, label: '⚡ 10x', title: '10 Worker (Multi-Worker Ultra Speed)' },
+                  { speed: 20, label: '🚀 20x', title: '20 Worker (Turbo MAX Parallel Processing)' },
+                ].map(({ speed, label, title }) => (
+                  <button
+                    key={speed}
+                    type="button"
+                    onClick={() => {
+                      setConcurrency(speed);
+                      setIsQueueRunning(true);
+                      onToast('info', `Mode multi-worker diatur ke ${label} (${speed} berkas diproses serentak)`);
+                    }}
+                    className={`px-2 py-0.5 rounded font-bold transition text-xs ${
+                      concurrency === speed
+                        ? speed >= 10
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-sm font-black'
+                          : 'bg-amber-500 text-slate-950 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                    title={title}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
 
               {/* Pause / Resume Button */}
