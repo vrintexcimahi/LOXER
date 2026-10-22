@@ -212,15 +212,6 @@ export default function JobCard({ job, onSelectJob }) {
             className="w-full h-auto object-contain max-h-[360px] sm:max-h-[440px] group-hover:scale-[1.01] transition-transform duration-300"
             loading="lazy"
           />
-          <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1">
-            <span className="rounded bg-sky-950/85 border border-sky-400/40 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-sky-200 backdrop-blur-md shadow-sm">
-              Poster Asli
-            </span>
-            <span className="inline-flex items-center gap-0.5 rounded bg-slate-950/85 border border-emerald-400/40 px-1.5 py-0.5 text-[7px] sm:text-[8px] font-bold text-emerald-300 backdrop-blur-md shadow-sm">
-              <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
-              <span>Sensor Aman</span>
-            </span>
-          </div>
         </div>
       )}
 

@@ -1,57 +1,95 @@
 import sys, os
 from PIL import Image, ImageFilter, ImageDraw, ImageFont
 
-def censor_poster(image_path):
+def censor_poster(image_path, banner_ratio=0.27):
+    """
+    LOXER Smart Contact Privacy Protection
+    Replaces harsh opaque black boxes with clean, elegant transparent frosted glass blur.
+    Blurs out contact information (email, phone, WA, addresses) while preserving
+    poster aesthetics and colors beneath.
+    """
     if not os.path.exists(image_path):
+        print(f"File not found: {image_path}")
         return
-    img = Image.open(image_path).convert('RGB')
-    w, h = img.size
 
-    # The contact banner is at bottom 19%
-    banner_height = int(h * 0.19)
+    try:
+        img = Image.open(image_path).convert('RGB')
+    except Exception as e:
+        print(f"Failed to open image {image_path}: {e}")
+        return
+
+    w, h = img.size
+    banner_height = int(h * banner_ratio)
     banner_top = h - banner_height
 
-    # 1. Apply heavy Gaussian blur to bottom
+    # 1. Apply smooth Gaussian blur to bottom contact zone
     box = (0, banner_top, w, h)
     crop_area = img.crop(box)
-    blurred = crop_area.filter(ImageFilter.GaussianBlur(radius=30))
-    img.paste(blurred, box)
+    blurred = crop_area.filter(ImageFilter.GaussianBlur(radius=35))
 
-    # 2. Draw a dark semi-transparent shield overlay
-    overlay = Image.new('RGBA', (w, banner_height), (15, 23, 42, 245))
-    draw = ImageDraw.Draw(overlay)
+    # Feathering mask (soft smooth fade at top edge over 35px using cubic smoothstep)
+    fade_px = min(35, banner_height // 3)
+    mask = Image.new('L', (w, banner_height), 255)
+    for y in range(fade_px):
+        t = y / fade_px
+        alpha = int((t * t * (3 - 2 * t)) * 255)
+        for x in range(w):
+            mask.putpixel((x, y), alpha)
+    img.paste(blurred, box, mask)
 
-    # Decorative top border
-    draw.line([(0, 0), (w, 0)], fill=(56, 189, 248, 255), width=int(max(2, h * 0.004)))
+    # 2. Frosted glass transparent gradient overlay (seamlessly blended, no hard lines)
+    overlay = Image.new('RGBA', (w, banner_height), (0, 0, 0, 0))
+    draw_ov = ImageDraw.Draw(overlay)
 
-    # Add text
-    font_size_title = int(max(16, h * 0.026))
-    font_size_sub = int(max(12, h * 0.018))
-    
+    for y in range(banner_height):
+        p = y / max(1, banner_height - 1)
+        # Translucent soft gradient: starts at 0 alpha, smoothly rises to 110 at bottom
+        cur_alpha = int((p ** 1.3) * 110)
+        draw_ov.line([(0, y), (w, y)], fill=(15, 23, 42, cur_alpha))
+
+    # 3. Sleek modern frosted glass pill
+    font_size_pill = int(max(13, h * 0.021))
+    font_size_sub = int(max(10, h * 0.0145))
     try:
-        font_title = ImageFont.truetype('arialbd.ttf', font_size_title)
+        font_pill = ImageFont.truetype('arialbd.ttf', font_size_pill)
         font_sub = ImageFont.truetype('arial.ttf', font_size_sub)
     except:
-        font_title = ImageFont.load_default()
+        font_pill = ImageFont.load_default()
         font_sub = ImageFont.load_default()
 
-    title_text = '🔒 KONTAK & ALAMAT RESMI TERPROTEKSI'
-    sub_text = 'Lamar pekerjaan ini secara resmi melalui tombol Lamar di aplikasi LOXER'
+    pill_text = '🔒 KONTAK & ALAMAT TERPROTEKSI'
+    sub_text = 'Lamar resmi melalui tombol Lamar di aplikasi LOXER'
 
-    bbox_title = draw.textbbox((0, 0), title_text, font=font_title)
-    title_w = bbox_title[2] - bbox_title[0]
-    title_h = bbox_title[3] - bbox_title[1]
+    bp = draw_ov.textbbox((0, 0), pill_text, font=font_pill)
+    pw = bp[2] - bp[0]
+    ph = bp[3] - bp[1]
 
-    bbox_sub = draw.textbbox((0, 0), sub_text, font=font_sub)
-    sub_w = bbox_sub[2] - bbox_sub[0]
-    sub_h = bbox_sub[3] - bbox_sub[1]
+    bs = draw_ov.textbbox((0, 0), sub_text, font=font_sub)
+    sw = bs[2] - bs[0]
+    sh = bs[3] - bs[1]
 
-    total_h = title_h + sub_h + int(h * 0.015)
-    start_y = (banner_height - total_h) // 2
+    pad_x = int(max(18, w * 0.038))
+    pad_y = int(max(7, h * 0.009))
+    pill_w = pw + pad_x * 2
+    pill_h = ph + pad_y * 2
 
-    draw.text(((w - title_w) // 2, start_y), title_text, fill=(56, 189, 248), font=font_title)
-    draw.text(((w - sub_w) // 2, start_y + title_h + int(h * 0.015)), sub_text, fill=(226, 232, 240), font=font_sub)
+    pill_x0 = (w - pill_w) // 2
+    total_h = pill_h + sh + int(h * 0.012)
+    group_y0 = (banner_height - total_h) // 2 + int(banner_height * 0.06)
 
+    # Draw rounded pill with frosted glass effect
+    draw_ov.rounded_rectangle(
+        [(pill_x0, group_y0), (pill_x0 + pill_w, group_y0 + pill_h)],
+        radius=pill_h // 2,
+        fill=(15, 23, 42, 175),
+        outline=(56, 189, 248, 140),
+        width=1
+    )
+
+    draw_ov.text((pill_x0 + pad_x, group_y0 + pad_y - 1), pill_text, fill=(56, 189, 248, 255), font=font_pill)
+    draw_ov.text(((w - sw) // 2, group_y0 + pill_h + int(h * 0.009)), sub_text, fill=(241, 245, 249, 220), font=font_sub)
+
+    # Paste overlay onto image
     img.paste(overlay, (0, banner_top), overlay)
     img.save(image_path, 'JPEG', quality=95)
 
