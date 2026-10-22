@@ -56,6 +56,10 @@ import { openImageSafelyInNewTab } from '../../lib/imageViewerHelper';
 import { BulkSmartCvManager } from './BulkSmartCvManager';
 import { PdfDocumentSplitter } from './PdfDocumentSplitter';
 import { AdminRegeneratePhotoModal } from './AdminRegeneratePhotoModal';
+import {
+  detectCandidateDuplicate,
+  CandidateIdentity,
+} from '../../lib/duplicateDetectionService';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -1275,6 +1279,30 @@ export function SmartAddCvSection({
 }) {
   const [mainMode, setMainMode] = useState<'single' | 'bulk'>('single');
   const [pendingBulkFiles, setPendingBulkFiles] = useState<File[]>([]);
+  const [dbTalents, setDbTalents] = useState<CandidateIdentity[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDatabaseTalents() {
+      try {
+        if (!supabase) return;
+        const { data } = await supabase
+          .from('talent_marketplace_posts')
+          .select('id, full_name, whatsapp_number, email, headline')
+          .order('created_at', { ascending: false });
+        if (isMounted && data) {
+          setDbTalents(data as CandidateIdentity[]);
+        }
+      } catch (err) {
+        console.warn('[SmartAddCvSection] Failed to load database talents:', err);
+      }
+    }
+    loadDatabaseTalents();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const [inputMode, setInputMode] = useState<'file' | 'text'>('file');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [selectedFileSize, setSelectedFileSize] = useState('');
@@ -1926,6 +1954,23 @@ STATUS: Siap Kerja Segera (Fulltime)`);
       return;
     }
 
+    // Duplicate Check against active database talents
+    if (dbTalents.length > 0) {
+      const targetCandidate: CandidateIdentity = {
+        full_name: formData.full_name,
+        whatsapp_number: formData.whatsapp_number,
+        email: formData.email,
+        headline: formData.headline,
+      };
+      const dupResult = detectCandidateDuplicate(targetCandidate, dbTalents, 'database');
+      if (dupResult.isDuplicate) {
+        const proceed = confirm(
+          `PERINGATAN KONFLIK DUPLIKAT:\nKandidat "${formData.full_name}" terdeteksi sudah terdaftar di Bursa Talent:\n${dupResult.reason}\n\nTetap lanjutkan untuk menerbitkan dan memperbarui data pelamar ini?`
+        );
+        if (!proceed) return;
+      }
+    }
+
     setIsPublishing(true);
     try {
       let token = await resolveAdminToken();
@@ -2059,6 +2104,7 @@ STATUS: Siap Kerja Segera (Fulltime)`);
           onSaved={onSaved}
           onSwitchToSingleMode={() => setMainMode('single')}
           initialFiles={pendingBulkFiles}
+          existingTalents={dbTalents}
         />
       ) : (
         <>

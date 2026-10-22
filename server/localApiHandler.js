@@ -4409,21 +4409,33 @@ async function handleAdminPublishSmartCv(req, res) {
     const now = new Date().toISOString();
     const finalPhotoUrl = String(photo_url).trim();
 
-    // 2. Candidate Deduplication (Mencari profil seeker non-user berdasarkan nama dan nomor kontak)
+    // 2. Candidate Deduplication (Mencari profil seeker non-user berdasarkan nama dan normalisasi nomor HP)
+    const rawPhone = String(whatsapp_number || '').trim();
+    const phoneDigits = rawPhone.replace(/\D/g, '');
+    const normPhone = phoneDigits.startsWith('62')
+      ? '0' + phoneDigits.slice(2)
+      : phoneDigits.startsWith('0')
+      ? phoneDigits
+      : phoneDigits.length >= 8
+      ? '0' + phoneDigits
+      : '';
+    const altPhone62 = normPhone ? '62' + normPhone.slice(1) : '';
+
     let seeker = null;
-    if (cleanName) {
-      if (whatsapp_number && String(whatsapp_number).trim().length >= 8) {
-        seeker = queryOne(
-          'SELECT id, user_id FROM seeker_profiles WHERE user_id IS NULL AND LOWER(TRIM(full_name)) = LOWER(?) AND phone = ?',
-          [cleanName, String(whatsapp_number).trim()]
-        );
-      }
-      if (!seeker) {
-        seeker = queryOne(
-          'SELECT id, user_id FROM seeker_profiles WHERE user_id IS NULL AND LOWER(TRIM(full_name)) = LOWER(?)',
-          [cleanName]
-        );
-      }
+    if (normPhone && normPhone.length >= 8) {
+      seeker = queryOne(
+        `SELECT id, user_id FROM seeker_profiles 
+         WHERE user_id IS NULL AND (
+           phone = ? OR phone = ? OR phone = ? OR phone = ?
+         )`,
+        [rawPhone, normPhone, altPhone62, '+' + altPhone62]
+      );
+    }
+    if (!seeker && cleanName) {
+      seeker = queryOne(
+        'SELECT id, user_id FROM seeker_profiles WHERE user_id IS NULL AND LOWER(TRIM(full_name)) = LOWER(?)',
+        [cleanName]
+      );
     }
 
     // Kebijakan LOXER: Fitur Smart Add CV HANYA menerbitkan profil & postingan ke Bursa Talent LOXER.

@@ -26,6 +26,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { ToastType } from './AdminTalentComponents';
+import { supabase } from '../../lib/supabase';
 import {
   cropPasFotoFromImage,
   generateBlurredCvImage,
@@ -37,6 +38,12 @@ import { validateDocumentMagicBytes, validateImageMagicBytes } from '../../lib/i
 import { callAiPhotoEnhancer } from '../../lib/aiPhotoEnhancerService';
 import { PdfDocumentSplitter } from './PdfDocumentSplitter';
 import { resolveAdminToken, forceRefreshAdminToken } from '../../lib/adminUtils';
+import {
+  computeFileFingerprint,
+  normalizeFilename,
+  detectCandidateDuplicate,
+  CandidateIdentity,
+} from '../../lib/duplicateDetectionService';
 
 interface PdfJsPage {
   getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
@@ -95,8 +102,12 @@ export interface BulkCvItem {
   rawFaceBox?: [number, number, number, number] | null;
   rawImageBase64?: string;
   publishedAt?: string;
+  fileFingerprint?: string;
+  normalizedFileName?: string;
   isDuplicate?: boolean;
+  duplicateType?: 'queue' | 'database';
   duplicateReason?: string;
+  duplicateMatchedName?: string;
 }
 
 const LOXER_STANDARD_CATEGORIES = [
@@ -124,6 +135,7 @@ export interface BulkSmartCvManagerProps {
   onSaved: () => void;
   onSwitchToSingleMode?: () => void;
   initialFiles?: File[];
+  existingTalents?: CandidateIdentity[];
 }
 
 export function BulkSmartCvManager({
@@ -131,12 +143,46 @@ export function BulkSmartCvManager({
   onSaved,
   onSwitchToSingleMode,
   initialFiles,
+  existingTalents,
 }: BulkSmartCvManagerProps) {
   const [items, setItems] = useState<BulkCvItem[]>([]);
+  const [databaseTalents, setDatabaseTalents] = useState<CandidateIdentity[]>(existingTalents || []);
+  const databaseTalentsRef = useRef<CandidateIdentity[]>(databaseTalents);
+  useEffect(() => {
+    databaseTalentsRef.current = databaseTalents;
+  }, [databaseTalents]);
+
+  // Load existing talents from Supabase if not provided by parent
+  useEffect(() => {
+    if (existingTalents && existingTalents.length > 0) {
+      setDatabaseTalents(existingTalents);
+      return;
+    }
+    let isMounted = true;
+    async function loadDatabaseTalents() {
+      try {
+        if (!supabase) return;
+        const { data } = await supabase
+          .from('talent_marketplace_posts')
+          .select('id, full_name, whatsapp_number, email, headline')
+          .order('created_at', { ascending: false });
+        if (isMounted && data) {
+          setDatabaseTalents(data as CandidateIdentity[]);
+        }
+      } catch (err) {
+        console.warn('[BulkSmartCv] Failed to load existing talents from database:', err);
+      }
+    }
+    loadDatabaseTalents();
+    return () => {
+      isMounted = false;
+    };
+  }, [existingTalents]);
+
   const [isQueueRunning, setIsQueueRunning] = useState<boolean>(true);
   const [concurrency, setConcurrency] = useState<number>(3); // Default cepat 3x
   const [queueTick, setQueueTick] = useState<number>(0);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'ready' | 'pending_photo' | 'processing' | 'published' | 'error'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'ready' | 'pending_photo' | 'duplicate' | 'processing' | 'published' | 'error'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Modal Detail / Quick Edit
@@ -181,7 +227,7 @@ export function BulkSmartCvManager({
     });
   };
 
-  // Convert files into BulkCvItem list with Magic Bytes signature validation
+  // Convert files into BulkCvItem list with Magic Bytes validation & SHA-256 Binary Fingerprint
   const addFilesToQueue = useCallback(async (newFiles: FileList | File[]) => {
     const validItems: BulkCvItem[] = [];
     const filesArray = Array.from(newFiles);
@@ -210,6 +256,8 @@ export function BulkSmartCvManager({
       }
 
       if (isPdf || isImage) {
+        const fingerprint = await computeFileFingerprint(file);
+        const normName = normalizeFilename(file.name);
         validItems.push({
           id: `bcv_${Date.now()}_${Math.random().toString(36).slice(2, 7)}_${i}`,
           file,
@@ -218,6 +266,8 @@ export function BulkSmartCvManager({
           fileType: isPdf ? 'pdf' : 'image',
           status: 'pending',
           progress: 0,
+          fileFingerprint: fingerprint,
+          normalizedFileName: normName,
         });
       }
     }
@@ -234,22 +284,30 @@ export function BulkSmartCvManager({
     }
 
     setItems((prev) => {
-      const existingSignatures = new Set(prev.map((it) => `${it.fileName}_${it.file.size}`));
+      const existingFingerprints = new Set(prev.map((it) => it.fileFingerprint).filter(Boolean));
+      const existingSignatures = new Set(
+        prev.map((it) => `${it.normalizedFileName || normalizeFilename(it.fileName)}_${it.file.size}`)
+      );
       const nonDuplicateItems: BulkCvItem[] = [];
       let dupeCount = 0;
 
       for (const it of validItems) {
-        const sig = `${it.fileName}_${it.file.size}`;
-        if (existingSignatures.has(sig)) {
+        const fp = it.fileFingerprint;
+        const sig = `${it.normalizedFileName}_${it.file.size}`;
+        // Periksa apakah berkas identik (SHA-256 konten biner sama ATAU nama file ternormalisasi + ukuran sama)
+        const isDuplicate = (fp && existingFingerprints.has(fp)) || existingSignatures.has(sig);
+
+        if (isDuplicate) {
           dupeCount++;
         } else {
+          if (fp) existingFingerprints.add(fp);
           existingSignatures.add(sig);
           nonDuplicateItems.push(it);
         }
       }
 
       if (dupeCount > 0) {
-        onToast('info', `${dupeCount} berkas duplikat diabaikan karena sudah ada di antrean.`);
+        onToast('info', `${dupeCount} berkas duplikat identik diabaikan (konten atau nama berkas serupa sudah ada di antrean).`);
       }
 
       return [...prev, ...nonDuplicateItems];
@@ -463,17 +521,43 @@ export function BulkSmartCvManager({
         experiences: cv.experiences || [],
       };
 
-      // 6. Complete & Duplicate Check in Queue
+      // 6. Complete & Multi-Layer Candidate Duplicate Detection (Queue + Database)
       setItems((prev) => {
-        const isDupe = prev.some(
-          (it) =>
-            it.id !== item.id &&
-            it.data &&
-            (it.data.full_name.trim().toLowerCase() === structuredData.full_name.trim().toLowerCase() ||
-              (Boolean(structuredData.whatsapp_number) &&
-                Boolean(it.data.whatsapp_number) &&
-                it.data.whatsapp_number === structuredData.whatsapp_number))
-        );
+        const targetCandidate: CandidateIdentity = {
+          id: item.id,
+          full_name: structuredData.full_name,
+          whatsapp_number: structuredData.whatsapp_number,
+          email: structuredData.email,
+          headline: structuredData.headline,
+        };
+
+        // Layer 1: Deteksi terhadap berkas lain di antrean aktif
+        const queuePool: CandidateIdentity[] = prev
+          .filter((it) => it.id !== item.id && it.data)
+          .map((it) => ({
+            id: it.id,
+            full_name: it.data!.full_name,
+            whatsapp_number: it.data!.whatsapp_number,
+            email: it.data!.email,
+            headline: it.data!.headline,
+          }));
+
+        const queueDup = detectCandidateDuplicate(targetCandidate, queuePool, 'queue', item.id);
+
+        // Layer 2: Deteksi silang terhadap database Bursa Talent yang sudah aktif
+        const dbPool: CandidateIdentity[] = (databaseTalentsRef.current || []).map((t) => ({
+          id: t.id,
+          full_name: t.full_name,
+          whatsapp_number: t.whatsapp_number,
+          email: t.email,
+          headline: t.headline,
+        }));
+
+        const dbDup = !queueDup.isDuplicate && dbPool.length > 0
+          ? detectCandidateDuplicate(targetCandidate, dbPool, 'database')
+          : { isDuplicate: false };
+
+        const finalDup = queueDup.isDuplicate ? queueDup : dbDup;
 
         return prev.map((it) =>
           it.id === item.id
@@ -482,8 +566,10 @@ export function BulkSmartCvManager({
                 status: itemStatus,
                 progress: 100,
                 data: structuredData,
-                isDuplicate: isDupe,
-                duplicateReason: isDupe ? 'Kandidat dengan nama atau kontak serupa sudah ada di antrean' : undefined,
+                isDuplicate: finalDup.isDuplicate,
+                duplicateType: finalDup.type,
+                duplicateReason: finalDup.reason,
+                duplicateMatchedName: finalDup.matchedName,
                 rawPhotoBox: cv.photo_box || null,
                 rawFaceBox: cv.face_box || null,
               }
@@ -592,6 +678,15 @@ export function BulkSmartCvManager({
       onToast('error', `Pelamar "${item.data.full_name}" belum memiliki pas foto! Postingan wajib ada pas foto pekerja.`);
       return;
     }
+    if (item.isDuplicate) {
+      const confirmMsg =
+        item.duplicateType === 'database'
+          ? `PERINGATAN KONFLIK DUPLIKAT:\nKandidat "${item.data.full_name}" sudah terdaftar di Bursa Talent:\n${item.duplicateReason}\n\nTetap terbitkan dan perbarui data kandidat ini?`
+          : `PERINGATAN KONFLIK DUPLIKAT:\nKandidat "${item.data.full_name}" terdeteksi ganda di dalam antrean:\n${item.duplicateReason}\n\nTetap terbitkan?`;
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+    }
     let token = await resolveAdminToken();
 
     try {
@@ -636,19 +731,39 @@ export function BulkSmartCvManager({
     }
   };
 
-  // Bulk Publish ALL Ready candidates (Hanya yang sudah lengkap dengan pas foto pekerja)
+  // Bersihkan semua berkas yang terdeteksi konflik duplikat
+  const handleClearDuplicates = () => {
+    const count = items.filter((it) => it.isDuplicate).length;
+    if (count === 0) return;
+    if (confirm(`Hapus ${count} berkas yang terdeteksi konflik duplikat dari antrean?`)) {
+      setItems((prev) => prev.filter((it) => !it.isDuplicate));
+      if (activeFilter === 'duplicate') setActiveFilter('all');
+      onToast('info', `${count} berkas konflik duplikat berhasil dibersihkan dari antrean.`);
+    }
+  };
+
+  // Bulk Publish ALL Ready candidates (Hanya yang sudah lengkap dengan pas foto pekerja & bukan duplikat antrean)
   const handleBulkPublishAll = async () => {
     const readyItems = items.filter(
-      (it) => it.status === 'ready' && it.data && it.data.photo_url && it.data.photo_url.trim() !== ''
+      (it) => it.status === 'ready' && it.data && it.data.photo_url && it.data.photo_url.trim() !== '' && !it.isDuplicate
     );
+    const dupeItems = items.filter(
+      (it) => it.status === 'ready' && it.data && it.data.photo_url && it.isDuplicate
+    );
+
     if (readyItems.length === 0) {
-      onToast('error', 'Tidak ada biodata berstatus "Siap Diterbitkan" yang memiliki pas foto pekerja.');
+      if (dupeItems.length > 0) {
+        onToast('error', `${dupeItems.length} berkas yang siap ditandai sebagai konflik duplikat. Harap tinjau atau bersihkan duplikat terlebih dahulu.`);
+      } else {
+        onToast('error', 'Tidak ada biodata berstatus "Siap Diterbitkan" yang memiliki pas foto pekerja.');
+      }
       return;
     }
 
+    const dupeNote = dupeItems.length > 0 ? `\n(Catatan: ${dupeItems.length} berkas konflik duplikat akan otomatis dilewati demi keamanan)` : '';
     if (
       !confirm(
-        `Terbitkan ${readyItems.length} biodata pelamar yang sudah siap langsung ke Bursa Talent LOXER?`
+        `Terbitkan ${readyItems.length} biodata pelamar yang sudah siap langsung ke Bursa Talent LOXER?${dupeNote}`
       )
     ) {
       return;
@@ -883,14 +998,16 @@ export function BulkSmartCvManager({
   const pendingCount = items.filter((it) => it.status === 'pending').length;
   const pendingPhotoCount = items.filter((it) => it.status === 'pending_photo').length;
   const processingCount = items.filter((it) => it.status === 'reading' || it.status === 'extracting').length;
-  const readyCount = items.filter((it) => it.status === 'ready').length;
+  const duplicateCount = items.filter((it) => it.isDuplicate).length;
+  const readyCount = items.filter((it) => it.status === 'ready' && !it.isDuplicate).length;
   const publishedCount = items.filter((it) => it.status === 'published').length;
   const errorCount = items.filter((it) => it.status === 'error').length;
   const overallPercent = totalCount > 0 ? Math.round(((readyCount + publishedCount) / totalCount) * 100) : 0;
 
   // Filtered items
   const filteredItems = items.filter((it) => {
-    if (activeFilter === 'ready') return it.status === 'ready';
+    if (activeFilter === 'ready') return it.status === 'ready' && !it.isDuplicate;
+    if (activeFilter === 'duplicate') return it.isDuplicate;
     if (activeFilter === 'pending_photo') return it.status === 'pending_photo';
     if (activeFilter === 'processing') return it.status === 'reading' || it.status === 'extracting' || it.status === 'pending';
     if (activeFilter === 'published') return it.status === 'published';
@@ -1159,6 +1276,19 @@ export function BulkSmartCvManager({
                 </button>
               )}
 
+              {/* Clear Duplicates */}
+              {duplicateCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearDuplicates}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300 hover:bg-amber-500/25 transition shadow-sm"
+                  title="Hapus semua berkas konflik duplikat dari antrean"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Bersihkan Duplikat ({duplicateCount})</span>
+                </button>
+              )}
+
               {/* Clear All */}
               <button
                 type="button"
@@ -1276,6 +1406,21 @@ export function BulkSmartCvManager({
                 >
                   <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                   <span>Arsip Pending: Butuh Pas Foto ({pendingPhotoCount})</span>
+                </button>
+              )}
+              {duplicateCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveFilter('duplicate')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    activeFilter === 'duplicate'
+                      ? 'bg-amber-600 text-white shadow'
+                      : 'text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white bg-amber-500/15 border border-amber-500/30'
+                  }`}
+                  title="Tampilkan berkas yang terdeteksi konflik duplikat"
+                >
+                  <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                  <span>⚠️ Konflik Duplikat ({duplicateCount})</span>
                 </button>
               )}
               <button
@@ -1426,13 +1571,21 @@ export function BulkSmartCvManager({
                           {/* Status Pill */}
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                             {item.isDuplicate && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30" title="Data kandidat serupa terdeteksi di antrean">
-                                ⚠️ Duplikat Antrean
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 dark:bg-amber-500/25 text-amber-900 dark:text-amber-200 border border-amber-500/40"
+                                title={item.duplicateReason}
+                              >
+                                {item.duplicateType === 'database' ? '⚠️ Terdaftar di Bursa' : '⚠️ Duplikat Antrean'}
                               </span>
                             )}
-                            {isReady && (
+                            {isReady && !item.isDuplicate && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30">
                                 <CheckCircle2 className="w-2.5 h-2.5" /> Siap Diterbitkan
+                              </span>
+                            )}
+                            {isReady && item.isDuplicate && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                                <AlertTriangle className="w-2.5 h-2.5 text-amber-500" /> Siap (Konflik Duplikat)
                               </span>
                             )}
                             {isPendingPhoto && (
@@ -1535,6 +1688,21 @@ export function BulkSmartCvManager({
                               <span>{data.whatsapp_number ? maskPhoneNumber(data.whatsapp_number) : 'Tanpa No. HP'}</span>
                             </span>
                             <span className="text-slate-500 dark:text-slate-400 text-[9px]">Gaji: Nego</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Conflict Duplicate Alert Banner on Card */}
+                      {item.isDuplicate && item.duplicateReason && (
+                        <div className="mt-2.5 p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-400/50 text-[10px] text-amber-900 dark:text-amber-200 flex items-start gap-1.5 shadow-sm">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                          <div className="min-w-0">
+                            <div className="font-bold text-amber-950 dark:text-amber-100">
+                              {item.duplicateType === 'database' ? '⚠️ Terdaftar di Bursa Talent' : '⚠️ Duplikat Antrean'}:
+                            </div>
+                            <p className="text-[10px] text-amber-800 dark:text-amber-300 leading-tight">
+                              {item.duplicateReason}
+                            </p>
                           </div>
                         </div>
                       )}
@@ -1644,9 +1812,23 @@ export function BulkSmartCvManager({
                           {data?.whatsapp_number ? maskPhoneNumber(data.whatsapp_number) : '-'}
                         </td>
                         <td className="px-4 py-3">
-                          {isReady && (
+                          {item.isDuplicate && (
+                            <span
+                              className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/15 dark:bg-amber-500/25 px-2 py-0.5 rounded border border-amber-500/40 inline-flex items-center gap-1 mr-1.5"
+                              title={item.duplicateReason}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-amber-500" />
+                              {item.duplicateType === 'database' ? 'Bursa Duplikat' : 'Duplikat Antrean'}
+                            </span>
+                          )}
+                          {isReady && !item.isDuplicate && (
                             <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
                               Siap Terbit
+                            </span>
+                          )}
+                          {isReady && item.isDuplicate && (
+                            <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 dark:bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30">
+                              Siap (Duplikat)
                             </span>
                           )}
                           {isPendingPhoto && (
