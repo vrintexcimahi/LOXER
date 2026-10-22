@@ -23,7 +23,7 @@ import { censorJobText } from '../../lib/contactPrivacyService';
 
 interface JobDetailModalProps {
   jobId: string | null;
-  initialJob?: Partial<JobListing & { company?: string; locations?: string; salary?: string; poster_url?: string }> | null;
+  initialJob?: Partial<JobListing & { company?: string; locations?: string; salary?: string; poster_url?: string; company_logo?: string }> | null;
   onClose: () => void;
   onRequireAuth?: (mode: 'login' | 'register') => void;
   onApplied?: (jobId: string) => void;
@@ -320,8 +320,12 @@ export default function JobDetailModal({
 
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl border border-white/10 bg-slate-800 shadow-md flex items-center justify-center flex-shrink-0 overflow-hidden">
-              {company?.logo_url ? (
-                <img src={company.logo_url} alt={companyName} className="w-full h-full object-cover" />
+              {(company?.logo_url || initialJob?.company_logo) ? (
+                <img
+                  src={`${(company?.logo_url || initialJob?.company_logo || '').split('?')[0]}?v=clean-v2`}
+                  alt={companyName}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center text-white text-xl font-black">
                   {companyInitial}

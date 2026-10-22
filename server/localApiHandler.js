@@ -793,6 +793,9 @@ function enrichRowsRelations(table, rows) {
     for (const row of rows) {
       if (row) {
         row.companies = row.company_id ? companyMap.get(row.company_id) || null : null;
+        if (row.companies && row.companies.logo_url && !row.company_logo) {
+          row.company_logo = `${row.companies.logo_url.split('?')[0]}?v=clean-v2`;
+        }
         if (row.poster_url && typeof row.poster_url === 'string') {
           row.poster_url = `${row.poster_url.split('?')[0]}?v=clean-v2`;
         }
@@ -818,6 +821,9 @@ function enrichRowsRelations(table, rows) {
       for (const job of jobs) {
         if (job) {
           job.companies = job.company_id ? companyMap.get(job.company_id) || null : null;
+          if (job.companies && job.companies.logo_url && !job.company_logo) {
+            job.company_logo = `${job.companies.logo_url.split('?')[0]}?v=clean-v2`;
+          }
           if (job.poster_url && typeof job.poster_url === 'string') {
             job.poster_url = `${job.poster_url.split('?')[0]}?v=clean-v2`;
           }

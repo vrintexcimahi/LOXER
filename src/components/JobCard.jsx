@@ -197,7 +197,9 @@ export default function JobCard({ job, onSelectJob }) {
   // Company logo / initial
   const companyName = job.company || job.companies?.name || 'Perusahaan';
   const initial = (companyName[0] || 'P').toUpperCase();
-  const logoUrl = job.company_logo || job.companies?.logo_url;
+  const logoUrl = (job.company_logo || job.companies?.logo_url)
+    ? `${(job.company_logo || job.companies?.logo_url || '').split('?')[0]}?v=clean-v2`
+    : null;
 
   return (
     <div
