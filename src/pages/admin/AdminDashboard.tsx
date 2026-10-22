@@ -2777,7 +2777,17 @@ function SmartAddJobSection({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" />
+              {/* Google Gemini Logo SVG */}
+              <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 28C14 26.0633 13.6267 24.2433 12.88 22.54C12.1567 20.8367 11.165 19.355 9.905 18.095C8.645 16.835 7.16333 15.8433 5.46 15.12C3.75667 14.3733 1.93667 14 0 14C1.93667 14 3.75667 13.6383 5.46 12.915C7.16333 12.1683 8.645 11.165 9.905 9.905C11.165 8.645 12.1567 7.16333 12.88 5.46C13.6267 3.75667 14 1.93667 14 0C14 1.93667 14.3617 3.75667 15.085 5.46C15.8317 7.16333 16.835 8.645 18.095 9.905C19.355 11.165 20.8367 12.1683 22.54 12.915C24.2433 13.6383 26.0633 14 28 14C26.0633 14 24.2433 14.3733 22.54 15.12C20.8367 15.8433 19.355 16.835 18.095 18.095C16.835 19.355 15.8317 20.8367 15.085 22.54C14.3617 24.2433 14 26.0633 14 28Z" fill="url(#gemini-banner-iklan-grad)"/>
+                <defs>
+                  <linearGradient id="gemini-banner-iklan-grad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#4285F4"/>
+                    <stop offset="50%" stopColor="#9B72CB"/>
+                    <stop offset="100%" stopColor="#D96570"/>
+                  </linearGradient>
+                </defs>
+              </svg>
               <span>Smart Add Iklan Loker • 9Router Gemini 3.8</span>
               <span className="rounded-full bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-200">
                 OCR Multimodal
@@ -5556,7 +5566,17 @@ function AdminCompanies({
                 : 'text-amber-400 hover:text-white hover:bg-white/5 border border-amber-500/30 bg-amber-500/10'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            {/* Google Gemini Logo SVG */}
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 28C14 26.0633 13.6267 24.2433 12.88 22.54C12.1567 20.8367 11.165 19.355 9.905 18.095C8.645 16.835 7.16333 15.8433 5.46 15.12C3.75667 14.3733 1.93667 14 0 14C1.93667 14 3.75667 13.6383 5.46 12.915C7.16333 12.1683 8.645 11.165 9.905 9.905C11.165 8.645 12.1567 7.16333 12.88 5.46C13.6267 3.75667 14 1.93667 14 0C14 1.93667 14.3617 3.75667 15.085 5.46C15.8317 7.16333 16.835 8.645 18.095 9.905C19.355 11.165 20.8367 12.1683 22.54 12.915C24.2433 13.6383 26.0633 14 28 14C26.0633 14 24.2433 14.3733 22.54 15.12C20.8367 15.8433 19.355 16.835 18.095 18.095C16.835 19.355 15.8317 20.8367 15.085 22.54C14.3617 24.2433 14 26.0633 14 28Z" fill="url(#gemini-tab-iklan-grad)"/>
+              <defs>
+                <linearGradient id="gemini-tab-iklan-grad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#4285F4"/>
+                  <stop offset="50%" stopColor="#9B72CB"/>
+                  <stop offset="100%" stopColor="#D96570"/>
+                </linearGradient>
+              </defs>
+            </svg>
             <span>Smart Add Iklan</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase ${
