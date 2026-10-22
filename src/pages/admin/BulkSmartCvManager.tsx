@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Sparkles,
-  Layers,
   Play,
   Pause,
   RefreshCw,
@@ -24,6 +23,9 @@ import {
   RotateCcw,
   Move,
   Camera,
+  Clipboard,
+  FileText,
+  Zap,
 } from 'lucide-react';
 import { ToastType } from './AdminTalentComponents';
 import { supabase } from '../../lib/supabase';
@@ -93,7 +95,7 @@ export interface BulkCvItem {
   file: File;
   fileName: string;
   fileSize: string;
-  fileType: 'pdf' | 'image';
+  fileType: 'pdf' | 'image' | 'text';
   status: 'pending' | 'reading' | 'extracting' | 'ready' | 'pending_photo' | 'published' | 'error';
   progress: number;
   errorMsg?: string;
@@ -133,7 +135,6 @@ const LOXER_STANDARD_CATEGORIES = [
 export interface BulkSmartCvManagerProps {
   onToast: (type: ToastType, message: string) => void;
   onSaved: () => void;
-  onSwitchToSingleMode?: () => void;
   initialFiles?: File[];
   existingTalents?: CandidateIdentity[];
 }
@@ -141,7 +142,6 @@ export interface BulkSmartCvManagerProps {
 export function BulkSmartCvManager({
   onToast,
   onSaved,
-  onSwitchToSingleMode,
   initialFiles,
   existingTalents,
 }: BulkSmartCvManagerProps) {
@@ -197,6 +197,8 @@ export function BulkSmartCvManager({
   const [isBulkPublishing, setIsBulkPublishing] = useState<boolean>(false);
   const [bulkPublishProgress, setBulkPublishProgress] = useState<{ current: number; total: number } | null>(null);
   const [showPdfSplitter, setShowPdfSplitter] = useState<boolean>(false);
+  const [showTextCvModal, setShowTextCvModal] = useState<boolean>(false);
+  const [rawTextCvInput, setRawTextCvInput] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -238,6 +240,7 @@ export function BulkSmartCvManager({
       const lower = file.name.toLowerCase();
       const isPdf = file.type === 'application/pdf' || lower.endsWith('.pdf');
       const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(lower);
+      const isText = file.type.startsWith('text/') || lower.endsWith('.txt');
 
       if (isPdf) {
         const isValidMagic = await validateDocumentMagicBytes(file);
@@ -253,9 +256,11 @@ export function BulkSmartCvManager({
           rejectedCount++;
           continue;
         }
+      } else if (isText) {
+        // Plain text is valid
       }
 
-      if (isPdf || isImage) {
+      if (isPdf || isImage || isText) {
         const fingerprint = await computeFileFingerprint(file);
         const normName = normalizeFilename(file.name);
         validItems.push({
@@ -263,7 +268,7 @@ export function BulkSmartCvManager({
           file,
           fileName: file.name,
           fileSize: `${Math.round(file.size / 1024)} KB`,
-          fileType: isPdf ? 'pdf' : 'image',
+          fileType: isPdf ? 'pdf' : isImage ? 'image' : 'text',
           status: 'pending',
           progress: 0,
           fileFingerprint: fingerprint,
@@ -278,7 +283,7 @@ export function BulkSmartCvManager({
 
     if (validItems.length === 0) {
       if (rejectedCount === 0) {
-        onToast('error', 'Tidak ada file PDF atau Gambar valid yang dipilih.');
+        onToast('error', 'Tidak ada file PDF, Gambar, atau Teks valid yang dipilih.');
       }
       return;
     }
@@ -335,7 +340,9 @@ export function BulkSmartCvManager({
     let cvText = '';
 
     try {
-      if (item.fileType === 'image') {
+      if (item.fileType === 'text') {
+        cvText = await item.file.text();
+      } else if (item.fileType === 'image') {
         imageBase64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -993,6 +1000,143 @@ export function BulkSmartCvManager({
     onToast('success', `Ekspor ${readyItems.length} biodata CV berhasil diunduh.`);
   };
 
+  // Clipboard & Window Paste Handler (Ctrl + V)
+  const handlePasteFromClipboard = useCallback(async () => {
+    try {
+      if (navigator.clipboard?.read) {
+        const clipItems = await navigator.clipboard.read();
+        const pastedFiles: File[] = [];
+        for (const item of clipItems) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              const ext = type.split('/')[1]?.replace('+xml', '') || 'png';
+              const file = new File([blob], `screenshot_cv_${Date.now()}.${ext}`, { type });
+              pastedFiles.push(file);
+            } else if (type === 'text/plain') {
+              const blob = await item.getType(type);
+              const text = await blob.text();
+              if (text.trim().length > 20) {
+                const file = new File([blob], `teks_cv_${Date.now()}.txt`, { type: 'text/plain' });
+                pastedFiles.push(file);
+              }
+            }
+          }
+        }
+        if (pastedFiles.length > 0) {
+          await addFilesToQueue(pastedFiles);
+          onToast('success', `${pastedFiles.length} berkas berhasil ditempel dari clipboard!`);
+          return;
+        }
+      }
+      onToast('info', 'Tekan pintasan Ctrl + V pada keyboard untuk menempelkan gambar CV atau screenshot (Win+Shift+S).');
+    } catch (err: unknown) {
+      console.warn('[BulkSmartCv] Clipboard read warning:', err);
+      onToast('info', 'Tekan tombol shortcut Ctrl + V untuk menempelkan gambar CV langsung dari clipboard.');
+    }
+  }, [addFilesToQueue, onToast]);
+
+  const handleDropzonePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!e.clipboardData) return;
+    const clipItems = e.clipboardData.items;
+    const pastedFiles: File[] = [];
+    for (let i = 0; i < clipItems.length; i++) {
+      const it = clipItems[i];
+      if (it.type.startsWith('image/')) {
+        const f = it.getAsFile();
+        if (f) {
+          const ext = it.type.split('/')[1]?.replace('+xml', '') || 'png';
+          pastedFiles.push(new File([f], `screenshot_cv_${Date.now()}_${i}.${ext}`, { type: it.type }));
+        }
+      }
+    }
+    if (pastedFiles.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      addFilesToQueue(pastedFiles);
+      onToast('success', `Berhasil menangkap ${pastedFiles.length} gambar/screenshot dari clipboard!`);
+    }
+  };
+
+  useEffect(() => {
+    const handleWindowPaste = (e: ClipboardEvent) => {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
+      }
+      const clipItems = e.clipboardData?.items;
+      if (!clipItems) return;
+      const pastedFiles: File[] = [];
+      for (let i = 0; i < clipItems.length; i++) {
+        const it = clipItems[i];
+        if (it.type.startsWith('image/')) {
+          const f = it.getAsFile();
+          if (f) {
+            const ext = it.type.split('/')[1]?.replace('+xml', '') || 'png';
+            pastedFiles.push(new File([f], `screenshot_cv_${Date.now()}_${i}.${ext}`, { type: it.type }));
+          }
+        }
+      }
+      if (pastedFiles.length > 0) {
+        e.preventDefault();
+        addFilesToQueue(pastedFiles);
+        onToast('success', `Berhasil menangkap ${pastedFiles.length} gambar/screenshot dari clipboard (Ctrl+V)!`);
+      }
+    };
+
+    window.addEventListener('paste', handleWindowPaste);
+    return () => window.removeEventListener('paste', handleWindowPaste);
+  }, [addFilesToQueue, onToast]);
+
+  // Sample CV Loader
+  const handleLoadSampleCv = useCallback(() => {
+    const sampleText = `CURRICULUM VITAE
+Nama: AZQY AHMAD SAPUTRA
+Posisi Target: Operator Gudang & Packing / Logistik
+Domisili: Kota Cimahi, Jawa Barat
+WhatsApp / HP: 081223344556
+Email: azqy.ahmad@example.com
+
+RINGKASAN PROFIL:
+Tenaga kerja muda berdedikasi tinggi dengan pengalaman 2+ tahun di bidang pergudangan, packing barang e-commerce, sortir kiriman, dan stock opname. Disiplin, fisik prima, terbiasa target harian dan kerja tim sistem shift.
+
+KEAHLIAN UTAMA:
+- Packing Barang Cepat & Aman
+- Stock Opname & Manajemen Stok Gudang
+- Sortir Pesanan & Labeling Resi
+- Pengoperasian Hand Pallet & Forklift Manual
+- Microsoft Excel Dasar (Input Data Stok)
+
+PENGALAMAN KERJA:
+1. PT Logistik Express Cimahi (2024 - Sekarang)
+   Posisi: Staff Gudang & Packing
+   - Menangani packing 200+ paket pesanan per hari sesuai SOP standar ekspedisi.
+   - Melakukan stock opname mingguan dengan akurasi 99.8%.
+
+2. CV Distribusi Barokah Bandung (2022 - 2024)
+   Posisi: Helper Gudang & Checker
+   - Membongkar muat barang masuk/keluar kontainer.
+   - Mengelompokkan barang berdasarkan kode SKU dan batch tanggal expired.
+
+PENDIDIKAN:
+- SMK Negeri 1 Cimahi (Jurusan Teknik Logistik & Manajemen Pergudangan, Lulus 2022)`;
+
+    const file = new File([sampleText], 'CV_Azqy_Ahmad_Saputra_Contoh.txt', { type: 'text/plain' });
+    addFilesToQueue([file]);
+    onToast('success', '⚡ Contoh CV Pelamar (Azqy Ahmad Saputra) dimasukkan ke antrean ekstraksi AI!');
+  }, [addFilesToQueue, onToast]);
+
+  const handleSubmitTextCv = () => {
+    if (!rawTextCvInput.trim() || rawTextCvInput.trim().length < 20) {
+      onToast('error', 'Teks CV terlalu pendek. Masukkan minimal biodata dasar atau resume pelamar.');
+      return;
+    }
+    const file = new File([rawTextCvInput.trim()], `teks_resume_${Date.now()}.txt`, { type: 'text/plain' });
+    addFilesToQueue([file]);
+    setRawTextCvInput('');
+    setShowTextCvModal(false);
+  };
+
   // Stats calculation
   const totalCount = items.length;
   const pendingCount = items.filter((it) => it.status === 'pending').length;
@@ -1017,46 +1161,44 @@ export function BulkSmartCvManager({
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Top Banner: Bulk AI Multimodal Extractor */}
-      <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 dark:border-amber-500/30 bg-gradient-to-r from-amber-50/95 via-orange-50/70 to-yellow-50/60 dark:from-slate-950 dark:via-slate-900 dark:to-amber-950/30 p-6 shadow-xl backdrop-blur-md">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 -mb-16 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+      {/* Top Banner: Unified AI Multimodal CV Engine */}
+      <div className="relative overflow-hidden rounded-2xl border border-sky-200 dark:border-cyan-500/30 bg-gradient-to-r from-sky-50 via-cyan-50/80 to-blue-50/60 dark:from-slate-950 dark:via-slate-900 dark:to-cyan-950/40 p-6 shadow-xl backdrop-blur-md">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 -mb-16 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
-              <Layers className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
-              <span>Bulk Add CV Engine • Mass Multimodal OCR</span>
-              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[9px] font-black uppercase text-amber-800 dark:text-amber-200">
-                Puluhan - Ratusan Berkas PDF
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+              <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-500 dark:text-amber-400" />
+              <span>Smart Add CV • 9Router Gemini 3.8 Multimodal OCR</span>
+              <span className="rounded-full bg-amber-200/60 dark:bg-amber-500/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-900 dark:text-amber-200">
+                Otomatis Satuan &amp; Massal
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-              <span>Upload Berkas CV Massal &amp; Siapkan Biodata Otomatis</span>
+              <span>Unggah Berkas CV &amp; Ekstraksi Biodata Otomatis</span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
-              Tarik dan lepaskan puluhan hingga ratusan berkas CV (PDF / JPG). Antrean AI memproses dokumen secara paralel, memotong pas foto 1:1, menyensor kontak, dan menyiapkan draf biodata bursa talent siap terbit dalam sekali klik.
+              Sistem pintar otomatis untuk satuan maupun massal. Unggah 1 berkas CV, puluhan hingga ratusan dokumen PDF/gambar, atau tempelkan tangkapan layar langsung (Ctrl+V). AI Gemini 3.8 membaca berkas visual secara mendalam, mengekstrak kualifikasi, memotong pas foto 1:1, dan menyesuaikan format bursa talent.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
-            {onSwitchToSingleMode && (
-              <button
-                type="button"
-                onClick={onSwitchToSingleMode}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/90 hover:bg-white dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-white/10 transition shadow-sm"
-                title="Beralih ke mode ekstraksi satuan untuk 1 berkas CV atau paste clipboard"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                <span>Mode Satuan (Single)</span>
-              </button>
-            )}
+          <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center">
+            <button
+              type="button"
+              onClick={handleLoadSampleCv}
+              className="flex items-center gap-2 whitespace-nowrap rounded-xl border border-amber-300 dark:border-amber-500/30 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 px-3.5 py-2.5 text-xs font-bold text-amber-900 dark:text-amber-300 transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+              title="Klik untuk mencoba otomatis dengan contoh CV pelamar"
+            >
+              <Zap className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>⚡ Muat Contoh CV Pelamar</span>
+            </button>
 
             <button
               type="button"
               onClick={handleExportJson}
               disabled={readyCount + publishedCount === 0}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 transition shadow-sm disabled:opacity-40"
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-white/10 transition shadow-sm disabled:opacity-40"
               title="Unduh seluruh data biodata hasil ekstraksi ke file JSON"
             >
               <Download className="w-3.5 h-3.5" />
@@ -1066,13 +1208,13 @@ export function BulkSmartCvManager({
         </div>
       </div>
 
-      {/* Multi-File Upload & Ingestion Dropzone */}
+      {/* Multi-Format & Multi-File Upload Dropzone */}
       <div className="rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/95 dark:bg-slate-900/90 p-5 backdrop-blur-md shadow-lg space-y-4">
         <input
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
+          accept=".pdf,image/png,image/jpeg,image/jpg,image/webp,text/plain,.txt"
           onChange={(e) => e.target.files && addFilesToQueue(e.target.files)}
           className="hidden"
         />
@@ -1094,19 +1236,26 @@ export function BulkSmartCvManager({
               addFilesToQueue(e.dataTransfer.files);
             }
           }}
+          onPaste={handleDropzonePaste}
           onClick={() => fileInputRef.current?.click()}
-          className="cursor-pointer border-2 border-dashed border-amber-500/40 hover:border-amber-500 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 rounded-2xl p-8 sm:p-10 text-center transition-all duration-300 group bg-amber-50/40 hover:bg-amber-50/70 dark:bg-slate-950/50 dark:hover:bg-slate-950/80 focus:outline-none"
+          className="cursor-pointer border-2 border-dashed border-cyan-400/50 hover:border-cyan-500 dark:border-cyan-500/30 dark:hover:border-cyan-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 rounded-2xl p-8 sm:p-10 text-center transition-all duration-300 group bg-sky-50/50 hover:bg-sky-50/90 dark:bg-slate-950/50 dark:hover:bg-slate-950/80 focus:outline-none"
         >
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center text-amber-700 dark:text-amber-300 group-hover:scale-110 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-500/20 transition-all duration-300">
-            <Layers className="w-7 h-7" />
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-cyan-100 dark:bg-cyan-500/15 border border-cyan-300 dark:border-cyan-400/30 flex items-center justify-center text-cyan-700 dark:text-cyan-300 group-hover:scale-110 group-hover:border-cyan-400 group-hover:shadow-lg group-hover:shadow-cyan-500/20 transition-all duration-300">
+            <Clipboard className="w-7 h-7" />
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-            <span>📚 Tarik &amp; Lepaskan Puluhan Berkas CV PDF di Sini</span>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-base sm:text-lg font-bold text-slate-800 dark:text-white">
+            <span className="flex items-center gap-1.5">
+              <span>📋 Tekan</span>
+              <kbd className="px-2.5 py-0.5 rounded-lg bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-300 dark:border-cyan-400/50 text-cyan-800 dark:text-cyan-300 font-mono text-xs sm:text-sm font-black shadow-inner tracking-wider">
+                Ctrl + V
+              </kbd>
+              <span>untuk Paste Screenshot / Gambar</span>
+            </span>
           </div>
 
           <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-xl mx-auto">
-            Pilih banyak file sekaligus (Ctrl + A / Shift + Klik) atau pilih folder arsip CV pelamar Anda. Format didukung: PDF, JPG, PNG, WEBP.
+            Atau klik di sini untuk memilih berkas CV (PDF, JPG, PNG, WEBP, TXT). Mendukung 1 berkas tunggal, puluhan file sekaligus (Ctrl + A), hingga 1 folder arsip penuh.
           </p>
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
@@ -1116,10 +1265,34 @@ export function BulkSmartCvManager({
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
               <FileUp className="w-4 h-4" />
-              <span>Pilih Berkas Sekaligus (Multi-Select)</span>
+              <span>Pilih Berkas CV (Satuan / Massal)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePasteFromClipboard();
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/20 dark:hover:bg-cyan-500/30 text-cyan-900 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/40 shadow-sm transition hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Clipboard className="w-4 h-4 text-cyan-700 dark:text-cyan-400" />
+              <span>Tempel dari Clipboard</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowTextCvModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 shadow-sm transition hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <FileText className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+              <span>Teks CV / Resume</span>
             </button>
 
             <button
@@ -1128,7 +1301,7 @@ export function BulkSmartCvManager({
                 e.stopPropagation();
                 folderInputRef.current?.click();
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 shadow-sm transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 shadow-sm transition hover:scale-[1.02] active:scale-[0.98]"
             >
               <FolderUp className="w-4 h-4 text-amber-500 dark:text-amber-400" />
               <span>Unggah 1 Folder Penuh</span>
@@ -1137,15 +1310,19 @@ export function BulkSmartCvManager({
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1">
-              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Antrean Paralel Otomatis
+              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Deteksi Otomatis Satuan / Massal
+            </span>
+            <span>•</span>
+            <span className="inline-flex items-center gap-1">
+              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Multi-Worker Turbo Hingga 20x
+            </span>
+            <span>•</span>
+            <span className="inline-flex items-center gap-1">
+              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Deteksi Duplikat Multi-Layer
             </span>
             <span>•</span>
             <span className="inline-flex items-center gap-1">
               <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Potong Pas Foto 1:1 Presisi
-            </span>
-            <span>•</span>
-            <span className="inline-flex items-center gap-1">
-              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Sensor Privasi Kontak CV
             </span>
           </div>
         </div>
@@ -2355,6 +2532,76 @@ export function BulkSmartCvManager({
               >
                 Simpan Perubahan
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Input Teks CV / Resume ────────────────────────────────────────── */}
+      {showTextCvModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl rounded-3xl border border-sky-400/40 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Input Teks CV / Resume Pelamar</h3>
+                  <p className="text-xs text-slate-400">
+                    Tempelkan teks resume pelamar untuk diekstrak otomatis oleh AI Gemini 3.8
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTextCvModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Teks CV / Resume Pelamar:
+              </label>
+              <textarea
+                rows={10}
+                value={rawTextCvInput}
+                onChange={(e) => setRawTextCvInput(e.target.value)}
+                placeholder="Tempelkan teks curriculum vitae, riwayat kerja, kontak, keahlian, dan pendidikan pelamar di sini..."
+                className="w-full rounded-2xl border border-white/10 bg-slate-950 p-4 text-xs text-white leading-relaxed font-mono focus:border-cyan-400 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={handleLoadSampleCv}
+                className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1.5"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Gunakan Contoh Teks CV</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTextCvModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitTextCv}
+                  disabled={!rawTextCvInput.trim()}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 hover:to-cyan-400 text-white shadow-lg disabled:opacity-40 transition"
+                >
+                  Mulai Ekstraksi AI
+                </button>
+              </div>
             </div>
           </div>
         </div>
