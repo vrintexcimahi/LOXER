@@ -203,16 +203,15 @@ export default function JobCard({ job, onSelectJob }) {
       onClick={isInternal && onSelectJob ? handleCardClick : undefined}
       className={`group relative flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border transition-all duration-300 border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-900/80 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10 shadow-md ${isInternal && onSelectJob ? 'cursor-pointer' : ''}`}
     >
-      {/* Poster Flyer preview if available */}
+      {/* Poster Flyer preview if available — Full Display without Cropping */}
       {posterUrl && (
-        <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-950 border-b border-slate-200 dark:border-white/10">
+        <div className="relative w-full overflow-hidden bg-slate-950/90 dark:bg-slate-950 flex items-center justify-center border-b border-slate-200 dark:border-white/10">
           <img
             src={posterUrl}
             alt={job.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-auto object-contain max-h-[360px] sm:max-h-[440px] group-hover:scale-[1.01] transition-transform duration-300"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-black/30 pointer-events-none" />
           <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1">
             <span className="rounded bg-sky-950/85 border border-sky-400/40 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-sky-200 backdrop-blur-md shadow-sm">
               Poster Asli

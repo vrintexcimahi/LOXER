@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execSync } from 'node:child_process';
 import { extractSmartJobAd } from '../services/smartJobExtractorService.js';
 
 const DB_PATH = path.resolve('data/loxer.db');
@@ -81,10 +82,18 @@ for (let i = 0; i < targetBatch.length; i++) {
 
     console.log(`   ✨ AI Result: [${jobData.company_name}] - ${jobData.title} (${jobData.category} | ${jobData.location_city})`);
 
-    // 4. Salin poster ke public/uploads/posters
+    // 4. Salin poster ke public/uploads/posters & terapkan sensor privasi LOXER
     const destPosterName = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${path.extname(filename)}`;
     const destPosterPath = path.join(POSTERS_DEST_DIR, destPosterName);
     fs.copyFileSync(srcPath, destPosterPath);
+
+    // Jalankan sensor privasi visual
+    try {
+      execSync(`python scripts/censor_single_poster.py "${destPosterPath}"`, { stdio: 'ignore' });
+    } catch (e) {
+      console.warn('   ⚠️ Gagal sensor gambar visual:', e.message);
+    }
+
     const posterPublicUrl = `/uploads/posters/${destPosterName}`;
 
     // 5. Simpan / Temukan Perusahaan

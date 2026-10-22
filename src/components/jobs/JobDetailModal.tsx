@@ -393,7 +393,7 @@ export default function JobDetailModal({
             </div>
           ) : (
             <>
-              {/* Poster Resmi Rekrutmen */}
+              {/* Poster Resmi Rekrutmen — Full Display */}
               {(job?.poster_url || initialJob?.poster_url) && (
                 <section className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -404,19 +404,19 @@ export default function JobDetailModal({
                       <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Kontak &amp; Alamat Terproteksi
                     </span>
                   </div>
-                  <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/10 group shadow-xl">
+                  <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/10 group shadow-2xl flex flex-col items-center">
                     <img
                       src={job?.poster_url || initialJob?.poster_url}
                       alt={job?.title || 'Poster Lowongan'}
-                      className="w-full max-h-[460px] sm:max-h-[540px] object-contain mx-auto"
+                      className="w-full h-auto max-h-[750px] object-contain mx-auto"
                       loading="lazy"
                     />
-                    <div className="p-3 bg-slate-950/95 border-t border-cyan-500/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-cyan-200">
+                    <div className="w-full p-3 bg-slate-950/95 border-t border-cyan-500/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-cyan-200">
                       <span className="flex items-center gap-1.5 font-medium">
                         <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
-                        <span>Data kontak dan alamat detail telah disensor secara aman oleh LOXER.</span>
+                        <span>Data kontak dan alamat detail telah disensor secara aman oleh sistem LOXER.</span>
                       </span>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Lamar Resmi via LOXER</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Lamar Resmi via Tombol LOXER</span>
                     </div>
                   </div>
                 </section>
