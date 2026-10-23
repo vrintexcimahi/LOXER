@@ -31,7 +31,6 @@
 | Users & Device Center | `/admin/users`, `/admin/devices` | `src/pages/admin/AdminUserDataCenter.tsx` | **Implemented & Live** |
 | Applicants Directory | `/admin/applications` | `src/pages/admin/Applicants.tsx` | **Implemented & Live** |
 | Companies Verification | `/admin/companies` | `src/pages/admin/AdminDashboard.tsx` (tab) | **Implemented & Live** |
-| Freelancer / Jasa Management | `/admin/jasa` | `src/pages/admin/AdminJasa.tsx` | **Implemented & Live** |
 | Child Panel Mitra | `/admin/partners` | `src/pages/admin/AdminPartners.tsx` | **Implemented & Live** |
 | Brand & Theme Studio | `/admin/settings` | `src/pages/admin/AdminSystemSettings.tsx` | **Implemented & Live** |
 | Content Moderation Queue | `/admin/moderation` | `src/pages/admin/ModerationQueue.tsx` | **Implemented & Live** |

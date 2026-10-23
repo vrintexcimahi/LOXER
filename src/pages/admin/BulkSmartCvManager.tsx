@@ -237,6 +237,11 @@ export function BulkSmartCvManager({
 
     for (let i = 0; i < filesArray.length; i++) {
       const file = filesArray[i];
+      if (file.size > 5 * 1024 * 1024) {
+        console.warn(`[BulkSmartCv] Ukuran berkas '${file.name}' melebihi batas 5MB (${(file.size / 1024 / 1024).toFixed(2)}MB).`);
+        rejectedCount++;
+        continue;
+      }
       const lower = file.name.toLowerCase();
       const isPdf = file.type === 'application/pdf' || lower.endsWith('.pdf');
       const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(lower);

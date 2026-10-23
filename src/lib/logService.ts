@@ -127,7 +127,7 @@ export function exportLogsAsJson(): string {
 
 export function exportLogsAsCsv(): string {
   const logs = getStoredLogs();
-  if (logs.length === 0) return 'ID,Timestamp,Level,Module,Actor,Message,Resolved\n';
+  if (logs.length === 0) return '\uFEFFID,Timestamp,Level,Module,Actor,Message,Resolved\n';
 
   const headers = ['ID', 'Timestamp', 'Level', 'Module', 'Actor', 'Message', 'Resolved'];
   const rows = logs.map((l) => {
@@ -135,7 +135,7 @@ export function exportLogsAsCsv(): string {
     return [l.id, l.timestamp, l.level, l.module, l.actor, escapedMsg, l.resolved ? 'true' : 'false'].join(',');
   });
 
-  return [headers.join(','), ...rows].join('\n');
+  return '\uFEFF' + [headers.join(','), ...rows].join('\n');
 }
 
 export function initGlobalErrorInterceptor() {

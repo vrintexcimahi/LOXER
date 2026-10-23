@@ -72,3 +72,21 @@ export function isAllowedStatusTransition(fromStatus: string, toStatus: string):
   return Boolean(allowed && allowed.includes(toStatus));
 }
 
+export const STANDARD_JOB_CATEGORIES = [
+  'Teknologi & IT',
+  'Pemasaran & Digital',
+  'Keuangan & Akuntansi',
+  'Desain & Kreatif',
+  'Penjualan / Sales',
+  'Operasional & Logistik',
+  'SDM & HRD',
+  'Hukum & Legal',
+  'Layanan Pelanggan (CS)',
+  'Manajemen Produk',
+  'Teknik & Rekayasa',
+  'Analisis Data',
+  'F&B & Hospitality',
+  'Pendidikan & Pelatihan',
+  'Kesehatan & Medis',
+] as const;
+

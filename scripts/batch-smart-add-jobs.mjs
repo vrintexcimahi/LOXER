@@ -14,6 +14,51 @@ const DB_PATH = path.resolve('data/loxer.db');
 const POSTERS_SRC_DIR = path.resolve('C:/Users/SERVER PC/Downloads/IKLAN LOKER/POSTER_IKLAN_LOKER');
 const POSTERS_DEST_DIR = path.resolve('public/uploads/posters');
 const CHECKPOINT_PATH = path.resolve('data/smart_add_checkpoint.json');
+const LOCK_FILE = path.resolve('data/batch_poster_worker.lock');
+
+// Advisory Process Lock Guard
+function acquireProcessLock() {
+  if (fs.existsSync(LOCK_FILE)) {
+    try {
+      const lockData = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf-8'));
+      if (lockData && lockData.pid) {
+        try {
+          process.kill(lockData.pid, 0); // Check if process is still alive
+          console.warn(`⚠️ [LOCK] Batch worker sedang berjalan pada PID ${lockData.pid} (sejak ${lockData.started_at}). Menghentikan eksekusi duplikat.`);
+          process.exit(0);
+        } catch {
+          console.log(`ℹ️ [LOCK] Membersihkan stale lock file dari PID ${lockData.pid}.`);
+          try { fs.unlinkSync(LOCK_FILE); } catch {}
+        }
+      }
+    } catch {
+      try { fs.unlinkSync(LOCK_FILE); } catch {}
+    }
+  }
+
+  try {
+    fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, started_at: new Date().toISOString() }, null, 2));
+  } catch (err) {
+    console.warn('⚠️ Gagal menulis file lock:', err.message);
+  }
+
+  const release = () => {
+    try {
+      if (fs.existsSync(LOCK_FILE)) {
+        const lockData = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf-8'));
+        if (lockData && lockData.pid === process.pid) {
+          fs.unlinkSync(LOCK_FILE);
+        }
+      }
+    } catch {}
+  };
+
+  process.on('exit', release);
+  process.on('SIGINT', () => { release(); process.exit(130); });
+  process.on('SIGTERM', () => { release(); process.exit(143); });
+}
+
+acquireProcessLock();
 
 if (!fs.existsSync(POSTERS_DEST_DIR)) {
   fs.mkdirSync(POSTERS_DEST_DIR, { recursive: true });
@@ -27,6 +72,8 @@ if (fs.existsSync(CHECKPOINT_PATH)) {
   } catch {
     processedMap = {};
   }
+}
+
 function saveCheckpointAtomic(map) {
   const tmpPath = `${CHECKPOINT_PATH}.tmp.${process.pid}`;
   fs.writeFileSync(tmpPath, JSON.stringify(map, null, 2), 'utf-8');

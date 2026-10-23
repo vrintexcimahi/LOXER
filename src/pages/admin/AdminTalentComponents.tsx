@@ -47,6 +47,7 @@ function SkeletonBlock({ className }: { className?: string }) {
 // ==============================================================================
 // HOOK: useTalentCatalog - Shared data hook for LOXER Talent & Candidate Catalog
 // ==============================================================================
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTalentCatalog(onToast: (type: ToastType, message: string) => void) {
   const [talents, setTalents] = useState<TalentMarketplacePost[]>([]);
   const [loading, setLoading] = useState(true);

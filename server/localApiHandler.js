@@ -144,6 +144,9 @@ function sendJson(res, statusCode, payload) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (res.requestId && !res.getHeader('X-Request-ID')) {
+      res.setHeader('X-Request-ID', res.requestId);
+    }
   }
   res.end(JSON.stringify(payload));
 }
@@ -3653,6 +3656,13 @@ export function createLocalDbMiddleware(env = {}) {
 
   return async (req, res, next) => {
     try {
+      const requestId = req.headers['x-request-id'] || crypto.randomUUID();
+      req.requestId = requestId;
+      res.requestId = requestId;
+      if (!res.headersSent) {
+        res.setHeader('X-Request-ID', requestId);
+      }
+
       const url = req.url || '';
       const path = url.split('?')[0];
 
@@ -3838,10 +3848,10 @@ export function createLocalDbMiddleware(env = {}) {
     next();
     } catch (err) {
       if (err.statusCode === 413) {
-        return sendJson(res, 413, { error: { message: err.message, code: 'PAYLOAD_TOO_LARGE' } });
+        return sendJson(res, 413, { error: { message: err.message, code: 'PAYLOAD_TOO_LARGE', request_id: req.requestId } });
       }
-      console.error('[localApiHandler] Request error:', err);
-      return sendJson(res, 500, { error: { message: err.message || 'Internal Server Error' } });
+      console.error(`[localApiHandler][ReqID: ${req.requestId || '-'}] Request error:`, err);
+      return sendJson(res, 500, { error: { message: err.message || 'Internal Server Error', request_id: req.requestId } });
     }
   };
 }
@@ -4211,6 +4221,9 @@ async function handleAdminPublishSmartJob(req, res) {
       contact_phone,
     } = body;
 
+    const { sanitizeApplicationUrl } = await import('../services/smartJobExtractorService.js');
+    const safeAppUrl = sanitizeApplicationUrl(application_url);
+
     if (!title || !company_name) {
       return sendJson(res, 400, { message: 'Judul posisi dan nama perusahaan wajib diisi.' });
     }
@@ -4265,7 +4278,7 @@ async function handleAdminPublishSmartJob(req, res) {
           category || 'Teknik & Rekayasa',
           location_city || 'Bandung / Cimahi',
           `Perusahaan mitra LOXER: ${cleanCompName}`,
-          application_url?.startsWith('http') ? application_url : '',
+          safeAppUrl || '',
           now,
           now,
         ]
@@ -4285,8 +4298,8 @@ async function handleAdminPublishSmartJob(req, res) {
     if (contact_phone && !finalRequirements.includes(contact_phone)) {
       finalRequirements += `\n\nKontak Rekruter: ${contact_phone}`;
     }
-    if (application_url && !finalRequirements.includes(application_url)) {
-      finalRequirements += `\n\nLink Pendaftaran: ${application_url}`;
+    if (safeAppUrl && !finalRequirements.includes(safeAppUrl)) {
+      finalRequirements += `\n\nLink Pendaftaran: ${safeAppUrl}`;
     }
 
     execute(
@@ -4307,7 +4320,7 @@ async function handleAdminPublishSmartJob(req, res) {
         description || '',
         finalRequirements,
         benefits || '',
-        application_url || '',
+        safeAppUrl || '',
         poster_url || '',
         parseInt(quota || '1', 10) || 1,
         expiresAt,

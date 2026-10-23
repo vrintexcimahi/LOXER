@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -834,7 +835,10 @@ function runWithBusyRetry(operation, maxRetries = 3, backoffs = [50, 150, 300]) 
       const isBusy =
         err &&
         (err.code === 'SQLITE_BUSY' ||
-          (typeof err.message === 'string' && err.message.toLowerCase().includes('busy')));
+          err.code === 'SQLITE_LOCKED' ||
+          (typeof err.message === 'string' &&
+            (err.message.toLowerCase().includes('busy') ||
+              err.message.toLowerCase().includes('locked'))));
 
       if (isBusy && attempt < maxRetries) {
         const delayMs = backoffs[attempt] || 100;
@@ -851,25 +855,43 @@ function runWithBusyRetry(operation, maxRetries = 3, backoffs = [50, 150, 300]) 
 
 export function queryOne(sql, params = []) {
   return runWithBusyRetry(() => {
+    const t0 = performance.now();
     const db = getLocalDb();
     const stmt = getCachedStatement(db, sql);
-    return stmt.get(...params);
+    const result = stmt.get(...params);
+    const duration = performance.now() - t0;
+    if (duration > 100) {
+      console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);
+    }
+    return result;
   });
 }
 
 export function queryAll(sql, params = []) {
   return runWithBusyRetry(() => {
+    const t0 = performance.now();
     const db = getLocalDb();
     const stmt = getCachedStatement(db, sql);
-    return stmt.all(...params);
+    const result = stmt.all(...params);
+    const duration = performance.now() - t0;
+    if (duration > 100) {
+      console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);
+    }
+    return result;
   });
 }
 
 export function execute(sql, params = []) {
   return runWithBusyRetry(() => {
+    const t0 = performance.now();
     const db = getLocalDb();
     const stmt = getCachedStatement(db, sql);
-    return stmt.run(...params);
+    const result = stmt.run(...params);
+    const duration = performance.now() - t0;
+    if (duration > 100) {
+      console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);
+    }
+    return result;
   });
 }
 
@@ -1047,6 +1069,7 @@ export function startAutoBackupSchedule(intervalMs = 24 * 60 * 60 * 1000) {
       pruneOldSnapshots(7);
       purgeOldAuditLogs(90);
       purgeOldActivityLogs(60);
+      purgeOldNotifications(90);
       notifyExpiringJobListings(3);
       optimizeLocalDatabase();
     } catch (err) {
@@ -1255,6 +1278,13 @@ export function purgeOldActivityLogs(maxDays = 60) {
   return res.changes;
 }
 
+export function purgeOldNotifications(maxDays = 90) {
+  const db = getLocalDb();
+  const cutoff = new Date(Date.now() - maxDays * 24 * 60 * 60 * 1000).toISOString();
+  const res = db.prepare('DELETE FROM notifications WHERE is_read = 1 AND created_at < ?').run(cutoff);
+  return res.changes;
+}
+
 export function notifyExpiringJobListings(daysThreshold = 3) {
   const db = getLocalDb();
   try {
@@ -1421,6 +1451,13 @@ export function optimizeLocalDatabase() {
     results.integrityCheck = row?.integrity_check || 'ok';
   } catch (e) {
     results.integrityCheck = e.message;
+  }
+
+  try {
+    // 5. Purge old read notifications (older than 90 days)
+    results.purgedNotifications = purgeOldNotifications(90);
+  } catch {
+    // ignore
   }
 
   return results;

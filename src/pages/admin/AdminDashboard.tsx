@@ -21,7 +21,6 @@ import {
   ShieldX,
   UserCheck,
   Users,
-  Wrench,
   X,
   Terminal,
   Database,
@@ -84,16 +83,14 @@ import AdminUserDataCenter from './AdminUserDataCenter';
 import AdminDeviceManagement from './AdminDeviceManagement';
 import { fetchUnifiedJobs } from '../../services/careerjetService';
 import { AdminTalentCatalogSection, SmartAddCvSection, useTalentCatalog } from './AdminTalentComponents';
-import AdminJasa from './AdminJasa';
 import AdminRbacMatrix from './AdminRbacMatrix';
 
-type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations' | 'jasa';
+type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations';
 type ToastType = 'success' | 'error' | 'info';
 
 interface AdminDashboardProps {
   tab?: AdminTab;
   subTab?: 'accounts' | 'intelligence' | 'devices' | 'rbac';
-  // (jasa has its own internal sub-tabs)
 }
 
 interface ToastState {
@@ -268,7 +265,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
   }, [toast]);
 
   useEffect(() => {
-    if (activeTab === 'jobs') {
+    if (activeTab === 'jobs' || (activeTab as string) === 'jasa') {
       window.location.replace('/admin/dashboard');
     }
   }, [activeTab]);
@@ -279,7 +276,6 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
       { key: 'users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', href: '/admin/users', icon: Users },
       { key: 'applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', href: '/admin/applications', icon: ListChecks },
       { key: 'companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', href: '/admin/companies', icon: Building2 },
-      { key: 'jasa', label: 'Manajemen Jasa', description: 'Kelola penyedia & katalog iklan layanan', href: '/admin/jasa', icon: Wrench },
       { key: 'integrations', label: 'Integrasi API', description: 'Atur sumber lowongan dan status koneksi', href: '/admin/integrations', icon: Link2 },
       ...(effectiveRole === 'superadmin' ? [
         { key: 'monitoring', label: 'Log & Monitoring', description: 'Real-time live tail & error tracker', href: '/admin/monitoring', icon: Terminal },
@@ -348,11 +344,9 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
             ? 'Manajemen Lamaran'
             : activeTab === 'companies'
               ? 'Manajemen Perusahaan'
-              : activeTab === 'jasa'
-                ? 'Manajemen Jasa'
-                : activeTab === 'integrations'
-                  ? 'Integrasi API'
-                  : 'Audit Log';
+              : activeTab === 'integrations'
+                ? 'Integrasi API'
+                : 'Audit Log';
 
   return (
     <div className="loxer-workspace min-h-screen bg-slate-950 text-white">
@@ -533,9 +527,6 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
             {activeTab === 'companies' && (
               <AdminCompanies adminId={user.id} adminEmail={adminEmail} isSuperAdmin={isSuperAdmin} onToast={showToast} />
             )}
-            {activeTab === 'jasa' && (
-              <AdminJasa adminId={user.id} adminEmail={adminEmail} isSuperAdmin={isSuperAdmin} onToast={showToast} />
-            )}
             {activeTab === 'integrations' && <AdminIntegrations onToast={showToast} />}
             {activeTab === 'logs' && <AdminAuditLogs />}
           </main>
@@ -550,7 +541,6 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                 { href: '/admin/dashboard', label: 'Dashboard', icon: Home, key: 'overview' },
                 { href: '/admin/users', label: 'Users', icon: Users, key: 'users' },
                 { href: '/admin/applications', label: 'Pelamar', icon: ListChecks, key: 'applications' },
-                { href: '/admin/jasa', label: 'Jasa', icon: Wrench, key: 'jasa' },
                 { href: '/admin/companies', label: 'Perusahaan', icon: Building2, key: 'companies' },
               ].map((item) => {
                 const active = activeTab === item.key || window.location.pathname === item.href;
@@ -4852,7 +4842,7 @@ function AdminApplications({
       ];
     });
 
-    const csv = [headers, ...csvRows]
+    const csv = '\uFEFF' + [headers, ...csvRows]
       .map((row) => row.map((value) => `"${String(value).split('"').join('""')}"`).join(','))
       .join('\n');
 

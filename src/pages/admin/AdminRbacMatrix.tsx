@@ -11,7 +11,6 @@ import {
   Briefcase,
   FileText,
   Building2,
-  Wrench,
   AlertTriangle,
   Megaphone,
   Sparkles,
@@ -86,14 +85,6 @@ const RBAC_MODULES: RbacModuleItem[] = [
     icon: Building2,
     description: 'Verifikasi legalitas perusahaan dan manajemen profil employer terdaftar.',
     defaultRoles: { admin: true, marketing: true, customer_service: true },
-  },
-  {
-    id: 'jasa',
-    name: 'Marketplace Jasa & Layanan Freelance',
-    category: 'OPERASIONAL',
-    icon: Wrench,
-    description: 'Katalog jasa pencari kerja, manajemen order jasa, dan moderasi portofolio.',
-    defaultRoles: { admin: true, marketing: true, customer_service: false },
   },
   {
     id: 'moderation',

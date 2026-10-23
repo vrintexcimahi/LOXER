@@ -178,6 +178,7 @@ export default function JobDetailModal({
   }, [onClose]);
 
   const handleApply = async () => {
+    if (applying || alreadyApplied) return;
     if (!requireApp('Melamar Lowongan Pekerjaan')) {
       return;
     }

@@ -21,7 +21,7 @@
 | **12** | Micro-interactions | Clay icons, motion transitions, status indicators | `ClayIcon.tsx`, `PwaMobileKit.tsx`, `compact-theme.css` | **DONE** |
 | **13** | Users & RBAC Matrix | Directory, session revocation, permissions matrix | `AdminUserDataCenter.tsx`, `AdminRbacMatrix.tsx` | **DONE** |
 | **14** | Feature Flags | Remote flags, kill-switch, rollouts | `FeatureFlags.tsx`, `systemSettingsService.ts` | **DONE** |
-| **15** | Business Modules | Jobs, applicants, companies, jasa, marketplace | `JobListings.tsx`, `Applicants.tsx`, `AdminJasa.tsx` | **DONE** |
+| **15** | Business Modules | Jobs, applicants, companies, marketplace | `JobListings.tsx`, `Applicants.tsx` | **DONE** |
 | **16** | Workflow & Rules | Automatic job approval, FB group ingest AI | `fbIngestService.js`, `fbAiExtractor.js`, `fb-group-worker.mjs` | **DONE** |
 | **17** | Communication Hub | Push notifications, broadcast alerts, toast banners | `BroadcastSystem.tsx`, `AndroidToast.tsx` | **DONE** |
 | **18** | Integration Hub | Careerjet, FB Graph, Telegram Bot, OAuth | `careerjetService.js`, `integrations-status.js` | **DONE** |

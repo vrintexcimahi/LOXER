@@ -6,12 +6,19 @@
  * structuring the content into LOXER standard job advertising format.
  */
 
+import { ProviderCircuitBreaker } from './resilienceService.js';
+
+export const aiJobCircuitBreaker = new ProviderCircuitBreaker('9Router-JobAI', {
+  failureThreshold: 5,
+  resetTimeout: 30000,
+});
+
 const ROUTER_BASE_URL = process.env.VITE_9ROUTER_URL || process.env.ROUTER_BASE_URL || 'http://192.168.1.14:20128/v1';
 const ROUTER_API_KEY = process.env.VITE_9ROUTER_KEY || process.env.ROUTER_API_KEY || 'sk-vrintex-2026-fixed';
 const PRIMARY_MODEL = process.env.ROUTER_VISION_MODEL || 'ag/gemini-3.8-flash-high';
 const FALLBACK_MODEL = 'gemini/gemini-3.8-flash';
 
-const STANDARD_CATEGORIES = [
+export const STANDARD_CATEGORIES = [
   'Teknologi & IT',
   'Pemasaran & Digital',
   'Keuangan & Akuntansi',
@@ -28,6 +35,36 @@ const STANDARD_CATEGORIES = [
   'Pendidikan & Pelatihan',
   'Kesehatan & Medis',
 ];
+
+/**
+ * Sanitize and validate external application URLs (Saran 33)
+ * Blocks suspicious protocols, loops, and dangerous URIs
+ */
+export function sanitizeApplicationUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return '';
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      hostname.endsWith('.onion') ||
+      hostname.endsWith('.local')
+    ) {
+      return '';
+    }
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+}
 
 /**
  * Clean JSON output from LLM responses (strips markdown code fences)
@@ -195,80 +232,104 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick, sesuai skem
   const candidateModels = [PRIMARY_MODEL, FALLBACK_MODEL, 'gemini/gemini-3.7-flash'];
   let lastError = null;
 
+  if (aiJobCircuitBreaker.isOpen()) {
+    throw new Error('CircuitBreaker [9Router-JobAI] sedang OPEN (cooldown kegagalan upstream aktif). Silakan coba 30 detik lagi.');
+  }
+
   for (const model of candidateModels) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 65000);
+    const maxRetries = 2;
 
-    try {
-      console.log(`[smartJobExtractorService] Mengirim request ke 9Router dengan model ${model}...`);
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${ROUTER_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          temperature: 0.1,
-          messages: [
-            {
-              role: 'user',
-              content: userContent,
-            },
-          ],
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error(`9Router [${resp.status}]: ${errText}`);
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        const jitter = Math.floor(Math.random() * 400);
+        const delayMs = attempt * 1500 + jitter;
+        console.log(`[smartJobExtractorService] Menunggu jeda backoff ${delayMs}ms sebelum retry model ${model} (percobaan ke-${attempt + 1})...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
 
-      const data = await resp.json();
-      const rawText = data.choices?.[0]?.message?.content || '';
-      const cleanedJson = cleanJsonOutput(rawText);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 65000);
 
-      if (!cleanedJson) {
-        throw new Error(`9Router tidak mengembalikan format JSON valid: ${rawText.slice(0, 150)}`);
+      try {
+        console.log(`[smartJobExtractorService] Mengirim request ke 9Router dengan model ${model}...`);
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${ROUTER_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model,
+            stream: false,
+            temperature: 0.1,
+            messages: [
+              {
+                role: 'user',
+                content: userContent,
+              },
+            ],
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!resp.ok) {
+          const errText = await resp.text();
+          if ((resp.status === 429 || resp.status === 503) && attempt < maxRetries) {
+            console.warn(`[smartJobExtractorService] Model ${model} mengembalikan HTTP ${resp.status}, bersiap melakukan retry dengan backoff...`);
+            continue;
+          }
+          throw new Error(`9Router [${resp.status}]: ${errText}`);
+        }
+
+        const data = await resp.json();
+        const rawText = data.choices?.[0]?.message?.content || '';
+        const cleanedJson = cleanJsonOutput(rawText);
+
+        if (!cleanedJson) {
+          throw new Error(`9Router tidak mengembalikan format JSON valid: ${rawText.slice(0, 150)}`);
+        }
+
+        const parsed = JSON.parse(cleanedJson);
+
+        // Normalize and sanitize all fields
+        const result = {
+          title: (parsed.title || 'Lowongan Kerja').trim(),
+          company_name: (parsed.company_name || 'Mitra LOXER').trim(),
+          category: matchStandardCategory(parsed.category),
+          location_city: (parsed.location_city || 'Bandung / Cimahi').trim(),
+          job_type: ['full-time', 'part-time', 'contract', 'freelance', 'internship'].includes(parsed.job_type)
+            ? parsed.job_type
+            : 'full-time',
+          salary_min: typeof parsed.salary_min === 'number' ? parsed.salary_min : parseInt(parsed.salary_min || '0', 10) || 0,
+          salary_max: typeof parsed.salary_max === 'number' ? parsed.salary_max : parseInt(parsed.salary_max || '0', 10) || 0,
+          description: (parsed.description || '').trim(),
+          requirements: (parsed.requirements || '').trim(),
+          benefits: (parsed.benefits || '').trim(),
+          quota: typeof parsed.quota === 'number' ? Math.max(1, parsed.quota) : parseInt(parsed.quota || '1', 10) || 1,
+          application_url: sanitizeApplicationUrl(parsed.application_url || postUrl || ''),
+          contact_phone: (parsed.contact_phone || '').trim(),
+          poster_url: imageBase64 ? imageBase64 : '',
+          ai_notes: (parsed.ai_notes || 'Diekstrak & disesuaikan otomatis oleh Agen AI Gemini 3.8 LOXER').trim(),
+          confidence_score: typeof parsed.confidence_score === 'number' ? parsed.confidence_score : 90,
+          extracted_at: new Date().toISOString(),
+          ai_model_used: model,
+        };
+
+        aiJobCircuitBreaker.recordSuccess();
+        return result;
+      } catch (err) {
+        clearTimeout(timeout);
+        lastError = err;
+        console.warn(`[smartJobExtractorService] Percobaan model ${model} (ke-${attempt + 1}) gagal:`, err.message);
+        if (attempt >= maxRetries) {
+          break;
+        }
       }
-
-      const parsed = JSON.parse(cleanedJson);
-
-      // Normalize and sanitize all fields
-      const result = {
-        title: (parsed.title || 'Lowongan Kerja').trim(),
-        company_name: (parsed.company_name || 'Mitra LOXER').trim(),
-        category: matchStandardCategory(parsed.category),
-        location_city: (parsed.location_city || 'Bandung / Cimahi').trim(),
-        job_type: ['full-time', 'part-time', 'contract', 'freelance', 'internship'].includes(parsed.job_type)
-          ? parsed.job_type
-          : 'full-time',
-        salary_min: typeof parsed.salary_min === 'number' ? parsed.salary_min : parseInt(parsed.salary_min || '0', 10) || 0,
-        salary_max: typeof parsed.salary_max === 'number' ? parsed.salary_max : parseInt(parsed.salary_max || '0', 10) || 0,
-        description: (parsed.description || '').trim(),
-        requirements: (parsed.requirements || '').trim(),
-        benefits: (parsed.benefits || '').trim(),
-        quota: typeof parsed.quota === 'number' ? Math.max(1, parsed.quota) : parseInt(parsed.quota || '1', 10) || 1,
-        application_url: (parsed.application_url || postUrl || '').trim(),
-        contact_phone: (parsed.contact_phone || '').trim(),
-        poster_url: imageBase64 ? imageBase64 : '',
-        ai_notes: (parsed.ai_notes || 'Diekstrak & disesuaikan otomatis oleh Agen AI Gemini 3.8 LOXER').trim(),
-        confidence_score: typeof parsed.confidence_score === 'number' ? parsed.confidence_score : 90,
-        extracted_at: new Date().toISOString(),
-        ai_model_used: model,
-      };
-
-      return result;
-    } catch (err) {
-      clearTimeout(timeout);
-      lastError = err;
-      console.warn(`[smartJobExtractorService] Percobaan model ${model} gagal:`, err.message);
     }
   }
 
+  aiJobCircuitBreaker.recordFailure(lastError || new Error('Gagal mengekstrak iklan loker dari poster/link.'));
   throw lastError || new Error('Gagal mengekstrak iklan loker dari poster/link.');
 }

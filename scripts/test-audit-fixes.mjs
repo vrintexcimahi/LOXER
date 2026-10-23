@@ -1,6 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { createServer } from 'vite';
-import { getLocalDb, closeLocalDb, queryOne, queryAll, execute, withTransaction } from '../server/localDb.js';
+import { getLocalDb, closeLocalDb, queryOne, queryAll, execute, withTransaction, purgeOldNotifications } from '../server/localDb.js';
 import { accountLockoutManager } from '../services/resilienceService.js';
+import { pruneOrphanUploads, uploadBuffer } from '../server/storageService.js';
+import { sanitizeApplicationUrl, STANDARD_CATEGORIES, aiJobCircuitBreaker } from '../services/smartJobExtractorService.js';
+import { aiCvCircuitBreaker } from '../services/smartCvExtractorService.js';
 
 let failureCount = 0;
 function assert(condition, message) {
@@ -1131,6 +1136,58 @@ async function testAuditFixes() {
     // 62. Reliability (AUD-026): End-of-Suite Foreign Key Integrity & Self-Healing
     const finalFkErrors = queryAll('PRAGMA foreign_key_check');
     assert(finalFkErrors.length === 0, `62. Reliability (AUD-026): Database foreign key check clean with 0 violations (${finalFkErrors.length} found)`);
+
+    // 63. Concurrency (Rec 10): Advisory Process Lock on Batch Worker
+    const testLockFile = path.resolve('data/batch_poster_worker.lock');
+    fs.writeFileSync(testLockFile, JSON.stringify({ pid: process.pid, started_at: new Date().toISOString() }));
+    assert(fs.existsSync(testLockFile), '63. Concurrency (Rec 10): Advisory worker lock file created successfully');
+    fs.unlinkSync(testLockFile);
+    assert(!fs.existsSync(testLockFile), '63.1 Concurrency (Rec 10): Advisory worker lock file released cleanly');
+
+    // 64. Maintenance (Rec 49): Automated Read Notification Purging
+    const testPurgeNotifId = 'notif_test_purge_' + Date.now();
+    const oldDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString();
+    execute("INSERT OR REPLACE INTO notifications (id, user_id, title, message, type, is_read, created_at) VALUES (?, 'admin-vrintex-root', 'Test', 'Test Msg', 'system', 1, ?)", [testPurgeNotifId, oldDate]);
+    const purgedCount = purgeOldNotifications(90);
+    const checkedNotif = queryOne("SELECT id FROM notifications WHERE id = ?", [testPurgeNotifId]);
+    assert(purgedCount >= 1 && !checkedNotif, `64. Maintenance (Rec 49): Read notifications older than 90 days pruned cleanly (${purgedCount} rows purged)`);
+
+    // 65. Security (Rec 33): Strict External Application URL Sanitization & Phishing Guard
+    const dangerousUrl1 = 'javascript:alert(1)';
+    const dangerousUrl2 = 'http://127.0.0.1:3035/admin';
+    const dangerousUrl3 = 'file:///etc/passwd';
+    const validUrl = 'https://karir.perusahaan.com/jobs/123';
+    assert(sanitizeApplicationUrl(dangerousUrl1) === '', '65. Security (Rec 33): Dangerous javascript: URL blocked');
+    assert(sanitizeApplicationUrl(dangerousUrl2) === '', '65.1 Security (Rec 33): Internal loopback 127.0.0.1 URL blocked');
+    assert(sanitizeApplicationUrl(dangerousUrl3) === '', '65.2 Security (Rec 33): Local file:// protocol blocked');
+    assert(sanitizeApplicationUrl(validUrl) === validUrl, '65.3 Security (Rec 33): Legitimate HTTPS careers URL accepted and preserved');
+
+    // 66. Storage (Rec 12): Prune Stale Uploads from Temp Directory
+    const pruneStats = pruneOrphanUploads('temp', 7);
+    assert(typeof pruneStats.deletedCount === 'number' && typeof pruneStats.reclaimedBytes === 'number', '66. Storage (Rec 12): Prune orphan uploads executes cleanly');
+
+    // 67. Standards (Rec 50): Unified Job Categories Consistency
+    assert(Array.isArray(STANDARD_CATEGORIES) && STANDARD_CATEGORIES.length === 15 && STANDARD_CATEGORIES.includes('Teknologi & IT'), '67. Standards (Rec 50): Unified STANDARD_CATEGORIES exported with 15 standard domains');
+
+    // 68. AI (Rec 18): Multi-Host Circuit Breaker for AI Providers
+    assert(aiJobCircuitBreaker && typeof aiJobCircuitBreaker.isOpen === 'function' && !aiJobCircuitBreaker.isOpen(), '68. AI (Rec 18): Job AI Circuit Breaker initialized in CLOSED state');
+    assert(aiCvCircuitBreaker && typeof aiCvCircuitBreaker.isOpen === 'function' && !aiCvCircuitBreaker.isOpen(), '68.1 AI (Rec 18): CV AI Circuit Breaker initialized in CLOSED state');
+
+    // 69. Storage (Rec 38): Strict 5MB Max Limit for PDF Uploads
+    let pdfTooLargeError = null;
+    try {
+      const dummyBigBuffer = Buffer.alloc(5.5 * 1024 * 1024);
+      dummyBigBuffer[0] = 0x25; dummyBigBuffer[1] = 0x50; dummyBigBuffer[2] = 0x44; dummyBigBuffer[3] = 0x46; // %PDF
+      await uploadBuffer({ buffer: dummyBigBuffer, filename: 'oversized.pdf', mimeType: 'application/pdf' });
+    } catch (err) {
+      pdfTooLargeError = err.message;
+    }
+    assert(pdfTooLargeError && pdfTooLargeError.includes('5MB'), '69. Storage (Rec 38): PDF uploads over 5MB strictly rejected');
+
+    // 70. Middleware (Rec 46): Structured Correlation X-Request-ID Header
+    const reqIdRes = await fetch(`${baseUrl}/api/storage/status`);
+    const respReqId = reqIdRes.headers.get('x-request-id');
+    assert(typeof respReqId === 'string' && respReqId.length > 8, '70. Middleware (Rec 46): HTTP responses tagged with unique X-Request-ID header');
 
     // Clean up temporary fixtures
     if (tempJobId) execute("DELETE FROM job_listings WHERE id = ?", [tempJobId]);

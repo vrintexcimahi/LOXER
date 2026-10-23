@@ -25,7 +25,6 @@ Panduan operasional harian untuk Administrator dan Super Administrator platform 
 | | Manajemen Users | Verifikasi akun, monitor perangkat login, revoke sesi, ubah role. |
 | | Pelamar | Pantau CV terkirim, status lamaran, dan unduh rekap pelamar. |
 | | Perusahaan | Audit kelayakan profil perusahaan dan keaslian lowongan kerja. |
-| | Manajemen Jasa | Moderasi layanan mandiri/panggilan (bengkel, pertukangan, dsb). |
 | | Child Panel Mitra | Setup cabang digital mitra, pantau saldo komisi dan custom domain. |
 | **Konten & Brand** | Brand & Desain Studio | Ganti logo, favicon, tema warna, BGM, dan identitas perusahaan. |
 | | Moderasi Konten | Persetujuan posting loker & CV hasil scraping AI Facebook. |

@@ -30,6 +30,8 @@ dist-ssr
 .tmp-*
 
 *.pid
+*.lock
+data/*.lock
 *.db-shm
 *.db-wal
 scratch/

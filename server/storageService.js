@@ -210,13 +210,16 @@ export async function uploadBuffer({ buffer, filename, mimeType, folder = 'uploa
     throw new Error('Buffer berkas kosong');
   }
 
-  // Max 15MB limit
+  // Max 15MB limit general, 5MB for PDF documents
   const MAX_SIZE = 15 * 1024 * 1024;
   if (buffer.length > MAX_SIZE) {
     throw new Error(`Ukuran berkas melebihi batas maksimal 15MB (${(buffer.length / (1024 * 1024)).toFixed(1)}MB)`);
   }
 
   const normalizedMime = (mimeType || 'application/octet-stream').toLowerCase();
+  if (normalizedMime === 'application/pdf' && buffer.length > 5 * 1024 * 1024) {
+    throw new Error(`Ukuran dokumen PDF melebihi batas maksimal 5MB (${(buffer.length / (1024 * 1024)).toFixed(1)}MB).`);
+  }
   const ext = MIME_EXTENSIONS[normalizedMime] || path.extname(filename) || '.bin';
 
   // Magic bytes security verification for known formats
@@ -369,4 +372,37 @@ export function getStorageStats() {
     totalBytes,
     totalMegabytes: (totalBytes / (1024 * 1024)).toFixed(2),
   };
+}
+
+/**
+ * Prune temporary/orphan uploaded files older than maxAgeDays (Saran 12)
+ */
+export function pruneOrphanUploads(subfolder = 'temp', maxAgeDays = 7) {
+  const targetDir = path.resolve(PUBLIC_UPLOADS_DIR, subfolder);
+  if (!fs.existsSync(targetDir)) return { deletedCount: 0, reclaimedBytes: 0 };
+
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  let deletedCount = 0;
+  let reclaimedBytes = 0;
+
+  try {
+    const files = fs.readdirSync(targetDir);
+    for (const f of files) {
+      const fullPath = path.join(targetDir, f);
+      try {
+        const stat = fs.statSync(fullPath);
+        if (stat.isFile() && stat.mtimeMs < cutoff) {
+          reclaimedBytes += stat.size;
+          fs.unlinkSync(fullPath);
+          deletedCount++;
+        }
+      } catch {
+        // ignore individual file error
+      }
+    }
+  } catch (err) {
+    console.warn('[storageService] pruneOrphanUploads notice:', err.message);
+  }
+
+  return { deletedCount, reclaimedBytes };
 }

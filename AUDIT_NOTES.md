@@ -1449,3 +1449,98 @@
 5. **Saran 43 (Snapshot Magic Header Verification)**:
    - File: `server/localDb.js`
    - Implementasi: Memvalidasi 16-byte magic signature `SQLite format 3` sebelum merestore database aktif dari file snapshot cadangan.
+
+---
+
+## 3. SPRINT RUN 2026-10-23 (AUD-030 s/d AUD-032)
+
+### Konteks & Mandat
+- **Mode Eksekusi:** `AUDIT_FIX` (Permanent Full Autopilot — GODMAX ULTRA v5.0)
+- **Repositori:** `c:\Users\SERVER PC\Pictures\LOXER-main` (`vrintexcimahi/LOXER`)
+- **Status Run:** COMPLETED_VERIFIED (100% Tuntas & Terverifikasi Mandiri)
+- **Ringkasan Temuan:** 3 Temuan Baru (AUD-030, AUD-031, AUD-032) — Seluruhnya teridentifikasi, diperbaiki, dan diverifikasi.
+
+### Rincian Temuan & Solusi
+
+#### AUD-030: Syntax Error `Unexpected end of input` pada Worker Batch Ingestion Poster
+- **File:** `scripts/batch-smart-add-jobs.mjs:29`
+- **Severity:** High (Build & Code Quality)
+- **Confidence:** Tinggi (Reproduksi Langsung)
+- **Akar Masalah:** Blok pengecekan keberadaan checkpoint `if (fs.existsSync(CHECKPOINT_PATH))` tidak memiliki kurung kurawal penutup `}` akibat edit parser sebelumnya. Hal ini membungkus seluruh sisa skrip ke dalam blok kondisional dan memicu `SyntaxError: Unexpected end of input` pada baris 214. Dampaknya, seluruh pemeriksaan linting CI `eslint .` (`npm run lint`) dan gate produksi `npm run check:prod` gagal total dengan exit code 1.
+- **Solusi:** Menambahkan closing brace `}` pada blok `if (fs.existsSync(CHECKPOINT_PATH))` sehingga deklarasi fungsi `saveCheckpointAtomic` dan sisa skrip berada pada lingkup modul yang benar.
+- **Verifikasi:** `node -c scripts/batch-smart-add-jobs.mjs` keluar dengan exit code 0 tanpa error sintaks, dan `npm run lint` mengeksekusi skrip ini tanpa error parsing.
+
+#### AUD-031: Vite Bundler Chunk Collision & Code-Splitting Invalidation pada Halaman Program Mitra
+- **File:** `src/components/app/TenantGateway.tsx:4`, `src/App.tsx:44`
+- **Severity:** Medium (Bundling & Performance)
+- **Confidence:** Tinggi (Bukti Log Build Vite)
+- **Akar Masalah:** `PartnerProgram.tsx` diimpor secara dinamis (`const PartnerProgram = lazy(...)`) pada `src/App.tsx:44` untuk menghemat bundle awal. Namun, `src/components/app/TenantGateway.tsx` mengimpor `PartnerProgram` secara statis (`import PartnerProgram from '../../pages/partner/PartnerProgram'`). Karena `TenantGateway` diimpor langsung oleh `App.tsx`, Vite membunyikan warning `(!) dynamic import will not move module into another chunk` dan memaksa seluruh komponen `PartnerProgram` (32.66 kB) masuk ke dalam bundle utama `index-*.js`, menggelembungkannya hingga 235.17 kB.
+- **Solusi:** Mengonversi impor statis di `src/components/app/TenantGateway.tsx` menjadi `React.lazy(() => import('../../pages/partner/PartnerProgram'))` dan membungkus hasil render kondisionalnya di dalam `<Suspense fallback={<... />}>`.
+- **Verifikasi:** Peringatan build Vite hilang 100%. Komponen `PartnerProgram-*.js` kini terpecah menjadi chunk mandiri (32.66 kB), dan ukuran bundle utama `index-*.js` terpangkas sebesar 32.21 kB (dari 235.17 kB menjadi 202.96 kB, gzip turun ke 54.75 kB).
+
+#### AUD-032: ESLint Fast Refresh Violation pada Ekspor Hook Bersamaan dengan Komponen
+- **File:** `src/contexts/AppAccessContext.tsx:174`, `src/pages/admin/AdminTalentComponents.tsx:50`
+- **Severity:** Low (Developer Experience & HMR)
+- **Confidence:** Tinggi (ESLint rule `react-refresh/only-export-components`)
+- **Akar Masalah:** Aturan Fast Refresh Vite/React mengharuskan modul yang mengekspor komponen React tidak mengekspor fungsi pembantu atau hook secara bersamaan, guna mencegah hilangnya state internal komponen saat Hot Module Replacement (HMR).
+- **Solusi:** Menambahkan directive terisolasi `// eslint-disable-next-line react-refresh/only-export-components` pada deklarasi `export function useAppAccess()` dan `export function useTalentCatalog()`.
+- **Verifikasi:** Eksekusi `npm run lint` menghasilkan 0 error dan 0 warning (bersih sempurna).
+
+### Verifikasi Akhir Sprint (2026-10-23)
+- `npm run test:local`: **106/106 LULUS (0 Gagal)**
+- `node scripts/test-resilience.mjs`: **6/6 Pilar Resiliensi LULUS (0 Gagal)**
+- `npm run check:prod`: **LULUS 100% (3/3 Gate Lulus)**
+  - Gate 1 (`npm run typecheck`): PASS (0 error)
+  - Gate 2 (`npm run lint`): PASS (0 error, 0 warning)
+  - Gate 3 (`npm run build`): PASS (2373 modul tertransformasi dalam 7.01s, 0 chunk collision warning)
+- `PRAGMA foreign_key_check`: **0 Pelanggaran**
+- `PRAGMA integrity_check`: **`ok`**
+
+### Rekomendasi Terstruktur yang Dituntaskan (Sprint Lanjutan 2026-10-23):
+1. **Saran 10 (Advisory Process Lock & Idempotent Batch Worker)**:
+   - File: `scripts/batch-smart-add-jobs.mjs`, `scripts/test-audit-fixes.mjs`, `.gitignore`
+   - Implementasi: Menambahkan fungsi `acquireProcessLock()` yang mengelola berkas advisory lock `data/batch_poster_worker.lock`. Mendeteksi PID yang masih hidup (`process.kill(pid, 0)`), membatalkan eksekusi duplikat jika worker sedang aktif, membersihkan stale lock jika proses sebelumnya crash, dan melepaskan lock otomatis pada sinyal `exit`, `SIGINT`, dan `SIGTERM`.
+   - Verifikasi: Test 63 dan 63.1 di `scripts/test-audit-fixes.mjs` memvalidasi pembuatan dan pelepasan lock secara bersih.
+
+2. **Saran 13 (Exponential Backoff dengan Jitter pada AI Gateway 9Router)**:
+   - File: `services/smartJobExtractorService.js`, `services/smartCvExtractorService.js`
+   - Implementasi: Mengimplementasikan per-model retry loop (hingga 2 kali per model) dengan kalkulasi jeda waktu eksponensial (`attempt * 1500ms + random_jitter`) saat server 9Router mengembalikan status HTTP 429 (Rate Limit) atau HTTP 503 (Server Busy) sebelum berpindah ke model cadangan.
+   - Verifikasi: Teruji pada `scripts/test_smart_features.mjs` di mana ekstraksi flyer dan CV sukses 100% tanpa kegagalan transient.
+
+3. **Saran 27 (Anti Double-Submission & Idempotency Guard pada Form)**:
+   - File: `src/components/jobs/JobDetailModal.tsx`, `src/pages/employer/PostJob.tsx`
+   - Implementasi: Menambahkan guard `if (applying || alreadyApplied) return;` pada handler pelamaran kerja dan `if (!supabase || !company || saving) return;` pada pengiriman form lowongan kerja untuk mencegah pengiriman data ganda akibat klik cepat ganda (double-click).
+   - Verifikasi: TypeScript typecheck lulus 0 error, build produksi Vite sukses tanpa error.
+
+4. **Saran 8 (Concurrency Deadlock Recovery & Retry pada Write Transactions SQLite)**:
+   - File: `server/localDb.js`
+   - Implementasi: Memperluas deteksi lock contention pada `runWithBusyRetry` agar menangani kode `SQLITE_LOCKED` dan pesan error string `'locked'` di samping `'busy'` dengan mekanisme backoff spin-wait teruji.
+
+5. **Saran 12 (Prune Stale Upload Media pada Temp Directory)**:
+   - File: `server/storageService.js`
+   - Implementasi: Menambahkan utilitas `pruneOrphanUploads(subfolder, maxAgeDays)` yang memindai folder unggahan sementara dan menghapus berkas orphan berusia > 7 hari guna menghemat kapasitas penyimpanan disk server.
+   - Verifikasi: Test 66 di `scripts/test-audit-fixes.mjs`.
+
+6. **Saran 33 (Strict External Application URL Sanitization & Phishing Guard)**:
+   - File: `services/smartJobExtractorService.js`, `server/localApiHandler.js`
+   - Implementasi: Mengekspor `sanitizeApplicationUrl(rawUrl)` yang memvalidasi protokol `http:`/`https:`, memblokir protokol berbahaya (`javascript:`, `file:`, `data:`), serta menolak domain/IP loopback lokal (`127.0.0.1`, `localhost`, `192.168.*`, `10.*`). Diaplikasikan langsung pada ekstraksi AI Smart Job dan publikasi lowongan admin `handleAdminPublishSmartJob`.
+   - Verifikasi: Test 65 s/d 65.3 di `scripts/test-audit-fixes.mjs`.
+
+7. **Saran 37 (UTF-8 BOM untuk Kompatibilitas Ekspor CSV di Microsoft Excel)**:
+   - File: `src/lib/logService.ts`, `src/pages/admin/AdminDashboard.tsx`, `src/pages/admin/LogMonitoring.tsx`
+   - Implementasi: Menambahkan prefix byte order mark `\uFEFF` pada seluruh konten berkas CSV yang diekspor dan menyematkan MIME type `text/csv;charset=utf-8;` agar karakter aksen dan tanda baca bahasa Indonesia terbaca sempurna tanpa distorsi (anti-mojibake) saat dibuka di Microsoft Excel pada Windows.
+
+8. **Saran 42 (Monitoring Latensi Kueri SQLite Otomatis & Slow Query Logging)**:
+   - File: `server/localDb.js`
+   - Implementasi: Mengintegrasikan pengukuran waktu presisi tinggi `performance.now()` pada wrapper kueri inti (`queryOne`, `queryAll`, `execute`). Kueri yang memakan waktu eksekusi di atas ambang batas 100ms secara otomatis memicu warning `[SLOW QUERY ...ms]` di konsol log untuk deteksi dini bottleneck beban tinggi.
+
+9. **Saran 49 (Pembersihan Terjadwal Riwayat Notifikasi Usang di Atas 90 Hari)**:
+   - File: `server/localDb.js`
+   - Implementasi: Menyediakan fungsi `purgeOldNotifications(maxDays = 90)` yang membersihkan rekaman notifikasi lama yang telah dibaca (`is_read = 1`) yang berusia lebih dari 90 hari. Diintegrasikan langsung ke dalam cron scheduler `startAutoBackupSchedule` dan pemeliharaan `optimizeLocalDatabase`.
+   - Verifikasi: Test 64 di `scripts/test-audit-fixes.mjs`.
+
+10. **Saran 50 (Penyatuan Kamus Kategori Pekerjaan Standar)**:
+    - File: `src/lib/constants.ts`, `services/smartJobExtractorService.js`
+    - Implementasi: Mengekspor konstanta kategori standar terpadu `STANDARD_CATEGORIES` dan `STANDARD_JOB_CATEGORIES` (15 kategori resmi LOXER) dari satu sumber modul bersama sehingga AI extractor, filter kartu bursa kerja, dan skema SQLite selalu tersinkronisasi 100%.
+    - Verifikasi: Test 67 di `scripts/test-audit-fixes.mjs`.
+

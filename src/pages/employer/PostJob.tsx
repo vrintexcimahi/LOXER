@@ -99,7 +99,7 @@ export default function PostJob() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!supabase || !company) return;
+    if (!supabase || !company || saving) return;
     if (!form.title.trim()) { setError('Judul lowongan wajib diisi.'); return; }
     if (form.salary_min && form.salary_max && parseInt(form.salary_min, 10) > parseInt(form.salary_max, 10)) {
       setError('Gaji maksimum tidak boleh lebih kecil dari gaji minimum.');

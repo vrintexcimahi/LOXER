@@ -6,6 +6,13 @@
  * structuring the biodata into standard LOXER Talent & Candidate Marketplace format.
  */
 
+import { ProviderCircuitBreaker } from './resilienceService.js';
+
+export const aiCvCircuitBreaker = new ProviderCircuitBreaker('9Router-CvAI', {
+  failureThreshold: 5,
+  resetTimeout: 30000,
+});
+
 const ROUTER_BASE_URL = process.env.VITE_9ROUTER_URL || process.env.ROUTER_BASE_URL || 'http://192.168.1.14:20128/v1';
 const ROUTER_API_KEY = process.env.VITE_9ROUTER_KEY || process.env.ROUTER_API_KEY || 'sk-vrintex-2026-fixed';
 const PRIMARY_MODEL = process.env.ROUTER_VISION_MODEL || 'ag/gemini-3.8-flash-high';
@@ -238,38 +245,56 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
   const candidateModels = [PRIMARY_MODEL, FALLBACK_MODEL, 'gemini/gemini-3.7-flash'];
   let lastError = null;
 
+  if (aiCvCircuitBreaker.isOpen()) {
+    throw new Error('CircuitBreaker [9Router-CvAI] sedang OPEN (cooldown kegagalan upstream aktif). Silakan coba 30 detik lagi.');
+  }
+
   for (const model of candidateModels) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 65000);
+    const maxRetries = 2;
 
-    try {
-      console.log(`[smartCvExtractorService] Mengirim request ke 9Router dengan model ${model}...`);
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${ROUTER_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          temperature: 0.1,
-          messages: [
-            {
-              role: 'user',
-              content: userContent,
-            },
-          ],
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error(`9Router [${resp.status}]: ${errText}`);
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        const jitter = Math.floor(Math.random() * 400);
+        const delayMs = attempt * 1500 + jitter;
+        console.log(`[smartCvExtractorService] Menunggu jeda backoff ${delayMs}ms sebelum retry model ${model} (percobaan ke-${attempt + 1})...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 65000);
+
+      try {
+        console.log(`[smartCvExtractorService] Mengirim request ke 9Router dengan model ${model}...`);
+        const resp = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${ROUTER_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model,
+            stream: false,
+            temperature: 0.1,
+            messages: [
+              {
+                role: 'user',
+                content: userContent,
+              },
+            ],
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!resp.ok) {
+          const errText = await resp.text();
+          if ((resp.status === 429 || resp.status === 503) && attempt < maxRetries) {
+            console.warn(`[smartCvExtractorService] Model ${model} mengembalikan HTTP ${resp.status}, bersiap melakukan retry dengan backoff...`);
+            continue;
+          }
+          throw new Error(`9Router [${resp.status}]: ${errText}`);
+        }
 
       const data = await resp.json();
       const rawText = data.choices?.[0]?.message?.content || '';
@@ -328,13 +353,19 @@ Format output WAJIB HANYA JSON murni tanpa markdown, tanpa backtick:
         ai_model_used: model,
       };
 
-      return result;
-    } catch (err) {
-      clearTimeout(timeout);
-      lastError = err;
-      console.warn(`[smartCvExtractorService] Percobaan model ${model} gagal:`, err.message);
+        aiCvCircuitBreaker.recordSuccess();
+        return result;
+      } catch (err) {
+        clearTimeout(timeout);
+        lastError = err;
+        console.warn(`[smartCvExtractorService] Percobaan model ${model} (ke-${attempt + 1}) gagal:`, err.message);
+        if (attempt >= maxRetries) {
+          break;
+        }
+      }
     }
   }
 
+  aiCvCircuitBreaker.recordFailure(lastError || new Error('Gagal mengekstrak biodata CV dari berkas.'));
   throw lastError || new Error('Gagal mengekstrak biodata CV dari berkas.');
 }
