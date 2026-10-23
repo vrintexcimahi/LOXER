@@ -28,6 +28,7 @@ import {
   getPartnerApplicationBySlug,
   countPartnerApplications,
   optimizeLocalDatabase,
+  checkpointDatabase,
 } from './localDb.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -1715,6 +1716,21 @@ async function handleDbQuery(req, res) {
           row.updated_at = new Date().toISOString();
         }
 
+        // Field defaults to guarantee persistence and visibility in catalog queries
+        if (table === 'job_listings') {
+          if (!row.status) row.status = 'active';
+          if (!row.expires_at) {
+            const exp = new Date();
+            exp.setDate(exp.getDate() + 30);
+            row.expires_at = exp.toISOString();
+          }
+        }
+        if (table === 'talent_marketplace_posts') {
+          if (row.is_published === undefined || row.is_published === null) row.is_published = 1;
+          if (!row.availability_status) row.availability_status = 'available';
+          if (row.views_count === undefined || row.views_count === null) row.views_count = 0;
+        }
+
         // Parse object or array JSON fields for SQLite storage
         const processed = {};
         for (const [k, v] of Object.entries(row)) {
@@ -1738,7 +1754,9 @@ async function handleDbQuery(req, res) {
         insertedRows.push(enrichRowRelations(table, inserted));
       }
 
-      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts') jobSearchCache.clear();
+      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts' || table === 'companies' || table === 'seeker_profiles') {
+        if (jobSearchCache && typeof jobSearchCache.clear === 'function') jobSearchCache.clear();
+      }
       const result = Array.isArray(data) ? insertedRows : insertedRows[0];
       return sendJson(res, 200, { data: result, error: null });
     }
@@ -1788,7 +1806,9 @@ async function handleDbQuery(req, res) {
         }
       }
 
-      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts') jobSearchCache.clear();
+      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts' || table === 'companies' || table === 'seeker_profiles') {
+        if (jobSearchCache && typeof jobSearchCache.clear === 'function') jobSearchCache.clear();
+      }
       const updatedRows = queryAll(`SELECT * FROM "${table}" ${whereSql}`, params);
       return sendJson(res, 200, { data: enrichRowsRelations(table, updatedRows), error: null });
     }
@@ -1831,7 +1851,9 @@ async function handleDbQuery(req, res) {
 
       execute(`DELETE FROM "${table}" ${whereSql}`, params);
 
-      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts') jobSearchCache.clear();
+      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts' || table === 'companies' || table === 'seeker_profiles') {
+        if (jobSearchCache && typeof jobSearchCache.clear === 'function') jobSearchCache.clear();
+      }
       return sendJson(res, 200, { data: toDelete, error: null });
     }
 
@@ -1887,6 +1909,21 @@ async function handleDbQuery(req, res) {
           row.updated_at = new Date().toISOString();
         }
 
+        // Field defaults to guarantee persistence and visibility in catalog queries
+        if (table === 'job_listings') {
+          if (!row.status) row.status = 'active';
+          if (!row.expires_at) {
+            const exp = new Date();
+            exp.setDate(exp.getDate() + 30);
+            row.expires_at = exp.toISOString();
+          }
+        }
+        if (table === 'talent_marketplace_posts') {
+          if (row.is_published === undefined || row.is_published === null) row.is_published = 1;
+          if (!row.availability_status) row.availability_status = 'available';
+          if (row.views_count === undefined || row.views_count === null) row.views_count = 0;
+        }
+
         const keys = Object.keys(row).filter((k) => /^[a-zA-Z0-9_]+$/.test(k));
         const placeholders = keys.map(() => '?').join(', ');
         const values = keys.map((k) => (row[k] !== null && typeof row[k] === 'object' ? JSON.stringify(row[k]) : (typeof row[k] === 'boolean' ? (row[k] ? 1 : 0) : row[k])));
@@ -1895,7 +1932,9 @@ async function handleDbQuery(req, res) {
         execute(sql, values);
       }
 
-      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts') jobSearchCache.clear();
+      if (table === 'job_listings' || table === 'jasa_ads' || table === 'talent_marketplace_posts' || table === 'companies' || table === 'seeker_profiles') {
+        if (jobSearchCache && typeof jobSearchCache.clear === 'function') jobSearchCache.clear();
+      }
       const resRow = hasAllConflictValues
         ? queryOne(`SELECT * FROM "${table}" WHERE ${conflictWhere}`, conflictValues)
         : (record.id ? queryOne(`SELECT * FROM "${table}" WHERE id = ?`, [record.id]) : null);
@@ -4551,6 +4590,7 @@ async function handleAdminPublishSmartCv(req, res) {
            portfolio_url = COALESCE(NULLIF(?, ''), portfolio_url),
            badge = ?,
            photo_url = COALESCE(NULLIF(?, ''), photo_url),
+           is_published = 1,
            updated_at = ?
          WHERE id = ?`,
         [
@@ -4621,6 +4661,14 @@ async function handleAdminPublishSmartCv(req, res) {
           now,
         ]
       );
+    } catch {
+      // non-blocking
+    }
+
+    try {
+      if (jobSearchCache && typeof jobSearchCache.clear === 'function') {
+        jobSearchCache.clear();
+      }
     } catch {
       // non-blocking
     }

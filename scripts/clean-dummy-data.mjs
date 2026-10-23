@@ -36,16 +36,9 @@ try {
   console.log(`- Ditemukan ${testUsers.length} akun user dummy/test untuk dibersihkan.`);
 
   for (const u of testUsers) {
-    // Delete talent posts
-    db.prepare('DELETE FROM talent_marketplace_posts WHERE user_id = ?').run(u.id);
-
-    // Delete seeker education & experience
-    const seeker = db.prepare('SELECT id FROM seeker_profiles WHERE user_id = ?').get(u.id);
-    if (seeker) {
-      db.prepare('DELETE FROM seeker_education WHERE seeker_id = ?').run(seeker.id);
-      db.prepare('DELETE FROM seeker_experience WHERE seeker_id = ?').run(seeker.id);
-      db.prepare('DELETE FROM seeker_profiles WHERE id = ?').run(seeker.id);
-    }
+    // Decouple talent posts & seeker profiles instead of destroying candidate data
+    db.prepare('UPDATE talent_marketplace_posts SET user_id = NULL WHERE user_id = ?').run(u.id);
+    db.prepare('UPDATE seeker_profiles SET user_id = NULL WHERE user_id = ?').run(u.id);
 
     // Delete users_meta & user
     db.prepare('DELETE FROM users_meta WHERE id = ?').run(u.id);

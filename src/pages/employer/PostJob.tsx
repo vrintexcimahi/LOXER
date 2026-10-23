@@ -108,6 +108,9 @@ export default function PostJob() {
     setError('');
     setSaving(true);
 
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+
     const jobPayload = {
       company_id: company.id,
       title: form.title,
@@ -119,7 +122,8 @@ export default function PostJob() {
       description: form.description,
       requirements: form.requirements,
       quota: parseInt(form.quota, 10) || 1,
-      status: form.status,
+      status: form.status || 'active',
+      expires_at: expiryDate.toISOString(),
     };
 
     let err: unknown = null;

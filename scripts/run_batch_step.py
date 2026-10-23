@@ -49,11 +49,23 @@ if res.returncode == 0:
     
     shutil.move(clean_dump, DB_PATH)
     
-    print('🔄 Syncing to production server (samsung-server)...')
-    subprocess.run(['ssh', 'samsung-server', 'pm2 stop loxer && rm -f /home/vrintex/loxer/data/loxer.db*'], check=True)
-    subprocess.run(['scp', '-B', DB_PATH, 'samsung-server:/home/vrintex/loxer/data/loxer.db'], check=True)
+    print('🔄 Incrementally merging batch records to production server (samsung-server)...')
     subprocess.run(['scp', '-B', '-r', os.path.join(BASE_DIR, 'public/uploads/posters'), 'samsung-server:/home/vrintex/loxer/public/uploads/'], check=True)
-    subprocess.run(['ssh', 'samsung-server', 'pm2 start loxer'], check=True)
+    subprocess.run(['scp', '-B', DB_PATH, 'samsung-server:/tmp/loxer_incoming.db'], check=True)
+    merge_cmd = (
+        'python3 -c "'
+        'import sqlite3; '
+        'con = sqlite3.connect(\'/home/vrintex/loxer/data/loxer.db\'); '
+        'con.execute(\'PRAGMA busy_timeout = 10000;\'); '
+        'con.execute(\'ATTACH DATABASE \\"/tmp/loxer_incoming.db\\" AS incoming;\'); '
+        'con.execute(\'BEGIN TRANSACTION;\'); '
+        'con.execute(\'INSERT OR IGNORE INTO companies SELECT * FROM incoming.companies;\'); '
+        'con.execute(\'INSERT OR IGNORE INTO job_listings SELECT * FROM incoming.job_listings;\'); '
+        'con.execute(\'COMMIT;\'); '
+        'con.execute(\'PRAGMA wal_checkpoint(TRUNCATE);\'); '
+        'con.close()" && rm -f /tmp/loxer_incoming.db && pm2 reload loxer'
+    )
+    subprocess.run(['ssh', 'samsung-server', merge_cmd], check=True)
     
     # Post-deployment smoke test (Saran 47)
     try:

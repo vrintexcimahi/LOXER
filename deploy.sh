@@ -15,9 +15,11 @@ echo "=== [2/6] Mem-backup data SQLite & environment produksi ==="
 mkdir -p data/backups
 LATEST_BACKUP_DB=""
 if [ -f "data/loxer.db" ]; then
+  # Flush all committed transactions from WAL into main database before backup
+  python3 -c "import sqlite3; con=sqlite3.connect('data/loxer.db'); cur=con.cursor(); cur.execute('PRAGMA wal_checkpoint(TRUNCATE);'); con.close()" 2>/dev/null || true
   LATEST_BACKUP_DB="data/backups/loxer_$(date +%Y%m%d_%H%M%S).db"
   cp data/loxer.db "$LATEST_BACKUP_DB"
-  echo "✔ Database SQLite dicadangkan ke $LATEST_BACKUP_DB"
+  echo "✔ Database SQLite dicadangkan ke $LATEST_BACKUP_DB (WAL flushed)"
 fi
 if [ -f ".env" ]; then
   cp .env data/backups/.env.prod.bak
@@ -32,6 +34,8 @@ git reset --hard "origin/$BRANCH"
 
 # Pertahankan database SQLite produksi dan file .env server
 if [ -n "$LATEST_BACKUP_DB" ] && [ -f "$LATEST_BACKUP_DB" ]; then
+  # Remove stale WAL/SHM files to prevent SQLite header salt mismatch / malformed disk image
+  rm -f data/loxer.db-wal data/loxer.db-shm
   cp "$LATEST_BACKUP_DB" data/loxer.db
   echo "✔ Database SQLite produksi server dipertahankan."
 fi

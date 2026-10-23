@@ -135,16 +135,32 @@ export function getLocalDb() {
         pendingDb = null;
       }
       if (err.message && (err.message.includes('malformed') || err.message.includes('corrupt'))) {
-        console.error('[localDb] CRITICAL: SQLite disk image is malformed! Executing automated self-healing...');
+        console.error('[localDb] CRITICAL: SQLite disk image error detected! Attempting safe recovery...');
         try {
           const timestamp = Date.now();
           const corruptBackup = path.join(DATA_DIR, `corrupted_loxer_${timestamp}.db`);
+          const walPath = `${DB_FILE}-wal`;
+          const shmPath = `${DB_FILE}-shm`;
+
+          // Step 1: In WAL mode, 95% of 'malformed' errors occur when -wal or -shm header is out-of-sync with DB_FILE.
+          // Before destroying the database, remove ONLY -wal and -shm and try opening the main DB_FILE!
+          if (fs.existsSync(walPath) || fs.existsSync(shmPath)) {
+            try { if (fs.existsSync(walPath)) fs.rmSync(walPath, { force: true }); } catch {}
+            try { if (fs.existsSync(shmPath)) fs.rmSync(shmPath, { force: true }); } catch {}
+            try {
+              dbInstance = initDbConnection();
+              globalThis.__loxer_db_instance = dbInstance;
+              console.warn('[localDb] Recovered database successfully by clearing stale WAL/SHM locks! Main DB preserved.');
+              return dbInstance;
+            } catch (recoveryErr) {
+              console.warn('[localDb] Direct WAL recovery unviable, preserving backup before reset:', recoveryErr.message);
+            }
+          }
+
           if (fs.existsSync(DB_FILE)) {
             try { fs.copyFileSync(DB_FILE, corruptBackup); } catch {}
             try { fs.rmSync(DB_FILE, { force: true }); } catch {}
           }
-          const walPath = `${DB_FILE}-wal`;
-          const shmPath = `${DB_FILE}-shm`;
           if (fs.existsSync(walPath)) {
             try { fs.rmSync(walPath, { force: true }); } catch {}
           }
@@ -434,10 +450,15 @@ export function getLocalDb() {
         FROM companies
         WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users_meta);
 
-        DELETE FROM talent_marketplace_posts
-        WHERE seeker_id NOT IN (SELECT id FROM seeker_profiles);
+        -- Protect talent_marketplace_posts: auto-create missing seeker_profiles stubs instead of deleting posts
+        INSERT OR IGNORE INTO seeker_profiles (id, full_name, photo_url, domicile_city, about, phone, created_at, updated_at)
+        SELECT seeker_id, headline, photo_url, domicile_city, bio, whatsapp_number, created_at, updated_at
+        FROM talent_marketplace_posts
+        WHERE seeker_id IS NOT NULL AND seeker_id NOT IN (SELECT id FROM seeker_profiles);
 
-        -- Decouple and clean any auto-generated dummy CV users from previous smart add runs or deleted test users
+        -- Decouple and protect talent & seeker records BEFORE deleting any users to prevent CASCADE wipes
+        UPDATE seeker_profiles SET user_id = NULL WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'cv_%@loxer.local');
+        UPDATE talent_marketplace_posts SET user_id = NULL WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'cv_%@loxer.local');
         UPDATE seeker_profiles SET user_id = NULL WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users);
         UPDATE talent_marketplace_posts SET user_id = NULL WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users);
         DELETE FROM users_meta WHERE email LIKE 'cv_%@loxer.local';
@@ -1461,6 +1482,17 @@ export function optimizeLocalDatabase() {
   }
 
   return results;
+}
+
+export function checkpointDatabase() {
+  try {
+    const db = getLocalDb();
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+    return true;
+  } catch (err) {
+    console.warn('[localDb] wal_checkpoint notice:', err.message);
+    return false;
+  }
 }
 
 
