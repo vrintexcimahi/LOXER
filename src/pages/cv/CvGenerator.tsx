@@ -318,11 +318,6 @@ export default function CvGenerator() {
                               </span>
                             </div>
                           )}
-                          {tpl.badge && (
-                            <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-slate-950/80 text-cyan-300 backdrop-blur-sm border border-cyan-400/30">
-                              {tpl.badge}
-                            </span>
-                          )}
                         </div>
 
                         <div>
