@@ -8,6 +8,8 @@ interface CvCanvasRendererProps {
   template: CvTemplateInfo;
   scale?: number;
   printMode?: boolean;
+  onUpdateField?: (field: keyof CvData, value: any) => void;
+  editable?: boolean;
 }
 
 export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
@@ -15,6 +17,8 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
   template,
   scale = 1,
   printMode = false,
+  onUpdateField,
+  editable = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -110,15 +114,36 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
                 <div className="space-y-2.5 text-[11px] text-white/90">
                   <div className="flex items-center gap-2">
                     <Phone size={13} className="shrink-0 text-cyan-300" />
-                    <span className="truncate">{cvData.phone || '-'}</span>
+                    <span
+                      contentEditable={editable}
+                      suppressContentEditableWarning
+                      onBlur={(e) => onUpdateField?.('phone', e.currentTarget.textContent || '')}
+                      className={`truncate ${editable ? 'hover:bg-white/20 px-1 rounded cursor-text' : ''}`}
+                    >
+                      {cvData.phone || '-'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Mail size={13} className="shrink-0 text-cyan-300" />
-                    <span className="truncate">{cvData.email || '-'}</span>
+                    <span
+                      contentEditable={editable}
+                      suppressContentEditableWarning
+                      onBlur={(e) => onUpdateField?.('email', e.currentTarget.textContent || '')}
+                      className={`truncate ${editable ? 'hover:bg-white/20 px-1 rounded cursor-text' : ''}`}
+                    >
+                      {cvData.email || '-'}
+                    </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <MapPin size={13} className="shrink-0 text-cyan-300 mt-0.5" />
-                    <span className="leading-tight">{cvData.city || '-'}</span>
+                    <span
+                      contentEditable={editable}
+                      suppressContentEditableWarning
+                      onBlur={(e) => onUpdateField?.('city', e.currentTarget.textContent || '')}
+                      className={`leading-tight ${editable ? 'hover:bg-white/20 px-1 rounded cursor-text' : ''}`}
+                    >
+                      {cvData.city || '-'}
+                    </span>
                   </div>
                   {cvData.linkedin && (
                     <div className="flex items-center gap-2">
@@ -217,12 +242,25 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
               {/* Header: Nama & Headline */}
               <div className="border-b-2 pb-4 mb-6" style={{ borderColor: primary }}>
                 <h1
-                  className="text-2xl font-black tracking-tight leading-tight uppercase font-sans"
+                  contentEditable={editable}
+                  suppressContentEditableWarning
+                  onBlur={(e) => onUpdateField?.('fullName', e.currentTarget.textContent || '')}
+                  className={`text-2xl font-black tracking-tight leading-tight uppercase font-sans ${
+                    editable ? 'hover:outline hover:outline-dashed hover:outline-cyan-400 hover:bg-cyan-500/10 cursor-text rounded px-1 transition-all' : ''
+                  }`}
                   style={{ color: primary }}
                 >
                   {cvData.fullName || 'Nama Lengkap'}
                 </h1>
-                <p className="text-sm font-bold tracking-wide mt-1" style={{ color: secondary }}>
+                <p
+                  contentEditable={editable}
+                  suppressContentEditableWarning
+                  onBlur={(e) => onUpdateField?.('headline', e.currentTarget.textContent || '')}
+                  className={`text-sm font-bold tracking-wide mt-1 ${
+                    editable ? 'hover:outline hover:outline-dashed hover:outline-cyan-400 hover:bg-cyan-500/10 cursor-text rounded px-1 transition-all' : ''
+                  }`}
+                  style={{ color: secondary }}
+                >
                   {cvData.headline || 'Posisi / Pekerjaan Impian'}
                 </p>
               </div>
@@ -235,7 +273,14 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
                     Tentang Saya
                   </h3>
                 </div>
-                <p className="text-[11px] text-slate-700 leading-relaxed text-justify">
+                <p
+                  contentEditable={editable}
+                  suppressContentEditableWarning
+                  onBlur={(e) => onUpdateField?.('summary', e.currentTarget.textContent || '')}
+                  className={`text-[11px] text-slate-700 leading-relaxed text-justify ${
+                    editable ? 'hover:outline hover:outline-dashed hover:outline-cyan-400 hover:bg-cyan-500/10 cursor-text rounded p-1 transition-all' : ''
+                  }`}
+                >
                   {cvData.summary ||
                     'Deskripsi ringkas profil profesional Anda, keunggulan kerja, serta dedikasi dalam memberikan hasil terbaik.'}
                 </p>

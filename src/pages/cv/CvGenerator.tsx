@@ -76,6 +76,13 @@ export default function CvGenerator() {
       : CV_TEMPLATES.filter((t) => t.category === selectedCategory);
 
   // 1-Click Quick Preset from Industry
+  const handleUpdateCvField = (field: keyof CvData, value: any) => {
+    setCvData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   const handleApplyPresetRole = async (roleName: string) => {
     setIsGeneratingAi(true);
     try {
@@ -224,9 +231,9 @@ export default function CvGenerator() {
       {/* Main Container */}
       <main className="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-3 flex-1 flex flex-col">
         {/* Workspace Layout: Left Panel Tabs (Templates / Edit / AI) vs Right Live Canvas */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-start">
-          {/* Left Column Controls (7 cols on desktop) */}
-          <div className="lg:col-span-6 xl:col-span-5 flex flex-col space-y-4">
+        <div className={`grid grid-cols-1 ${activeTab === 'templates' ? 'lg:grid-cols-1' : 'lg:grid-cols-12'} gap-6 flex-1 items-start`}>
+          {/* Left Column Controls */}
+          <div className={`${activeTab === 'templates' ? 'w-full' : 'lg:col-span-6 xl:col-span-5'} flex flex-col space-y-4`}>
             {/* Navigation Tabs Pill (Hanya Auto CV & Template CV) */}
             <div className="flex items-center p-1 bg-slate-200/70 dark:bg-slate-900/80 rounded-2xl border border-slate-300/60 dark:border-white/10">
               <button
@@ -287,7 +294,7 @@ export default function CvGenerator() {
                 </div>
 
                 {/* Templates Grid List */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[550px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[70vh] overflow-y-auto pr-1">
                   {filteredTemplates.map((tpl) => {
                     const isSelected = selectedTemplate.id === tpl.id;
                     return (
@@ -295,9 +302,10 @@ export default function CvGenerator() {
                         key={tpl.id}
                         onClick={() => {
                           setSelectedTemplate(tpl);
-                          showToast(`Template "${tpl.name}" terpilih!`);
+                          setActiveTab('auto_generator');
+                          showToast(`Template "${tpl.name}" terpilih! Silakan edit konten Anda.`);
                         }}
-                        className={`group cursor-pointer rounded-2xl border-2 p-2 transition-all relative flex flex-col justify-between ${
+                        className={`group cursor-pointer rounded-2xl border-2 p-2.5 transition-all relative flex flex-col justify-between hover:scale-[1.02] ${
                           isSelected
                             ? 'border-cyan-500 bg-cyan-500/10 shadow-lg shadow-cyan-500/20'
                             : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/60 hover:border-cyan-400/50'
@@ -815,71 +823,78 @@ export default function CvGenerator() {
             )}
           </div>
 
-          {/* Right Column: Interactive A4 Preview Canvas (7 cols on desktop) */}
-          <div className="lg:col-span-6 xl:col-span-7 flex flex-col items-center">
-            {/* Canvas Header Toolbar */}
-            <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-slate-200 dark:border-white/10">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Pratinjau A4
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                  {Math.round(zoomScale * 100)}%
-                </span>
-                <span className="text-[10px] font-semibold text-cyan-500 dark:text-cyan-400 truncate max-w-[180px] bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
-                  {selectedTemplate.name}
-                </span>
-              </div>
-
-              {/* Zoom Controls & Download Button */}
-              <div className="flex items-center justify-between sm:justify-end gap-2">
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setZoomScale((s) => Math.max(0.30, Number((s - 0.05).toFixed(2))))}
-                    className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
-                    title="Perkecil"
-                  >
-                    <ZoomOut size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setZoomScale((s) => Math.min(1.0, Number((s + 0.05).toFixed(2))))}
-                    className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
-                    title="Perbesar"
-                  >
-                    <ZoomIn size={15} />
-                  </button>
+          {/* Right Column: Interactive A4 Preview Canvas (Tampil saat mode Auto CV / Editing) */}
+          {activeTab !== 'templates' && (
+            <div className="lg:col-span-6 xl:col-span-7 flex flex-col items-center">
+              {/* Canvas Header Toolbar */}
+              <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-slate-200 dark:border-white/10">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Pratinjau A4
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    {Math.round(zoomScale * 100)}%
+                  </span>
+                  <span className="text-[10px] font-semibold text-cyan-500 dark:text-cyan-400 truncate max-w-[180px] bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
+                    {selectedTemplate.name}
+                  </span>
+                  <span className="text-[9px] font-medium bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/30">
+                    Klik teks untuk edit
+                  </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handlePrintPdf}
-                  className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 flex items-center gap-1.5 shadow-md shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer"
-                >
-                  <Download size={14} />
-                  <span>Download PDF</span>
-                </button>
-              </div>
-            </div>
+                {/* Zoom Controls & Download Button */}
+                <div className="flex items-center justify-between sm:justify-end gap-2">
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale((s) => Math.max(0.30, Number((s - 0.05).toFixed(2))))}
+                      className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                      title="Perkecil"
+                    >
+                      <ZoomOut size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale((s) => Math.min(1.0, Number((s + 0.05).toFixed(2))))}
+                      className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                      title="Perbesar"
+                    >
+                      <ZoomIn size={15} />
+                    </button>
+                  </div>
 
-            {/* Canvas Viewport (Precisely centered, zero horizontal drift) */}
-            <div className="w-full flex justify-center items-center py-2 px-0 overflow-hidden select-none">
-              <div
-                style={{
-                  width: `${210 * zoomScale}mm`,
-                  height: `${297 * zoomScale}mm`,
-                }}
-                className="relative shrink-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-300/80 dark:border-white/10 transition-all duration-150"
-              >
-                <CvCanvasRenderer
-                  cvData={cvData}
-                  template={selectedTemplate}
-                  scale={zoomScale}
-                />
+                  <button
+                    type="button"
+                    onClick={handlePrintPdf}
+                    className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 flex items-center gap-1.5 shadow-md shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Download size={14} />
+                    <span>Download PDF</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Canvas Viewport (Precisely centered, zero horizontal drift) */}
+              <div className="w-full flex justify-center items-center py-2 px-0 overflow-hidden select-none">
+                <div
+                  style={{
+                    width: `${210 * zoomScale}mm`,
+                    height: `${297 * zoomScale}mm`,
+                  }}
+                  className="relative shrink-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-300/80 dark:border-white/10 transition-all duration-150"
+                >
+                  <CvCanvasRenderer
+                    cvData={cvData}
+                    template={selectedTemplate}
+                    scale={zoomScale}
+                    editable={true}
+                    onUpdateField={handleUpdateCvField}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
 
