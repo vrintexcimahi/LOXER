@@ -133,13 +133,13 @@ function classNames(...values: Array<string | false | null | undefined>) {
 }
 
 function badgeRoleClass(role: UserRole | string) {
-  if (role === 'superadmin') return 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
-  if (role === 'admin') return 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
-  if (role === 'marketing') return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
-  if (role === 'customer_service') return 'bg-teal-500/20 text-teal-300 border border-teal-500/30';
-  if (role === 'employer') return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-  if (role === 'jasa') return 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
-  return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+  if (role === 'superadmin') return 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30 font-semibold';
+  if (role === 'admin') return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-500/30 font-semibold';
+  if (role === 'marketing') return 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300 border border-orange-200 dark:border-orange-500/30 font-semibold';
+  if (role === 'customer_service') return 'bg-teal-100 text-teal-800 dark:bg-teal-500/20 dark:text-teal-300 border border-teal-200 dark:border-teal-500/30 font-semibold';
+  if (role === 'employer') return 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 font-semibold';
+  if (role === 'jasa') return 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 font-semibold';
+  return 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 font-semibold';
 }
 
 function roleLabel(role: UserRole | string) {
@@ -1155,6 +1155,8 @@ function AdminUsers({
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [internalCount, setInternalCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
@@ -1186,23 +1188,17 @@ function AdminUsers({
     logs: [],
   });
 
-  // Filter rows based on account category and search query
+  // Filter rows based on search query (category and role are already filtered on server/DB)
   const filteredRows = useMemo(() => {
-    const targetRoles = accountCategory === 'internal' ? INTERNAL_ROLES : USER_ROLES;
-    let result = rows.filter((row) => targetRoles.includes(row.role));
-    if (roleFilter !== 'all') result = result.filter((r) => r.role === roleFilter);
     const query = search.trim().toLowerCase();
-    if (!query) return result;
-    return result.filter(
+    if (!query) return rows;
+    return rows.filter(
       (row) =>
         row.email.toLowerCase().includes(query) ||
         (row.full_name || '').toLowerCase().includes(query) ||
         (row.company_name || '').toLowerCase().includes(query)
     );
-  }, [rows, search, accountCategory, roleFilter]);
-
-  const internalCount = useMemo(() => rows.filter((r) => INTERNAL_ROLES.includes(r.role)).length, [rows]);
-  const userCount = useMemo(() => rows.filter((r) => USER_ROLES.includes(r.role)).length, [rows]);
+  }, [rows, search]);
 
   const loadUsersPage = useCallback(async (options?: { silent?: boolean }) => {
     if (!supabase) return;
@@ -1219,6 +1215,7 @@ function AdminUsers({
         url.searchParams.set('page', String(page));
         url.searchParams.set('page_size', String(PAGE_SIZE));
         url.searchParams.set('role', roleFilter);
+        url.searchParams.set('category', accountCategory);
         url.searchParams.set('sort', sortBy);
 
         const res = await fetch(url.toString(), {
@@ -1228,9 +1225,20 @@ function AdminUsers({
         });
 
         if (res.ok) {
-          const payload = (await res.json()) as { rows: AdminUserRow[]; total: number };
+          const payload = (await res.json()) as {
+            rows: AdminUserRow[];
+            total: number;
+            internalTotal?: number;
+            userTotal?: number;
+          };
           setRows(payload.rows || []);
           setTotal(payload.total || 0);
+          if (typeof payload.internalTotal === 'number') {
+            setInternalCount(payload.internalTotal);
+          }
+          if (typeof payload.userTotal === 'number') {
+            setUserCount(payload.userTotal);
+          }
           setLoading(false);
           return;
         }
@@ -1253,7 +1261,14 @@ function AdminUsers({
 
     let query = supabase.from('users_meta').select(baseSelectWithBan, { count: 'exact' });
 
-    if (roleFilter !== 'all') query = query.eq('role', roleFilter);
+    if (roleFilter !== 'all') {
+      query = query.eq('role', roleFilter);
+    } else if (accountCategory === 'internal') {
+      query = query.in('role', INTERNAL_ROLES);
+    } else {
+      query = query.in('role', USER_ROLES);
+    }
+
     if (sortBy === 'newest') query = query.order('created_at', { ascending: false });
     if (sortBy === 'oldest') query = query.order('created_at', { ascending: true });
     if (sortBy === 'email') query = query.order('email', { ascending: true });
@@ -1264,7 +1279,13 @@ function AdminUsers({
     if (error && /is_banned/i.test(error.message)) {
       console.warn('[AdminUsers] users_meta.is_banned missing, retrying without column');
       query = supabase.from('users_meta').select(baseSelectNoBan, { count: 'exact' });
-      if (roleFilter !== 'all') query = query.eq('role', roleFilter);
+      if (roleFilter !== 'all') {
+        query = query.eq('role', roleFilter);
+      } else if (accountCategory === 'internal') {
+        query = query.in('role', INTERNAL_ROLES);
+      } else {
+        query = query.in('role', USER_ROLES);
+      }
       if (sortBy === 'newest') query = query.order('created_at', { ascending: false });
       if (sortBy === 'oldest') query = query.order('created_at', { ascending: true });
       if (sortBy === 'email') query = query.order('email', { ascending: true });
@@ -1279,6 +1300,18 @@ function AdminUsers({
       onToast('error', `Gagal memuat data users: ${error.message}`);
       setLoading(false);
       return;
+    }
+
+    // Query global category counts in direct supabase fallback
+    try {
+      const [intCountRes, usrCountRes] = await Promise.all([
+        supabase.from('users_meta').select('*', { count: 'exact', head: true }).in('role', INTERNAL_ROLES),
+        supabase.from('users_meta').select('*', { count: 'exact', head: true }).in('role', USER_ROLES),
+      ]);
+      if (typeof intCountRes.count === 'number') setInternalCount(intCountRes.count);
+      if (typeof usrCountRes.count === 'number') setUserCount(usrCountRes.count);
+    } catch {
+      // ignore
     }
 
     const users = (data || []) as Array<AdminUserRow>;
@@ -1315,7 +1348,7 @@ function AdminUsers({
     }
 
     setLoading(false);
-  }, [onToast, page, roleFilter, sortBy]);
+  }, [onToast, page, roleFilter, sortBy, accountCategory]);
 
   useEffect(() => {
     loadUsersPage();
@@ -1515,60 +1548,64 @@ function AdminUsers({
   return (
     <section className="space-y-4">
       {/* ── Category Tab: Akun Internal vs Akun User ── */}
-      <div className="rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-md p-1 flex gap-1 shadow-xl shadow-black/20">
+      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md p-1.5 flex gap-1.5 shadow-md shadow-slate-200/50 dark:shadow-xl dark:shadow-black/20">
         <button
           type="button"
           onClick={() => { setAccountCategory('internal'); setPage(1); setRoleFilter('all'); }}
           className={classNames(
-            'flex-1 flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-bold transition-all',
+            'flex-1 flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer',
             accountCategory === 'internal'
               ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg shadow-rose-600/30 border border-rose-400/30'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5'
           )}
         >
           <ShieldCheck className="h-4 w-4" />
           <span>Akun Internal</span>
           <span className={classNames(
-            'rounded-full px-2 py-0.5 text-[11px] font-bold',
-            accountCategory === 'internal' ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-300'
+            'rounded-full px-2.5 py-0.5 text-[11px] font-bold transition-colors',
+            accountCategory === 'internal'
+              ? 'bg-white/25 text-white shadow-sm'
+              : 'bg-slate-200/90 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
           )}>{internalCount}</span>
         </button>
         <button
           type="button"
           onClick={() => { setAccountCategory('user'); setPage(1); setRoleFilter('all'); }}
           className={classNames(
-            'flex-1 flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-bold transition-all',
+            'flex-1 flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer',
             accountCategory === 'user'
               ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30 border border-indigo-400/30'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5'
           )}
         >
           <Users className="h-4 w-4" />
           <span>Akun User</span>
           <span className={classNames(
-            'rounded-full px-2 py-0.5 text-[11px] font-bold',
-            accountCategory === 'user' ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-300'
+            'rounded-full px-2.5 py-0.5 text-[11px] font-bold transition-colors',
+            accountCategory === 'user'
+              ? 'bg-white/25 text-white shadow-sm'
+              : 'bg-slate-200/90 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
           )}>{userCount}</span>
         </button>
       </div>
 
       {/* ── Category Description Banner ── */}
       {accountCategory === 'internal' ? (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 flex items-start gap-3">
-          <ShieldCheck className="h-5 w-5 text-rose-400 mt-0.5 shrink-0" />
+        <div className="rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50/80 dark:bg-rose-500/5 px-4 py-3 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-rose-600 dark:text-rose-400 mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-rose-300">Akun Internal — Pengelola Web</p>
-            <p className="text-xs text-slate-400 mt-0.5">Daftar akun khusus pengelolaan platform: Super Admin, Admin, Marketing, dan Customer Service.</p>
+            <p className="text-sm font-semibold text-rose-900 dark:text-rose-300">Akun Internal — Pengelola Web</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Daftar akun khusus pengelolaan platform: Super Admin, Admin, Marketing, dan Customer Service.</p>
           </div>
           <div className="ml-auto flex items-center gap-2 shrink-0">
             {onOpenRbac && (
               <button
                 type="button"
                 onClick={onOpenRbac}
-                className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 hover:border-amber-400/50 transition-all flex items-center gap-1.5 shadow-sm shadow-amber-950/20"
+                className="rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-100/80 dark:bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-900 dark:text-amber-300 hover:bg-amber-200/80 dark:hover:bg-amber-500/20 hover:border-amber-400/50 transition-all flex items-center gap-1.5 shadow-sm shadow-amber-950/10 cursor-pointer"
                 title="Kelola hak akses modul operasional untuk setiap peran"
               >
-                <Key className="h-3.5 w-3.5 text-amber-400" />
+                <Key className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                 <span>Kelola Hak Akses (RBAC)</span>
               </button>
             )}
@@ -1576,7 +1613,7 @@ function AdminUsers({
               <button
                 type="button"
                 onClick={() => setShowAddInternal(true)}
-                className="rounded-lg border border-rose-400/30 bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/25 transition-colors"
+                className="rounded-lg border border-rose-300 dark:border-rose-400/30 bg-rose-100/80 dark:bg-rose-500/15 px-3 py-1.5 text-xs font-bold text-rose-900 dark:text-rose-300 hover:bg-rose-200/80 dark:hover:bg-rose-500/25 transition-colors cursor-pointer"
               >
                 + Tambah Akun Internal
               </button>
@@ -1584,24 +1621,24 @@ function AdminUsers({
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 flex items-start gap-3">
-          <Users className="h-5 w-5 text-indigo-400 mt-0.5 shrink-0" />
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50/80 dark:bg-indigo-500/5 px-4 py-3 flex items-start gap-3">
+          <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-indigo-300">Akun User — Pengguna Platform</p>
-            <p className="text-xs text-slate-400 mt-0.5">Daftar akun pengguna terdaftar: Perusahaan (Employer), Pencari Kerja (Seeker), dan Penyedia Jasa.</p>
+            <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">Akun User — Pengguna Platform</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Daftar akun pengguna terdaftar: Perusahaan (Employer), Pencari Kerja (Seeker), dan Penyedia Jasa.</p>
           </div>
         </div>
       )}
 
-      <div className="rounded-xl border border-white/10 bg-slate-900 p-4">
+      <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div className="relative md:col-span-2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={accountCategory === 'internal' ? 'Cari email admin / nama...' : 'Cari email / nama / perusahaan...'}
-              className="w-full rounded-lg border border-white/10 bg-slate-800 py-2 pl-9 pr-3 text-sm text-white placeholder:text-slate-500"
+              className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
             />
           </div>
           <select
@@ -1610,7 +1647,7 @@ function AdminUsers({
               setPage(1);
               setRoleFilter(e.target.value as 'all' | UserRole);
             }}
-            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+            className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
           >
             <option value="all">Semua Role</option>
             {accountCategory === 'internal' ? (
@@ -1631,7 +1668,7 @@ function AdminUsers({
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'email')}
-            className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+            className="rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
           >
             <option value="newest">Terbaru</option>
             <option value="oldest">Terlama</option>
@@ -1643,31 +1680,31 @@ function AdminUsers({
       {/* ── Add Internal Account Modal ── */}
       {showAddInternal && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-rose-500/20 bg-slate-900 p-6 shadow-2xl shadow-rose-900/30">
+          <div className="w-full max-w-md rounded-2xl border border-rose-300 dark:border-rose-500/20 bg-white dark:bg-slate-900 p-6 shadow-2xl shadow-rose-900/20 text-slate-900 dark:text-white">
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-white">Tambah Akun Internal</h3>
-                <p className="mt-1 text-xs text-slate-400">Tambah akun pengelola platform (Admin, Marketing, CS)</p>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Tambah Akun Internal</h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Tambah akun pengelola platform (Admin, Marketing, CS)</p>
               </div>
-              <button onClick={() => setShowAddInternal(false)} className="text-slate-400 hover:text-white"><X className="h-5 w-5" /></button>
+              <button onClick={() => setShowAddInternal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-300">Email Akun</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Email Akun</label>
                 <input
                   type="email"
                   value={addInternalForm.email}
                   onChange={(e) => setAddInternalForm(f => ({ ...f, email: e.target.value }))}
                   placeholder="contoh@loxer.web.id"
-                  className="w-full rounded-lg border border-white/10 bg-slate-800 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-rose-500/50 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-rose-500/50 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-300">Role</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Role</label>
                 <select
                   value={addInternalForm.role}
                   onChange={(e) => setAddInternalForm(f => ({ ...f, role: e.target.value }))}
-                  className="w-full rounded-lg border border-white/10 bg-slate-800 px-3 py-2.5 text-sm text-slate-200 focus:border-rose-500/50 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-200 focus:border-rose-500/50 focus:outline-none"
                 >
                   {isSuperAdminUser && <option value="superadmin">Super Admin (Pemilik)</option>}
                   <option value="admin">Admin</option>
@@ -1679,14 +1716,14 @@ function AdminUsers({
             <div className="mt-5 flex gap-2">
               <button
                 onClick={() => setShowAddInternal(false)}
-                className="flex-1 rounded-lg border border-white/10 px-4 py-2.5 text-sm text-slate-300 hover:bg-white/5"
+                className="flex-1 rounded-lg border border-slate-200 dark:border-white/10 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
               >
                 Batal
               </button>
               <button
                 onClick={handleAddInternalAccount}
                 disabled={addInternalLoading || !addInternalForm.email}
-                className="flex-1 rounded-lg bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-600/25 hover:from-rose-500 hover:to-pink-500 disabled:opacity-50 transition-all"
+                className="flex-1 rounded-lg bg-gradient-to-r from-rose-600 to-pink-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-600/25 hover:from-rose-500 hover:to-pink-500 disabled:opacity-50 transition-all cursor-pointer"
               >
                 {addInternalLoading ? 'Menyimpan...' : 'Simpan Akun'}
               </button>
@@ -1695,7 +1732,7 @@ function AdminUsers({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-900">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-sm">
         {loading ? (
           <div className="space-y-3 p-4">
             <SkeletonBlock className="h-10" />
@@ -1704,7 +1741,7 @@ function AdminUsers({
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/10">
               <tr>
                 <th className="px-4 py-3 text-left">#</th>
                 <th className="px-4 py-3 text-left">User</th>
@@ -1716,57 +1753,81 @@ function AdminUsers({
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row, idx) => (
-                <tr
-                  key={row.id}
-                  className={`border-b border-white/5 text-slate-300 transition-colors ${
-                    idx % 2 === 0 ? '!bg-[#0b1329] hover:!bg-[#1e2c4d]' : '!bg-[#162038] hover:!bg-[#1e2c4d]'
-                  }`}
-                >
-                  <td className="px-4 py-3">{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-white">{row.full_name || row.company_name || '-'}</p>
-                  </td>
-                  <td className="px-4 py-3">{row.email}</td>
-                  <td className="px-4 py-3">
-                    <span className={classNames('rounded-full px-2 py-1 text-xs', badgeRoleClass(row.role))}>{roleLabel(row.role)}</span>
-                  </td>
-                  <td className="px-4 py-3">{new Date(row.created_at).toLocaleDateString('id-ID')}</td>
-                  <td className="px-4 py-3">
-                    {row.is_banned ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-1 text-xs text-red-300">
-                        <ShieldX className="h-3.5 w-3.5" /> Suspended
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-1 text-xs text-emerald-300">
-                        <ShieldCheck className="h-3.5 w-3.5" /> Aktif
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <button onClick={() => handleViewDetail(row)} className="rounded-md border border-white/10 px-2 py-1 hover:bg-white/10">
-                        Detail
-                      </button>
-                      <button onClick={() => handleChangeRole(row)} className="rounded-md border border-white/10 px-2 py-1 hover:bg-white/10">
-                        Ganti Role
-                      </button>
-                      <button
-                        onClick={() => handleBanUser(row)}
-                        className="rounded-md border border-red-400/30 px-2 py-1 text-red-300 hover:bg-red-500/10"
-                      >
-                        {row.is_banned ? 'Buka Suspend' : 'Suspend'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(row)}
-                        className="rounded-md border border-red-500/40 px-2 py-1 text-red-400 hover:bg-red-600/20"
-                      >
-                        Hapus
-                      </button>
+              {filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500 dark:text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Users className="h-8 w-8 text-slate-400 dark:text-slate-500 opacity-60" />
+                      <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">
+                        Tidak ada akun {accountCategory === 'internal' ? 'internal' : 'pengguna'} ditemukan
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {search ? 'Coba ubah kata kunci pencarian Anda' : 'Belum ada data pada kategori ini'}
+                      </p>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredRows.map((row, idx) => (
+                  <tr
+                    key={row.id}
+                    className={`border-b border-slate-100 dark:border-white/5 text-slate-700 dark:text-slate-300 transition-colors ${
+                      idx % 2 === 0
+                        ? 'bg-white hover:bg-slate-50/80 dark:bg-[#0b1329] dark:hover:bg-[#1e2c4d]'
+                        : 'bg-slate-50/40 hover:bg-slate-50/80 dark:bg-[#162038] dark:hover:bg-[#1e2c4d]'
+                    }`}
+                  >
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-slate-900 dark:text-white">{row.full_name || row.company_name || '-'}</p>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-300">{row.email}</td>
+                    <td className="px-4 py-3">
+                      <span className={classNames('rounded-full px-2.5 py-0.5 text-xs', badgeRoleClass(row.role))}>{roleLabel(row.role)}</span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{new Date(row.created_at).toLocaleDateString('id-ID')}</td>
+                    <td className="px-4 py-3">
+                      {row.is_banned ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-500/20 border border-red-200 dark:border-red-500/30 px-2.5 py-0.5 text-xs font-semibold text-red-700 dark:text-red-300">
+                          <ShieldX className="h-3.5 w-3.5" /> Suspended
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/30 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Aktif
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1.5 text-xs">
+                        <button
+                          onClick={() => handleViewDetail(row)}
+                          className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-2.5 py-1 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        >
+                          Detail
+                        </button>
+                        <button
+                          onClick={() => handleChangeRole(row)}
+                          className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-2.5 py-1 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        >
+                          Ganti Role
+                        </button>
+                        <button
+                          onClick={() => handleBanUser(row)}
+                          className="rounded-md border border-red-200 dark:border-red-400/30 bg-red-50/50 dark:bg-red-500/10 px-2.5 py-1 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors cursor-pointer"
+                        >
+                          {row.is_banned ? 'Buka Suspend' : 'Suspend'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(row)}
+                          className="rounded-md border border-red-300 dark:border-red-500/40 bg-red-50/50 dark:bg-red-500/10 px-2.5 py-1 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-600/20 transition-colors cursor-pointer"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         )}
@@ -1775,14 +1836,14 @@ function AdminUsers({
       <Pagination page={page} total={total} onChange={setPage} />
 
       {selected && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-5 shadow-2xl text-slate-900 dark:text-white">
             <div className="mb-4 flex items-start justify-between">
               <div>
-                <h3 className="text-lg font-semibold">Detail User</h3>
-                <p className="text-sm text-slate-400">{selected.email}</p>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Detail User</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{selected.email}</p>
               </div>
-              <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white font-medium text-sm cursor-pointer">
                 tutup
               </button>
             </div>
@@ -1796,22 +1857,22 @@ function AdminUsers({
             ) : (
               <div className="space-y-4 text-sm">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-white/10 bg-slate-800 p-3">
+                  <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 p-3">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Info Dasar</p>
-                    <p className="mt-2">Role: {roleLabel(selected.role)}</p>
-                    <p>Bergabung: {new Date(selected.created_at).toLocaleString('id-ID')}</p>
-                    <p>Status: {selected.is_banned ? 'Suspended' : 'Aktif'}</p>
+                    <p className="mt-2 text-slate-800 dark:text-slate-200">Role: {roleLabel(selected.role)}</p>
+                    <p className="text-slate-800 dark:text-slate-200">Bergabung: {new Date(selected.created_at).toLocaleString('id-ID')}</p>
+                    <p className="text-slate-800 dark:text-slate-200">Status: {selected.is_banned ? 'Suspended' : 'Aktif'}</p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-slate-800 p-3">
+                  <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 p-3">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Profil</p>
                     {selected.role === 'seeker' ? (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-2 space-y-1 text-slate-800 dark:text-slate-200">
                         <p>Nama: {(detailData.seeker?.full_name as string) || '-'}</p>
                         <p>Kota: {(detailData.seeker?.domicile_city as string) || '-'}</p>
                         <p>Skill: {detailData.skills.map((s) => s.skill_name).join(', ') || '-'}</p>
                       </div>
                     ) : (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-2 space-y-1 text-slate-800 dark:text-slate-200">
                         <p>Perusahaan: {(detailData.employer?.name as string) || '-'}</p>
                         <p>Verified: {(detailData.employer?.verified as boolean) ? 'Ya' : 'Belum'}</p>
                       </div>
@@ -1819,10 +1880,10 @@ function AdminUsers({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-slate-800 p-3">
+                <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 p-3">
                   <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Riwayat Ringkas</p>
                   {selected.role === 'seeker' ? (
-                    <ul className="space-y-1 text-slate-300">
+                    <ul className="space-y-1 text-slate-700 dark:text-slate-300">
                       {detailData.applications.slice(0, 5).map((item) => (
                         <li key={item.id}>
                           Lamaran {item.status} - {new Date(item.applied_at).toLocaleDateString('id-ID')}
@@ -1830,7 +1891,7 @@ function AdminUsers({
                       ))}
                     </ul>
                   ) : (
-                    <ul className="space-y-1 text-slate-300">
+                    <ul className="space-y-1 text-slate-700 dark:text-slate-300">
                       {detailData.jobs.slice(0, 5).map((item) => (
                         <li key={item.id}>
                           {item.title} ({item.status})
@@ -1840,11 +1901,11 @@ function AdminUsers({
                   )}
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-slate-800 p-3">
+                <div className="rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 p-3">
                   <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Timeline Audit (5 terakhir)</p>
-                  <ul className="space-y-2 text-slate-300">
+                  <ul className="space-y-2 text-slate-700 dark:text-slate-300">
                     {detailData.logs.map((log) => (
-                      <li key={log.id} className="rounded-lg bg-slate-900 p-2">
+                      <li key={log.id} className="rounded-lg bg-slate-100 dark:bg-slate-900 p-2">
                         <p>{log.action}</p>
                         <p className="text-xs text-slate-500">{formatRelativeTime(log.created_at)}</p>
                       </li>
@@ -1901,26 +1962,26 @@ function AdminUsersManagement({
   return (
     <div className="space-y-5">
       {/* Unified Header & SubTab Switcher */}
-      <div className="rounded-xl border border-white/10 bg-slate-900/90 backdrop-blur-md p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-xl shadow-black/20">
+      <div className="rounded-xl border border-slate-200/80 dark:border-white/10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-md shadow-slate-200/50 dark:shadow-xl dark:shadow-black/20">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-rose-500/20 to-pink-500/20 text-rose-400 border border-rose-500/30 shadow-inner shrink-0">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-rose-500/20 to-pink-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/30 shadow-inner shrink-0">
             <Users className="h-5 w-5" />
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Manajemen Users</h2>
-              <span className="rounded-full bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-bold text-rose-300 border border-rose-500/30">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">Manajemen Users</h2>
+              <span className="rounded-full bg-rose-500/10 dark:bg-rose-500/20 px-2.5 py-0.5 text-[11px] font-bold text-rose-600 dark:text-rose-300 border border-rose-500/30">
                 Pusat Kendali Pengguna
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-400 max-w-2xl leading-relaxed">
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed">
               Manajemen akun terpadu: kelola hak akses role, suspensi, monitoring kapabilitas & device intelligence, serta audit keamanan sesi perangkat.
             </p>
           </div>
         </div>
 
         {/* Sub-tab Switcher Pills */}
-        <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-950/80 border border-white/10 shrink-0 overflow-x-auto max-w-full">
+        <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-white/10 shrink-0 overflow-x-auto max-w-full">
           <button
             type="button"
             onClick={() => handleSubTabChange('accounts')}
@@ -1928,7 +1989,7 @@ function AdminUsersManagement({
               'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
               subTab === 'accounts'
                 ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/25 border border-rose-400/40'
-                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 border border-transparent'
             )}
           >
             <Users className="h-4 w-4" />
@@ -1942,10 +2003,10 @@ function AdminUsersManagement({
               'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
               subTab === 'rbac'
                 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25 border border-amber-400/40'
-                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 border border-transparent'
             )}
           >
-            <ShieldCheck className="h-4 w-4 text-amber-400" />
+            <ShieldCheck className="h-4 w-4 text-amber-500 dark:text-amber-400" />
             <span>Hak Akses Modul (RBAC)</span>
           </button>
 
@@ -1956,7 +2017,7 @@ function AdminUsersManagement({
               'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
               subTab === 'intelligence'
                 ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/25 border border-cyan-400/40'
-                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 border border-transparent'
             )}
           >
             <Layers className="h-4 w-4" />
@@ -1970,7 +2031,7 @@ function AdminUsersManagement({
               'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
               subTab === 'devices'
                 ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 border border-indigo-400/40'
-                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 border border-transparent'
             )}
           >
             <Smartphone className="h-4 w-4" />

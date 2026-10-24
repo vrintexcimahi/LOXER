@@ -21,7 +21,7 @@ import { ROLE_PRESETS, generateCvDataAutomatically } from '../../services/cvAiSe
 import { CvCanvasRenderer } from '../../components/cv/CvCanvasRenderer';
 
 export default function CvGenerator() {
-  const [activeTab, setActiveTab] = useState<'auto_generator' | 'templates'>('auto_generator');
+  const [activeTab, setActiveTab] = useState<'auto_generator' | 'templates' | 'editor'>('templates');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [selectedTemplate, setSelectedTemplate] = useState<CvTemplateInfo>(CV_TEMPLATES[0]);
   const [cvData, setCvData] = useState<CvData>(INITIAL_CV_DATA);
@@ -234,21 +234,8 @@ export default function CvGenerator() {
         <div className={`grid grid-cols-1 ${activeTab === 'templates' ? 'lg:grid-cols-1' : 'lg:grid-cols-12'} gap-6 flex-1 items-start`}>
           {/* Left Column Controls */}
           <div className={`${activeTab === 'templates' ? 'w-full' : 'lg:col-span-6 xl:col-span-5'} flex flex-col space-y-4`}>
-            {/* Navigation Tabs Pill (Hanya Auto CV & Template CV) */}
+            {/* Navigation Tabs Pill */}
             <div className="flex items-center p-1 bg-slate-200/70 dark:bg-slate-900/80 rounded-2xl border border-slate-300/60 dark:border-white/10">
-              <button
-                type="button"
-                onClick={() => setActiveTab('auto_generator')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'auto_generator'
-                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Auto CV</span>
-              </button>
-
               <button
                 type="button"
                 onClick={() => setActiveTab('templates')}
@@ -260,6 +247,32 @@ export default function CvGenerator() {
               >
                 <LayoutTemplate className="w-4 h-4" />
                 <span>Template CV</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('editor')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  activeTab === 'editor'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <User className="w-4 h-4" />
+                <span>Edit Template</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('auto_generator')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  activeTab === 'auto_generator'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Auto CV</span>
               </button>
             </div>
 
@@ -302,7 +315,7 @@ export default function CvGenerator() {
                         key={tpl.id}
                         onClick={() => {
                           setSelectedTemplate(tpl);
-                          setActiveTab('auto_generator');
+                          setActiveTab('editor');
                           showToast(`Template "${tpl.name}" terpilih! Silakan edit konten Anda.`);
                         }}
                         className={`group cursor-pointer rounded-2xl border-2 p-2.5 transition-all relative flex flex-col justify-between hover:scale-[1.02] ${
@@ -343,7 +356,164 @@ export default function CvGenerator() {
               </div>
             )}
 
-            {/* TAB 2: Auto CV Generator (Struktur Lengkap Sulap Foto 9.7 VIP) */}
+            {/* TAB 2: Direct Element Editor (Canva Style) */}
+            {activeTab === 'editor' && (
+              <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-5 border border-slate-200 dark:border-white/10 shadow-sm space-y-4 max-h-[620px] overflow-y-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                      <LayoutTemplate className="w-4 h-4 text-cyan-500" />
+                      <span>Editor Elemen Template</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Ubah data per elemen di bawah ini atau klik langsung di lembar kerja A4
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20 truncate max-w-[120px]">
+                    {selectedTemplate.name}
+                  </span>
+                </div>
+
+                {/* 1. Header & Identitas Diri */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-cyan-500" />
+                    <span>Nama & Profesi</span>
+                  </h4>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Nama Lengkap:</label>
+                      <input
+                        type="text"
+                        value={cvData.fullName}
+                        onChange={(e) => handleUpdateCvField('fullName', e.target.value)}
+                        placeholder="Nama Lengkap Anda"
+                        className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Posisi / Jabatan Pekerjaan:</label>
+                      <input
+                        type="text"
+                        value={cvData.headline}
+                        onChange={(e) => handleUpdateCvField('headline', e.target.value)}
+                        placeholder="Contoh: Senior Graphic Designer"
+                        className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Informasi Kontak */}
+                <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-white/5">
+                  <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300">
+                    Informasi Kontak
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Email:</label>
+                      <input
+                        type="email"
+                        value={cvData.email}
+                        onChange={(e) => handleUpdateCvField('email', e.target.value)}
+                        placeholder="Email Anda"
+                        className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">No. WhatsApp / HP:</label>
+                      <input
+                        type="text"
+                        value={cvData.phone}
+                        onChange={(e) => handleUpdateCvField('phone', e.target.value)}
+                        placeholder="0812-3456-7890"
+                        className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Domisili / Kota:</label>
+                    <input
+                      type="text"
+                      value={cvData.city}
+                      onChange={(e) => handleUpdateCvField('city', e.target.value)}
+                      placeholder="Contoh: Kota Bandung, Jawa Barat"
+                      className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Ringkasan Profil */}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                  <label className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 block">
+                    Ringkasan Diri (Summary / Bio)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={cvData.summary}
+                    onChange={(e) => handleUpdateCvField('summary', e.target.value)}
+                    placeholder="Tulis ringkasan profil pengalaman dan keahlian Anda..."
+                    className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none leading-relaxed"
+                  />
+                </div>
+
+                {/* 4. Keahlian Langsung */}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                  <label className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 block">
+                    Keahlian &amp; Keterampilan
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {cvData.skills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 flex items-center gap-1"
+                      >
+                        {skill}
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCvField('skills', cvData.skills.filter((s) => s !== skill))}
+                          className="hover:text-red-400"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      id="edit-new-skill"
+                      type="text"
+                      placeholder="Tambah keahlian baru..."
+                      className="flex-1 p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = (e.target as HTMLInputElement).value.trim();
+                          if (val && !cvData.skills.includes(val)) {
+                            handleUpdateCvField('skills', [...cvData.skills, val]);
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById('edit-new-skill') as HTMLInputElement;
+                        if (el && el.value.trim() && !cvData.skills.includes(el.value.trim())) {
+                          handleUpdateCvField('skills', [...cvData.skills, el.value.trim()]);
+                          el.value = '';
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950"
+                    >
+                      Tambah
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: Auto CV Generator (Struktur Lengkap Sulap Foto 9.7 VIP) */}
             {activeTab === 'auto_generator' && (
               <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-5 border border-slate-200 dark:border-white/10 shadow-sm space-y-5 max-h-[620px] overflow-y-auto">
                 {/* Quick Industry Presets Pill */}
