@@ -81,6 +81,22 @@ body {
   min-height: 100dvh;
 }
 
+/* Hide scrollbar utility for chrome, safari and opera */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+/* Global scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--app-scrollbar-track); }
 ::-webkit-scrollbar-thumb { background: var(--app-scrollbar-thumb); border-radius: 999px; }

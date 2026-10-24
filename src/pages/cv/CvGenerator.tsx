@@ -40,12 +40,16 @@ export default function CvGenerator() {
   const [selectedModel, setSelectedModel] = useState<'gemini_pro' | 'nanobanana2' | 'seedream'>('gemini_pro');
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string>('');
 
-  // Responsive zoom scale calculation for mobile vs desktop
+  // Responsive zoom scale calculation for mobile vs desktop: precisely fits container width without overflow
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      if (width < 640) {
-        setZoomScale(0.42); // Fits 210mm A4 inside ~350px mobile screen nicely
+      if (width < 360) {
+        setZoomScale(0.33); // Fits small mobile
+      } else if (width < 420) {
+        setZoomScale(0.36); // Fits standard 375-390px mobile screens without horizontal scroll
+      } else if (width < 640) {
+        setZoomScale(0.40); // Fits large mobile
       } else if (width < 1024) {
         setZoomScale(0.55);
       } else {
@@ -1409,8 +1413,8 @@ export default function CvGenerator() {
               </div>
             </div>
 
-            {/* Canvas Viewport (Scrollable with centering) */}
-            <div className="w-full flex justify-center overflow-x-auto py-2 px-1">
+            {/* Canvas Viewport (Fit container width cleanly, scrollbar-none to eliminate horizontal scrollbar) */}
+            <div className="w-full flex justify-center overflow-x-auto py-2 px-0 scrollbar-none no-scrollbar">
               <div
                 style={{
                   width: `${210 * zoomScale}mm`,
