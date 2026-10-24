@@ -614,6 +614,73 @@ export async function saveSystemSettings(settings: SystemSettings): Promise<bool
   }
 }
 
+export interface SystemSettingsRevision {
+  id: string;
+  setting_key: string;
+  change_summary: string | null;
+  actor_email: string | null;
+  created_at: string;
+  payload_size: number;
+}
+
+/**
+ * Fetch historical revisions for system settings (M01 & M02)
+ */
+export async function fetchSettingsRevisions(): Promise<SystemSettingsRevision[]> {
+  try {
+    const token =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem('loxer_local_auth_token_admin') ||
+          window.localStorage.getItem('loxer_local_auth_token')
+        : '';
+    const res = await fetch('/api/system/settings/history', {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return Array.isArray(data?.history) ? data.history : [];
+    }
+  } catch (err) {
+    console.warn('[fetchSettingsRevisions] Error:', err);
+  }
+  return [];
+}
+
+/**
+ * 1-Click Rollback to a specific historical revision (M02)
+ */
+export async function rollbackSystemSettings(revisionId: string): Promise<{ ok: boolean; message: string; settings?: SystemSettings }> {
+  try {
+    const token =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem('loxer_local_auth_token_admin') ||
+          window.localStorage.getItem('loxer_local_auth_token')
+        : '';
+    const res = await fetch('/api/system/settings/rollback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ revision_id: revisionId }),
+    });
+    const data = await res.json();
+    if (res.ok && data?.ok && data?.settings) {
+      const merged = mergeSettingsWithDefaults(data.settings);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      }
+      applySystemSettingsToDom(merged);
+      return { ok: true, message: data.message, settings: merged };
+    }
+    return { ok: false, message: data?.message || 'Gagal melakukan rollback.' };
+  } catch (err: unknown) {
+    return { ok: false, message: err instanceof Error ? err.message : 'Koneksi rollback gagal.' };
+  }
+}
+
 /**
  * Reset to factory defaults
  */

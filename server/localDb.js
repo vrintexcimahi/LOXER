@@ -587,6 +587,16 @@ export function getLocalDb() {
           value TEXT NOT NULL,
           updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
         );
+
+        CREATE TABLE IF NOT EXISTS system_settings_revisions (
+          id TEXT PRIMARY KEY,
+          setting_key TEXT NOT NULL,
+          value TEXT NOT NULL,
+          change_summary TEXT,
+          actor_email TEXT,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_settings_rev_key ON system_settings_revisions(setting_key, created_at DESC);
       `);
     } catch (e) {
       console.warn('[localDb] system_settings setup notice:', e.message);

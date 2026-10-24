@@ -3755,6 +3755,12 @@ export function createLocalDbMiddleware(env = {}) {
       if (req.method === 'GET') return handleGetSystemSettings(req, res);
       if (req.method === 'POST') return handleSaveSystemSettings(req, res);
     }
+    if (path === '/api/system/settings/history' && req.method === 'GET') {
+      return handleGetSystemSettingsHistory(req, res);
+    }
+    if (path === '/api/system/settings/rollback' && req.method === 'POST') {
+      return handleRollbackSystemSettings(req, res);
+    }
 
     // Real-Time Web Traffic & Visitor Tracking (Public & Admin)
     // Mobile Shell endpoints (Master Prompt Section H & AK)
@@ -4731,12 +4737,50 @@ async function handleSaveSystemSettings(req, res) {
     const valueStr = JSON.stringify(body);
     const now = new Date().toISOString();
 
+    // 1. Capture current setting before overwrite for rollback history
+    try {
+      const prev = queryOne("SELECT value, updated_at FROM system_settings WHERE key = 'global_config' LIMIT 1");
+      if (prev && prev.value && prev.value !== valueStr) {
+        execute(
+          `INSERT INTO system_settings_revisions (id, setting_key, value, change_summary, actor_email, created_at)
+           VALUES (?, 'global_config', ?, ?, ?, ?)`,
+          [
+            crypto.randomUUID(),
+            prev.value,
+            'Snapshot sebelum pembaruan konfigurasi',
+            adminCheck?.admin?.email || 'admin@loxer.app',
+            prev.updated_at || now,
+          ]
+        );
+      }
+    } catch (e) {
+      // non-blocking
+    }
+
+    // 2. Persist new settings
     execute(
       `INSERT INTO system_settings (key, value, updated_at)
        VALUES ('global_config', ?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
       [valueStr, now]
     );
+
+    // 3. Save new revision snapshot
+    try {
+      execute(
+        `INSERT INTO system_settings_revisions (id, setting_key, value, change_summary, actor_email, created_at)
+         VALUES (?, 'global_config', ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          valueStr,
+          'Pembaruan konfigurasi aktif',
+          adminCheck?.admin?.email || 'admin@loxer.app',
+          now,
+        ]
+      );
+    } catch {
+      // non-blocking
+    }
 
     try {
       execute(
@@ -4762,6 +4806,107 @@ async function handleSaveSystemSettings(req, res) {
   } catch (err) {
     console.error('[handleSaveSystemSettings Error]:', err);
     return sendJson(res, 500, { ok: false, message: err.message || 'Gagal menyimpan pengaturan sistem.' });
+  }
+}
+
+async function handleGetSystemSettingsHistory(req, res) {
+  try {
+    const adminCheck = verifyAdminRequest(req);
+    if (!adminCheck.ok) {
+      return sendJson(res, adminCheck.status, { ok: false, message: adminCheck.message });
+    }
+    const rows = queryAll(
+      `SELECT id, setting_key, change_summary, actor_email, created_at, length(value) as payload_size
+       FROM system_settings_revisions
+       WHERE setting_key = 'global_config'
+       ORDER BY created_at DESC
+       LIMIT 25`
+    );
+    return sendJson(res, 200, { ok: true, history: rows || [] });
+  } catch (err) {
+    console.error('[handleGetSystemSettingsHistory Error]:', err);
+    return sendJson(res, 500, { ok: false, message: 'Gagal memuat riwayat revisi konfigurasi.' });
+  }
+}
+
+async function handleRollbackSystemSettings(req, res) {
+  try {
+    const adminCheck = verifyAdminRequest(req);
+    if (!adminCheck.ok) {
+      return sendJson(res, adminCheck.status, { ok: false, message: adminCheck.message });
+    }
+    const body = await parseJsonBody(req);
+    const revisionId = body?.revision_id;
+    if (!revisionId) {
+      return sendJson(res, 400, { ok: false, message: 'ID revisi harus disertakan.' });
+    }
+
+    const revRow = queryOne(
+      "SELECT value, setting_key, created_at FROM system_settings_revisions WHERE id = ? LIMIT 1",
+      [revisionId]
+    );
+    if (!revRow || !revRow.value) {
+      return sendJson(res, 404, { ok: false, message: 'Revisi konfigurasi tidak ditemukan.' });
+    }
+
+    const now = new Date().toISOString();
+    execute(
+      `INSERT INTO system_settings (key, value, updated_at)
+       VALUES ('global_config', ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [revRow.value, now]
+    );
+
+    // Record rollback action in revisions
+    try {
+      execute(
+        `INSERT INTO system_settings_revisions (id, setting_key, value, change_summary, actor_email, created_at)
+         VALUES (?, 'global_config', ?, ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          revRow.value,
+          `Rollback ke snapshot tanggal ${revRow.created_at}`,
+          adminCheck?.admin?.email || 'admin@loxer.app',
+          now,
+        ]
+      );
+    } catch {
+      // non-blocking
+    }
+
+    // Audit log
+    try {
+      execute(
+        `INSERT INTO audit_logs (id, admin_id, admin_email, action, target_type, target_id, detail, created_at)
+         VALUES (?, ?, ?, 'rollback_system_settings', 'system_settings', 'global_config', ?, ?)`,
+        [
+          crypto.randomUUID(),
+          adminCheck?.admin?.id || 'admin',
+          adminCheck?.admin?.email || 'admin@loxer.app',
+          JSON.stringify({ restored_from_revision: revisionId, target_date: revRow.created_at }),
+          now,
+        ]
+      );
+    } catch {
+      // ignore
+    }
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(revRow.value);
+    } catch {
+      parsed = null;
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      message: `Konfigurasi berhasil dipulihkan ke versi ${new Date(revRow.created_at).toLocaleString('id-ID')}!`,
+      settings: parsed,
+      updated_at: now,
+    });
+  } catch (err) {
+    console.error('[handleRollbackSystemSettings Error]:', err);
+    return sendJson(res, 500, { ok: false, message: err.message || 'Gagal memulihkan versi konfigurasi.' });
   }
 }
 

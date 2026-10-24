@@ -29,6 +29,8 @@ import {
   Share2,
   Globe,
   Building2,
+  History,
+  RotateCcw as UndoIcon,
 } from 'lucide-react';
 import GodModeLayout from './GodModeLayout';
 import AppLogo from '../../components/ui/AppLogo';
@@ -41,15 +43,23 @@ import {
   resetSystemSettings,
   applySystemSettingsToDom,
   playSystemSound,
+  fetchSettingsRevisions,
+  rollbackSystemSettings,
+  SystemSettingsRevision,
 } from '../../lib/systemSettingsService';
 
 export default function AdminSystemSettings() {
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
-  const [activeTab, setActiveTab] = useState<'theme' | 'assets' | 'audio' | 'video' | 'general'>('theme');
+  const [activeTab, setActiveTab] = useState<'theme' | 'assets' | 'audio' | 'video' | 'general' | 'revisions'>('theme');
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState<string | null>(null);
   const [previewDeviceMode, setPreviewDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
+
+  // M01 & M02 Revisions & Rollback state (Universal Super Admin OS v5.0)
+  const [revisions, setRevisions] = useState<SystemSettingsRevision[]>([]);
+  const [isLoadingRevisions, setIsLoadingRevisions] = useState(false);
+  const [isRollingBack, setIsRollingBack] = useState(false);
 
   // Asset Studio enhanced state
   const [assetCategoryFilter, setAssetCategoryFilter] = useState<'all' | 'logo' | 'banner' | 'avatar' | 'browser'>('all');
@@ -103,6 +113,7 @@ export default function AdminSystemSettings() {
       const ok = await saveSystemSettings(settings);
       if (ok) {
         showToast('success', 'Pengaturan sistem level-max berhasil disimpan & diterapkan ke seluruh aplikasi!');
+        loadRevisions();
       } else {
         showToast('error', 'Gagal menyinkronkan ke server backend, namun tersimpan di browser lokal.');
       }
@@ -110,6 +121,40 @@ export default function AdminSystemSettings() {
       showToast('error', `Terjadi kesalahan: ${err instanceof Error ? err.message : 'Gagal menyimpan'}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // M01 & M02 Load Revisions from Backend
+  const loadRevisions = async () => {
+    setIsLoadingRevisions(true);
+    try {
+      const list = await fetchSettingsRevisions();
+      setRevisions(list);
+    } finally {
+      setIsLoadingRevisions(false);
+    }
+  };
+
+  // M02 1-Click Rollback Handler
+  const handleRollback = async (rev: SystemSettingsRevision) => {
+    const dateFormatted = new Date(rev.created_at).toLocaleString('id-ID');
+    if (!window.confirm(`Yakin ingin memulihkan (rollback) seluruh konfigurasi ke versi snapshot tanggal ${dateFormatted}? Tindakan ini aman dan dapat dibalik.`)) {
+      return;
+    }
+    setIsRollingBack(true);
+    try {
+      const res = await rollbackSystemSettings(rev.id);
+      if (res.ok && res.settings) {
+        setSettings(res.settings);
+        showToast('success', res.message);
+        await loadRevisions();
+      } else {
+        showToast('error', res.message);
+      }
+    } catch (err: unknown) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal rollback.');
+    } finally {
+      setIsRollingBack(false);
     }
   };
 
@@ -121,6 +166,7 @@ export default function AdminSystemSettings() {
     const def = await resetSystemSettings();
     setSettings(def);
     showToast('info', 'Pengaturan sistem berhasil dikembalikan ke standar awal.');
+    loadRevisions();
   };
 
   // Export JSON
@@ -397,6 +443,22 @@ export default function AdminSystemSettings() {
           >
             <Sliders className="w-4 h-4 text-rose-400" />
             <span>5. Identitas & Kontrol Sistem</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('revisions');
+              loadRevisions();
+            }}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === 'revisions'
+                ? 'bg-purple-500/25 text-purple-300 border border-purple-400/50 shadow-sm shadow-purple-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <History className="w-4 h-4 text-purple-400" />
+            <span>6. Riwayat & Rollback (v5.0)</span>
           </button>
         </div>
 
@@ -2531,6 +2593,141 @@ export default function AdminSystemSettings() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 6: RIWAYAT REVISI & ROLLBACK (UNIVERSAL SUPER ADMIN OS v5.0 M01-M02) */}
+        {/* ========================================================================= */}
+        {activeTab === 'revisions' && (
+          <div className="space-y-6 animate-fade-in">
+            {/* Header Banner */}
+            <div className="rounded-3xl border border-purple-500/30 bg-gradient-to-r from-purple-950/40 via-slate-900/90 to-slate-900 p-6 shadow-xl relative overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-black border border-purple-500/30">
+                    <History className="w-3.5 h-3.5 text-purple-400" />
+                    <span>M01 &amp; M02 • Immutable Configuration Provenance</span>
+                  </div>
+                  <h3 className="text-lg font-black text-white">Riwayat Revisi &amp; 1-Click Rollback Snapshot</h3>
+                  <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                    Setiap perubahan konfigurasi sistem (brand, aset, warna, SEO, dan toggle sistem) dicatat ke database SQLite secara persisten.
+                    Bila terjadi kesalahan konfigurasi, Super Admin dapat memulihkan (rollback) seluruh sistem ke versi snapshot sebelumnya secara instan dan aman.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={isLoadingRevisions}
+                    onClick={loadRevisions}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRevisions ? 'animate-spin text-purple-400' : ''}`} />
+                    <span>Segarkan Riwayat</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={handleSave}
+                    className="px-4 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Buat Snapshot Baru</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Revisions Table / Timeline */}
+            <div className="rounded-3xl border border-white/10 bg-slate-900/90 backdrop-blur-md p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse" />
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                    Daftar Snapshot Riwayat Tersimpan ({revisions.length} Versi)
+                  </h4>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  Tersimpan di SQLite: <code className="text-purple-300">system_settings_revisions</code>
+                </span>
+              </div>
+
+              {isLoadingRevisions ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
+                  <RefreshCw className="w-6 h-6 animate-spin text-purple-400" />
+                  <span className="text-xs font-bold">Memuat riwayat revisi dari database...</span>
+                </div>
+              ) : revisions.length === 0 ? (
+                <div className="py-12 text-center space-y-2">
+                  <History className="w-10 h-10 text-slate-600 mx-auto" />
+                  <p className="text-xs font-bold text-slate-400">Belum ada riwayat snapshot tersimpan.</p>
+                  <p className="text-[11px] text-slate-500">
+                    Klik tombol &quot;Simpan Perubahan&quot; di atas untuk membuat snapshot konfigurasi pertama Anda.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {revisions.map((rev, idx) => {
+                    const isLatest = idx === 0;
+                    const dateObj = new Date(rev.created_at);
+                    const formattedDate = dateObj.toLocaleString('id-ID', {
+                      dateStyle: 'full',
+                      timeStyle: 'medium',
+                    });
+
+                    return (
+                      <div
+                        key={rev.id}
+                        className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                          isLatest
+                            ? 'border-purple-500/40 bg-purple-950/20 shadow-sm ring-1 ring-purple-500/20'
+                            : 'border-white/5 bg-slate-950/50 hover:border-white/10 hover:bg-slate-950/80'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-black text-white">{formattedDate}</span>
+                            {isLatest && (
+                              <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                AKTIF SAAT INI
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400">
+                              Oleh: <strong className="text-slate-300">{rev.actor_email || 'admin@loxer.app'}</strong>
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400">
+                            {rev.change_summary || 'Pembaruan konfigurasi global sistem LOXER'}
+                          </p>
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            Revision ID: {rev.id.slice(0, 16)}... • Ukuran payload: {(rev.payload_size / 1024).toFixed(1)} KB
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isRollingBack || isLatest}
+                            onClick={() => handleRollback(rev)}
+                            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all active:scale-95 ${
+                              isLatest
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5'
+                                : 'bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-600/30 cursor-pointer'
+                            }`}
+                            title={isLatest ? 'Versi ini sudah aktif saat ini' : 'Pulihkan seluruh konfigurasi ke versi ini'}
+                          >
+                            <UndoIcon className="w-3.5 h-3.5" />
+                            <span>{isLatest ? 'Versi Aktif' : 'Rollback ke Versi Ini'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
