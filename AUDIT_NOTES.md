@@ -1,3 +1,35 @@
+## [2026-10-25] Canva-Style Element-by-Element CV Template Editor
+
+### Scope / status
+- Area: Interactive Canva CV Workspace, Per-Element Selection, Floating Mini Actions, Dynamic Typography Formatting Bar, Instant Gallery Transition (`src/components/cv/CvCanvasRenderer.tsx`, `src/pages/cv/CvGenerator.tsx`)
+- Status: PASS (100% Pipeline Lulus, 0 Blocker, 0 Error, 0 Warning)
+
+### Changes & Features Implemented
+1. **Instant Gallery-to-Editor Transition (Canva UX Flow)**:
+   - Mengklik kartu template di tab "Template CV" kini secara instan beralih ke mode editor interaktif (`activeTab = 'editor'`), memilih elemen pembuka (`selectedElement = 'fullName'`), dan mengaktifkan pratinjau kanvas A4 pada tampilan mobile (`mobileView = 'preview'`).
+   - Dilengkapi badge hover "Edit Canva ⚡" pada kartu thumbnail dan notifikasi konfirmasi ramah pengguna.
+2. **Canva Visual Per-Element Bounding Box (`CvCanvasRenderer.tsx`)**:
+   - Membungkus seluruh elemen CV (`fullName`, `headline`, `photo`, `contact`, `summary`, `experience`, `education`, `skills`, `languages`, `certifications`, `interests`) dengan pembungkus interaktif Canva.
+   - Bounding box ungu Canva asli (`#8b3dff`, 2px solid) dengan efek ring glow saat elemen aktif.
+   - Dilengkapi handle pengatur sisi kiri & kanan (pill handle putih berbingkai ungu Canva) serta bubble mini floating action toolbar di atas elemen (`💬 [Label Elemen] ···`) persis seperti tampilan Canva.
+3. **Canva Pro Master Formatting Toolbar (`CvGenerator.tsx`)**:
+   - Ditempatkan mengambang di atas lembar kerja A4 dengan fungsionalitas:
+     - Indikator elemen aktif dengan pulsating badge ungu Canva.
+     - Penyesuaian ukuran huruf stepper numerik (`[-] 16 pt [+]`).
+     - Tombol toggle tipografi instan: Bold (`B`), Italic (`I`), dan Uppercase (`aA`).
+     - Palet warna instan (Template Primary, Secondary, Hitam Slate, Ungu Canva, Emerald, serta native custom color picker).
+     - Kolom pengeditan cepat inline (Fast Inline Input) untuk elemen teks langsung dari toolbar.
+     - Pita selektor cepat (Quick Ribbon) untuk melompat antar elemen CV dalam 1-klik.
+4. **Sinkronisasi Dua Arah (Bi-directional Sync)**:
+   - Mengklik elemen di kanvas langsung menyorot dan memfokuskan form terkait di bilah samping kiri.
+   - Memfokuskan kolom input di formulir kiri langsung menyorot elemen bersangkutan di kanvas A4 dengan bounding box Canva.
+
+### Verification
+- `npm run typecheck` — PASS (0 errors).
+- `npm run build` — PASS (Chunk Vite `CvGenerator` terbangun sukses dalam 6.83 detik).
+
+---
+
 ## [2026-09-18] Audit & Bug Fix
 
 ### Scope / status

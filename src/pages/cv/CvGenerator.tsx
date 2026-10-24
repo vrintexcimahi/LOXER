@@ -21,15 +21,36 @@ import {
   RotateCcw,
   UserCheck,
   AlertCircle,
+  Type,
+  Bold,
+  Italic,
+  X,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
 import { CV_TEMPLATES, CvTemplateInfo } from '../../lib/cvTemplates';
 import { CvData, INITIAL_CV_DATA, CvExperience, CvEducation } from '../../lib/cvTypes';
 import { ROLE_PRESETS, generateCvDataAutomatically } from '../../services/cvAiService';
-import { CvCanvasRenderer } from '../../components/cv/CvCanvasRenderer';
+import { CvCanvasRenderer, CanvaElementStyle } from '../../components/cv/CvCanvasRenderer';
 import { useAuth } from '../../contexts/useAuth';
 import { supabase } from '../../lib/supabase';
+
+const ELEMENT_LABELS: Record<string, string> = {
+  fullName: 'Nama Lengkap',
+  headline: 'Posisi / Headline',
+  photo: 'Foto Profil',
+  contact: 'Kontak Pribadi',
+  phone: 'No. WhatsApp',
+  email: 'Email',
+  city: 'Kota Domisili',
+  summary: 'Ringkasan Profil',
+  experience: 'Pengalaman Kerja',
+  education: 'Riwayat Pendidikan',
+  skills: 'Keahlian / Skill',
+  languages: 'Kemampuan Bahasa',
+  certifications: 'Sertifikasi',
+  interests: 'Hobi & Minat',
+};
 
 export default function CvGenerator() {
   const [activeTab, setActiveTab] = useState<'auto_generator' | 'templates' | 'editor'>('templates');
@@ -40,6 +61,10 @@ export default function CvGenerator() {
   const [zoomScale, setZoomScale] = useState<number>(0.65);
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Canva Per-Element Selection & Typography Styles
+  const [selectedElement, setSelectedElement] = useState<string | null>('fullName');
+  const [elementStyles, setElementStyles] = useState<Record<string, CanvaElementStyle>>({});
 
   // Auth & Seeker Sync
   const { user } = useAuth();
@@ -702,12 +727,14 @@ export default function CvGenerator() {
                         onClick={() => {
                           setSelectedTemplate(tpl);
                           setActiveTab('editor');
-                          showToast(`Template "${tpl.name}" terpilih! Silakan edit konten Anda.`);
+                          setSelectedElement('fullName');
+                          setMobileView('preview');
+                          showToast(`Template "${tpl.name}" dibuka di Canva Editor! Klik elemen di kanvas untuk mengedit.`);
                         }}
                         className={`group cursor-pointer rounded-2xl border-2 p-2.5 transition-all relative flex flex-col justify-between hover:scale-[1.02] ${
                           isSelected
-                            ? 'border-cyan-500 bg-cyan-500/10 shadow-lg shadow-cyan-500/20'
-                            : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/60 hover:border-cyan-400/50'
+                            ? 'border-[#8b3dff] bg-[#8b3dff]/10 shadow-lg shadow-[#8b3dff]/25 ring-2 ring-[#8b3dff]/30'
+                            : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/60 hover:border-[#8b3dff]/60 hover:shadow-md'
                         }`}
                       >
                         {/* Aspect Ratio A4 Miniature Thumbnail */}
@@ -718,9 +745,18 @@ export default function CvGenerator() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             loading="lazy"
                           />
+
+                          {/* Hover Action Badge: Buka Editor Canva */}
+                          <div className="absolute inset-0 bg-[#8b3dff]/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2 backdrop-blur-[0.5px]">
+                            <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-[#8b3dff] text-white shadow-xl flex items-center gap-1.5 transform translate-y-1 group-hover:translate-y-0 transition-transform">
+                              <Sparkles size={11} />
+                              <span>Edit Canva</span>
+                            </span>
+                          </div>
+
                           {isSelected && (
-                            <div className="absolute inset-0 bg-cyan-500/20 backdrop-blur-[1px] flex items-center justify-center">
-                              <span className="w-7 h-7 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center shadow-lg">
+                            <div className="absolute inset-0 bg-[#8b3dff]/25 backdrop-blur-[1px] flex items-center justify-center">
+                              <span className="w-7 h-7 rounded-full bg-[#8b3dff] text-white flex items-center justify-center shadow-lg">
                                 <Check size={16} strokeWidth={3} />
                               </span>
                             </div>
@@ -728,9 +764,14 @@ export default function CvGenerator() {
                         </div>
 
                         <div>
-                          <h4 className="text-[11px] font-bold line-clamp-1 text-slate-800 dark:text-slate-100">
-                            {tpl.name}
-                          </h4>
+                          <div className="flex items-center justify-between gap-1">
+                            <h4 className="text-[11px] font-bold line-clamp-1 text-slate-800 dark:text-slate-100">
+                              {tpl.name}
+                            </h4>
+                            <span className="text-[9px] font-black text-[#8b3dff] shrink-0">
+                              A4
+                            </span>
+                          </div>
                           <p className="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
                             {tpl.recommendedRoles}
                           </p>
@@ -761,9 +802,9 @@ export default function CvGenerator() {
                 </div>
 
                 {/* 1. Header & Identitas Diri */}
-                <div className="space-y-3">
+                <div className={`space-y-3 p-3 rounded-2xl transition-all ${['fullName', 'headline'].includes(selectedElement || '') ? 'border-2 border-[#8b3dff] bg-[#8b3dff]/5 shadow-sm ring-1 ring-[#8b3dff]/20' : ''}`}>
                   <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-cyan-500" />
+                    <User className="w-3.5 h-3.5 text-[#8b3dff]" />
                     <span>Nama & Profesi</span>
                   </h4>
                   <div className="space-y-2">
@@ -772,9 +813,10 @@ export default function CvGenerator() {
                       <input
                         type="text"
                         value={cvData.fullName}
+                        onFocus={() => setSelectedElement('fullName')}
                         onChange={(e) => handleUpdateCvField('fullName', e.target.value)}
                         placeholder="Nama Lengkap Anda"
-                        className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none font-bold"
+                        className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-[#8b3dff] outline-none font-bold"
                       />
                     </div>
                     <div>
@@ -782,16 +824,17 @@ export default function CvGenerator() {
                       <input
                         type="text"
                         value={cvData.headline}
+                        onFocus={() => setSelectedElement('headline')}
                         onChange={(e) => handleUpdateCvField('headline', e.target.value)}
                         placeholder="Contoh: Senior Graphic Designer"
-                        className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none"
+                        className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-[#8b3dff] outline-none"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* 2. Informasi Kontak */}
-                <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-white/5">
+                <div className={`space-y-3 pt-3 border-t border-slate-100 dark:border-white/5 p-3 rounded-2xl transition-all ${['contact', 'phone', 'email', 'city'].includes(selectedElement || '') ? 'border-2 border-[#8b3dff] bg-[#8b3dff]/5 shadow-sm ring-1 ring-[#8b3dff]/20' : ''}`}>
                   <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300">
                     Informasi Kontak
                   </h4>
@@ -801,6 +844,7 @@ export default function CvGenerator() {
                       <input
                         type="email"
                         value={cvData.email}
+                        onFocus={() => setSelectedElement('contact')}
                         onChange={(e) => handleUpdateCvField('email', e.target.value)}
                         placeholder="Email Anda"
                         className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none"
@@ -811,6 +855,7 @@ export default function CvGenerator() {
                       <input
                         type="text"
                         value={cvData.phone}
+                        onFocus={() => setSelectedElement('contact')}
                         onChange={(e) => handleUpdateCvField('phone', e.target.value)}
                         placeholder="0812-3456-7890"
                         className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none"
@@ -822,6 +867,7 @@ export default function CvGenerator() {
                     <input
                       type="text"
                       value={cvData.city}
+                      onFocus={() => setSelectedElement('contact')}
                       onChange={(e) => handleUpdateCvField('city', e.target.value)}
                       placeholder="Contoh: Kota Bandung, Jawa Barat"
                       className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none"
@@ -830,10 +876,10 @@ export default function CvGenerator() {
                 </div>
 
                 {/* 3. Pas Foto Profil */}
-                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                <div className={`space-y-2 pt-3 border-t border-slate-100 dark:border-white/5 p-3 rounded-2xl transition-all ${selectedElement === 'photo' ? 'border-2 border-[#8b3dff] bg-[#8b3dff]/5 shadow-sm ring-1 ring-[#8b3dff]/20' : ''}`}>
                   <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
-                      <Camera className="w-3.5 h-3.5 text-cyan-500" />
+                      <Camera className="w-3.5 h-3.5 text-[#8b3dff]" />
                       <span>Pas Foto Profil</span>
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium">Opsional</span>
@@ -867,13 +913,14 @@ export default function CvGenerator() {
                 </div>
 
                 {/* 4. Ringkasan Profil */}
-                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                <div className={`space-y-2 pt-3 border-t border-slate-100 dark:border-white/5 p-3 rounded-2xl transition-all ${selectedElement === 'summary' ? 'border-2 border-[#8b3dff] bg-[#8b3dff]/5 shadow-sm ring-1 ring-[#8b3dff]/20' : ''}`}>
                   <label className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 block">
                     Ringkasan Diri (Summary / Bio)
                   </label>
                   <textarea
                     rows={3}
                     value={cvData.summary}
+                    onFocus={() => setSelectedElement('summary')}
                     onChange={(e) => handleUpdateCvField('summary', e.target.value)}
                     placeholder="Tulis ringkasan profil pengalaman dan keahlian Anda..."
                     className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl outline-none leading-relaxed"
@@ -881,7 +928,7 @@ export default function CvGenerator() {
                 </div>
 
                 {/* 5. Pendidikan Terakhir */}
-                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                <div className={`space-y-2 pt-3 border-t border-slate-100 dark:border-white/5 p-3 rounded-2xl transition-all ${selectedElement === 'education' ? 'border-2 border-[#8b3dff] bg-[#8b3dff]/5 shadow-sm ring-1 ring-[#8b3dff]/20' : ''}`}>
                   <div className="flex items-center justify-between">
                     <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300">
                       Pendidikan Terakhir
@@ -907,6 +954,7 @@ export default function CvGenerator() {
                         <input
                           type="text"
                           value={edu.school}
+                          onFocus={() => setSelectedElement('education')}
                           onChange={(e) => {
                             const val = e.target.value;
                             setCvData((prev) => ({
@@ -921,6 +969,7 @@ export default function CvGenerator() {
                           <input
                             type="text"
                             value={edu.major}
+                            onFocus={() => setSelectedElement('education')}
                             onChange={(e) => {
                               const val = e.target.value;
                               setCvData((prev) => ({
@@ -934,6 +983,7 @@ export default function CvGenerator() {
                           <input
                             type="text"
                             value={edu.period}
+                            onFocus={() => setSelectedElement('education')}
                             onChange={(e) => {
                               const val = e.target.value;
                               setCvData((prev) => ({
@@ -951,7 +1001,7 @@ export default function CvGenerator() {
                 </div>
 
                 {/* 6. Pengalaman Kerja */}
-                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                <div className={`space-y-2 pt-3 border-t border-slate-100 dark:border-white/5 p-3 rounded-2xl transition-all ${selectedElement === 'experience' ? 'border-2 border-[#8b3dff] bg-[#8b3dff]/5 shadow-sm ring-1 ring-[#8b3dff]/20' : ''}`}>
                   <div className="flex items-center justify-between">
                     <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300">
                       Pengalaman Kerja
@@ -978,6 +1028,7 @@ export default function CvGenerator() {
                           <input
                             type="text"
                             value={exp.company}
+                            onFocus={() => setSelectedElement('experience')}
                             onChange={(e) => {
                               const val = e.target.value;
                               setCvData((prev) => ({
@@ -991,6 +1042,7 @@ export default function CvGenerator() {
                           <input
                             type="text"
                             value={exp.position}
+                            onFocus={() => setSelectedElement('experience')}
                             onChange={(e) => {
                               const val = e.target.value;
                               setCvData((prev) => ({
@@ -1005,6 +1057,7 @@ export default function CvGenerator() {
                         <input
                           type="text"
                           value={exp.period}
+                          onFocus={() => setSelectedElement('experience')}
                           onChange={(e) => {
                             const val = e.target.value;
                             setCvData((prev) => ({
@@ -1018,6 +1071,7 @@ export default function CvGenerator() {
                         <textarea
                           rows={2}
                           value={exp.description}
+                          onFocus={() => setSelectedElement('experience')}
                           onChange={(e) => {
                             const val = e.target.value;
                             setCvData((prev) => ({
@@ -1034,7 +1088,7 @@ export default function CvGenerator() {
                 </div>
 
                 {/* 7. Keahlian Langsung */}
-                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                <div className={`space-y-2 pt-3 border-t border-slate-100 dark:border-white/5 p-3 rounded-2xl transition-all ${selectedElement === 'skills' ? 'border-2 border-[#8b3dff] bg-[#8b3dff]/5 shadow-sm ring-1 ring-[#8b3dff]/20' : ''}`}>
                   <label className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 block">
                     Keahlian &amp; Keterampilan
                   </label>
@@ -1584,53 +1638,289 @@ export default function CvGenerator() {
           {/* Right Column: Interactive A4 Preview Canvas (Tampil saat mode Auto CV / Editing) */}
           {activeTab !== 'templates' && (
             <div className={`lg:col-span-6 xl:col-span-7 ${mobileView === 'form' ? 'hidden lg:flex' : 'flex'} flex-col items-center w-full`}>
-              {/* Canvas Header Toolbar */}
-              <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-slate-200 dark:border-white/10">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Pratinjau A4
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                    {Math.round(zoomScale * 100)}%
-                  </span>
-                  <span className="text-[10px] font-semibold text-cyan-500 dark:text-cyan-400 truncate max-w-[180px] bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
-                    {selectedTemplate.name}
-                  </span>
-                  <span className="text-[9px] font-medium bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/30">
-                    Klik teks untuk edit
-                  </span>
-                </div>
+              {/* Canva Pro Master Formatting Toolbar (Floating Top Typography & Style Controls) */}
+              <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-2.5 sm:p-3 mb-3 shadow-lg flex flex-col gap-2.5 transition-all">
+                {/* Upper Row: Selected Element Status, Canva Typography Bar & Zoom */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  {/* Left: Active Element Badge & Deselect / Switch Template */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#8b3dff]/10 text-[#8b3dff] border border-[#8b3dff]/30 text-xs font-black shadow-sm">
+                      <span className="w-2 h-2 rounded-full bg-[#8b3dff] animate-ping" />
+                      <span>
+                        {selectedElement ? (ELEMENT_LABELS[selectedElement] || selectedElement) : 'Pilih Elemen Kanvas'}
+                      </span>
+                    </div>
 
-                {/* Zoom Controls & Download Button */}
-                <div className="flex items-center justify-between sm:justify-end gap-2">
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-white/10">
+                    {selectedElement && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedElement(null)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        title="Batalkan Pilihan Elemen"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => setZoomScale((s) => Math.max(0.30, Number((s - 0.05).toFixed(2))))}
-                      className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
-                      title="Perkecil"
+                      onClick={() => setActiveTab('templates')}
+                      className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors"
+                      title="Ganti Template CV"
                     >
-                      <ZoomOut size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setZoomScale((s) => Math.min(1.0, Number((s + 0.05).toFixed(2))))}
-                      className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
-                      title="Perbesar"
-                    >
-                      <ZoomIn size={15} />
+                      <LayoutTemplate size={12} className="text-[#8b3dff]" />
+                      <span className="hidden sm:inline">Ganti</span> Template
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handlePrintPdf}
-                    className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 flex items-center gap-1.5 shadow-md shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <Download size={14} />
-                    <span>Download PDF</span>
-                  </button>
+                  {/* Center: Canva Typography Controls (Font Size, B, I, aA, Color Swatches) */}
+                  {selectedElement ? (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {/* Font Family Indicator */}
+                      <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10">
+                        <Type size={12} className="text-[#8b3dff]" />
+                        <span>Inter Canva</span>
+                      </span>
+
+                      {/* Font Size Stepper */}
+                      <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-white/10">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setElementStyles((prev) => {
+                              const cur = prev[selectedElement] || {};
+                              const currentOffset = cur.fontSizeOffset || 0;
+                              return { ...prev, [selectedElement]: { ...cur, fontSizeOffset: Math.max(-8, currentOffset - 2) } };
+                            });
+                          }}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 text-xs"
+                          title="Perkecil Ukuran Huruf"
+                        >
+                          -
+                        </button>
+                        <span className="px-2 text-xs font-black text-slate-800 dark:text-slate-100 min-w-[42px] text-center">
+                          {16 + (elementStyles[selectedElement]?.fontSizeOffset || 0)} pt
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setElementStyles((prev) => {
+                              const cur = prev[selectedElement] || {};
+                              const currentOffset = cur.fontSizeOffset || 0;
+                              return { ...prev, [selectedElement]: { ...cur, fontSizeOffset: Math.min(16, currentOffset + 2) } };
+                            });
+                          }}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 text-xs"
+                          title="Perbesar Ukuran Huruf"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Bold Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setElementStyles((prev) => {
+                            const cur = prev[selectedElement] || {};
+                            return { ...prev, [selectedElement]: { ...cur, isBold: !cur.isBold } };
+                          });
+                        }}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs transition-colors ${
+                          elementStyles[selectedElement]?.isBold
+                            ? 'bg-[#8b3dff] text-white shadow-sm'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-white/10'
+                        }`}
+                        title="Tebalkan Teks (Bold)"
+                      >
+                        <Bold size={13} strokeWidth={3} />
+                      </button>
+
+                      {/* Italic Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setElementStyles((prev) => {
+                            const cur = prev[selectedElement] || {};
+                            return { ...prev, [selectedElement]: { ...cur, isItalic: !cur.isItalic } };
+                          });
+                        }}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs transition-colors ${
+                          elementStyles[selectedElement]?.isItalic
+                            ? 'bg-[#8b3dff] text-white shadow-sm'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-white/10'
+                        }`}
+                        title="Miringkan Teks (Italic)"
+                      >
+                        <Italic size={13} />
+                      </button>
+
+                      {/* Uppercase Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setElementStyles((prev) => {
+                            const cur = prev[selectedElement] || {};
+                            return { ...prev, [selectedElement]: { ...cur, isUppercase: !cur.isUppercase } };
+                          });
+                        }}
+                        className={`px-2 h-7 rounded-lg flex items-center justify-center font-bold text-xs transition-colors ${
+                          elementStyles[selectedElement]?.isUppercase
+                            ? 'bg-[#8b3dff] text-white shadow-sm'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-white/10'
+                        }`}
+                        title="Huruf Kapital (Uppercase)"
+                      >
+                        aA
+                      </button>
+
+                      {/* Color Palette Chips */}
+                      <div className="flex items-center gap-1 pl-1 border-l border-slate-200 dark:border-white/10">
+                        {[
+                          { label: 'Template Primary', color: selectedTemplate.primaryColor || '#1e3a8a' },
+                          { label: 'Template Secondary', color: selectedTemplate.secondaryColor || '#3b82f6' },
+                          { label: 'Hitam Slate', color: '#0f172a' },
+                          { label: 'Ungu Canva', color: '#8b3dff' },
+                          { label: 'Emerald Hijau', color: '#059669' },
+                        ].map((col) => (
+                          <button
+                            key={col.color}
+                            type="button"
+                            onClick={() => {
+                              setElementStyles((prev) => {
+                                const cur = prev[selectedElement] || {};
+                                return { ...prev, [selectedElement]: { ...cur, color: col.color } };
+                              });
+                            }}
+                            style={{ backgroundColor: col.color }}
+                            className="w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 shadow-sm hover:scale-125 transition-transform"
+                            title={col.label}
+                          />
+                        ))}
+                        <label className="relative cursor-pointer" title="Pilih Warna Kustom">
+                          <input
+                            type="color"
+                            value={elementStyles[selectedElement]?.color || '#000000'}
+                            onChange={(e) => {
+                              const newColor = e.target.value;
+                              setElementStyles((prev) => {
+                                const cur = prev[selectedElement] || {};
+                                return { ...prev, [selectedElement]: { ...cur, color: newColor } };
+                              });
+                            }}
+                            className="opacity-0 absolute inset-0 w-5 h-5 cursor-pointer"
+                          />
+                          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-pink-500 via-amber-400 to-cyan-500 border border-white/50 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">
+                            +
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500 dark:text-slate-400 italic hidden sm:inline">
+                      💡 Klik elemen teks atau foto di bawah untuk membuka kontrol Canva
+                    </span>
+                  )}
+
+                  {/* Right: Zoom & Download PDF */}
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl border border-slate-200 dark:border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale((s) => Math.max(0.30, Number((s - 0.05).toFixed(2))))}
+                        className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                        title="Perkecil Kanvas"
+                      >
+                        <ZoomOut size={13} />
+                      </button>
+                      <span className="text-[10px] font-bold px-1 text-slate-700 dark:text-slate-300">
+                        {Math.round(zoomScale * 100)}%
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale((s) => Math.min(1.0, Number((s + 0.05).toFixed(2))))}
+                        className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                        title="Perbesar Kanvas"
+                      >
+                        <ZoomIn size={13} />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handlePrintPdf}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 flex items-center gap-1.5 shadow-md shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>PDF</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Lower Row: Fast Inline Input OR Element Selector Ribbon */}
+                {selectedElement && ['fullName', 'headline', 'phone', 'email', 'city', 'summary'].includes(selectedElement) ? (
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-white/5 animate-in fade-in">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#8b3dff] shrink-0">
+                      ✏️ Edit Teks:
+                    </span>
+                    {selectedElement === 'summary' ? (
+                      <textarea
+                        rows={1}
+                        value={cvData.summary}
+                        onChange={(e) => handleUpdateCvField('summary', e.target.value)}
+                        placeholder="Tulis ringkasan profil..."
+                        className="w-full px-3 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-[#8b3dff]/40 focus:border-[#8b3dff] rounded-xl outline-none"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={(cvData as any)[selectedElement] || ''}
+                        onChange={(e) => handleUpdateCvField(selectedElement as keyof CvData, e.target.value)}
+                        placeholder={`Ketik ${ELEMENT_LABELS[selectedElement]} baru...`}
+                        className="w-full px-3 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-[#8b3dff]/40 focus:border-[#8b3dff] rounded-xl outline-none font-medium"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedElement(null)}
+                      className="px-3 py-1 rounded-xl text-xs font-bold bg-[#8b3dff] text-white hover:bg-[#7828ea] transition-colors shrink-0 shadow-sm"
+                    >
+                      Selesai
+                    </button>
+                  </div>
+                ) : (
+                  /* Quick Ribbon Selector for All CV Sections */
+                  <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-0.5 scrollbar-thin text-[10px]">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+                      Pilih Elemen:
+                    </span>
+                    {[
+                      { id: 'fullName', label: '👤 Nama' },
+                      { id: 'headline', label: '💼 Posisi' },
+                      { id: 'photo', label: '🖼️ Foto' },
+                      { id: 'contact', label: '📞 Kontak' },
+                      { id: 'summary', label: '📝 Ringkasan' },
+                      { id: 'experience', label: '🏢 Pengalaman' },
+                      { id: 'education', label: '🎓 Pendidikan' },
+                      { id: 'skills', label: '⚡ Skill' },
+                      { id: 'languages', label: '🌐 Bahasa' },
+                      { id: 'certifications', label: '🏆 Sertifikasi' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSelectedElement(item.id)}
+                        className={`px-2.5 py-1 rounded-lg font-bold shrink-0 transition-all ${
+                          selectedElement === item.id
+                            ? 'bg-[#8b3dff] text-white shadow-sm'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Canvas Viewport (Precisely centered, zero horizontal drift) */}
@@ -1648,6 +1938,9 @@ export default function CvGenerator() {
                     scale={zoomScale}
                     editable={true}
                     onUpdateField={handleUpdateCvField}
+                    selectedElement={selectedElement}
+                    onSelectElement={setSelectedElement}
+                    elementStyles={elementStyles}
                   />
                 </div>
               </div>
