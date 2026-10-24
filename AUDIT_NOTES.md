@@ -1637,4 +1637,16 @@
 - `npm run test:local` — PASS (113/113 assertions lulus 100%).
 - `npm run build` — PASS (Vite production bundle selesai dalam 7.66s, chunk `CvGenerator` 82.80 kB).
 
+### Rekomendasi Terstruktur yang Dituntaskan (Sprint Eksekusi 2026-10-25)
+1. **Auto-Save Draft ke LocalStorage (`loxer_cv_draft_v2`)**:
+   - Berhasil dipasang dengan debounced saving (600ms) dan auto-restore saat halaman dibuka kembali.
+   - Dilengkapi status auto-save visual dengan pulse indicator dan tombol reset ke template default.
+2. **1-Click Sync dari Profil Pencari Kerja LOXER**:
+   - Terintegrasi dengan `useAuth` dan tabel database `seeker_profiles`, `seeker_education`, `seeker_experience`, `seeker_skills`.
+   - Menarik seluruh data biodata, nomor HP, email, domisili, foto profil, dan riwayat pekerjaan/pendidikan secara instan 1-tap.
+3. **Real-Time ATS Score & Interactive Suggestions Checklist**:
+   - Kalkulasi ATS compatibility score (0-100%) secara reaktif berdasarkan 8 parameter resmi HRD.
+   - Badge tingkat kesiapan (Perlu Dilengkapi, Cukup Baik, Sangat Baik / ATS Friendly) dengan dropdown checklist tips rekomendasi perbaikan.
+
+
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   Download,
@@ -15,6 +15,12 @@ import {
   Eye,
   Edit3,
   Camera,
+  Target,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  UserCheck,
+  AlertCircle,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
@@ -22,6 +28,8 @@ import { CV_TEMPLATES, CvTemplateInfo } from '../../lib/cvTemplates';
 import { CvData, INITIAL_CV_DATA, CvExperience, CvEducation } from '../../lib/cvTypes';
 import { ROLE_PRESETS, generateCvDataAutomatically } from '../../services/cvAiService';
 import { CvCanvasRenderer } from '../../components/cv/CvCanvasRenderer';
+import { useAuth } from '../../contexts/useAuth';
+import { supabase } from '../../lib/supabase';
 
 export default function CvGenerator() {
   const [activeTab, setActiveTab] = useState<'auto_generator' | 'templates' | 'editor'>('templates');
@@ -33,10 +41,223 @@ export default function CvGenerator() {
   const [isGeneratingAi, setIsGeneratingAi] = useState<boolean>(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
+  // Auth & Seeker Sync
+  const { user } = useAuth();
+  const [isSyncingProfile, setIsSyncingProfile] = useState<boolean>(false);
+  const [showAtsDetails, setShowAtsDetails] = useState<boolean>(false);
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+
   // Sulap Foto 9.7 VIP CV Form States
   const [selectedStyle, setSelectedStyle] = useState<string>('Profesional Formal');
   const [selectedColor, setSelectedColor] = useState<string>('Biru Profesional');
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string>('');
+
+  const DRAFT_KEY = 'loxer_cv_draft_v2';
+
+  // 1. Auto-Restore Saved Draft from LocalStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.fullName) {
+          setCvData(parsed);
+          setLastSavedTime('Tersimpan di perangkat');
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal memuat draft CV:', e);
+    }
+  }, []);
+
+  // 2. Debounced Auto-Save Draft
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(cvData));
+        const now = new Date();
+        setLastSavedTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+      } catch (e) {
+        console.warn('Gagal auto-save CV:', e);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [cvData]);
+
+  // 3. Reset to Default Template Data
+  const handleResetToDefault = () => {
+    if (window.confirm('Reset semua perubahan dan kembalikan ke data template awal?')) {
+      setCvData(INITIAL_CV_DATA);
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch (e) {
+        // ignore
+      }
+      showToast('Data CV dikembalikan ke template awal.');
+    }
+  };
+
+  // 4. 1-Click Sync from Seeker Profile (LOXER Database)
+  const handleSyncFromSeekerProfile = async () => {
+    if (!user) {
+      showToast('Silakan masuk ke akun LOXER Anda untuk menarik data profil.');
+      return;
+    }
+    if (!supabase) {
+      showToast('Layanan sinkronisasi database offline.');
+      return;
+    }
+
+    setIsSyncingProfile(true);
+    try {
+      const { data: p } = await supabase
+        .from('seeker_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!p) {
+        showToast('Profil Pencari Kerja belum ditemukan. Lengkapi profil Anda di menu Pekerja.');
+        return;
+      }
+
+      const [eduRes, expRes, skillRes] = await Promise.all([
+        supabase.from('seeker_education').select('*').eq('seeker_id', p.id).order('start_year', { ascending: false }),
+        supabase.from('seeker_experience').select('*').eq('seeker_id', p.id).order('start_date', { ascending: false }),
+        supabase.from('seeker_skills').select('*').eq('seeker_id', p.id),
+      ]);
+
+      const mappedEducations: CvEducation[] = (eduRes.data || []).map((edu: any, idx: number) => ({
+        id: `edu-sync-${idx}-${Date.now()}`,
+        school: edu.school_name || edu.institution_name || 'Institusi Pendidikan',
+        major: edu.degree || edu.field_of_study || 'Program Studi',
+        period: `${edu.start_year || ''} - ${edu.end_year || 'Sekarang'}`.trim(),
+        gpa: edu.grade || '',
+      }));
+
+      const mappedExperiences: CvExperience[] = (expRes.data || []).map((exp: any, idx: number) => ({
+        id: `exp-sync-${idx}-${Date.now()}`,
+        position: exp.job_title || exp.role_title || 'Posisi Pekerjaan',
+        company: exp.company_name || 'Nama Perusahaan',
+        period: `${exp.start_date || ''} - ${exp.end_date || 'Sekarang'}`.trim(),
+        description: exp.description || '',
+      }));
+
+      const mappedSkills: string[] = (skillRes.data || []).map((s: any) => s.skill_name || s.name).filter(Boolean);
+
+      setCvData((prev) => ({
+        ...prev,
+        fullName: p.full_name || prev.fullName,
+        email: user.email || prev.email,
+        phone: p.phone || prev.phone,
+        city: p.domicile_city || prev.city,
+        summary: p.about || prev.summary,
+        photoUrl: p.photo_url || prev.photoUrl,
+        educations: mappedEducations.length > 0 ? mappedEducations : prev.educations,
+        experiences: mappedExperiences.length > 0 ? mappedExperiences : prev.experiences,
+        skills: mappedSkills.length > 0 ? mappedSkills : prev.skills,
+      }));
+
+      showToast('Profil LOXER Anda berhasil ditarik ke dalam CV!');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal menyinkronkan profil LOXER.');
+    } finally {
+      setIsSyncingProfile(false);
+    }
+  };
+
+  // 5. Real-Time ATS Score Calculation & Interactive Checklist
+  const atsAnalysis = useMemo(() => {
+    let score = 0;
+    const checks: { label: string; passed: boolean; tip: string }[] = [];
+
+    // Identitas
+    const nameOk = !!cvData.fullName?.trim() && cvData.fullName.trim() !== 'Nama Lengkap';
+    checks.push({
+      label: 'Nama Lengkap Pelamar',
+      passed: nameOk,
+      tip: 'Isi nama lengkap Anda dengan benar.',
+    });
+    if (nameOk) score += 10;
+
+    // Posisi
+    const headlineOk = !!cvData.headline?.trim() && cvData.headline.trim() !== 'Posisi / Pekerjaan Impian';
+    checks.push({
+      label: 'Posisi Target Pekerjaan',
+      passed: headlineOk,
+      tip: 'Tuliskan posisi spesifik yang ingin dilamar.',
+    });
+    if (headlineOk) score += 10;
+
+    // Kontak
+    const contactOk = !!cvData.email?.trim() && !!cvData.phone?.trim();
+    checks.push({
+      label: 'Kontak (Email & WhatsApp)',
+      passed: contactOk,
+      tip: 'Lengkapi nomor kontak WhatsApp dan email aktif.',
+    });
+    if (contactOk) score += 10;
+
+    // Domisili
+    const cityOk = !!cvData.city?.trim();
+    checks.push({
+      label: 'Kota / Domisili',
+      passed: cityOk,
+      tip: 'Cantumkan kota domisili Anda untuk referensi HRD.',
+    });
+    if (cityOk) score += 10;
+
+    // Ringkasan Diri (Bio)
+    const summaryWords = cvData.summary?.trim().split(/\s+/).filter(Boolean).length || 0;
+    const summaryOk = summaryWords >= 15;
+    checks.push({
+      label: 'Ringkasan Profil (Min 15 kata)',
+      passed: summaryOk,
+      tip: 'Tulis ringkasan profil minimal 15 kata agar lolos saringan awal ATS.',
+    });
+    if (summaryOk) score += 15;
+
+    // Pengalaman
+    const expOk = (cvData.experiences || []).length > 0 && !!cvData.experiences[0]?.company?.trim();
+    checks.push({
+      label: 'Riwayat Pengalaman Kerja / Proyek',
+      passed: expOk,
+      tip: 'Cantumkan minimal 1 pengalaman kerja, magang, atau proyek.',
+    });
+    if (expOk) score += 15;
+
+    // Pendidikan
+    const eduOk = (cvData.educations || []).length > 0 && !!cvData.educations[0]?.school?.trim();
+    checks.push({
+      label: 'Pendidikan Terakhir',
+      passed: eduOk,
+      tip: 'Cantumkan sekolah atau perguruan tinggi terakhir Anda.',
+    });
+    if (eduOk) score += 15;
+
+    // Keahlian
+    const skillsCount = (cvData.skills || []).length;
+    const skillsOk = skillsCount >= 3;
+    checks.push({
+      label: 'Keahlian Utama (Min 3 Skill)',
+      passed: skillsOk,
+      tip: 'Tambahkan minimal 3 keahlian teknis atau kompetensi kerja.',
+    });
+    if (skillsOk) score += 15;
+
+    let tierLabel = 'Perlu Dilengkapi';
+    let tierBadgeClass = 'bg-amber-500/15 text-amber-500 dark:text-amber-400 border-amber-500/30';
+    if (score >= 80) {
+      tierLabel = 'Sangat Baik (ATS Friendly)';
+      tierBadgeClass = 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border-emerald-500/30';
+    } else if (score >= 60) {
+      tierLabel = 'Cukup Baik';
+      tierBadgeClass = 'bg-cyan-500/15 text-cyan-500 dark:text-cyan-400 border-cyan-500/30';
+    }
+
+    return { score: Math.min(100, score), checks, tierLabel, tierBadgeClass };
+  }, [cvData]);
 
   // Responsive zoom scale calculation for mobile vs desktop: precisely fits container width without overflow
   useEffect(() => {
@@ -336,6 +557,110 @@ export default function CvGenerator() {
                 <span>Auto CV</span>
               </button>
             </div>
+
+            {/* Smart Utilities Bar (ATS Score, Auto-Save Status, Sync LOXER Profile) */}
+            {activeTab !== 'templates' && (
+              <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-3 border border-slate-200 dark:border-white/10 shadow-sm space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  {/* ATS Score Button & Pill */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAtsDetails((v) => !v)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-black transition-all ${atsAnalysis.tierBadgeClass} hover:opacity-90 active:scale-95 cursor-pointer`}
+                    title="Klik untuk melihat tips kelengkapan ATS"
+                  >
+                    <Target size={14} className="shrink-0" />
+                    <span>Skor ATS: {atsAnalysis.score}%</span>
+                    <span className="text-[10px] font-semibold opacity-90 hidden sm:inline">
+                      • {atsAnalysis.tierLabel}
+                    </span>
+                    {showAtsDetails ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {/* 1-Click Sync LOXER Profile */}
+                    <button
+                      type="button"
+                      disabled={isSyncingProfile}
+                      onClick={handleSyncFromSeekerProfile}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-cyan-500/15 text-slate-700 dark:text-slate-300 hover:text-cyan-400 border border-slate-200 dark:border-white/5 text-[11px] font-bold flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                      title="Tarik data otomatis dari akun Profil Pencari Kerja LOXER Anda"
+                    >
+                      {isSyncingProfile ? (
+                        <RefreshCw size={12} className="animate-spin text-cyan-400" />
+                      ) : (
+                        <UserCheck size={13} className="text-cyan-500" />
+                      )}
+                      <span>Tarik Profil LOXER</span>
+                    </button>
+
+                    {/* Reset Button */}
+                    <button
+                      type="button"
+                      onClick={handleResetToDefault}
+                      className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-400 border border-slate-200 dark:border-white/5 text-xs transition-colors cursor-pointer"
+                      title="Kembalikan ke data awal"
+                    >
+                      <RotateCcw size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status Bar: Auto-Save Indicator */}
+                <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 px-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>
+                      {lastSavedTime ? `Draft tersimpan (${lastSavedTime})` : 'Draft otomatis tersimpan di perangkat'}
+                    </span>
+                  </div>
+                  <span className="font-medium text-slate-400">Penyimpanan lokal aman</span>
+                </div>
+
+                {/* Expandable ATS Score Breakdown & Actionable Checklist */}
+                {showAtsDetails && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-white/5 space-y-2 animate-fade-in">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                      <span>Kelengkapan Standar ATS HRD:</span>
+                      <span className="text-cyan-500 font-black">{atsAnalysis.score} / 100 poin</span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-500 ${
+                          atsAnalysis.score >= 80 ? 'bg-emerald-500' : atsAnalysis.score >= 60 ? 'bg-cyan-500' : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${atsAnalysis.score}%` }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 text-[10px]">
+                      {atsAnalysis.checks.map((chk, i) => (
+                        <div
+                          key={i}
+                          className={`p-2 rounded-xl border flex items-start gap-1.5 ${
+                            chk.passed
+                              ? 'bg-emerald-500/5 border-emerald-500/20 text-slate-700 dark:text-slate-300'
+                              : 'bg-amber-500/5 border-amber-500/20 text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          {chk.passed ? (
+                            <CheckCircle2 size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle size={13} className="text-amber-500 shrink-0 mt-0.5" />
+                          )}
+                          <div>
+                            <div className="font-bold leading-tight">{chk.label}</div>
+                            {!chk.passed && <div className="text-[9px] text-amber-600 dark:text-amber-400 mt-0.5">{chk.tip}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* TAB 1: Template Gallery */}
             {activeTab === 'templates' && (
