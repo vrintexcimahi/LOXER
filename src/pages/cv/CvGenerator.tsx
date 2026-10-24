@@ -53,7 +53,8 @@ const ELEMENT_LABELS: Record<string, string> = {
 };
 
 export default function CvGenerator() {
-  const [activeTab, setActiveTab] = useState<'auto_generator' | 'templates' | 'editor'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'auto_generator'>('templates');
+  const [templateSubView, setTemplateSubView] = useState<'gallery' | 'editor'>('gallery');
   const [mobileView, setMobileView] = useState<'form' | 'preview'>('form');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [selectedTemplate, setSelectedTemplate] = useState<CvTemplateInfo>(CV_TEMPLATES[0]);
@@ -505,7 +506,7 @@ export default function CvGenerator() {
       {/* Main Container */}
       <main className="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-3 flex-1 flex flex-col">
         {/* Mobile View Segmented Toggle (Only on mobile / <lg when viewing Editor or Auto CV) */}
-        {activeTab !== 'templates' && (
+        {((activeTab === 'templates' && templateSubView === 'editor') || activeTab === 'auto_generator') && (
           <div className="lg:hidden flex items-center p-1 bg-slate-200/80 dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-white/10 shadow-sm mb-3">
             <button
               type="button"
@@ -535,15 +536,16 @@ export default function CvGenerator() {
         )}
 
         {/* Workspace Layout: Left Panel Tabs (Templates / Edit / AI) vs Right Live Canvas */}
-        <div className={`grid grid-cols-1 ${activeTab === 'templates' ? 'lg:grid-cols-1' : 'lg:grid-cols-12'} gap-6 flex-1 items-start`}>
+        <div className={`grid grid-cols-1 ${activeTab === 'templates' && templateSubView === 'gallery' ? 'lg:grid-cols-1' : 'lg:grid-cols-12'} gap-6 flex-1 items-start`}>
           {/* Left Column Controls */}
-          <div className={`${activeTab === 'templates' ? 'w-full' : 'lg:col-span-6 xl:col-span-5'} ${activeTab !== 'templates' && mobileView === 'preview' ? 'hidden lg:flex' : 'flex'} flex-col space-y-4`}>
-            {/* Navigation Tabs Pill */}
+          <div className={`${activeTab === 'templates' && templateSubView === 'gallery' ? 'w-full' : 'lg:col-span-6 xl:col-span-5'} ${(activeTab === 'auto_generator' || templateSubView === 'editor') && mobileView === 'preview' ? 'hidden lg:flex' : 'flex'} flex-col space-y-4`}>
+            {/* Navigation Tabs Pill: HANYA DUA MENU UTAMA (Template CV & Auto CV) */}
             <div className="flex items-center p-1 bg-slate-200/70 dark:bg-slate-900/80 rounded-2xl border border-slate-300/60 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => {
                   setActiveTab('templates');
+                  setTemplateSubView('gallery');
                   setMobileView('form');
                 }}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -558,20 +560,10 @@ export default function CvGenerator() {
 
               <button
                 type="button"
-                onClick={() => setActiveTab('editor')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'editor'
-                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <User className="w-4 h-4" />
-                <span>Edit Template</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('auto_generator')}
+                onClick={() => {
+                  setActiveTab('auto_generator');
+                  setMobileView('form');
+                }}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'auto_generator'
                     ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
@@ -584,7 +576,7 @@ export default function CvGenerator() {
             </div>
 
             {/* Smart Utilities Bar (ATS Score, Auto-Save Status, Sync LOXER Profile) */}
-            {activeTab !== 'templates' && (
+            {((activeTab === 'templates' && templateSubView === 'editor') || activeTab === 'auto_generator') && (
               <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-3 border border-slate-200 dark:border-white/10 shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   {/* ATS Score Button & Pill */}
@@ -687,8 +679,8 @@ export default function CvGenerator() {
               </div>
             )}
 
-            {/* TAB 1: Template Gallery */}
-            {activeTab === 'templates' && (
+            {/* TAB 1: Template Gallery (Katalog 30 Desain CV) */}
+            {activeTab === 'templates' && templateSubView === 'gallery' && (
               <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-4 sm:p-5 border border-slate-200 dark:border-white/10 shadow-sm space-y-4">
                 {/* Category Filter Dropdown */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-slate-100 dark:border-white/5">
@@ -726,10 +718,10 @@ export default function CvGenerator() {
                         key={tpl.id}
                         onClick={() => {
                           setSelectedTemplate(tpl);
-                          setActiveTab('editor');
+                          setTemplateSubView('editor');
                           setSelectedElement('fullName');
                           setMobileView('preview');
-                          showToast(`Template "${tpl.name}" dibuka di Canva Editor! Klik elemen di kanvas untuk mengedit.`);
+                          showToast(`Template "${tpl.name}" terpilih! Klik teks kanvas untuk edit.`);
                         }}
                         className={`group cursor-pointer rounded-2xl border-2 p-2.5 transition-all relative flex flex-col justify-between hover:scale-[1.02] ${
                           isSelected
@@ -783,8 +775,8 @@ export default function CvGenerator() {
               </div>
             )}
 
-            {/* TAB 2: Direct Element Editor (Canva Style) */}
-            {activeTab === 'editor' && (
+            {/* TAB 1 (Sub-view Editor): Direct Element Editor (Canva Style) */}
+            {activeTab === 'templates' && templateSubView === 'editor' && (
               <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-5 border border-slate-200 dark:border-white/10 shadow-sm space-y-4 max-h-[620px] overflow-y-auto">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
                   <div>
@@ -796,9 +788,20 @@ export default function CvGenerator() {
                       Ubah data per elemen di bawah ini atau klik langsung di lembar kerja A4
                     </p>
                   </div>
-                  <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20 truncate max-w-[120px]">
-                    {selectedTemplate.name}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTemplateSubView('gallery')}
+                      className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors"
+                      title="Kembali ke Galeri Template"
+                    >
+                      <LayoutTemplate size={12} className="text-cyan-500" />
+                      <span>Ganti Template</span>
+                    </button>
+                    <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20 truncate max-w-[120px]">
+                      {selectedTemplate.name}
+                    </span>
+                  </div>
                 </div>
 
                 {/* 1. Header & Identitas Diri */}
@@ -1635,8 +1638,8 @@ export default function CvGenerator() {
             )}
           </div>
 
-          {/* Right Column: Interactive A4 Preview Canvas (Tampil saat mode Auto CV / Editing) */}
-          {activeTab !== 'templates' && (
+          {/* Right Column: Interactive A4 Preview Canvas (Tampil saat mode Editor Template atau Auto CV) */}
+          {((activeTab === 'templates' && templateSubView === 'editor') || activeTab === 'auto_generator') && (
             <div className={`lg:col-span-6 xl:col-span-7 ${mobileView === 'form' ? 'hidden lg:flex' : 'flex'} flex-col items-center w-full`}>
               {/* Canva Pro Master Formatting Toolbar (Floating Top Typography & Style Controls) */}
               <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-2.5 sm:p-3 mb-3 shadow-lg flex flex-col gap-2.5 transition-all">
@@ -1664,7 +1667,10 @@ export default function CvGenerator() {
 
                     <button
                       type="button"
-                      onClick={() => setActiveTab('templates')}
+                      onClick={() => {
+                        setActiveTab('templates');
+                        setTemplateSubView('gallery');
+                      }}
                       className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors"
                       title="Ganti Template CV"
                     >
@@ -1950,7 +1956,7 @@ export default function CvGenerator() {
       </main>
 
       {/* Floating Quick Action Pill for Mobile (<lg) */}
-      {activeTab !== 'templates' && (
+      {((activeTab === 'templates' && templateSubView === 'editor') || activeTab === 'auto_generator') && (
         <div className="lg:hidden fixed bottom-20 right-4 z-40 flex items-center gap-2">
           {mobileView === 'form' ? (
             <button
