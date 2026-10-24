@@ -1544,3 +1544,42 @@
     - Implementasi: Mengekspor konstanta kategori standar terpadu `STANDARD_CATEGORIES` dan `STANDARD_JOB_CATEGORIES` (15 kategori resmi LOXER) dari satu sumber modul bersama sehingga AI extractor, filter kartu bursa kerja, dan skema SQLite selalu tersinkronisasi 100%.
     - Verifikasi: Test 67 di `scripts/test-audit-fixes.mjs`.
 
+---
+
+## [2026-10-24] Audit & Bug Fix Run — Manajemen Users UI & Category Data Bugfix (Ultra Max)
+- Scope run ini: Halaman Admin Manajemen Users (`/admin/users`), `AdminDashboard.tsx`, `server/localApiHandler.js`, `vite.config.ts`, `scripts/test-local-api.mjs`.
+
+### Area yang sudah diaudit
+- Antarmuka Tab & Kategori Akun Pengguna (`Akun Internal` vs `Akun User`).
+- Mode Tampilan Light Mode & Dark Mode pada panel Manajemen Users.
+- Endpoint `/api/admin/users` dan proxy Vite middleware.
+- Filtering kategori dan role serta integritas pagination total.
+- Empty state tabel saat hasil filter kosong.
+
+### Bug ditemukan & diperbaiki
+1. **[High] BUG-USER-01: Tab "Akun Internal" Menampilkan Tabel Kosong & Total Halaman Palsu pada Landing Default**
+   - *Akar Masalah*: Endpoint `/api/admin/users` dan query Supabase di `AdminDashboard.tsx` memuat 20 pengguna terbaru tanpa memfilter `category`. Karena 20 pengguna terbaru semuanya akun pencari kerja (seeker), filter klien `filteredRows` menyaring 0 akun internal (`internalCount = 0`). Namun, `Pagination` menggunakan `total = 31` (seluruh user), sehingga menampilkan tabel kosong pada "Halaman 1 / 2" padahal 2 akun admin dan superadmin berada di halaman 2.
+   - *Solusi*: Menambahkan parameter `category=internal` dan `category=user` pada `handleAdminUsers` (`server/localApiHandler.js`), `createAdminUsersMiddleware` (`vite.config.ts`), serta query fallback Supabase di `AdminDashboard.tsx`. Menghitung `internalTotal` dan `userTotal` dari database secara global dan mengembalikan `total` terkalibrasi sesuai kategori aktif.
+   - *Verifikasi*: Pengujian otomatis di `scripts/test-local-api.mjs` (4, 4b, 4c) lulus 100%. Kategori internal menampilkan 2 akun internal dengan `total: 2` (Halaman 1 / 1), dan kategori user menampilkan 20 akun user dengan `total: 29` (Halaman 1 / 2).
+
+2. **[Medium] BUG-USER-02: Badge Angka "Akun User" Tidak Terbaca (Gelap di Atas Gelap) pada Mode Terang (Light Mode)**
+   - *Akar Masalah*: Tab tidak aktif `Akun User` menggunakan kelas Tailwind `bg-slate-700 text-slate-300`. Di `glass-theme.css`, aturan `html:not(.dark) .loxer-workspace .text-slate-300` memaksa warna teks menjadi `#1e293b` (navy gelap), sementara `bg-slate-700` tetap berwarna abu gelap (#334155). Akibatnya badge angka "20" menjadi teks gelap di atas latar gelap yang tampak kusam dan tidak terbaca.
+   - *Solusi*: Mengubah styling badge tab tidak aktif menjadi `bg-slate-200/90 text-slate-700 dark:bg-slate-800 dark:text-slate-300` dan tab aktif menjadi `bg-white/25 text-white shadow-sm`. Kontras terbaca jernih (WCAG AA > 4.5:1) di kedua mode.
+   - *Verifikasi*: Visual dan CSS selector lolos uji build Vite tanpa peringatan.
+
+3. **[Medium] BUG-USER-03: Baris Tabel Memiliki Latar Belakang Hitam Pekat yang Memaksa (!bg-[#0b1329]) pada Mode Terang**
+   - *Akar Masalah*: Setiap baris tabel (`<tr>`) pada `AdminDashboard.tsx` menggunakan kelas utilitas dengan tanda seru `!bg-[#0b1329]` dan `!bg-[#162038]`, memaksa baris tabel tetap hitam pekat meski browser berada dalam Light Mode.
+   - *Solusi*: Menghapus tanda seru `!` dan menambahkan kelas dinamis tema: `bg-white hover:bg-slate-50/80 dark:bg-[#0b1329] dark:hover:bg-[#1e2c4d]` untuk baris genap, dan `bg-slate-50/40 hover:bg-slate-50/80 dark:bg-[#162038] dark:hover:bg-[#1e2c4d]` untuk baris ganjil.
+   - *Verifikasi*: Tampilan tabel beradaptasi mulus dengan tema aktif.
+
+4. **[Low] BUG-USER-04: Tidak Ada Tampilan Kosong (Empty State) Saat Filter Menghasilkan 0 Pengguna**
+   - *Akar Masalah*: Ketika `filteredRows.length === 0`, `<tbody>` me-render tag kosong tanpa baris informasi, menghasilkan celah putih/kosong aneh antara header tabel dan pagination.
+   - *Solusi*: Menyediakan status kosong yang elegan (`<td colSpan={7}>`) lengkap dengan ikon `Users`, judul keterangan yang jelas ("Tidak ada akun internal/pengguna ditemukan"), dan saran pengubahan kata kunci pencarian.
+   - *Verifikasi*: Teruji saat pencarian tidak menemukan hasil.
+
+### Verification Summary
+- `npm run typecheck` — PASS (0 errors pada `tsconfig.app.json`).
+- `node scripts/test-local-api.mjs` — PASS (Asersi 4, 4b, 4c sukses: all, category=internal, category=user).
+- `npm run test:local` — PASS (Seluruh suite uji lokal lulus 100%).
+- `npm run build` — PASS (Vite production bundle selesai dalam 6.35s).
+

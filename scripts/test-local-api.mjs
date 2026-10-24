@@ -64,12 +64,26 @@ async function test() {
     const queryData = await queryRes.json();
     console.log('3. Query Job Listings:', Array.isArray(queryData.data) ? `OK (${queryData.data.length} jobs found)` : 'FAIL');
 
-    // 4. Test /api/admin/users
+    // 4. Test /api/admin/users (all, category=internal, category=user)
     const usersRes = await safeFetch(`${baseUrl}/api/admin/users`, {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
     const usersData = await usersRes.json();
-    console.log('4. Admin Users Endpoint:', usersData.rows?.length > 0 ? `OK (${usersData.rows.length} users)` : 'FAIL');
+    console.log('4. Admin Users Endpoint (all):', usersData.rows?.length > 0 ? `OK (${usersData.rows.length} users, internalTotal=${usersData.internalTotal}, userTotal=${usersData.userTotal})` : 'FAIL');
+
+    const usersIntRes = await safeFetch(`${baseUrl}/api/admin/users?category=internal`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const usersIntData = await usersIntRes.json();
+    const intRolesOk = usersIntData.rows?.length > 0 && usersIntData.rows.every(r => ['superadmin', 'admin', 'marketing', 'customer_service'].includes(r.role));
+    console.log('4b. Admin Users (category=internal):', intRolesOk ? `OK (${usersIntData.rows.length} internal users, total=${usersIntData.total})` : 'FAIL');
+
+    const usersUsrRes = await safeFetch(`${baseUrl}/api/admin/users?category=user`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const usersUsrData = await usersUsrRes.json();
+    const usrRolesOk = usersUsrData.rows?.length > 0 && usersUsrData.rows.every(r => ['seeker', 'employer', 'jasa'].includes(r.role));
+    console.log('4c. Admin Users (category=user):', usrRolesOk ? `OK (${usersUsrData.rows.length} regular users, total=${usersUsrData.total})` : 'FAIL');
 
     // 5. Test Auth rejection for unknown user
     const badLogin = await safeFetch(`${baseUrl}/api/local/auth/login`, {

@@ -271,6 +271,7 @@ function createAdminUsersMiddleware(env: Record<string, string>) {
     try {
       const requestUrl = new URL(req.url, 'http://localhost');
       const role = requestUrl.searchParams.get('role') || 'all';
+      const category = requestUrl.searchParams.get('category') || '';
       const sort = requestUrl.searchParams.get('sort') || 'newest';
       const page = Number(requestUrl.searchParams.get('page') || '1') || 1;
       const pageSize = Number(requestUrl.searchParams.get('page_size') || '20') || 20;
@@ -281,12 +282,24 @@ function createAdminUsersMiddleware(env: Record<string, string>) {
         .from('users_meta')
         .select('id, email, role, created_at, is_banned', { count: 'exact' });
 
-      if (role !== 'all') query = query.eq('role', role);
+      if (role !== 'all') {
+        query = query.eq('role', role);
+      } else if (category === 'internal') {
+        query = query.in('role', ['superadmin', 'admin', 'marketing', 'customer_service']);
+      } else if (category === 'user') {
+        query = query.in('role', ['seeker', 'employer', 'jasa']);
+      }
+
       if (sort === 'newest') query = query.order('created_at', { ascending: false });
       if (sort === 'oldest') query = query.order('created_at', { ascending: true });
       if (sort === 'email') query = query.order('email', { ascending: true });
 
-      const { data, count, error } = await query.range(from, to);
+      const [{ data, count, error }, internalCountRes, userCountRes] = await Promise.all([
+        query.range(from, to),
+        adminClient.from('users_meta').select('*', { count: 'exact', head: true }).in('role', ['superadmin', 'admin', 'marketing', 'customer_service']),
+        adminClient.from('users_meta').select('*', { count: 'exact', head: true }).in('role', ['seeker', 'employer', 'jasa']),
+      ]);
+
       if (error) {
         response.status(500).json({ message: error.message });
         return;
@@ -313,7 +326,12 @@ function createAdminUsersMiddleware(env: Record<string, string>) {
         company_name: companyMap.get(row.id),
       }));
 
-      response.status(200).json({ rows, total: count || 0 });
+      response.status(200).json({
+        rows,
+        total: count || 0,
+        internalTotal: internalCountRes.count || 0,
+        userTotal: userCountRes.count || 0,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
       response.status(500).json({ message });

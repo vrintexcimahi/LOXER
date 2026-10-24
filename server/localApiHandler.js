@@ -2036,6 +2036,7 @@ async function handleAdminUsers(req, res) {
 
   const urlObj = new URL(req.url, 'http://localhost');
   const role = urlObj.searchParams.get('role') || 'all';
+  const category = urlObj.searchParams.get('category') || '';
   const sort = urlObj.searchParams.get('sort') || 'newest';
   const page = Number(urlObj.searchParams.get('page') || '1') || 1;
   const pageSize = Number(urlObj.searchParams.get('page_size') || '20') || 20;
@@ -2044,27 +2045,38 @@ async function handleAdminUsers(req, res) {
   let whereClause = '';
   const params = [];
   if (role !== 'all') {
-    whereClause = 'WHERE role = ?';
+    whereClause = 'WHERE um.role = ?';
     params.push(role);
+  } else if (category === 'internal') {
+    whereClause = "WHERE um.role IN ('superadmin', 'admin', 'marketing', 'customer_service')";
+  } else if (category === 'user') {
+    whereClause = "WHERE um.role IN ('seeker', 'employer', 'jasa')";
   }
 
-  let orderBy = 'ORDER BY created_at DESC';
-  if (sort === 'oldest') orderBy = 'ORDER BY created_at ASC';
-  if (sort === 'email') orderBy = 'ORDER BY email ASC';
+  let orderBy = 'ORDER BY um.created_at DESC';
+  if (sort === 'oldest') orderBy = 'ORDER BY um.created_at ASC';
+  if (sort === 'email') orderBy = 'ORDER BY um.email ASC';
 
-  const totalRow = queryOne(`SELECT COUNT(*) as count FROM users_meta ${whereClause}`, params);
+  const totalRow = queryOne(`SELECT COUNT(*) as count FROM users_meta um ${whereClause}`, params);
   const total = totalRow?.count || 0;
 
+  const internalTotalRow = queryOne(
+    `SELECT COUNT(*) as count FROM users_meta WHERE role IN ('superadmin', 'admin', 'marketing', 'customer_service')`
+  );
+  const userTotalRow = queryOne(
+    `SELECT COUNT(*) as count FROM users_meta WHERE role IN ('seeker', 'employer', 'jasa')`
+  );
+  const internalTotal = internalTotalRow?.count || 0;
+  const userTotal = userTotalRow?.count || 0;
+
   // Performance AUD-006: Eliminate N+1 queries by joining seeker_profiles and companies in single query
-  const metaWhere = whereClause ? whereClause.replace('WHERE role =', 'WHERE um.role =') : '';
-  const metaOrder = orderBy.replace('created_at', 'um.created_at').replace('email', 'um.email');
   const users = queryAll(
     `SELECT um.id, um.email, um.role, um.created_at, um.is_banned,
             sp.full_name, c.name as company_name
      FROM users_meta um
      LEFT JOIN seeker_profiles sp ON sp.user_id = um.id
      LEFT JOIN companies c ON c.user_id = um.id
-     ${metaWhere} ${metaOrder} LIMIT ? OFFSET ?`,
+     ${whereClause} ${orderBy} LIMIT ? OFFSET ?`,
     [...params, pageSize, offset]
   );
 
@@ -2078,7 +2090,7 @@ async function handleAdminUsers(req, res) {
     company_name: u.company_name || undefined,
   }));
 
-  return sendJson(res, 200, { rows, total });
+  return sendJson(res, 200, { rows, total, internalTotal, userTotal });
 }
 
 async function handleAdminAuditLog(req, res) {
