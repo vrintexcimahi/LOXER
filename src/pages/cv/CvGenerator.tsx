@@ -36,7 +36,6 @@ export default function CvGenerator() {
   // Sulap Foto 9.7 VIP CV Form States
   const [selectedStyle, setSelectedStyle] = useState<string>('Profesional Formal');
   const [selectedColor, setSelectedColor] = useState<string>('Biru Profesional');
-  const [selectedModel, setSelectedModel] = useState<'gemini_pro' | 'nanobanana2' | 'seedream'>('gemini_pro');
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string>('');
 
   // Responsive zoom scale calculation for mobile vs desktop: precisely fits container width without overflow
@@ -127,7 +126,7 @@ export default function CvGenerator() {
 • Kualifikasi pelamar diselaraskan dengan standar rekrutmen: ${cvData.headline}
 • Struktur bahasa dioptimasi untuk sistem ATS & HRD perbankan/perusahaan modern
 • Gaya Desain: ${selectedStyle} | Skema Aksen: ${selectedColor}
-• Model Engine: ${selectedModel === 'gemini_pro' ? 'Gemini 3.8 Flash High (Official)' : selectedModel === 'nanobanana2' ? 'Nano Banana 2' : 'SeeDream 4.5'}`;
+• Model Engine: Gemini 3.8 Flash High (9Router)`;
 
       setAiAnalysisResult(analysisNote);
       setCvData({
@@ -1175,40 +1174,6 @@ export default function CvGenerator() {
                       >
                         <span className="w-4 h-4 rounded-full" style={{ backgroundColor: col.color }} />
                         <span className="text-[9px] line-clamp-1">{col.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 11. AI Model Engine Selector */}
-                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center text-[10px] font-black">
-                        11
-                      </span>
-                      <span>Model AI Engine</span>
-                    </span>
-                    <span className="text-[10px] text-cyan-400 font-bold">Terhubung 9Router</span>
-                  </h3>
-                  <div className="grid grid-cols-3 gap-1.5 text-xs">
-                    {[
-                      { id: 'gemini_pro', name: 'Gemini 3.8 Flash', tag: 'High Speed' },
-                      { id: 'nanobanana2', name: 'Nano Banana 2', tag: 'Creative' },
-                      { id: 'seedream', name: 'SeeDream 4.5', tag: 'VIP Vision' },
-                    ].map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setSelectedModel(m.id as 'gemini_pro' | 'nanobanana2' | 'seedream')}
-                        className={`p-2 rounded-xl border text-center transition-all ${
-                          selectedModel === m.id
-                            ? 'border-cyan-500 bg-cyan-500/15 text-cyan-400 font-bold shadow-sm'
-                            : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        <div className="font-bold text-[11px]">{m.name}</div>
-                        <div className="text-[9px] text-slate-400">{m.tag}</div>
                       </button>
                     ))}
                   </div>
