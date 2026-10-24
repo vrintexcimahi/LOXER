@@ -1,4 +1,4 @@
-import { Home, Search, User, Users } from 'lucide-react';
+import { Home, Search, User, Users, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import ClayIcon from '../ui/ClayIcon';
 
@@ -41,6 +41,13 @@ export default function PublicMobileBottomNav({
       icon: Search,
       href: '/browse',
       active: currentPath.startsWith('/browse') || currentPath === '/seeker/browse',
+    },
+    {
+      label: 'Buat CV',
+      icon: FileText,
+      href: '/cv',
+      active: currentPath.startsWith('/cv') || currentPath.startsWith('/buat-cv'),
+      isCenterAction: true,
     },
     {
       label: 'Pekerja',

@@ -232,6 +232,13 @@ VITE_SUPABASE_ANON_KEY=...`}
       return null;
     }
     if (path === '/talents' || path === '/employer/talents' || path === '/pelamar' || path === '/pelamar-kerja' || path === '/freelance' || path === '/jasa') return <TalentMarketplace />;
+  if (path === '/cv' || path === '/buat-cv' || path === '/cv-maker' || path === '/cv-generator') {
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <CvGenerator />
+      </Suspense>
+    );
+  }
     if (path === '/employer/dashboard') return isRoleAuthorized('employer') ? <EmployerDashboard /> : null;
     if (path === '/employer/jobs') return isRoleAuthorized('employer') ? <JobListings /> : null;
     if (path === '/employer/jobs/new' || (path.startsWith('/employer/jobs/') && path.endsWith('/edit'))) return isRoleAuthorized('employer') ? <PostJob /> : null;
@@ -384,6 +391,8 @@ VITE_SUPABASE_ANON_KEY=...`}
     </>
   );
 }
+
+const CvGenerator = lazy(() => import('./pages/cv/CvGenerator'));
 
 export default function App() {
   return (
