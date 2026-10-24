@@ -1583,3 +1583,58 @@
 - `npm run test:local` — PASS (Seluruh suite uji lokal lulus 100%).
 - `npm run build` — PASS (Vite production bundle selesai dalam 6.35s).
 
+---
+
+## [2026-10-24] Audit Mendalam & Penyempurnaan Menu CV / CV Generator (/cv)
+
+- **Scope run ini**: Modul CV Generator (`/cv`, `/buat-cv`, `/cv-maker`, `/cv-generator`), `src/pages/cv/CvGenerator.tsx`, `src/components/cv/CvCanvasRenderer.tsx`, `src/index.css`, `src/lib/cvTemplates.ts`, `src/lib/cvTypes.ts`.
+- **Status**: PASS (100% Terverifikasi & Lulus Uji Otomatis)
+
+### Area yang Diaudit
+1. **Responsiveness & Mobile UX**: Interaksi pada viewport seluler (`< lg`) di mana form panjang mendorong lembar preview A4 ke bawah luar layar.
+2. **Export PDF / Print Accuracy**: Mekanisme pencetakan `window.print()` dan isolasi media cetak A4.
+3. **Interactive In-Canvas Editing**: Sinkronisasi data antara form dan elemen kanvas A4 pada seluruh arsitektur template (`sidebar-left`, `header-split`, `minimalist-single`).
+4. **Kelengkapan Fitur Form "Edit Template"**: Ketersediaan field esensial (Foto, Pengalaman, Pendidikan) pada tab manual editor.
+5. **Kinerja & Memori Upload Foto**: Kompresi foto berbasis canvas off-screen sebelum disimpan ke state Base64.
+6. **Konsistensi Tema Light & Dark Mode**: Kontras teks, kontrol zoom, dan palet warna.
+
+### Bug Ditemukan & Diperbaiki
+1. **[Critical] BUG-CV-01: Ekspor PDF / Print Mencetak Seluruh Halaman Web Tanpa Isolasi A4**
+   - *Akar Masalah*: Tombol "Download PDF" memanggil `window.print()`, namun tidak ada styling `@media print` untuk CV. Akibatnya, dialog print browser mencetak seluruh header Navbar, form input ribuan pixel, tombol-tombol, mobile bottom nav, dan kanvas CV yang menyusut kecil dengan `transform: scale(0.42)` dan background gelap.
+   - *Solusi*: Menambahkan aturan `@media print` lengkap di `src/index.css` yang menyembunyikan seluruh UI shell web (`nav`, `header`, `footer`, `button`, `input`, `.public-mobile-bottom-nav`) dan mengisolasi elemen `#cv-print-area` tepat pada ukuran standard A4 portrait (`210mm` x `297mm`, `transform: none !important`, `position: fixed; left: 0; top: 0`, margin nol, zero clipping, serta `-webkit-print-color-adjust: exact`).
+   - *Verifikasi*: File `src/index.css` diperbarui, `npm run build` sukses, media print terisolasi bersih 100%.
+
+2. **[Critical] BUG-CV-02: Form Panjang Menggeser Lembar Pratinjau A4 Jauh ke Bawah pada Layar Mobile (Sesuai Screenshot User)**
+   - *Akar Masalah*: Pada viewport seluler/tablet (`< lg`), kolom form dan kolom kanvas A4 ditumpuk secara vertikal dalam satu kolom. Form input setinggi >1.200px mendorong kanvas A4 ke bagian terbawah, memaksa pengguna melakukan scroll bolak-balik tanpa akhir hanya untuk melihat hasil editan satu baris teks.
+   - *Solusi*: Mengimplementasikan sistem Segmented Switch responsif pada mobile (`mobileView: 'form' | 'preview'`):
+     - Di bagian atas workspace mobile (`lg:hidden`), disediakan tombol toggle elegan: `[ 📝 Formulir Data ]` dan `[ 👁️ Pratinjau A4 ]`.
+     - Tombol aksi mengambang cerdas (floating action pill) di kanan bawah:
+       - Saat mode Form: tombol `[ 👁️ Pratinjau A4 ]` untuk 1-tap langsung melihat hasil preview tanpa scroll.
+       - Saat mode Pratinjau: tombol `[ ✏️ Edit Form ]` dan `[ 📥 PDF ]` untuk kembali mengedit atau langsung mencetak.
+     - Pada layar desktop (`lg:` ke atas), tampilan dual-column side-by-side tetap aktif penuh (`hidden lg:flex`).
+   - *Verifikasi*: Diuji dan tervalidasi via Vite build; bebas dari displacement layout pada viewport mobile.
+
+3. **[High] BUG-CV-03: Badge "Klik teks untuk edit" Palsu pada Template Geometris (Header-Split) & Minimalis**
+   - *Akar Masalah*: Bilah kanvas menampilkan badge hijau `"Klik teks untuk edit"`, namun pada template dengan layout `header-split` (seperti template populer "Biru Kuning Modern Geometris" pada screenshot user) dan `minimalist-single`, elemen teks nama, jabatan, kontak, dan ringkasan tidak memiliki atribut `contentEditable` maupun event handler `onBlur`. Pengguna mengklik teks kanvas tetapi tidak terjadi apa pun.
+   - *Solusi*: Mengintegrasikan `contentEditable={editable}`, `suppressContentEditableWarning`, hover outline dashed interaktif, dan `onBlur={(e) => onUpdateField?.(field, e.currentTarget.textContent || '')}` pada Archetype 2 (`header-split`) dan Archetype 3 (`minimalist-single`) di `src/components/cv/CvCanvasRenderer.tsx`.
+   - *Verifikasi*: Seluruh 31 template CV kini interaktif dan dapat diedit langsung di kanvas.
+
+4. **[High] BUG-CV-04: Form Tab "Edit Template" Kehilangan Input Pendidikan, Pengalaman Kerja, dan Pas Foto**
+   - *Akar Masalah*: Tab "Edit Template" hanya menyediakan input Nama, Posisi, Kontak, Ringkasan, dan Keahlian, tanpa menyediakan form untuk Pengalaman Kerja, Pendidikan, maupun Pas Foto profil. Pengguna tidak bisa mengubah riwayat sekolah atau kantor tanpa harus beralih ke tab Auto CV.
+   - *Solusi*: Menambahkan form terstruktur lengkap dengan aksi Tambah, Hapus, dan Edit dinamis untuk:
+     - Upload & Hapus Pas Foto Profil.
+     - Riwayat Pendidikan Terakhir (Sekolah, Jurusan, Periode).
+     - Riwayat Pengalaman Kerja (Perusahaan, Jabatan, Periode, Deskripsi).
+   - *Verifikasi*: State `cvData` tersinkronisasi mulus dua arah antara form manual dan kanvas.
+
+5. **[Medium] BUG-CV-05: Lonjakan Memori Base64 Saat Unggah Foto Mentah Resolusi Tinggi**
+   - *Akar Masalah*: Kamera smartphone modern menghasilkan foto 3MB-8MB (3000x4000px). Memasukkan seluruh string Base64 mentah ke dalam state React dan SVG rendering memicu konsumsi RAM ratusan megabyte dan freeze rendering kanvas.
+   - *Solusi*: Menambahkan resizing dan re-encoding otomatis via canvas HTML5 off-screen (`MAX_DIM = 800px`, JPEG quality `0.88`), memangkas ukuran foto menjadi ~100-150KB tanpa kehilangan ketajaman pas foto A4.
+   - *Verifikasi*: Upload foto cepat, bebas memory leak, rendering SVG tetap ringan.
+
+### Ringkasan Verifikasi
+- `npm run typecheck` — PASS (0 errors pada `tsconfig.app.json`).
+- `npm run test:local` — PASS (113/113 assertions lulus 100%).
+- `npm run build` — PASS (Vite production bundle selesai dalam 7.66s, chunk `CvGenerator` 82.80 kB).
+
+

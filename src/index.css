@@ -682,6 +682,77 @@ table tbody tr {
   color: #f8fafc;
 }
 
+/* ==============================================================================
+   LOXER CV Generator A4 Print Styles (Zero-distortion PDF Export)
+   ============================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
 
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
+  /* Hide all UI shell elements: Navbar, forms, buttons, bottom navigation */
+  nav,
+  header,
+  footer,
+  aside,
+  button,
+  input,
+  textarea,
+  select,
+  .public-mobile-bottom-nav,
+  .toast-alert,
+  [role="dialog"] {
+    display: none !important;
+  }
 
+  body * {
+    visibility: hidden;
+  }
+
+  /* Isolate only the CV print area at 100% 210x297mm scale */
+  #cv-print-area,
+  #cv-print-area * {
+    visibility: visible !important;
+  }
+
+  #cv-print-area {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important;
+    min-width: 210mm !important;
+    max-width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+    z-index: 9999999 !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

@@ -12,6 +12,9 @@ import {
   ZoomIn,
   ZoomOut,
   Check,
+  Eye,
+  Edit3,
+  Camera,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
@@ -22,6 +25,7 @@ import { CvCanvasRenderer } from '../../components/cv/CvCanvasRenderer';
 
 export default function CvGenerator() {
   const [activeTab, setActiveTab] = useState<'auto_generator' | 'templates' | 'editor'>('templates');
+  const [mobileView, setMobileView] = useState<'form' | 'preview'>('form');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [selectedTemplate, setSelectedTemplate] = useState<CvTemplateInfo>(CV_TEMPLATES[0]);
   const [cvData, setCvData] = useState<CvData>(INITIAL_CV_DATA);
@@ -206,15 +210,39 @@ export default function CvGenerator() {
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 3 * 1024 * 1024) {
-        showToast('Ukuran foto maksimal 3MB');
+      if (file.size > 8 * 1024 * 1024) {
+        showToast('Ukuran file maksimal 8MB');
         return;
       }
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
-          setCvData((prev) => ({ ...prev, photoUrl: event.target!.result as string }));
-          showToast('Pas foto profil berhasil diunggah!');
+          const img = new Image();
+          img.onload = () => {
+            const MAX_DIM = 800;
+            let w = img.width;
+            let h = img.height;
+            if (w > MAX_DIM || h > MAX_DIM) {
+              if (w > h) {
+                h = Math.round((h * MAX_DIM) / w);
+                w = MAX_DIM;
+              } else {
+                w = Math.round((w * MAX_DIM) / h);
+                h = MAX_DIM;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, w, h);
+              const compressedData = canvas.toDataURL('image/jpeg', 0.88);
+              setCvData((prev) => ({ ...prev, photoUrl: compressedData }));
+              showToast('Pas foto profil berhasil diunggah!');
+            }
+          };
+          img.src = event.target.result as string;
         }
       };
       reader.readAsDataURL(file);
@@ -230,15 +258,48 @@ export default function CvGenerator() {
 
       {/* Main Container */}
       <main className="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-3 flex-1 flex flex-col">
+        {/* Mobile View Segmented Toggle (Only on mobile / <lg when viewing Editor or Auto CV) */}
+        {activeTab !== 'templates' && (
+          <div className="lg:hidden flex items-center p-1 bg-slate-200/80 dark:bg-slate-900 rounded-2xl border border-slate-300 dark:border-white/10 shadow-sm mb-3">
+            <button
+              type="button"
+              onClick={() => setMobileView('form')}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                mobileView === 'form'
+                  ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Formulir Data</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileView('preview')}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                mobileView === 'preview'
+                  ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Pratinjau A4 ({Math.round(zoomScale * 100)}%)</span>
+            </button>
+          </div>
+        )}
+
         {/* Workspace Layout: Left Panel Tabs (Templates / Edit / AI) vs Right Live Canvas */}
         <div className={`grid grid-cols-1 ${activeTab === 'templates' ? 'lg:grid-cols-1' : 'lg:grid-cols-12'} gap-6 flex-1 items-start`}>
           {/* Left Column Controls */}
-          <div className={`${activeTab === 'templates' ? 'w-full' : 'lg:col-span-6 xl:col-span-5'} flex flex-col space-y-4`}>
+          <div className={`${activeTab === 'templates' ? 'w-full' : 'lg:col-span-6 xl:col-span-5'} ${activeTab !== 'templates' && mobileView === 'preview' ? 'hidden lg:flex' : 'flex'} flex-col space-y-4`}>
             {/* Navigation Tabs Pill */}
             <div className="flex items-center p-1 bg-slate-200/70 dark:bg-slate-900/80 rounded-2xl border border-slate-300/60 dark:border-white/10">
               <button
                 type="button"
-                onClick={() => setActiveTab('templates')}
+                onClick={() => {
+                  setActiveTab('templates');
+                  setMobileView('form');
+                }}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'templates'
                     ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
@@ -443,13 +504,50 @@ export default function CvGenerator() {
                   </div>
                 </div>
 
-                {/* 3. Ringkasan Profil */}
+                {/* 3. Pas Foto Profil */}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                  <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5 text-cyan-500" />
+                      <span>Pas Foto Profil</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium">Opsional</span>
+                  </h4>
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-white/10 rounded-2xl">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-300 dark:border-white/10">
+                      {cvData.photoUrl ? (
+                        <img src={cvData.photoUrl} alt="Foto" className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={24} className="text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all">
+                        <span>Upload Pas Foto</span>
+                        <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                      </label>
+                      <p className="text-[10px] text-slate-400 mt-1">Format JPG, PNG, WEBP</p>
+                    </div>
+                    {cvData.photoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateCvField('photoUrl', '')}
+                        className="text-slate-400 hover:text-red-400 p-1 font-bold text-sm"
+                        title="Hapus Foto"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Ringkasan Profil */}
                 <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
                   <label className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 block">
                     Ringkasan Diri (Summary / Bio)
                   </label>
                   <textarea
-                    rows={4}
+                    rows={3}
                     value={cvData.summary}
                     onChange={(e) => handleUpdateCvField('summary', e.target.value)}
                     placeholder="Tulis ringkasan profil pengalaman dan keahlian Anda..."
@@ -457,7 +555,160 @@ export default function CvGenerator() {
                   />
                 </div>
 
-                {/* 4. Keahlian Langsung */}
+                {/* 5. Pendidikan Terakhir */}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300">
+                      Pendidikan Terakhir
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleAddEducation}
+                      className="text-[10px] font-bold text-cyan-500 hover:text-cyan-400 flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Tambah
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {cvData.educations.map((edu) => (
+                      <div key={edu.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/5 space-y-1.5 relative">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEducation(edu.id)}
+                          className="absolute top-2 right-2 text-slate-400 hover:text-red-400"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                        <input
+                          type="text"
+                          value={edu.school}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCvData((prev) => ({
+                              ...prev,
+                              educations: prev.educations.map((it) => (it.id === edu.id ? { ...it, school: val } : it)),
+                            }));
+                          }}
+                          placeholder="Nama Sekolah / Universitas *"
+                          className="w-full p-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg outline-none pr-6"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={edu.major}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCvData((prev) => ({
+                                ...prev,
+                                educations: prev.educations.map((it) => (it.id === edu.id ? { ...it, major: val } : it)),
+                              }));
+                            }}
+                            placeholder="Jurusan / Program Studi *"
+                            className="w-full p-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={edu.period}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCvData((prev) => ({
+                                ...prev,
+                                educations: prev.educations.map((it) => (it.id === edu.id ? { ...it, period: val } : it)),
+                              }));
+                            }}
+                            placeholder="Tahun Masuk - Lulus"
+                            className="w-full p-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg outline-none"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 6. Pengalaman Kerja */}
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300">
+                      Pengalaman Kerja
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleAddExperience}
+                      className="text-[10px] font-bold text-cyan-500 hover:text-cyan-400 flex items-center gap-1"
+                    >
+                      <Plus size={12} /> Tambah
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {cvData.experiences.map((exp) => (
+                      <div key={exp.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/5 space-y-1.5 relative">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExperience(exp.id)}
+                          className="absolute top-2 right-2 text-slate-400 hover:text-red-400"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                        <div className="grid grid-cols-2 gap-2 pr-6">
+                          <input
+                            type="text"
+                            value={exp.company}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCvData((prev) => ({
+                                ...prev,
+                                experiences: prev.experiences.map((it) => (it.id === exp.id ? { ...it, company: val } : it)),
+                              }));
+                            }}
+                            placeholder="Nama Perusahaan"
+                            className="w-full p-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={exp.position}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCvData((prev) => ({
+                                ...prev,
+                                experiences: prev.experiences.map((it) => (it.id === exp.id ? { ...it, position: val } : it)),
+                              }));
+                            }}
+                            placeholder="Posisi Jabatan"
+                            className="w-full p-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg outline-none"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={exp.period}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCvData((prev) => ({
+                              ...prev,
+                              experiences: prev.experiences.map((it) => (it.id === exp.id ? { ...it, period: val } : it)),
+                            }));
+                          }}
+                          placeholder="Periode (misal: Jan 2022 - Des 2023)"
+                          className="w-full p-1.5 text-[11px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg outline-none"
+                        />
+                        <textarea
+                          rows={2}
+                          value={exp.description}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCvData((prev) => ({
+                              ...prev,
+                              experiences: prev.experiences.map((it) => (it.id === exp.id ? { ...it, description: val } : it)),
+                            }));
+                          }}
+                          placeholder="Deskripsi tugas dan tanggung jawab..."
+                          className="w-full p-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg outline-none leading-relaxed"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 7. Keahlian Langsung */}
                 <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-white/5">
                   <label className="text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 block">
                     Keahlian &amp; Keterampilan
@@ -472,7 +723,7 @@ export default function CvGenerator() {
                         <button
                           type="button"
                           onClick={() => handleUpdateCvField('skills', cvData.skills.filter((s) => s !== skill))}
-                          className="hover:text-red-400"
+                          className="hover:text-red-400 font-bold"
                         >
                           ×
                         </button>
@@ -504,11 +755,23 @@ export default function CvGenerator() {
                           el.value = '';
                         }
                       }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950"
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-colors cursor-pointer"
                     >
                       Tambah
                     </button>
                   </div>
+                </div>
+
+                {/* Mobile Preview Action Button at bottom of form */}
+                <div className="pt-2 lg:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setMobileView('preview')}
+                    className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                  >
+                    <Eye size={14} />
+                    <span>Lihat Hasil Pratinjau A4</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -995,7 +1258,7 @@ export default function CvGenerator() {
 
           {/* Right Column: Interactive A4 Preview Canvas (Tampil saat mode Auto CV / Editing) */}
           {activeTab !== 'templates' && (
-            <div className="lg:col-span-6 xl:col-span-7 flex flex-col items-center">
+            <div className={`lg:col-span-6 xl:col-span-7 ${mobileView === 'form' ? 'hidden lg:flex' : 'flex'} flex-col items-center w-full`}>
               {/* Canvas Header Toolbar */}
               <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-slate-200 dark:border-white/10">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1067,6 +1330,41 @@ export default function CvGenerator() {
           )}
         </div>
       </main>
+
+      {/* Floating Quick Action Pill for Mobile (<lg) */}
+      {activeTab !== 'templates' && (
+        <div className="lg:hidden fixed bottom-20 right-4 z-40 flex items-center gap-2">
+          {mobileView === 'form' ? (
+            <button
+              type="button"
+              onClick={() => setMobileView('preview')}
+              className="px-4 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs shadow-xl shadow-cyan-500/40 flex items-center gap-1.5 border border-cyan-300/40 active:scale-95 transition-all"
+            >
+              <Eye size={15} />
+              <span>Pratinjau A4</span>
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setMobileView('form')}
+                className="px-3.5 py-2.5 rounded-full bg-slate-900/95 dark:bg-slate-800 text-cyan-400 font-bold text-xs shadow-xl border border-cyan-500/30 flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Edit3 size={14} />
+                <span>Edit Form</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintPdf}
+                className="px-4 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-xs shadow-xl flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Download size={14} />
+                <span>PDF</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Public Footer removed from CV page */}
       {/* Toast Alert Notification */}
