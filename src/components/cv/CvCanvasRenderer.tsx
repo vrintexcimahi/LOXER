@@ -36,7 +36,7 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
         height: '297mm',
         maxHeight: '297mm',
         transform: printMode ? 'none' : `scale(${scale})`,
-        transformOrigin: 'top center',
+        transformOrigin: 'top left',
         boxSizing: 'border-box',
       }}
     >

@@ -45,11 +45,11 @@ export default function CvGenerator() {
     const handleResize = () => {
       const width = window.innerWidth;
       if (width < 360) {
-        setZoomScale(0.33); // Fits small mobile
+        setZoomScale(0.35);
       } else if (width < 420) {
-        setZoomScale(0.36); // Fits standard 375-390px mobile screens without horizontal scroll
+        setZoomScale(0.38); // Fits 375px - 414px mobile screens centered with zero cut-off
       } else if (width < 640) {
-        setZoomScale(0.40); // Fits large mobile
+        setZoomScale(0.42);
       } else if (width < 1024) {
         setZoomScale(0.55);
       } else {
@@ -1371,56 +1371,59 @@ export default function CvGenerator() {
           {/* Right Column: Interactive A4 Preview Canvas (7 cols on desktop) */}
           <div className="lg:col-span-6 xl:col-span-7 flex flex-col items-center">
             {/* Canvas Header Toolbar */}
-            <div className="w-full flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-white/10">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Pratinjau Standar A4
+            <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 mb-3 border-b border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Pratinjau A4
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                   {Math.round(zoomScale * 100)}%
                 </span>
-                <span className="text-[10px] font-semibold text-cyan-400 truncate max-w-[140px]">
-                  Template: {selectedTemplate.name}
+                <span className="text-[10px] font-semibold text-cyan-500 dark:text-cyan-400 truncate max-w-[180px] bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
+                  {selectedTemplate.name}
                 </span>
               </div>
 
-              {/* Zoom Controls */}
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setZoomScale((s) => Math.max(0.35, s - 0.08))}
-                  className="p-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-                  title="Perkecil"
-                >
-                  <ZoomOut size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setZoomScale((s) => Math.min(1.0, s + 0.08))}
-                  className="p-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
-                  title="Perbesar"
-                >
-                  <ZoomIn size={14} />
-                </button>
+              {/* Zoom Controls & Download Button */}
+              <div className="flex items-center justify-between sm:justify-end gap-2">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setZoomScale((s) => Math.max(0.30, Number((s - 0.05).toFixed(2))))}
+                    className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                    title="Perkecil"
+                  >
+                    <ZoomOut size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZoomScale((s) => Math.min(1.0, Number((s + 0.05).toFixed(2))))}
+                    className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                    title="Perbesar"
+                  >
+                    <ZoomIn size={15} />
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={handlePrintPdf}
-                  className="ml-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                  className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 flex items-center gap-1.5 shadow-md shadow-cyan-500/20 active:scale-95 transition-all cursor-pointer"
                 >
-                  <Download size={13} />
+                  <Download size={14} />
                   <span>Download PDF</span>
                 </button>
               </div>
             </div>
 
-            {/* Canvas Viewport (Fit container width cleanly, scrollbar-none to eliminate horizontal scrollbar) */}
-            <div className="w-full flex justify-center overflow-x-auto py-2 px-0 scrollbar-none no-scrollbar">
+            {/* Canvas Viewport (Precisely centered, zero horizontal drift) */}
+            <div className="w-full flex justify-center items-center py-2 px-0 overflow-hidden select-none">
               <div
                 style={{
                   width: `${210 * zoomScale}mm`,
                   height: `${297 * zoomScale}mm`,
                 }}
-                className="relative shrink-0 transition-all duration-150"
+                className="relative shrink-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-300/80 dark:border-white/10 transition-all duration-150"
               >
                 <CvCanvasRenderer
                   cvData={cvData}
