@@ -298,7 +298,7 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
             {/* Template Signature Footer */}
             <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-400">
               <span className="font-semibold text-slate-600">
-                Template Canva: {template.name}
+                Template: {template.name}
               </span>
               <span>Dokumen Resmi Standard A4 Curriculum Vitae</span>
             </div>
@@ -478,7 +478,7 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
 
           {/* Footer */}
           <footer className="p-6 border-t border-slate-200 flex justify-between items-center text-[9px] text-slate-400">
-            <span className="font-semibold text-slate-600">LOXER CV Builder • Format Canva A4</span>
+            <span className="font-semibold text-slate-600">LOXER CV Builder • Format A4</span>
             <span>Standar Rekrutmen Mitra LOXER Indonesia</span>
           </footer>
         </div>

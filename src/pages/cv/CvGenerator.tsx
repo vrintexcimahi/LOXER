@@ -248,14 +248,14 @@ export default function CvGenerator() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                  CV Maker & Canva Templates
+                  CV Maker & Templates
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
                   A4 Standar
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Pilih dari 30 desain master Canva, generate otomatis via AI atau sesuaikan manual sesuai bidang kerja.
+                Pilih dari 30 desain master template A4, generate otomatis via AI atau sesuaikan manual sesuai bidang kerja.
               </p>
             </div>
           </div>
@@ -311,7 +311,7 @@ export default function CvGenerator() {
                 }`}
               >
                 <LayoutTemplate className="w-3.5 h-3.5" />
-                <span>30 Template Canva</span>
+                <span>30 Template CV</span>
               </button>
 
               <button
