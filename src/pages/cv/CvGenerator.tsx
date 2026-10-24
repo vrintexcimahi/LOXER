@@ -2,16 +2,12 @@ import { useState, useEffect } from 'react';
 import {
   Sparkles,
   Download,
-  FileText,
   RefreshCw,
   Plus,
   Trash2,
   CheckCircle2,
   Filter,
   User,
-  Briefcase,
-  GraduationCap,
-  Wrench,
   LayoutTemplate,
   ZoomIn,
   ZoomOut,
@@ -25,7 +21,7 @@ import { ROLE_PRESETS, generateCvDataAutomatically } from '../../services/cvAiSe
 import { CvCanvasRenderer } from '../../components/cv/CvCanvasRenderer';
 
 export default function CvGenerator() {
-  const [activeTab, setActiveTab] = useState<'templates' | 'auto_generator' | 'manual'>('auto_generator');
+  const [activeTab, setActiveTab] = useState<'auto_generator' | 'templates'>('auto_generator');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [selectedTemplate, setSelectedTemplate] = useState<CvTemplateInfo>(CV_TEMPLATES[0]);
   const [cvData, setCvData] = useState<CvData>(INITIAL_CV_DATA);
@@ -218,20 +214,7 @@ export default function CvGenerator() {
     }
   };
 
-  const handleAddSkill = (skill: string) => {
-    if (!skill.trim() || cvData.skills.includes(skill.trim())) return;
-    setCvData((prev) => ({
-      ...prev,
-      skills: [...prev.skills, skill.trim()],
-    }));
-  };
-
-  const handleRemoveSkill = (skill: string) => {
-    setCvData((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s !== skill),
-    }));
-  };
+  // Skills managed directly in form
 
   return (
     <div className="bg-slate-50 dark:bg-[#071220] min-h-screen text-slate-800 dark:text-slate-100 flex flex-col pb-24 md:pb-12 transition-colors duration-200">
@@ -244,45 +227,32 @@ export default function CvGenerator() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-start">
           {/* Left Column Controls (7 cols on desktop) */}
           <div className="lg:col-span-6 xl:col-span-5 flex flex-col space-y-4">
-            {/* Navigation Tabs Pill */}
+            {/* Navigation Tabs Pill (Hanya Auto CV & Template CV) */}
             <div className="flex items-center p-1 bg-slate-200/70 dark:bg-slate-900/80 rounded-2xl border border-slate-300/60 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => setActiveTab('auto_generator')}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'auto_generator'
                     ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Auto AI Generator</span>
+                <Sparkles className="w-4 h-4" />
+                <span>Auto CV</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('templates')}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'templates'
                     ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <LayoutTemplate className="w-3.5 h-3.5" />
-                <span>30 Template CV</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('manual')}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'manual'
-                    ? 'bg-cyan-500 text-slate-950 shadow-md font-extrabold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Edit Manual</span>
+                <LayoutTemplate className="w-4 h-4" />
+                <span>Template CV</span>
               </button>
             </div>
 
@@ -367,362 +337,7 @@ export default function CvGenerator() {
               </div>
             )}
 
-            {/* TAB 2: Manual Edit Form */}
-            {activeTab === 'manual' && (
-              <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-4 sm:p-5 border border-slate-200 dark:border-white/10 shadow-sm space-y-5 max-h-[600px] overflow-y-auto">
-                {/* 1. Informasi Pribadi */}
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-cyan-500 dark:text-cyan-400 mb-3 flex items-center gap-1.5">
-                    <User className="w-4 h-4" />
-                    <span>1. Biodata Pribadi</span>
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Nama Lengkap
-                      </label>
-                      <input
-                        type="text"
-                        value={cvData.fullName}
-                        onChange={(e) => setCvData({ ...cvData, fullName: e.target.value })}
-                        className="w-full px-3 py-1.5 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-white/10 focus:outline-none focus:border-cyan-400"
-                        placeholder="Contoh: Azqy Ahmad Saputra"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Profesi / Pekerjaan Impian
-                      </label>
-                      <input
-                        type="text"
-                        value={cvData.headline}
-                        onChange={(e) => setCvData({ ...cvData, headline: e.target.value })}
-                        className="w-full px-3 py-1.5 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-white/10 focus:outline-none focus:border-cyan-400"
-                        placeholder="Contoh: Staff Administrasi & Keuangan"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Nomor WhatsApp / HP
-                      </label>
-                      <input
-                        type="text"
-                        value={cvData.phone}
-                        onChange={(e) => setCvData({ ...cvData, phone: e.target.value })}
-                        className="w-full px-3 py-1.5 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-white/10 focus:outline-none focus:border-cyan-400"
-                        placeholder="Contoh: 0812-3456-7890"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Email Resmi
-                      </label>
-                      <input
-                        type="email"
-                        value={cvData.email}
-                        onChange={(e) => setCvData({ ...cvData, email: e.target.value })}
-                        className="w-full px-3 py-1.5 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-white/10 focus:outline-none focus:border-cyan-400"
-                        placeholder="Contoh: azqy.ahmad@gmail.com"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Domisili Kota & Provinsi
-                      </label>
-                      <input
-                        type="text"
-                        value={cvData.city}
-                        onChange={(e) => setCvData({ ...cvData, city: e.target.value })}
-                        className="w-full px-3 py-1.5 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-white/10 focus:outline-none focus:border-cyan-400"
-                        placeholder="Contoh: Cimahi, Jawa Barat"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Ringkasan Profil Diri (Bio)
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={cvData.summary}
-                        onChange={(e) => setCvData({ ...cvData, summary: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-white/10 focus:outline-none focus:border-cyan-400 leading-relaxed"
-                        placeholder="Tuliskan pengalaman ringkas, keahlian utama, dan dedikasi Anda..."
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Pengalaman Kerja */}
-                <div className="pt-3 border-t border-slate-200 dark:border-white/10">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-cyan-500 dark:text-cyan-400 flex items-center gap-1.5">
-                      <Briefcase className="w-4 h-4" />
-                      <span>2. Pengalaman Kerja</span>
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={handleAddExperience}
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-400/30 flex items-center gap-1 hover:bg-cyan-500/30"
-                    >
-                      <Plus size={12} /> Tambah Posisi
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {cvData.experiences.map((exp) => (
-                      <div
-                        key={exp.id}
-                        className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/5 space-y-2 relative"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveExperience(exp.id)}
-                          className="absolute top-2.5 right-2.5 text-slate-400 hover:text-red-400 transition-colors"
-                          title="Hapus Pengalaman"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                        <div className="grid grid-cols-2 gap-2 pr-6">
-                          <div>
-                            <input
-                              type="text"
-                              value={exp.position}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCvData((prev) => ({
-                                  ...prev,
-                                  experiences: prev.experiences.map((it) =>
-                                    it.id === exp.id ? { ...it, position: val } : it
-                                  ),
-                                }));
-                              }}
-                              className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10"
-                              placeholder="Posisi Jabatan"
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="text"
-                              value={exp.company}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCvData((prev) => ({
-                                  ...prev,
-                                  experiences: prev.experiences.map((it) =>
-                                    it.id === exp.id ? { ...it, company: val } : it
-                                  ),
-                                }));
-                              }}
-                              className="w-full px-2 py-1 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10"
-                              placeholder="Nama Perusahaan"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <input
-                            type="text"
-                            value={exp.period}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setCvData((prev) => ({
-                                ...prev,
-                                experiences: prev.experiences.map((it) =>
-                                    it.id === exp.id ? { ...it, period: val } : it
-                                ),
-                              }));
-                            }}
-                            className="w-full px-2 py-1 rounded-lg text-[11px] text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10"
-                            placeholder="Periode (Contoh: 2022 - 2024)"
-                          />
-                        </div>
-
-                        <div>
-                          <textarea
-                            rows={2}
-                            value={exp.description}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setCvData((prev) => ({
-                                ...prev,
-                                experiences: prev.experiences.map((it) =>
-                                    it.id === exp.id ? { ...it, description: val } : it
-                                ),
-                              }));
-                            }}
-                            className="w-full px-2 py-1 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 leading-relaxed"
-                            placeholder="Tanggung jawab dan pencapaian kerja..."
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 3. Riwayat Pendidikan */}
-                <div className="pt-3 border-t border-slate-200 dark:border-white/10">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-cyan-500 dark:text-cyan-400 flex items-center gap-1.5">
-                      <GraduationCap className="w-4 h-4" />
-                      <span>3. Riwayat Pendidikan</span>
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={handleAddEducation}
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-400/30 flex items-center gap-1 hover:bg-cyan-500/30"
-                    >
-                      <Plus size={12} /> Tambah Sekolah
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {cvData.educations.map((edu) => (
-                      <div
-                        key={edu.id}
-                        className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-white/5 space-y-2 relative"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveEducation(edu.id)}
-                          className="absolute top-2.5 right-2.5 text-slate-400 hover:text-red-400 transition-colors"
-                          title="Hapus Pendidikan"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                        <div className="grid grid-cols-2 gap-2 pr-6">
-                          <div>
-                            <input
-                              type="text"
-                              value={edu.school}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCvData((prev) => ({
-                                  ...prev,
-                                  educations: prev.educations.map((it) =>
-                                    it.id === edu.id ? { ...it, school: val } : it
-                                  ),
-                                }));
-                              }}
-                              className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10"
-                              placeholder="Nama Sekolah / Kampus"
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="text"
-                              value={edu.major}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setCvData((prev) => ({
-                                  ...prev,
-                                  educations: prev.educations.map((it) =>
-                                    it.id === edu.id ? { ...it, major: val } : it
-                                  ),
-                                }));
-                              }}
-                              className="w-full px-2 py-1 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10"
-                              placeholder="Jurusan"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            value={edu.period}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setCvData((prev) => ({
-                                ...prev,
-                                educations: prev.educations.map((it) =>
-                                  it.id === edu.id ? { ...it, period: val } : it
-                                ),
-                              }));
-                            }}
-                            className="w-full px-2 py-1 rounded-lg text-[11px] text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10"
-                            placeholder="Tahun Lulus (2019 - 2022)"
-                          />
-                          <input
-                            type="text"
-                            value={edu.gpa || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setCvData((prev) => ({
-                                ...prev,
-                                educations: prev.educations.map((it) =>
-                                  it.id === edu.id ? { ...it, gpa: val } : it
-                                ),
-                              }));
-                            }}
-                            className="w-full px-2 py-1 rounded-lg text-[11px] text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10"
-                            placeholder="Nilai / IPK (Opsional)"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 4. Keahlian & Skill */}
-                <div className="pt-3 border-t border-slate-200 dark:border-white/10">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-cyan-500 dark:text-cyan-400 mb-2 flex items-center gap-1.5">
-                    <Wrench className="w-4 h-4" />
-                    <span>4. Keahlian & Keterampilan</span>
-                  </h3>
-                  <div className="flex flex-wrap gap-1.5 mb-2.5">
-                    {cvData.skills.map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30 flex items-center gap-1"
-                      >
-                        {skill}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSkill(skill)}
-                          className="hover:text-red-400 transition-colors"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      id="new-skill-input"
-                      type="text"
-                      className="flex-1 px-3 py-1.5 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-white/10"
-                      placeholder="Ketik keahlian lalu tekan Tambah (contoh: Microsoft Excel)"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAddSkill((e.target as HTMLInputElement).value);
-                          (e.target as HTMLInputElement).value = '';
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const el = document.getElementById('new-skill-input') as HTMLInputElement;
-                        if (el && el.value) {
-                          handleAddSkill(el.value);
-                          el.value = '';
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500 text-slate-950 shadow-sm"
-                    >
-                      Tambah
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 3: Auto AI Generator (Struktur Lengkap Sulap Foto 9.7 VIP) */}
+            {/* TAB 2: Auto CV Generator (Struktur Lengkap Sulap Foto 9.7 VIP) */}
             {activeTab === 'auto_generator' && (
               <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-5 border border-slate-200 dark:border-white/10 shadow-sm space-y-5 max-h-[620px] overflow-y-auto">
                 {/* Status VIP Private Server Active Badge */}
@@ -1291,42 +906,6 @@ export default function CvGenerator() {
                       </div>
                     );
                   })}
-                </div>
-              </div>
-            )}
-
-            {/* TAB 3: Manual Quick Form */}
-            {activeTab === 'manual' && (
-              <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-5 border border-slate-200 dark:border-white/10 shadow-sm space-y-4 max-h-[600px] overflow-y-auto">
-                <div className="p-3 bg-cyan-500/10 rounded-2xl border border-cyan-500/30 text-xs text-cyan-800 dark:text-cyan-300">
-                  Tip: Mode Edit Manual memungkinkan Anda mengubah detail baris per baris secara langsung.
-                </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1">Nama Lengkap</label>
-                  <input
-                    type="text"
-                    value={cvData.fullName}
-                    onChange={(e) => setCvData({ ...cvData, fullName: e.target.value })}
-                    className="w-full p-2.5 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl outline-none font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1">Posisi Jabatan Target</label>
-                  <input
-                    type="text"
-                    value={cvData.headline}
-                    onChange={(e) => setCvData({ ...cvData, headline: e.target.value })}
-                    className="w-full p-2.5 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1">Ringkasan Diri (Summary)</label>
-                  <textarea
-                    rows={4}
-                    value={cvData.summary}
-                    onChange={(e) => setCvData({ ...cvData, summary: e.target.value })}
-                    className="w-full p-2.5 text-xs bg-slate-100 dark:bg-slate-800 rounded-xl outline-none leading-relaxed"
-                  />
                 </div>
               </div>
             )}
