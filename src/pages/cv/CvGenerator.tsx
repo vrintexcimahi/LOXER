@@ -7,7 +7,6 @@ import {
   Plus,
   Trash2,
   CheckCircle2,
-  Printer,
   Filter,
   User,
   Briefcase,
@@ -239,49 +238,6 @@ export default function CvGenerator() {
 
       {/* Main Container */}
       <main className="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-3 flex-1 flex flex-col">
-        {/* Banner Title & Quick Action */}
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-900/40 via-cyan-900/30 to-slate-900/50 p-4 sm:p-5 rounded-3xl border border-cyan-500/20 backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shrink-0 shadow-lg shadow-cyan-500/10">
-              <FileText className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                  CV Maker & Templates
-                </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">
-                  A4 Standar
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Pilih dari 30 desain master template A4, generate otomatis via AI atau sesuaikan manual sesuai bidang kerja.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setActiveTab('auto_generator')}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 flex items-center gap-1.5 shadow-md shadow-cyan-500/20 active:scale-95 transition-all"
-            >
-              <Sparkles className="w-4 h-4 text-slate-950" />
-              <span>1-Klik Buat Otomatis</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handlePrintPdf}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center gap-1.5 active:scale-95 transition-all"
-              title="Cetak langsung ke PDF A4"
-            >
-              <Printer className="w-4 h-4 text-cyan-400" />
-              <span>Cetak / Simpan PDF</span>
-            </button>
-          </div>
-        </div>
-
         {/* Workspace Layout: Left Panel Tabs (Templates / Edit / AI) vs Right Live Canvas */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-start">
           {/* Left Column Controls (7 cols on desktop) */}

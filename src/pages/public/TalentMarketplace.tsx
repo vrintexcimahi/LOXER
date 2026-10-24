@@ -2,10 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import {
   Search,
   Users,
-  ArrowRight,
   RefreshCw,
-  PlusCircle,
-  ShieldCheck,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
@@ -66,15 +63,7 @@ export default function TalentMarketplace() {
     return () => window.removeEventListener('popstate', handleUrlChange);
   }, []);
 
-  const heroContent = useMemo(() => {
-    return {
-      badge: 'Bursa Pekerja & Pelamar Siap Rekrut',
-      title: 'Temukan Pekerja Berbakat &',
-      highlight: 'Rekrut Kandidat Langsung',
-      desc: 'Jelajahi profil, biodata, dan keahlian pelamar kerja aktif terverifikasi. Perusahaan dapat langsung mengundang wawancara dan mengirim penawaran kerja resmi.',
-      icon: Users,
-    };
-  }, []);
+  // Hero content removed for clean layout
 
   const fetchTalents = async () => {
     setLoading(true);
@@ -165,6 +154,7 @@ export default function TalentMarketplace() {
     }
     window.location.href = '/seeker/profile';
   };
+  void handleNavigatePost;
 
   return (
     <div className="loxer-workspace min-h-screen bg-slate-50 dark:bg-[#071220] text-slate-800 dark:text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black pb-20 md:pb-0 transition-colors duration-200">
@@ -175,51 +165,7 @@ export default function TalentMarketplace() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-1 sm:pt-2 pb-6 sm:pb-8 space-y-5 sm:space-y-6">
-        {/* Compact Header & Actions */}
-        <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/60 p-4 sm:p-5 lg:p-6 shadow-xl">
-          <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-          <div className="absolute -left-12 -bottom-12 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
-
-          {/* Compact Text & Actions */}
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1.5 max-w-3xl">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                  <heroContent.icon className="w-3 h-3 text-cyan-400" />
-                  <span>{heroContent.badge}</span>
-                </span>
-              </div>
-
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-black text-white tracking-tight leading-snug">
-                {heroContent.title}{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
-                  {heroContent.highlight}
-                </span>
-              </h1>
-
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
-                {heroContent.desc}
-              </p>
-            </div>
-
-            {/* Quick Actions & Seeker Promo */}
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <button
-                onClick={handleNavigatePost}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm text-slate-950 bg-gradient-to-r from-cyan-400 to-teal-300 hover:from-cyan-300 hover:to-teal-200 shadow-md shadow-cyan-500/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                Posting Biodata &amp; Jasa
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 font-medium">
-                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Transaksi Resmi</span>
-              </div>
-            </div>
-          </div>
-        </section>
+        
 
         {/* Search & Filter Bar */}
         <section className="space-y-4">
