@@ -120,6 +120,12 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
                     <MapPin size={13} className="shrink-0 text-cyan-300 mt-0.5" />
                     <span className="leading-tight">{cvData.city || '-'}</span>
                   </div>
+                  {cvData.linkedin && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-cyan-300 font-bold">in</span>
+                      <span className="truncate">{cvData.linkedin}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -180,6 +186,21 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Hobi / Minat (Interests) */}
+              {cvData.interests && cvData.interests.length > 0 && (
+                <div>
+                  <h4
+                    className="text-xs uppercase font-black tracking-widest pb-1 mb-2 border-b"
+                    style={{ borderColor: `${accent}60`, color: accent }}
+                  >
+                    Hobi & Minat
+                  </h4>
+                  <p className="text-[10px] text-white/80 leading-relaxed">
+                    {cvData.interests.join(', ')}
+                  </p>
                 </div>
               )}
             </div>
@@ -253,6 +274,25 @@ export const CvCanvasRenderer: React.FC<CvCanvasRendererProps> = ({
                   ))}
                 </div>
               </div>
+
+              {/* Sertifikasi & Penghargaan */}
+              {cvData.certifications && cvData.certifications.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User size={15} style={{ color: primary }} />
+                    <h3 className="text-xs font-black uppercase tracking-wider" style={{ color: primary }}>
+                      Sertifikasi & Pelatihan
+                    </h3>
+                  </div>
+                  <ul className="space-y-1 text-[10px] text-slate-700 list-disc list-inside">
+                    {cvData.certifications.map((cert, idx) => (
+                      <li key={idx} className="leading-tight">
+                        {cert}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             {/* Template Signature Footer */}

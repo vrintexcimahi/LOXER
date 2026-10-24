@@ -26,12 +26,17 @@ export interface CvData {
   phone: string;
   city: string;
   address?: string;
+  linkedin?: string;
   photoUrl: string;
   summary: string;
   experiences: CvExperience[];
   educations: CvEducation[];
   skills: string[];
   languages: CvLanguage[];
+  certifications?: string[];
+  interests?: string[];
+  styleOption?: string;
+  colorOption?: string;
 }
 
 export const INITIAL_CV_DATA: CvData = {
@@ -40,6 +45,7 @@ export const INITIAL_CV_DATA: CvData = {
   email: 'azqy.ahmad@gmail.com',
   phone: '0812-3456-7890',
   city: 'Kota Cimahi, Jawa Barat',
+  linkedin: 'linkedin.com/in/azqy-ahmad',
   photoUrl: '/avatars/pixar_male_1.jpg',
   summary:
     'Lulusan Administrasi Bisnis yang berdedikasi dan teliti dengan pengalaman 2+ tahun dalam pengelolaan dokumen perkantoran, entri data transaksi keuangan, pembukuan kas harian, serta pelayanan operasional pelanggan secara terstruktur.',
@@ -48,7 +54,7 @@ export const INITIAL_CV_DATA: CvData = {
       id: 'exp-1',
       position: 'Staff Administrasi Operasional',
       company: 'CV Indo Jaya Amanah',
-      period: '2023 - 2025',
+      period: 'Jan 2023 - Des 2024',
       description:
         'Bertanggung jawab menyusun laporan kas harian, rekonsiliasi faktur transaksi, pengarsipan berkas legalitas, dan berkoordinasi dengan tim logistik untuk efisiensi pengiriman dokumen.',
     },
@@ -56,7 +62,7 @@ export const INITIAL_CV_DATA: CvData = {
       id: 'exp-2',
       position: 'Junior Admin & Customer Support',
       company: 'PT Loxer Solusi Digital',
-      period: '2022 - 2023',
+      period: 'Jan 2022 - Des 2022',
       description:
         'Melayani komunikasi pertanyaan pelanggan dengan response time cepat, mengelola database inventaris, dan memproses pembuatan surat penawaran resmi.',
     },
@@ -83,4 +89,11 @@ export const INITIAL_CV_DATA: CvData = {
     { name: 'Bahasa Indonesia', level: 'Fasih (Bahasa Asli)' },
     { name: 'Bahasa Inggris', level: 'Menengah (Pasif & Aktif)' },
   ],
+  certifications: [
+    'Sertifikasi Kompetensi BNSP Administrasi Perkantoran (2022)',
+    'TOEFL ITP Prediction Score 520 (2023)',
+  ],
+  interests: ['Membaca Buku Bisnis', 'Fotografi Acara', 'Bulu Tangkis'],
+  styleOption: 'Profesional Formal',
+  colorOption: 'Biru Profesional',
 };
