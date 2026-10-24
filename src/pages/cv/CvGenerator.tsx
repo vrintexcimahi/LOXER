@@ -340,19 +340,6 @@ export default function CvGenerator() {
             {/* TAB 2: Auto CV Generator (Struktur Lengkap Sulap Foto 9.7 VIP) */}
             {activeTab === 'auto_generator' && (
               <div className="bg-white dark:bg-slate-900/90 rounded-3xl p-5 border border-slate-200 dark:border-white/10 shadow-sm space-y-5 max-h-[620px] overflow-y-auto">
-                {/* Status VIP Private Server Active Badge */}
-                <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-transparent border border-emerald-500/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                      Private Server AI: Aktif & Terbuka Penuh
-                    </span>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-md font-extrabold bg-emerald-500/20 text-emerald-800 dark:text-emerald-200">
-                    VIP 9.7 UNLOCKED
-                  </span>
-                </div>
-
                 {/* Quick Industry Presets Pill */}
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1.5">
