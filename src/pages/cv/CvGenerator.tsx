@@ -18,7 +18,6 @@ import {
   Check,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
-import Footer from '../../components/layout/Footer';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
 import { CV_TEMPLATES, CvTemplateInfo } from '../../lib/cvTemplates';
 import { CvData, INITIAL_CV_DATA, CvExperience, CvEducation } from '../../lib/cvTypes';
@@ -1436,9 +1435,7 @@ export default function CvGenerator() {
         </div>
       </main>
 
-      {/* Public Footer */}
-      <Footer />
-
+      {/* Public Footer removed from CV page */}
       {/* Toast Alert Notification */}
       {toastMsg && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-slate-900/95 dark:bg-white text-white dark:text-slate-950 text-xs font-bold shadow-2xl border border-cyan-500/30 flex items-center gap-2 animate-fade-in">

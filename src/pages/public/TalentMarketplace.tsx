@@ -5,7 +5,6 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
-import Footer from '../../components/layout/Footer';
 import TalentCard from '../../components/marketplace/TalentCard';
 import TalentDetailModal from '../../components/marketplace/TalentDetailModal';
 import ProtectedTalentChatModal from '../../components/marketplace/ProtectedTalentChatModal';
@@ -314,8 +313,7 @@ export default function TalentMarketplace() {
         />
       )}
 
-      {/* Public Footer */}
-      <Footer />
+      {/* Footer removed from TalentMarketplace page */}
 
       {/* Mobile Bottom Navigation Bar for Mobile Visitors */}
       <PublicMobileBottomNav

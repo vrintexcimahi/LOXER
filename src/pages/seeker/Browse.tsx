@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import Navbar from '../../components/layout/Navbar';
-import Footer from '../../components/layout/Footer';
 import JobList from '../../components/JobList';
 import JobDetailModal from '../../components/jobs/JobDetailModal';
 import AuthModal from '../auth/AuthModal';
@@ -116,8 +115,7 @@ export default function Browse() {
         />
       )}
 
-      {/* Public Footer */}
-      <Footer />
+      {/* Footer removed from Browse page */}
 
       {/* Mobile Bottom Navigation Bar for Mobile Visitors */}
       <PublicMobileBottomNav
