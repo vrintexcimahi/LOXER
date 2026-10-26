@@ -8,7 +8,6 @@ import {
   PhoneOff,
   Volume2,
   VolumeX,
-  Sparkles,
   Send,
   Award,
   CheckCircle2,
@@ -69,6 +68,8 @@ export default function LiveInterviewRoom() {
   const [showScorecardModal, setShowScorecardModal] = useState<boolean>(false);
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
   const [isCopiedReport, setIsCopiedReport] = useState<boolean>(false);
+  const [recruiterPersona, setRecruiterPersona] = useState<'female' | 'male'>('female');
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   // DOM Refs
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -76,17 +77,40 @@ export default function LiveInterviewRoom() {
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<any>(null);
 
-  // 1. Text-To-Speech (AI Speaking)
+  // Pre-load Indonesian voices
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const updateVoices = () => {
+      const v = window.speechSynthesis.getVoices();
+      setAvailableVoices(v);
+    };
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
+  // 1. Text-To-Speech (AI Speaking - Bahasa Indonesia Baku & Alami)
   const speakQuestion = useCallback(
     (text: string) => {
       if (isAiVoiceMuted) return;
       if (!('speechSynthesis' in window)) return;
       try {
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
+
+        // Bersihkan formatting markdown atau karakter aneh agar suara jernih
+        const cleanText = text
+          .replace(/[*_#`~[\]]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = 'id-ID';
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
+        utterance.rate = 0.95; // Kecepatan bicara sopan & artikulatif
+        utterance.pitch = recruiterPersona === 'female' ? 1.05 : 0.95;
 
         utterance.onstart = () => {
           setIsAiSpeaking(true);
@@ -98,17 +122,26 @@ export default function LiveInterviewRoom() {
           setIsAiSpeaking(false);
         };
 
-        // Select Indonesian voice if available
-        const voices = window.speechSynthesis.getVoices();
-        const idVoice = voices.find((v) => v.lang.includes('id') || v.lang.includes('ID'));
-        if (idVoice) utterance.voice = idVoice;
+        // Cari suara Bahasa Indonesia resmi
+        const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
+        const idVoice = voices.find(
+          (v) =>
+            v.lang.toLowerCase() === 'id-id' ||
+            v.lang.toLowerCase().startsWith('id') ||
+            v.name.toLowerCase().includes('indonesia') ||
+            v.name.toLowerCase().includes('id')
+        );
+
+        if (idVoice) {
+          utterance.voice = idVoice;
+        }
 
         window.speechSynthesis.speak(utterance);
       } catch {
         setIsAiSpeaking(false);
       }
     },
-    [isAiVoiceMuted]
+    [isAiVoiceMuted, availableVoices, recruiterPersona]
   );
 
   // 2. Initialize Media Devices (Webcam & Mic)
@@ -577,49 +610,72 @@ export default function LiveInterviewRoom() {
       {/* 2. Main Viewport (Responsive Adaptive Grid: AI Avatar & Candidate Video) */}
       <main className="flex-1 w-full max-w-5xl mx-auto p-2.5 sm:p-4 flex flex-col gap-2.5 justify-start items-center">
         {/* Video Call Screens: 2-Cols on Mobile & Desktop */}
-        <div className="w-full grid grid-cols-2 gap-2 sm:gap-3.5 h-36 sm:h-52 md:h-60">
-          {/* Card 1: AI Interviewer Video Avatar */}
-          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-b from-slate-900 to-[#0c1827] border border-cyan-500/30 shadow-xl flex flex-col items-center justify-center p-2 sm:p-4 text-center">
-            {/* Status Pill */}
-            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/10 text-[9px] font-bold text-slate-300">
-              <Sparkles size={11} className="text-cyan-400" />
-              <span className="hidden sm:inline">Senior HR Recruiter</span>
-              <span className="sm:hidden">AI Recruiter</span>
-            </div>
+        <div className="w-full grid grid-cols-2 gap-2 sm:gap-3.5 h-44 sm:h-60 md:h-72">
+          {/* Card 1: Real Human AI Recruiter Video Feed */}
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 border border-cyan-500/40 shadow-2xl flex flex-col items-center justify-center group">
+            {/* Real Person Background Image with Video Call Room Lighting */}
+            <img
+              src={
+                recruiterPersona === 'female'
+                  ? '/interview/recruiter_female_blazer.png'
+                  : '/interview/recruiter_male_office.png'
+              }
+              alt="AI Senior Recruiter LOXER"
+              className={`w-full h-full object-cover object-top transition-transform duration-700 ${
+                isAiSpeaking ? 'scale-105' : 'scale-100'
+              }`}
+            />
 
-            {/* Speaking Audio Wave Ripple Animation */}
-            <div className="relative flex items-center justify-center my-auto">
-              {isAiSpeaking && (
-                <>
-                  <div className="absolute w-20 sm:w-28 h-20 sm:h-28 rounded-full bg-cyan-500/20 animate-ping" />
-                  <div className="absolute w-24 sm:w-36 h-24 sm:h-36 rounded-full bg-blue-500/10 animate-pulse" />
-                </>
-              )}
-              {/* Avatar Monogram Frame */}
-              <div
-                className={`w-16 h-16 sm:w-24 sm:h-24 rounded-full p-1 bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 shadow-xl transition-all duration-300 ${
-                  isAiSpeaking ? 'scale-105 shadow-cyan-500/50' : 'scale-100'
-                }`}
-              >
-                <div className="w-full h-full rounded-full bg-slate-950 flex flex-col items-center justify-center text-white relative overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-b from-slate-800 to-slate-950 flex items-center justify-center">
-                    <span className="text-xl sm:text-3xl font-black bg-gradient-to-br from-cyan-300 to-blue-500 bg-clip-text text-transparent">
-                      AI
-                    </span>
-                  </div>
-                </div>
+            {/* Dark Scrim Gradients for live video call look */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/40 pointer-events-none" />
+
+            {/* Live Audio Ripple Ring when Speaking */}
+            {isAiSpeaking && (
+              <div className="absolute inset-0 border-2 border-cyan-400/60 rounded-2xl sm:rounded-3xl pointer-events-none animate-pulse shadow-[inset_0_0_20px_rgba(6,182,212,0.3)]" />
+            )}
+
+            {/* Top Bar: Recruiter Info & Switch Persona */}
+            <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-auto">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-white/10 text-[9px] font-bold text-slate-200 shadow-md">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>HD 1080p</span>
               </div>
+
+              {/* Persona Switcher Pill */}
+              <button
+                type="button"
+                onClick={() => setRecruiterPersona((p) => (p === 'female' ? 'male' : 'female'))}
+                className="px-2 py-0.5 rounded-full bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md border border-white/10 text-[9px] font-semibold text-cyan-300 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Ganti Pewawancara (Siti / Dimas)"
+              >
+                <span>{recruiterPersona === 'female' ? 'Ibu Siti' : 'Bpk Dimas'}</span>
+                <span className="text-[8px] text-slate-400">(Ubah)</span>
+              </button>
             </div>
 
-            {/* AI Status Text */}
-            <div className="w-full text-center pb-1">
-              <p className="text-[10px] sm:text-xs text-cyan-400 font-semibold truncate">
-                {isAiSpeaking
-                  ? 'Sedang berbicara...'
-                  : isListening
-                  ? 'Mendengarkan Anda...'
-                  : 'Menunggu jawaban'}
-              </p>
+            {/* Bottom Bar: Recruiter Name Tag & Live Voice VU Meter */}
+            <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between pointer-events-none">
+              <div className="bg-slate-950/85 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-xl shadow-lg">
+                <p className="text-[10px] sm:text-xs font-black text-slate-100 leading-tight">
+                  {recruiterPersona === 'female' ? 'Siti Rahmawati, S.Psi' : 'Dimas Aditya, S.T.'}
+                </p>
+                <p className="text-[8px] sm:text-[9px] text-cyan-400 font-semibold flex items-center gap-1">
+                  <span>{isAiSpeaking ? 'Sedang berbicara...' : isListening ? 'Mendengarkan Anda...' : 'Menyimak'}</span>
+                </p>
+              </div>
+
+              {/* Real-Time Audio Frequency Equalizer Bars */}
+              {isAiSpeaking && (
+                <div className="flex items-end gap-0.5 h-4 bg-slate-950/80 px-2 py-1 rounded-lg border border-cyan-400/30">
+                  {[0.4, 0.9, 0.6, 1.0, 0.7, 0.3].map((h, i) => (
+                    <div
+                      key={i}
+                      className="w-0.5 rounded-full bg-cyan-400 animate-pulse"
+                      style={{ height: `${h * 12}px`, animationDelay: `${i * 120}ms` }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

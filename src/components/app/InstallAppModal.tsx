@@ -5,7 +5,6 @@ import {
   Zap,
   CheckCircle,
   Sparkles,
-  Lock,
   PlusSquare,
   Share2,
   MoreVertical,
@@ -177,20 +176,6 @@ export default function InstallAppModal({
             className="hover:text-slate-200 transition underline underline-offset-4 cursor-pointer"
           >
             Tetap di Web (Mode View-Only)
-          </button>
-
-          {/* Secret Backdoor for Super Admin */}
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onOpenSecretAdmin?.();
-            }}
-            className="inline-flex items-center gap-1.5 text-slate-500 hover:text-cyan-400 transition text-[11px] cursor-pointer"
-            title="Akses Rahasia Khusus Super Administrator"
-          >
-            <Lock className="w-3 h-3" />
-            <span>Akses Rahasia Super Admin</span>
           </button>
         </div>
 

@@ -51,11 +51,6 @@ export default function SecretAdminModal({
     }
   };
 
-  const handleQuickMasterKey = () => {
-    setPasskey('kayaraya3+');
-    setError('');
-  };
-
   return (
     <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-md bg-gradient-to-b from-slate-900 to-[#070d1a] border border-cyan-400/40 rounded-3xl p-6 sm:p-7 shadow-[0_0_60px_rgba(6,182,212,0.35)] text-white">
@@ -120,16 +115,10 @@ export default function SecretAdminModal({
               </div>
             </div>
 
-            {/* Quick Prefill helper */}
+            {/* Shortcut info */}
             <div className="flex items-center justify-between text-[11px] text-slate-400">
               <span>Shortcut: <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 font-mono">Ctrl+Shift+A</kbd></span>
-              <button
-                type="button"
-                onClick={handleQuickMasterKey}
-                className="text-cyan-400 hover:underline cursor-pointer"
-              >
-                Gunakan Master Key
-              </button>
+              <span className="text-slate-500 text-[10px]">Otoritas Khusus Internal</span>
             </div>
 
             <button

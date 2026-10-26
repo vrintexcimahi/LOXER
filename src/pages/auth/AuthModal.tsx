@@ -842,22 +842,6 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
               {mode === 'login' ? 'Daftar Gratis' : 'Masuk'}
             </button>
           </p>
-
-          {/* Secret Super Admin Access Entry */}
-          <div className="text-center mt-3 pt-3 border-t border-white/5">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                openSecretAdminModal();
-              }}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-cyan-400 transition cursor-pointer"
-              title="Akses Rahasia Khusus Super Administrator"
-            >
-              <Lock className="w-3 h-3 text-cyan-500" />
-              <span>Akses Rahasia Super Admin</span>
-            </button>
-          </div>
         </div>
       </div>
 
