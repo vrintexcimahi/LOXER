@@ -83,6 +83,12 @@ export default function LiveInterviewRoom() {
   const scorecardRef = useRef<InterviewScorecard | null>(null);
   const isInterviewDoneRef = useRef<boolean>(false);
 
+  // Paksa document lang = 'id' agar browser default Bahasa Indonesia
+  useEffect(() => {
+    document.documentElement.lang = 'id';
+    document.documentElement.setAttribute('xml:lang', 'id');
+  }, []);
+
   // Pre-load Indonesian voices
   useEffect(() => {
     if (!('speechSynthesis' in window)) return;
@@ -114,32 +120,40 @@ export default function LiveInterviewRoom() {
           .trim();
 
         const utterance = new SpeechSynthesisUtterance(cleanText);
+        // PAKSA Bahasa Indonesia — jangan biarkan browser auto-detect
         utterance.lang = 'id-ID';
-        utterance.rate = 0.95; // Kecepatan bicara sopan & artikulatif
-        utterance.pitch = recruiterPersona === 'female' ? 1.05 : 0.95;
+        utterance.rate = 0.92; // Sedikit lebih lambat agar artikulasi jelas
+        utterance.pitch = recruiterPersona === 'female' ? 1.05 : 0.92;
+        utterance.volume = 1.0;
 
-        utterance.onstart = () => {
-          setIsAiSpeaking(true);
-        };
-        utterance.onend = () => {
-          setIsAiSpeaking(false);
-        };
-        utterance.onerror = () => {
-          setIsAiSpeaking(false);
-        };
+        utterance.onstart = () => setIsAiSpeaking(true);
+        utterance.onend = () => setIsAiSpeaking(false);
+        utterance.onerror = () => setIsAiSpeaking(false);
 
-        // Cari suara Bahasa Indonesia resmi
+        // Prioritas pemilihan suara Indonesia (dari paling spesifik ke generik):
+        // 1. Google Bahasa Indonesia (Chrome) - id-ID exact match
+        // 2. Microsoft Andika/Gadis (Windows) - id-ID
+        // 3. Suara lokal dengan lang id-ID
+        // 4. Suara dengan nama 'Indonesian' / 'Indonesia'
+        // 5. Semua suara dengan lang prefix 'id'
         const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
-        const idVoice = voices.find(
-          (v) =>
-            v.lang.toLowerCase() === 'id-id' ||
-            v.lang.toLowerCase().startsWith('id') ||
-            v.name.toLowerCase().includes('indonesia') ||
-            v.name.toLowerCase().includes('id')
-        );
+        const idVoice =
+          voices.find((v) => v.lang === 'id-ID' && v.name.toLowerCase().includes('google')) ||
+          voices.find((v) => v.lang === 'id-ID' && v.name.toLowerCase().includes('microsoft')) ||
+          voices.find((v) => v.lang === 'id-ID') ||
+          voices.find((v) => v.lang.toLowerCase().startsWith('id-')) ||
+          voices.find((v) => v.name.toLowerCase().includes('indonesian')) ||
+          voices.find((v) => v.name.toLowerCase().includes('indonesia')) ||
+          voices.find((v) => v.lang.toLowerCase().startsWith('id')) ||
+          null;
 
         if (idVoice) {
           utterance.voice = idVoice;
+          utterance.lang = idVoice.lang; // Sinkronkan lang dengan voice yang dipilih
+        } else {
+          // Tidak ada suara Indonesia — tetap set lang id-ID agar browser tahu
+          utterance.lang = 'id-ID';
+          console.warn('[TTS] Suara Indonesia tidak tersedia di perangkat ini. Menggunakan suara default browser.');
         }
 
         window.speechSynthesis.speak(utterance);
@@ -214,7 +228,13 @@ export default function LiveInterviewRoom() {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    // PAKSA Bahasa Indonesia — tidak boleh ikut bahasa browser/device
     recognition.lang = 'id-ID';
+    // Sinkronkan dengan document lang untuk konsistensi
+    if (document.documentElement.lang) {
+      document.documentElement.lang = 'id';
+    }
 
     recognition.onresult = (event: any) => {
       let interim = '';
