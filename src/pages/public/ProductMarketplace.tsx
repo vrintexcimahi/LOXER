@@ -18,7 +18,6 @@ import {
   UserCheck,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
-import Footer from '../../components/layout/Footer';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
 import HeroBannerSlideshow from '../../components/banner/HeroBannerSlideshow';
 import AuthModal from '../auth/AuthModal';
@@ -1243,9 +1242,6 @@ export default function ProductMarketplace() {
           onSwitchMode={(m) => setAuthMode(m)}
         />
       )}
-
-      {/* Public Footer */}
-      <Footer />
 
       {/* Mobile Bottom Navigation */}
       <PublicMobileBottomNav />

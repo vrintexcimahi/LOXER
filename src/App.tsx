@@ -3,7 +3,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { DeviceProvider } from './contexts/DeviceContext';
 import { useAuth } from './contexts/useAuth';
 import Navbar from './components/layout/Navbar';
-import Footer from './components/layout/Footer';
 import { isDefaultAdminEmail } from './lib/constants';
 import { supabase } from './lib/supabase';
 import { syncQueuedApplications } from './lib/offlineSyncService';
@@ -455,7 +454,6 @@ VITE_SUPABASE_ANON_KEY=...`}
             onLogin={() => setAuthMode('login')}
             onRegister={handleOpenRegister}
           />
-          <Footer />
           <PublicMobileBottomNav
             currentPath="/"
             onLogin={() => setAuthMode('login')}
