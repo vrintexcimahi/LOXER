@@ -3760,21 +3760,44 @@ async function handleEvaluateInterview(req, res) {
 async function handleListInterviewHistory(req, res) {
   const url = new URL(req.url, 'http://localhost');
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
-  const seekerId = url.searchParams.get('seeker_id');
+  let seekerId = url.searchParams.get('seeker_id');
+
+  // If no seeker_id in query, check if authenticated user token is present
+  if (!seekerId) {
+    const user = verifyUserToken(req);
+    if (user && user.id) {
+      seekerId = user.id;
+    }
+  }
 
   let rows;
+  const selectCols = `
+    s.*, 
+    c.id as scorecard_id,
+    c.overall_score, 
+    c.technical_score, 
+    c.communication_score, 
+    c.problem_solving_score, 
+    c.cultural_fit_score, 
+    c.recommendation, 
+    c.summary_feedback, 
+    c.strengths_json, 
+    c.weaknesses_json
+  `;
+
   if (seekerId) {
     rows = queryAll(
-      `SELECT s.*, c.overall_score, c.recommendation
+      `SELECT ${selectCols}
        FROM interview_sessions s
        LEFT JOIN interview_scorecards c ON c.session_id = s.id
        WHERE s.seeker_id = ?
+          OR s.seeker_id IN (SELECT id FROM seeker_profiles WHERE user_id = ?)
        ORDER BY s.created_at DESC LIMIT ?`,
-      [seekerId, limit]
+      [seekerId, seekerId, limit]
     );
   } else {
     rows = queryAll(
-      `SELECT s.*, c.overall_score, c.recommendation
+      `SELECT ${selectCols}
        FROM interview_sessions s
        LEFT JOIN interview_scorecards c ON c.session_id = s.id
        ORDER BY s.created_at DESC LIMIT ?`,
@@ -3784,10 +3807,45 @@ async function handleListInterviewHistory(req, res) {
 
   return sendJson(res, 200, {
     success: true,
-    interviews: rows.map((r) => ({
-      ...r,
-      questions: JSON.parse(r.questions_json || '[]'),
-    })),
+    interviews: rows.map((r) => {
+      let strengths = [];
+      let weaknesses = [];
+      try { strengths = JSON.parse(r.strengths_json || '[]'); } catch {}
+      try { weaknesses = JSON.parse(r.weaknesses_json || '[]'); } catch {}
+      let questions = [];
+      try { questions = JSON.parse(r.questions_json || '[]'); } catch {}
+
+      return {
+        id: r.id,
+        session_code: r.session_code,
+        seeker_id: r.seeker_id,
+        job_id: r.job_id,
+        role_title: r.role_title,
+        company_name: r.company_name,
+        candidate_name: r.candidate_name,
+        candidate_email: r.candidate_email,
+        current_question_idx: r.current_question_idx,
+        status: r.status,
+        created_at: r.created_at,
+        completed_at: r.completed_at,
+        questions,
+        scorecard: r.overall_score !== null && r.overall_score !== undefined
+          ? {
+              id: r.scorecard_id,
+              session_id: r.id,
+              overall_score: r.overall_score,
+              technical_score: r.technical_score,
+              communication_score: r.communication_score,
+              problem_solving_score: r.problem_solving_score,
+              cultural_fit_score: r.cultural_fit_score,
+              recommendation: r.recommendation,
+              summary_feedback: r.summary_feedback,
+              strengths,
+              weaknesses,
+            }
+          : null,
+      };
+    }),
   });
 }
 
