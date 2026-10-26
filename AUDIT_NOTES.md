@@ -1,3 +1,62 @@
+## [2026-10-26] Audit & Bug Fix: Proteksi Akses Interview Belum Login & Pengetatan Halaman Publik View-Only Wajib Popup PWA (AUD-AUTH-PWA)
+
+### Scope / status
+- Area: Autentikasi Pengguna, Rute Live Interview AI, Gatekeeping View-Only Web Publik, Popup Instalasi PWA Otomatis (`src/contexts/AuthContext.tsx`, `src/App.tsx`, `src/pages/interview/LiveInterviewRoom.tsx`, `src/pages/cv/CvGenerator.tsx`, `src/components/jobs/JobDetailModal.tsx`, `src/components/app/WebModeBanner.tsx`, `src/lib/appAccessService.ts`, `public/sw.js`, `scripts/test_auth_interview_pwa.mjs`)
+- Commit: `d7ffff9` (Branch: `audit/otonom-ultra-max-20261026-auth-interview-pwa`)
+- Status: PASS (100% Pipeline Lulus, 126/126 Test Assertions, 0 Blocker, 0 Error)
+
+### Root Cause Analysis
+1. **Parameter Query Spoofing (`searchParams.get('role')`)**:
+   - Di `AuthContext.tsx:254` dan `App.tsx:93`, kode membaca parameter `role` umum dari URL (`searchParams.get('role')`) dan mengaitkannya ke developer simulator `previewRole`.
+   - Ketika pelamar mengklik tombol interview dari CV generator atau tautan publik seperti `/interview?role=Staff Administrasi Perkantoran & Akuntansi`, string jabatan tersebut disalahartikan sebagai developer simulator role, menyebabkan `AuthContext` mensintesis sesi login palsu (`setUser(mockUser)`).
+2. **Ketiadaan Guard Autentikasi & Guard App pada Rute `/interview`**:
+   - Rute interview di `App.tsx` didaftarkan secara publik tanpa verifikasi status akun login (`!user`) dan tanpa pemeriksaan aplikasi PWA view-only (`isViewOnlyWeb`).
+3. **Pemuatan Stream Kamera, Mic & AI Otomatis Tanpa Otorisasi**:
+   - Komponen `LiveInterviewRoom.tsx` langsung mengeksekusi `startCameraAndMic()` dan inisialisasi AI Gemini di `useEffect` saat mount tanpa memeriksa status autentikasi pengguna.
+   - Nama kandidat diambil secara naif dari parameter URL kueri atau default `Azqy Ahmad Saputra`.
+4. **Popup PWA Publik Terpasung di Balik Status Login**:
+   - Pada `App.tsx`, pemicu modal instalasi PWA hanya berjalan jika `if (user && isViewOnlyWeb)`. Akibatnya pengunjung umum/tamu di browser web biasa tidak pernah mendapatkan popup instalasi PWA.
+5. **Celah Pathname Bypass Super Admin**:
+   - Fungsi `detectIsSuperAdminBypass()` di `appAccessService.ts` sebelumnya langsung mengembalikan `true` bila URL adalah `/admin-secret` atau `/secret-admin` tanpa memverifikasi passkey keamanan.
+
+### Changes & Features Implemented
+1. **Eliminasi Parameter URL Spoofing & Whitelist Ketat (`AuthContext.tsx`, `App.tsx`, `useAdminEasterEgg.ts`)**:
+   - Menghapus pembacaan generic `searchParams.get('role')`.
+   - Pembacaan mode simulator pengembang kini hanya menerima query eksplisit `preview_role` atau `sim_role`, dengan whitelist ketat peran resmi: `['admin', 'employer', 'seeker', 'freelancer', 'jasa']`.
+   - Menghapus celah bypass query `?role=admin` pada hook easter egg.
+2. **Route Guard & Auto-Redirect Rute Interview (`App.tsx`)**:
+   - Seluruh variasi rute interview (`/interview`, `/interview-ai`, `/live-interview`, `/interview/live`, `/live-call`, `/live`, `/live/`) kini memiliki guard proteksi ganda:
+     - Jika pengunjung belum login (`!user`): langsung dialihkan ke `/browse`, memunculkan modal login (`authMode = 'login'`), dan memunculkan toast peringatan keamanan.
+     - Jika pengguna membuka via browser web standar (`isViewOnlyWeb && !isSuperAdmin`): langsung dialihkan ke `/browse` dan memicu popup instalasi resmi PWA (`openInstallModal('Akses Fitur Live Interview AI')`).
+3. **Barrier Otomatis di Dalam Ruang Wawancara (`LiveInterviewRoom.tsx`)**:
+   - Inisialisasi media hardware (kamera & mic) serta koneksi sesi Gemini AI langsung di-bypass dan diblokir total jika pengguna belum terautentikasi atau dalam mode view-only web.
+   - Menyajikan 2 barrier screen elegan:
+     - Screen "Sesi Interview AI Memerlukan Login": kartu login terpadu dengan opsi "Masuk ke Akun LOXER" atau kembali ke katalog.
+     - Screen "Aplikasi Resmi LOXER Diperlukan": kartu instalasi PWA beranimasi dengan tombol 1-klik "Pasang Aplikasi LOXER Sekarang".
+   - Nama pelamar dan email diverifikasi secara aman dari metadata sesi pengguna terautentikasi (`user.user_metadata.full_name`), bukan parameter URL manipulatif.
+4. **Pengetatan Seluruh Halaman Publik View-Only & Wajib Popup PWA (`App.tsx`, `WebModeBanner.tsx`)**:
+   - Pemicu popup PWA otomatis (`InstallAppModal`) diaktifkan untuk SEMUA pengunjung (baik tamu belum login maupun pengguna login) pada seluruh rute halaman publik: `/`, `/browse`, `/talents`, `/cv`, `/mitra`.
+   - Menampilkan sticky `WebModeBanner` di bagian atas halaman publik dengan badge "MODE VIEW-ONLY WEB" dan tombol aksi 1-klik "📲 Pasang Aplikasi LOXER".
+5. **Proteksi Aksi Interaktif CV Generator & Detail Loker (`CvGenerator.tsx`, `JobDetailModal.tsx`)**:
+   - Tombol "Interview AI (Live)" pada CV Generator dan modal detail lowongan kini mewajibkan pengguna login terlebih dahulu dan memasang aplikasi PWA (`requireApp('Simulasi Live Interview AI')`).
+   - Tombol "Tarik Profil LOXER" mewajibkan login dan verifikasi aplikasi PWA (`requireApp('Tarik Data Profil LOXER')`).
+   - Tombol "Unduh & Cetak PDF" dilindungi dengan `requireApp('Unduh & Cetak Berkas CV PDF')`.
+   - Menghubungkan callback login/register pada Navbar CV Generator langsung ke modal autentikasi terpadu.
+6. **Penutupan Total Celah Pathname Bypass (`appAccessService.ts`)**:
+   - Menghapus aturan bypass otomatis berbasis pathname `/admin-secret` dan `/secret-admin` dari `detectIsSuperAdminBypass()`. Mode superadmin kini hanya dapat dibuka via passkey valid yang tersimpan di localStorage / sessionStorage aman.
+7. **Pembaruan Cache Service Worker PWA (`public/sw.js`)**:
+   - Versi cache PWA dinaikkan ke `'loxer-pwa-v6.7.0'` untuk menjamin pembaruan instan pada browser client.
+8. **Pengembangan Test Suite Otomatis (`scripts/test_auth_interview_pwa.mjs`)**:
+   - Membangun 11 titik asersi pengujian mencakup proteksi URL spoofing, rute guard, integrasi hooks, eliminasi webcam tanpa login, proteksi tombol CV generator, dan bumping Service Worker.
+
+### Verification
+- `npm run typecheck` — PASS (0 errors pada `tsconfig.app.json`).
+- `node scripts/test_auth_interview_pwa.mjs` — PASS (11/11 assertions 100% sukses).
+- `npm run test:local` — PASS (126/126 assertions lulus di seluruh 6 test suites tanpa satu pun kegagalan).
+- `npm run build` — PASS (Vite production bundle terbangun optimal dalam 6.67 detik).
+
+---
+
 ## [2026-10-25] Canva-Style Element-by-Element CV Template Editor
 
 ### Scope / status
