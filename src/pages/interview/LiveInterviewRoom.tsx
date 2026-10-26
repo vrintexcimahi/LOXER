@@ -664,43 +664,60 @@ export default function LiveInterviewRoom() {
 
       {/* 2. Main Viewport (Responsive Adaptive Grid: AI Avatar & Candidate Video) */}
       <main className="flex-1 w-full max-w-5xl mx-auto p-2.5 sm:p-4 flex flex-col gap-2.5 justify-start items-center">
-        {/* Video Call Screens: 2-Cols on Mobile & Desktop */}
-        <div className="w-full grid grid-cols-2 gap-2 sm:gap-3.5 h-44 sm:h-60 md:h-72">
-          {/* Card 1: Real Human AI Recruiter Video Feed */}
-          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 border border-cyan-500/40 shadow-2xl flex flex-col items-center justify-center group">
+        {/* Video Call Screens: 2-Cols on Mobile & Desktop (Zoom Style) */}
+        <div className="w-full grid grid-cols-2 gap-2 sm:gap-4 h-52 sm:h-64 md:h-76 lg:h-88">
+          {/* Card 1: Real Human AI Recruiter Video Feed (Zoom Host) */}
+          <div
+            className={`relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 flex flex-col items-center justify-center transition-all duration-300 group ${
+              isAiSpeaking
+                ? 'ring-2 sm:ring-4 ring-emerald-400 shadow-[0_0_35px_rgba(52,211,153,0.45)] border border-emerald-400/80'
+                : 'border border-white/10 shadow-2xl hover:border-white/20'
+            }`}
+          >
             {/* Real Person Background Image with Video Call Room Lighting */}
             <img
               src={
                 recruiterPersona === 'female'
-                  ? '/interview/recruiter_female_blazer.png'
-                  : '/interview/recruiter_male_office.png'
+                  ? '/interview/recruiter_female_zoom.jpg'
+                  : '/interview/recruiter_male_zoom.jpg'
               }
               alt="AI Senior Recruiter LOXER"
-              className={`w-full h-full object-cover object-top transition-transform duration-700 ${
-                isAiSpeaking ? 'scale-105' : 'scale-100'
+              className={`w-full h-full object-cover object-center transition-all duration-700 ${
+                isAiSpeaking ? 'animate-zoom-speaking scale-105' : 'animate-zoom-webcam'
               }`}
+              onError={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.dataset.fallback) {
+                  target.dataset.fallback = 'true';
+                  target.src =
+                    recruiterPersona === 'female'
+                      ? '/interview/recruiter_female_blazer.png'
+                      : '/interview/recruiter_male_office.png';
+                }
+              }}
             />
 
             {/* Dark Scrim Gradients for live video call look */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/40 pointer-events-none" />
-
-            {/* Live Audio Ripple Ring when Speaking */}
-            {isAiSpeaking && (
-              <div className="absolute inset-0 border-2 border-cyan-400/60 rounded-2xl sm:rounded-3xl pointer-events-none animate-pulse shadow-[inset_0_0_20px_rgba(6,182,212,0.3)]" />
-            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/20 to-slate-950/40 pointer-events-none" />
 
             {/* Top Bar: Recruiter Info & Switch Persona */}
-            <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-auto">
+            <div className="absolute top-2 sm:top-2.5 left-2 sm:left-2.5 right-2 sm:right-2.5 flex items-center justify-between pointer-events-auto z-10">
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-white/10 text-[9px] font-bold text-slate-200 shadow-md">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className={`w-2 h-2 rounded-full ${isAiSpeaking ? 'bg-emerald-400 animate-ping' : 'bg-emerald-400'}`} />
                 <span>HD 1080p</span>
+                <span className="text-slate-500">|</span>
+                <span className="text-emerald-400 flex items-center gap-0.5" title="Koneksi Stabil">
+                  <span className="inline-block w-0.5 h-1.5 bg-emerald-400 rounded-sm" />
+                  <span className="inline-block w-0.5 h-2 bg-emerald-400 rounded-sm" />
+                  <span className="inline-block w-0.5 h-2.5 bg-emerald-400 rounded-sm" />
+                </span>
               </div>
 
               {/* Persona Switcher Pill */}
               <button
                 type="button"
                 onClick={() => setRecruiterPersona((p) => (p === 'female' ? 'male' : 'female'))}
-                className="px-2 py-0.5 rounded-full bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md border border-white/10 text-[9px] font-semibold text-cyan-300 transition-colors flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 rounded-full bg-slate-900/85 hover:bg-slate-800 backdrop-blur-md border border-white/15 text-[9px] font-semibold text-cyan-300 transition-all flex items-center gap-1 cursor-pointer shadow-md hover:scale-105 active:scale-95"
                 title="Ganti Pewawancara (Siti / Dimas)"
               >
                 <span>{recruiterPersona === 'female' ? 'Ibu Siti' : 'Bpk Dimas'}</span>
@@ -708,25 +725,49 @@ export default function LiveInterviewRoom() {
               </button>
             </div>
 
-            {/* Bottom Bar: Recruiter Name Tag & Live Voice VU Meter */}
-            <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between pointer-events-none">
-              <div className="bg-slate-950/85 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-xl shadow-lg">
-                <p className="text-[10px] sm:text-xs font-black text-slate-100 leading-tight">
-                  {recruiterPersona === 'female' ? 'Siti Rahmawati, S.Psi' : 'Dimas Aditya, S.T.'}
-                </p>
-                <p className="text-[8px] sm:text-[9px] text-cyan-400 font-semibold flex items-center gap-1">
-                  <span>{isAiSpeaking ? 'Sedang berbicara...' : isListening ? 'Mendengarkan Anda...' : 'Menyimak'}</span>
-                </p>
+            {/* Bottom Bar: Recruiter Name Tag & Live Voice VU Meter (Zoom Style) */}
+            <div className="absolute bottom-2 sm:bottom-2.5 left-2 sm:left-2.5 right-2 sm:right-2.5 flex items-end justify-between pointer-events-none z-10">
+              <div className="bg-slate-950/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-xl flex items-center gap-2">
+                <div
+                  className={`p-1 rounded-lg ${
+                    isAiVoiceMuted
+                      ? 'bg-red-500/20 text-red-400'
+                      : isAiSpeaking
+                      ? 'bg-emerald-500/20 text-emerald-400 animate-pulse'
+                      : 'bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  {isAiVoiceMuted ? <VolumeX size={11} /> : <Mic size={11} />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[10px] sm:text-xs font-black text-slate-100 leading-tight">
+                      {recruiterPersona === 'female' ? 'Siti Rahmawati, S.Psi' : 'Dimas Aditya, S.T.'}
+                    </p>
+                    <span className="hidden sm:inline-block text-[8px] font-extrabold text-cyan-400 px-1 py-0.2 rounded bg-cyan-950/70 border border-cyan-500/30">
+                      Host
+                    </span>
+                  </div>
+                  <p className="text-[8px] sm:text-[9px] text-cyan-300 font-medium flex items-center gap-1 mt-0.5">
+                    <span>
+                      {isAiSpeaking
+                        ? 'Sedang berbicara...'
+                        : isListening
+                        ? 'Menyimak jawaban Anda...'
+                        : 'Menyimak'}
+                    </span>
+                  </p>
+                </div>
               </div>
 
               {/* Real-Time Audio Frequency Equalizer Bars */}
               {isAiSpeaking && (
-                <div className="flex items-end gap-0.5 h-4 bg-slate-950/80 px-2 py-1 rounded-lg border border-cyan-400/30">
+                <div className="flex items-end gap-0.5 h-5 bg-slate-950/90 backdrop-blur-md px-2 py-1 rounded-lg border border-emerald-400/40 shadow-lg">
                   {[0.4, 0.9, 0.6, 1.0, 0.7, 0.3].map((h, i) => (
                     <div
                       key={i}
-                      className="w-0.5 rounded-full bg-cyan-400 animate-pulse"
-                      style={{ height: `${h * 12}px`, animationDelay: `${i * 120}ms` }}
+                      className="w-0.5 rounded-full bg-emerald-400 animate-pulse"
+                      style={{ height: `${h * 14}px`, animationDelay: `${i * 120}ms` }}
                     />
                   ))}
                 </div>
@@ -734,8 +775,14 @@ export default function LiveInterviewRoom() {
             </div>
           </div>
 
-          {/* Card 2: Candidate Webcam Feed */}
-          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-900 border border-white/10 shadow-xl flex items-center justify-center">
+          {/* Card 2: Candidate Webcam Feed (Zoom Participant) */}
+          <div
+            className={`relative rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 flex items-center justify-center transition-all duration-300 ${
+              isListening && (candidateSpeechText.trim() || interimSpeech)
+                ? 'ring-2 sm:ring-4 ring-emerald-400 shadow-[0_0_35px_rgba(52,211,153,0.45)] border border-emerald-400/80'
+                : 'border border-white/10 shadow-xl hover:border-white/20'
+            }`}
+          >
             {isCameraOn && !hasCameraError ? (
               <video
                 ref={localVideoRef}
@@ -745,30 +792,52 @@ export default function LiveInterviewRoom() {
                 className="w-full h-full object-cover transform -scale-x-100"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center p-3 text-slate-500 text-center">
-                <div className="w-12 h-12 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center mb-1 text-slate-300 font-bold text-sm">
-                  {session.candidate_name?.charAt(0) || 'K'}
+              <div className="w-full h-full flex flex-col items-center justify-center p-3 sm:p-4 bg-gradient-to-b from-slate-900 via-[#0b1322] to-slate-950 relative select-none">
+                <div className="relative">
+                  {/* Speaking Ripple Pulse around Avatar when candidate speaks */}
+                  {isListening && (candidateSpeechText.trim() || interimSpeech) && (
+                    <div className="absolute -inset-2.5 rounded-full border-2 border-emerald-400/80 animate-ping pointer-events-none" />
+                  )}
+                  <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 border-2 border-white/20 flex items-center justify-center shadow-2xl text-white font-black text-lg sm:text-2xl">
+                    {session.candidate_name?.charAt(0).toUpperCase() || 'K'}
+                  </div>
                 </div>
-                <span className="text-[10px] text-slate-400 font-semibold">
+                <p className="text-xs sm:text-sm font-bold text-slate-200 mt-2 text-center truncate max-w-[140px] sm:max-w-none">
+                  {session.candidate_name}
+                </p>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                  <VideoOff size={11} className="text-slate-500" />
                   {hasCameraError ? 'Kamera Tidak Tersedia' : 'Kamera Nonaktif'}
                 </span>
               </div>
             )}
 
-            {/* Candidate Label Badge */}
-            <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/10 text-[9px] font-bold text-slate-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-              <span className="truncate max-w-[80px] sm:max-w-none">
+            {/* Bottom-left Candidate Label Badge (Zoom Style) */}
+            <div className="absolute bottom-2 sm:bottom-2.5 left-2 sm:left-2.5 z-10 bg-slate-950/90 backdrop-blur-md border border-white/10 px-2.5 py-1.5 rounded-xl shadow-xl flex items-center gap-1.5">
+              <div
+                className={`p-1 rounded-lg ${
+                  isMicOn ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                }`}
+              >
+                {isMicOn ? <Mic size={11} /> : <MicOff size={11} />}
+              </div>
+              <span className="text-[10px] sm:text-xs font-bold text-slate-200 truncate max-w-[90px] sm:max-w-none">
                 {session.candidate_name} (Anda)
               </span>
             </div>
 
-            {/* Mic Status Indicator */}
-            <div className="absolute top-2 right-2 p-1 rounded-lg bg-slate-950/80 backdrop-blur-md border border-white/10">
+            {/* Top-right Status Pill */}
+            <div className="absolute top-2 sm:top-2.5 right-2 sm:right-2.5 z-10 p-1 rounded-lg bg-slate-950/80 backdrop-blur-md border border-white/10">
               {isMicOn ? (
-                <Mic size={12} className="text-emerald-400" />
+                <span className="flex items-center gap-1 px-1 text-[9px] font-bold text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Mic On
+                </span>
               ) : (
-                <MicOff size={12} className="text-red-400" />
+                <span className="flex items-center gap-1 px-1 text-[9px] font-bold text-red-400">
+                  <MicOff size={10} />
+                  Mute
+                </span>
               )}
             </div>
           </div>

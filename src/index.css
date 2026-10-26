@@ -408,6 +408,27 @@ html.dark .badge {
 .animate-float-reverse { animation: float-reverse 4.5s ease-in-out infinite; }
 .animate-radar { animation: radar-pulse 2s cubic-bezier(0, 0.2, 0.8, 1) infinite; }
 
+/* Zoom Video Call Realistic Avatar Effects */
+@keyframes zoom-webcam-drift {
+  0%, 100% { transform: scale(1.02) translate(0, 0); }
+  50% { transform: scale(1.04) translate(-0.3%, -0.2%); }
+}
+
+@keyframes zoom-speaking-motion {
+  0%, 100% { transform: scale(1.04) translateY(0); }
+  25% { transform: scale(1.055) translateY(-2px); }
+  50% { transform: scale(1.04) translateY(1px); }
+  75% { transform: scale(1.05) translateY(-1px); }
+}
+
+.animate-zoom-webcam {
+  animation: zoom-webcam-drift 9s ease-in-out infinite;
+}
+
+.animate-zoom-speaking {
+  animation: zoom-speaking-motion 2.4s ease-in-out infinite;
+}
+
 .glass-panel {
   background: rgba(15, 23, 42, 0.78);
   backdrop-filter: blur(24px) saturate(180%);
