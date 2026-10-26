@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Sparkles,
   Upload,
   RefreshCw,
   Check,
@@ -14,8 +13,6 @@ import { supabase } from '../../lib/supabase';
 import {
   detectGender,
   getDefaultPixarAvatar,
-  ALL_PIXAR_AVATARS,
-  PixarAvatarOption,
 } from '../../lib/avatarService';
 import { enhancePortraitCanvas } from '../../lib/cvImageProcessor';
 import { ToastType } from './AdminTalentComponents';
@@ -35,9 +32,8 @@ export function AdminRegeneratePhotoModal({
   onSuccess,
   onToast,
 }: AdminRegeneratePhotoModalProps) {
-  const [activeTab, setActiveTab] = useState<'pixar' | 'upload' | 'recrop'>('pixar');
+  const [activeTab, setActiveTab] = useState<'upload' | 'recrop'>('upload');
   const [selectedPhoto, setSelectedPhoto] = useState<string>('');
-  const [avatarGenderFilter, setAvatarGenderFilter] = useState<'all' | 'male' | 'female'>('all');
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [customFilePreview, setCustomFilePreview] = useState<string | null>(null);
@@ -77,33 +73,11 @@ export function AdminRegeneratePhotoModal({
       setCustomFilePreview(null);
       setRotationAngle(0);
       setCropZoom(1);
-      setActiveTab('pixar');
-      setAvatarGenderFilter(detectedGender === 'female' ? 'female' : 'male');
+      setActiveTab(hasCvDocumentImage ? 'recrop' : 'upload');
     }
-  }, [isOpen, talent, currentPhoto, fullName, detectedGender]);
-
-  // Filtered Pixar Avatars
-  const filteredPixarAvatars = useMemo(() => {
-    if (avatarGenderFilter === 'all') return ALL_PIXAR_AVATARS;
-    return ALL_PIXAR_AVATARS.filter((a) => a.gender === avatarGenderFilter);
-  }, [avatarGenderFilter]);
+  }, [isOpen, talent, currentPhoto, fullName, hasCvDocumentImage]);
 
   if (!isOpen || !talent) return null;
-
-  // Handle Quick Auto-Pixar Assign
-  const handleAutoAssignPixar = () => {
-    const defaultPixar = getDefaultPixarAvatar(fullName, undefined, talent.bio);
-    setSelectedPhoto(defaultPixar);
-    onToast(
-      'info',
-      `Avatar 3D Pixar otomatis disesuaikan untuk ${detectedGender === 'female' ? 'Wanita' : 'Pria'}.`
-    );
-  };
-
-  // Handle Select Specific Pixar Avatar
-  const handleSelectPixar = (avatar: PixarAvatarOption) => {
-    setSelectedPhoto(avatar.url);
-  };
 
   // Handle File Upload from Admin PC
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -439,16 +413,6 @@ export function AdminRegeneratePhotoModal({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleAutoAssignPixar}
-                  className="flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-gradient-to-r from-cyan-600/30 to-blue-600/30 hover:from-cyan-600/50 hover:to-blue-600/50 px-3 py-1.5 text-xs font-bold text-cyan-200 transition"
-                  title="Pilih avatar 3D Pixar terbaik secara otomatis berdasarkan kecocokan gender"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
-                  <span>⚡ Auto 3D Pixar Studio</span>
-                </button>
-
-                <button
-                  type="button"
                   onClick={handleEnhancePhoto}
                   disabled={isProcessing}
                   className="flex items-center gap-1.5 rounded-xl border border-amber-400/40 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-300 transition disabled:opacity-50"
@@ -465,19 +429,6 @@ export function AdminRegeneratePhotoModal({
           <div className="flex items-center gap-2 border-b border-white/10 pb-2">
             <button
               type="button"
-              onClick={() => setActiveTab('pixar')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
-                activeTab === 'pixar'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              <span>1. Galeri 3D Pixar Studio</span>
-            </button>
-
-            <button
-              type="button"
               onClick={() => setActiveTab('upload')}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
                 activeTab === 'upload'
@@ -486,7 +437,7 @@ export function AdminRegeneratePhotoModal({
               }`}
             >
               <Upload className="w-4 h-4 text-emerald-400" />
-              <span>2. Unggah Pas Foto Baru</span>
+              <span>1. Unggah Pas Foto Baru</span>
             </button>
 
             {hasCvDocumentImage && (
@@ -500,109 +451,10 @@ export function AdminRegeneratePhotoModal({
                 }`}
               >
                 <Sliders className="w-4 h-4 text-indigo-400" />
-                <span>3. Re-Crop dari Berkas CV</span>
+                <span>2. Re-Crop dari Berkas CV</span>
               </button>
             )}
           </div>
-
-          {/* TAB 1: PIXAR GALLERY */}
-          {activeTab === 'pixar' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-slate-300">
-                  Pilih salah satu karakter 3D Pixar Studio resmi LOXER. Cocok untuk memperbaiki pas foto yang buram, miring, atau tidak simetris.
-                </p>
-
-                {/* Filter chip */}
-                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setAvatarGenderFilter('all')}
-                    className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
-                      avatarGenderFilter === 'all'
-                        ? 'bg-cyan-500 text-slate-950'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Semua ({ALL_PIXAR_AVATARS.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAvatarGenderFilter('male')}
-                    className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
-                      avatarGenderFilter === 'male'
-                        ? 'bg-cyan-500 text-slate-950'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Pria (3)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAvatarGenderFilter('female')}
-                    className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
-                      avatarGenderFilter === 'female'
-                        ? 'bg-rose-500 text-white'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Wanita (4)
-                  </button>
-                </div>
-              </div>
-
-              {/* Avatar Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {filteredPixarAvatars.map((avatar) => {
-                  const isSelected = selectedPhoto === avatar.url;
-
-                  return (
-                    <div
-                      key={avatar.url}
-                      onClick={() => handleSelectPixar(avatar)}
-                      className={`group relative cursor-pointer overflow-hidden rounded-2xl border transition-all duration-200 ${
-                        isSelected
-                          ? 'border-cyan-400 bg-cyan-950/40 ring-2 ring-cyan-400 shadow-lg shadow-cyan-500/20 scale-[1.02]'
-                          : 'border-white/10 bg-slate-950/60 hover:border-slate-500 hover:bg-slate-900'
-                      }`}
-                    >
-                      <div className="aspect-square w-full overflow-hidden bg-slate-950">
-                        <img
-                          src={avatar.url}
-                          alt={avatar.label}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                      </div>
-
-                      {/* Tag pill */}
-                      <div className="p-2 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span
-                            className={`text-[9px] font-bold uppercase rounded px-1.5 py-0.5 ${
-                              avatar.gender === 'female'
-                                ? 'bg-rose-500/20 text-rose-300'
-                                : 'bg-cyan-500/20 text-cyan-300'
-                            }`}
-                          >
-                            {avatar.tag}
-                          </span>
-                          {isSelected && (
-                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-slate-950">
-                              <Check className="w-2.5 h-2.5 stroke-[3]" />
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] font-medium text-slate-300 truncate">
-                          {avatar.label}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* TAB 2: UPLOAD CUSTOM PHOTO */}
           {activeTab === 'upload' && (

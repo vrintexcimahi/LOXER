@@ -300,8 +300,8 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
     authBgUrl: '',
     authBgBlur: 0,
     watermarkUrl: '',
-    defaultMaleAvatarUrl: '/avatars/pixar_male_1.jpg',
-    defaultFemaleAvatarUrl: '/avatars/pixar_female_1.jpg',
+    defaultMaleAvatarUrl: '',
+    defaultFemaleAvatarUrl: '',
     defaultCompanyLogoUrl: '',
   },
   audio: {

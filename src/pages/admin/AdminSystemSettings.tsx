@@ -1883,38 +1883,10 @@ export default function AdminSystemSettings() {
 
                   <div className="h-24 rounded-xl border border-white/10 bg-slate-950/80 flex items-center justify-center p-2">
                     <img
-                      src={settings.assets.defaultMaleAvatarUrl || '/avatars/pixar_male_1.jpg'}
+                      src={settings.assets.defaultMaleAvatarUrl || getDefaultPixarAvatar('Pria Profesional')}
                       alt="Avatar Pria"
                       className="h-16 w-16 rounded-full object-cover border-2 border-cyan-400 shadow-md shadow-cyan-500/20"
                     />
-                  </div>
-
-                  {/* Pixar Male Presets */}
-                  <div className="flex items-center justify-center gap-2 p-1.5 rounded-xl bg-slate-950 border border-white/5">
-                    {[
-                      { src: '/avatars/pixar_male_1.jpg', label: 'Pria 1' },
-                      { src: '/avatars/pixar_male_2.jpg', label: 'Pria 2' },
-                      { src: '/avatars/pixar_male_3.jpg', label: 'Pria 3' },
-                    ].map((p, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() =>
-                          updateSettings((prev) => ({
-                            ...prev,
-                            assets: { ...prev.assets, defaultMaleAvatarUrl: p.src },
-                          }))
-                        }
-                        className={`w-9 h-9 rounded-full overflow-hidden border-2 transition ${
-                          settings.assets.defaultMaleAvatarUrl === p.src
-                            ? 'border-cyan-400 scale-105 shadow-sm shadow-cyan-400/50'
-                            : 'border-white/15 opacity-60 hover:opacity-100'
-                        }`}
-                        title={p.label}
-                      >
-                        <img src={p.src} alt={p.label} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
                   </div>
 
                   <div className="space-y-2">
@@ -1960,38 +1932,10 @@ export default function AdminSystemSettings() {
 
                   <div className="h-24 rounded-xl border border-white/10 bg-slate-950/80 flex items-center justify-center p-2">
                     <img
-                      src={settings.assets.defaultFemaleAvatarUrl || '/avatars/pixar_female_1.jpg'}
+                      src={settings.assets.defaultFemaleAvatarUrl || getDefaultPixarAvatar('Wanita Profesional', 'female')}
                       alt="Avatar Wanita"
                       className="h-16 w-16 rounded-full object-cover border-2 border-rose-400 shadow-md shadow-rose-500/20"
                     />
-                  </div>
-
-                  {/* Pixar Female Presets */}
-                  <div className="flex items-center justify-center gap-2 p-1.5 rounded-xl bg-slate-950 border border-white/5">
-                    {[
-                      { src: '/avatars/pixar_female_1.jpg', label: 'Wanita 1' },
-                      { src: '/avatars/pixar_female_2.jpg', label: 'Wanita 2' },
-                      { src: '/avatars/pixar_female_3.jpg', label: 'Wanita 3' },
-                    ].map((p, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() =>
-                          updateSettings((prev) => ({
-                            ...prev,
-                            assets: { ...prev.assets, defaultFemaleAvatarUrl: p.src },
-                          }))
-                        }
-                        className={`w-9 h-9 rounded-full overflow-hidden border-2 transition ${
-                          settings.assets.defaultFemaleAvatarUrl === p.src
-                            ? 'border-rose-400 scale-105 shadow-sm shadow-rose-400/50'
-                            : 'border-white/15 opacity-60 hover:opacity-100'
-                        }`}
-                        title={p.label}
-                      >
-                        <img src={p.src} alt={p.label} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
                   </div>
 
                   <div className="space-y-2">

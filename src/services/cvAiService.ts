@@ -122,7 +122,7 @@ export async function generateCvDataAutomatically(targetRole: string, baseData?:
     email: baseData?.email || 'budi.santoso@gmail.com',
     phone: baseData?.phone || '0812-9876-5432',
     city: baseData?.city || 'Kota Bandung, Jawa Barat',
-    photoUrl: baseData?.photoUrl || '/avatars/pixar_male_1.jpg',
+    photoUrl: baseData?.photoUrl || '',
     summary: preset.summary,
     experiences: [
       {

@@ -77,6 +77,12 @@ export default function LiveInterviewRoom() {
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<any>(null);
 
+  // Refs untuk menghindari stale closure di speech recognition callback
+  const isMicOnRef = useRef<boolean>(true);
+  const isEvaluatingRef = useRef<boolean>(false);
+  const scorecardRef = useRef<InterviewScorecard | null>(null);
+  const isInterviewDoneRef = useRef<boolean>(false);
+
   // Pre-load Indonesian voices
   useEffect(() => {
     if (!('speechSynthesis' in window)) return;
@@ -183,78 +189,90 @@ export default function LiveInterviewRoom() {
     }
   }, [isLoadingSession, isCameraOn]);
 
-  // 3. Speech Recognition (STT for Candidate Voice)
+  // Sync refs dengan state terbaru agar closure di recognition tidak stale
+  useEffect(() => { isMicOnRef.current = isMicOn; }, [isMicOn]);
+  useEffect(() => { isEvaluatingRef.current = isEvaluating; }, [isEvaluating]);
+  useEffect(() => { scorecardRef.current = scorecard; }, [scorecard]);
+
+  // Kontrol recognition start/stop berdasarkan state mic
+  useEffect(() => {
+    if (!recognitionRef.current) return;
+    if (isMicOn && !isEvaluating && !scorecard) {
+      try { recognitionRef.current.start(); } catch { /* already running */ }
+    } else {
+      try { recognitionRef.current.stop(); } catch { /* already stopped */ }
+    }
+  }, [isMicOn, isEvaluating, scorecard]);
+
+  // 3. Speech Recognition (STT for Candidate Voice) - diinisialisasi SEKALI saja
   useEffect(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'id-ID';
+    if (!SpeechRecognition) return;
 
-      recognition.onresult = (event: any) => {
-        let interim = '';
-        let finals = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const transcript = event.results[i][0]?.transcript || '';
-          if (event.results[i].isFinal) {
-            finals += transcript + ' ';
-          } else {
-            interim += transcript;
-          }
-        }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'id-ID';
 
-        if (finals.trim()) {
-          setCandidateSpeechText((prev) => {
-            const trimmedPrev = prev.trim();
-            return (trimmedPrev ? `${trimmedPrev} ${finals.trim()}` : finals.trim()).slice(-600);
-          });
-        }
-        setInterimSpeech(interim.trim());
-      };
-
-      recognition.onstart = () => setIsListening(true);
-      recognition.onend = () => {
-        setIsListening(false);
-        setInterimSpeech('');
-        // Automatically restart listening if call still active and mic enabled
-        if (isMicOn && !isEvaluating && !scorecard) {
-          try {
-            recognition.start();
-          } catch {
-            // ignore
-          }
-        }
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-        setInterimSpeech('');
-      };
-
-      recognitionRef.current = recognition;
-
-      if (isMicOn && !isEvaluating && !scorecard) {
-        try {
-          recognition.start();
-        } catch {
-          // ignore
+    recognition.onresult = (event: any) => {
+      let interim = '';
+      let finals = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0]?.transcript || '';
+        if (event.results[i].isFinal) {
+          finals += transcript + ' ';
+        } else {
+          interim += transcript;
         }
       }
-    }
 
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
+      if (finals.trim()) {
+        setCandidateSpeechText((prev) => {
+          const trimmedPrev = prev.trim();
+          return (trimmedPrev ? `${trimmedPrev} ${finals.trim()}` : finals.trim()).slice(-600);
+        });
+      }
+      setInterimSpeech(interim.trim());
+    };
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => {
+      setIsListening(false);
+      setInterimSpeech('');
+      // Gunakan ref (bukan state closure) agar selalu baca nilai terbaru
+      if (isMicOnRef.current && !isEvaluatingRef.current && !scorecardRef.current && !isInterviewDoneRef.current) {
+        try { recognition.start(); } catch { /* ignore */ }
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      setIsListening(false);
+      setInterimSpeech('');
+      // Restart saat error non-fatal (aborted, no-speech)
+      if (['aborted', 'no-speech'].includes(event.error)) {
+        if (isMicOnRef.current && !isEvaluatingRef.current && !scorecardRef.current) {
+          setTimeout(() => {
+            try { recognition.start(); } catch { /* ignore */ }
+          }, 300);
         }
       }
     };
-  }, [isMicOn, isEvaluating, scorecard]);
+
+    recognitionRef.current = recognition;
+
+    // Start jika mic aktif saat komponen mount
+    if (isMicOnRef.current) {
+      try { recognition.start(); } catch { /* ignore */ }
+    }
+
+    return () => {
+      isInterviewDoneRef.current = true;
+      try { recognition.stop(); } catch { /* ignore */ }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // hanya mount/unmount - jangan tambah deps!
 
   // 4. Session Setup & Call Timer
   useEffect(() => {
@@ -361,6 +379,7 @@ export default function LiveInterviewRoom() {
 
     return () => {
       isMounted = false;
+      isInterviewDoneRef.current = true;
       if (timerRef.current) clearInterval(timerRef.current);
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -369,14 +388,29 @@ export default function LiveInterviewRoom() {
         window.speechSynthesis.cancel();
       }
     };
-  }, [sessionCodeParam, roleParam, companyParam, candidateParam, speakQuestion, startCameraAndMic]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionCodeParam, roleParam, companyParam, candidateParam]);
+
+  // Stop timer saat interview selesai
+  useEffect(() => {
+    if (scorecard && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [scorecard]);
 
   // Handle Next Question / Submit Turn
   const handleSubmitTurn = async () => {
     if (!session || isSubmittingTurn) return;
     const answer = candidateSpeechText.trim();
     if (!answer) {
-      alert('Silakan sampaikan melalui mikrofon atau ketik jawaban Anda terlebih dahulu.');
+      // Gunakan toast/visual feedback - tidak pakai alert() yang blocking
+      const textarea = document.querySelector('textarea');
+      if (textarea) {
+        textarea.style.borderColor = '#f87171';
+        textarea.focus();
+        setTimeout(() => { textarea.style.borderColor = ''; }, 2000);
+      }
       return;
     }
 
@@ -822,8 +856,8 @@ export default function LiveInterviewRoom() {
         <button
           type="button"
           onClick={handleSubmitTurn}
-          disabled={isSubmittingTurn}
-          className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/25 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+          disabled={isSubmittingTurn || !candidateSpeechText.trim()}
+          className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/25 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmittingTurn ? (
             <RefreshCw size={15} className="animate-spin" />

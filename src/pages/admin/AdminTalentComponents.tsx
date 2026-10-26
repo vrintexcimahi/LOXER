@@ -1268,7 +1268,7 @@ export function AdminTalentCatalogSection({
                         type="button"
                         onClick={() => setRegenerateTalent(talent)}
                         className="flex items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 dark:bg-indigo-500/20 dark:hover:bg-indigo-500/30 p-1.5 text-indigo-700 dark:text-indigo-300 transition shadow-sm"
-                        title="Regenerate Foto Profil Kandidat (3D Pixar / Upload Baru)"
+                        title="Perbarui Pas Foto Kandidat (Upload Baru / Re-crop CV)"
                       >
                         <Camera className="w-4 h-4" />
                       </button>

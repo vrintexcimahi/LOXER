@@ -3796,12 +3796,17 @@ async function handleCreateInterviewSession(req, res) {
     session: {
       id: sessionId,
       session_code: sessionCode,
+      seeker_id: seeker_id || null,
+      job_id: job_id || null,
       role_title,
       company_name,
       candidate_name,
+      candidate_email: candidate_email || '',
       questions,
       current_question_idx: 0,
       current_question: firstQuestion,
+      status: 'in_progress',
+      created_at: new Date().toISOString(),
     },
   });
 }
@@ -3888,7 +3893,9 @@ async function handleRecordInterviewTurn(req, res) {
       next_question: nextQ,
     });
   } else {
-    execute(`UPDATE interview_sessions SET current_question_idx = ? WHERE id = ?`, [nextIdx, session_id]);
+    // Saat finished, jangan set idx melebihi questions.length-1 agar tidak out-of-bounds
+    const finalIdx = questions.length - 1;
+    execute(`UPDATE interview_sessions SET current_question_idx = ?, status = 'completed' WHERE id = ?`, [finalIdx, session_id]);
     return sendJson(res, 200, {
       success: true,
       is_finished: true,

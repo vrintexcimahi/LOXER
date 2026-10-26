@@ -5,10 +5,10 @@ import type { UserRole } from '../../lib/types';
 import { navigateTo } from '../../lib/navigation';
 
 const roles = [
-  { title: 'Pencari Kerja', description: 'Temukan peluang untuk langkah karir berikutnya.', icon: Briefcase, href: '/browse', avatar: '/avatars/pixar_male_1.jpg', label: 'Cari pekerjaan' },
-  { title: 'Perusahaan (HRD)', description: 'Temukan talenta dan kelola rekrutmen lebih mudah.', icon: Building2, href: '/#employer-section', avatar: '/avatars/pixar_female_1.jpg', label: 'Rekrut talenta' },
-  { title: 'Penyedia Jasa', description: 'Tampilkan keahlian dan terhubung dengan pelanggan.', icon: Wrench, href: '/talents?availability=freelance', avatar: '/avatars/pixar_male_2.jpg', label: 'Jelajahi jasa' },
-  { title: 'Super Admin', description: 'Pantau dan kelola seluruh ekosistem LOXER.', icon: Crown, href: '/admin-login', avatar: '/avatars/pixar_male_2.jpg', label: 'Akses administrator' },
+  { title: 'Pencari Kerja', description: 'Temukan peluang untuk langkah karir berikutnya.', icon: Briefcase, href: '/browse', avatar: '/branding/icon192.png', label: 'Cari pekerjaan' },
+  { title: 'Perusahaan (HRD)', description: 'Temukan talenta dan kelola rekrutmen lebih mudah.', icon: Building2, href: '/#employer-section', avatar: '/branding/icon192.png', label: 'Rekrut talenta' },
+  { title: 'Penyedia Jasa', description: 'Tampilkan keahlian dan terhubung dengan pelanggan.', icon: Wrench, href: '/talents?availability=freelance', avatar: '/branding/icon192.png', label: 'Jelajahi jasa' },
+  { title: 'Super Admin', description: 'Pantau dan kelola seluruh ekosistem LOXER.', icon: Crown, href: '/admin-login', avatar: '/branding/icon192.png', label: 'Akses administrator' },
 ];
 
 export default function ClayHero({ onRegister }: { onRegister: (role?: UserRole) => void }) {
@@ -47,7 +47,7 @@ export default function ClayHero({ onRegister }: { onRegister: (role?: UserRole)
                 <AppLogo variant="compact" height={22} textClassName="text-sm font-black" />
                 <span className="clay-preview-badge">Karir & Jasa</span>
               </div>
-              <div className="clay-preview-greeting"><div><small>Halo, talenta hebat 👋</small><h2>Siap meraih<br />peluang baru?</h2></div><img src="/avatars/pixar_male_1.jpg" alt="Ilustrasi pencari kerja" /></div>
+              <div className="clay-preview-greeting"><div><small>Halo, talenta hebat 👋</small><h2>Siap meraih<br />peluang baru?</h2></div><img src="/branding/icon192.png" alt="Ilustrasi pencari kerja" /></div>
               <a className="clay-preview-search" href="/browse"><Search size={18} /> Cari pekerjaan impian Anda <ArrowRight size={16} /></a>
               <div className="clay-preview-promo"><div><span>Waktunya berkembang</span><h3>Keahlian Anda,<br />peluang tanpa batas.</h3><a href="/talents?availability=freelance">Jelajahi jasa <ArrowRight size={15} /></a></div><div className="clay-large-icon"><Briefcase size={64} strokeWidth={1.6} /></div></div>
               <div className="clay-preview-options"><a href="/browse"><Building2 size={22} /><span>Cari kerja</span></a><a href="/talents"><Users size={22} /><span>Talenta</span></a><a href="/talents?availability=freelance"><Wrench size={22} /><span>Jasa</span></a></div>

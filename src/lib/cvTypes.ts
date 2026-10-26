@@ -46,7 +46,7 @@ export const INITIAL_CV_DATA: CvData = {
   phone: '0812-3456-7890',
   city: 'Kota Cimahi, Jawa Barat',
   linkedin: 'linkedin.com/in/azqy-ahmad',
-  photoUrl: '/avatars/pixar_male_1.jpg',
+  photoUrl: '',
   summary:
     'Lulusan Administrasi Bisnis yang berdedikasi dan teliti dengan pengalaman 2+ tahun dalam pengelolaan dokumen perkantoran, entri data transaksi keuangan, pembukuan kas harian, serta pelayanan operasional pelanggan secara terstruktur.',
   experiences: [
