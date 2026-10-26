@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Users,
   Briefcase,
-  Zap,
   Award,
   Search,
   FileUp,
@@ -725,10 +724,6 @@ export function AdminTalentCatalogSection({
 
   const fulltimeCount = useMemo(() => {
     return talents.filter((t) => t.availability === 'fulltime' || t.availability_status === 'fulltime' || t.availability === 'available').length;
-  }, [talents]);
-
-  const freelanceCount = useMemo(() => {
-    return talents.filter((t) => t.availability === 'freelance' || t.availability_status === 'freelance').length;
   }, [talents]);
 
   const topTalentCount = useMemo(() => {

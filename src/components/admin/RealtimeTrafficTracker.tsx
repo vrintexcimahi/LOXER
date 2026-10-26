@@ -9,7 +9,6 @@ import {
   Download,
   Eye,
   EyeOff,
-  Filter,
   Globe,
   Laptop,
   Maximize2,
@@ -162,7 +161,7 @@ export default function RealtimeTrafficTracker({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(20);
+  const pageSize = 20;
 
   // Selected Log for Deep Inspection Modal
   const [selectedLog, setSelectedLog] = useState<TrafficLogItem | null>(null);
@@ -193,14 +192,15 @@ export default function RealtimeTrafficTracker({
           search: debouncedSearch.trim(),
         });
 
-        let token = session?.access_token;
+        let token: string | undefined = session?.access_token;
         if (!token) {
           try {
             token = await resolveAdminToken();
           } catch {
-            token = typeof window !== 'undefined'
+            const stored = typeof window !== 'undefined'
               ? (localStorage.getItem('loxer_local_auth_token_admin') || localStorage.getItem('loxer_local_auth_token'))
               : null;
+            token = stored || undefined;
           }
         }
 
