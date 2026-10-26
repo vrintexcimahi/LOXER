@@ -253,3 +253,87 @@ export async function bulkToggleTalentArchive(
     return { ok: false, message: msg };
   }
 }
+
+/**
+ * Hapus massal (bulk delete) biodata pelamar yang ditandai
+ */
+export async function bulkDeleteTalents(
+  talentIds: string[]
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const token = await resolveAdminToken();
+    const resp = await fetch('/api/admin/talents/bulk-delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ ids: talentIds }),
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      return { ok: true, message: data.message };
+    }
+
+    // Fallback Supabase delete
+    if (supabase) {
+      const { error } = await supabase
+        .from('talent_marketplace_posts')
+        .delete()
+        .in('id', talentIds);
+
+      if (error) throw error;
+      return {
+        ok: true,
+        message: `${talentIds.length} biodata pelamar berhasil dihapus permanen.`,
+      };
+    }
+
+    throw new Error('Database tidak dapat diakses');
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Gagal menghapus data pelamar';
+    return { ok: false, message: msg };
+  }
+}
+
+/**
+ * Hapus satu biodata pelamar secara permanen
+ */
+export async function deleteTalent(
+  talentId: string
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const token = await resolveAdminToken();
+    const resp = await fetch('/api/admin/talents/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ id: talentId }),
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      return { ok: true, message: data.message };
+    }
+
+    // Fallback Supabase delete
+    if (supabase) {
+      const { error } = await supabase
+        .from('talent_marketplace_posts')
+        .delete()
+        .eq('id', talentId);
+
+      if (error) throw error;
+      return { ok: true, message: 'Biodata pelamar berhasil dihapus permanen.' };
+    }
+
+    throw new Error('Database tidak dapat diakses');
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Gagal menghapus data pelamar';
+    return { ok: false, message: msg };
+  }
+}
+

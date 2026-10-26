@@ -4238,6 +4238,12 @@ export function createLocalDbMiddleware(env = {}) {
       if (url.startsWith('/api/admin/talents/bulk-archive') && req.method === 'POST') {
         return handleAdminTalentsBulkArchive(req, res);
       }
+      if (url.startsWith('/api/admin/talents/bulk-delete') && req.method === 'POST') {
+        return handleAdminTalentsBulkDelete(req, res);
+      }
+      if (url.startsWith('/api/admin/talents/delete') && req.method === 'POST') {
+        return handleAdminTalentsDelete(req, res);
+      }
     }
 
     next();
@@ -5719,7 +5725,74 @@ async function handleAdminTalentsBulkArchive(req, res) {
   }
 }
 
+async function handleAdminTalentsBulkDelete(req, res) {
+  const auth = verifyAdminRequest(req);
+  if (!auth.ok) {
+    return sendJson(res, auth.status, { message: auth.message });
+  }
 
+  try {
+    const body = await parseJsonBody(req);
+    const { ids } = body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return sendJson(res, 400, { message: 'Daftar ID talent wajib disertakan.' });
+    }
 
+    const placeholders = ids.map(() => '?').join(', ');
+    try {
+      execute(`DELETE FROM direct_job_offers WHERE post_id IN (${placeholders})`, ids);
+    } catch {
+      // ignore
+    }
 
+    execute(`DELETE FROM talent_marketplace_posts WHERE id IN (${placeholders})`, ids);
 
+    if (jobSearchCache && typeof jobSearchCache.clear === 'function') {
+      jobSearchCache.clear();
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      count: ids.length,
+      message: `${ids.length} biodata pelamar berhasil dihapus permanen.`,
+    });
+  } catch (err) {
+    console.error('[handleAdminTalentsBulkDelete Error]:', err);
+    return sendJson(res, 500, { ok: false, message: err.message });
+  }
+}
+
+async function handleAdminTalentsDelete(req, res) {
+  const auth = verifyAdminRequest(req);
+  if (!auth.ok) {
+    return sendJson(res, auth.status, { message: auth.message });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const { id } = body;
+    if (!id) {
+      return sendJson(res, 400, { message: 'ID talent wajib diisi.' });
+    }
+
+    try {
+      execute('DELETE FROM direct_job_offers WHERE post_id = ?', [id]);
+    } catch {
+      // ignore
+    }
+
+    execute('DELETE FROM talent_marketplace_posts WHERE id = ?', [id]);
+
+    if (jobSearchCache && typeof jobSearchCache.clear === 'function') {
+      jobSearchCache.clear();
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      message: 'Biodata pelamar berhasil dihapus permanen.',
+    });
+  } catch (err) {
+    console.error('[handleAdminTalentsDelete Error]:', err);
+    return sendJson(res, 500, { ok: false, message: err.message });
+  }
+}

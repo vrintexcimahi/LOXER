@@ -1,3 +1,20 @@
+# Audit Progress — Run 2026-10-26 (FITUR BULK DELETE BIODATA PELAMAR TERPILIH DI PUSAT ARSIP — ARC-002)
+
+- **Run ID**: `RUN-20261026-BULK-DELETE-ARCHIVED-TALENTS`
+- **Waktu & Zona Waktu**: 2026-10-26 16:45:00 +07:00
+- **Status**: COMPLETED_VERIFIED (100% Tuntas & Terverifikasi Mandiri)
+- **Agent**: Antigravity (Gemini 3.8 Flash High)
+- **Branch**: `main`
+- **Area Fitur & Perbaikan**:
+  - **1. Tombol Hapus Massal di Toolbar Arsip (`AdminTalentArchiveModal.tsx`):** Menambahkan tombol aksi `[ Hapus {count} Pelamar ]` bernuansa rose-600 dengan ikon tempat sampah (`Trash2`) berdampingan dengan tombol pulihkan ketika item ditandai (seperti pada checkbox `Pilih Semua`).
+  - **2. Tombol Hapus Individu pada Setiap Kartu Pelamar (`AdminTalentArchiveModal.tsx`):** Menambahkan opsi tombol `[ Hapus ]` di setiap kartu kandidat terarsip untuk fleksibilitas penghapusan satu per satu.
+  - **3. Dialog Konfirmasi Keamanan:** Melindungi proses penghapusan dengan prompt konfirmasi jumlah biodata yang akan dihapus secara permanen.
+  - **4. Backend Endpoint Bulk Delete & Single Delete (`server/localApiHandler.js`):** Pendaftaran endpoint `POST /api/admin/talents/bulk-delete` dan `POST /api/admin/talents/delete` dengan verifikasi token admin, pembersihan referensi dependensi tabel `direct_job_offers`, eksekusi query hapus aman di SQLite, dan auto-clear cache pencarian lowongan.
+  - **5. Layanan Frontend Terpadu (`talentArchiveService.ts`):** Penambahan fungsi `bulkDeleteTalents` dan `deleteTalent` dengan fallback Supabase delete bila berjalan di cloud mode.
+  - **6. Pembaruan Cache PWA (`public/sw.js`):** Cache dinaikkan ke versi `loxer-pwa-v6.3.1`.
+
+---
+
 # Audit Progress — Run 2026-10-26 (ELIMINASI TOTAL FOTO AVATAR 3D PIXAR & VEKTOR INITIALS RESMI — AVT-001)
 
 - **Run ID**: `RUN-20261026-REMOVE-ALL-PIXAR-AVATARS`

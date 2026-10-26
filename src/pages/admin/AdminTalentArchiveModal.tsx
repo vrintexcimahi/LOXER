@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Square,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import {
@@ -19,6 +20,8 @@ import {
   executeAutoArchiveNoPhoto,
   toggleTalentArchive,
   bulkToggleTalentArchive,
+  bulkDeleteTalents,
+  deleteTalent,
 } from '../../lib/talentArchiveService';
 import { getDefaultPixarAvatar } from '../../lib/avatarService';
 import { ToastType } from './AdminTalentComponents';
@@ -148,6 +151,48 @@ export function AdminTalentArchiveModal({
       }
     } finally {
       setIsBulkProcessing(false);
+    }
+  };
+
+  // Bulk delete selected
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    const confirmMsg = `Yakin ingin menghapus ${count} biodata pelamar yang ditandai secara permanen? Data yang dihapus tidak dapat dipulihkan.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsBulkProcessing(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const res = await bulkDeleteTalents(ids);
+      if (res.ok) {
+        onToast('success', `${count} biodata pelamar berhasil dihapus permanen.`);
+        setSelectedIds(new Set());
+        onRefreshTalents();
+      } else {
+        onToast('error', res.message);
+      }
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  // Single delete candidate
+  const handleSingleDelete = async (talent: TalentMarketplacePost) => {
+    const name = talent.seeker_profiles?.full_name || talent.headline.split(' / ')[0] || 'Kandidat';
+    if (!window.confirm(`Yakin ingin menghapus permanen biodata "${name}"?`)) return;
+
+    const res = await deleteTalent(talent.id);
+    if (res.ok) {
+      onToast('success', `Biodata "${name}" berhasil dihapus permanen.`);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(talent.id);
+        return next;
+      });
+      onRefreshTalents();
+    } else {
+      onToast('error', res.message);
     }
   };
 
@@ -308,10 +353,21 @@ export function AdminTalentArchiveModal({
                       type="button"
                       onClick={handleBulkRestore}
                       disabled={isBulkProcessing}
-                      className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1 text-xs font-bold text-white transition shadow disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white transition shadow disabled:opacity-50 cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Pulihkan {selectedIds.size} Pelamar</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleBulkDelete}
+                      disabled={isBulkProcessing}
+                      className="flex items-center gap-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 px-3 py-1.5 text-xs font-bold text-white transition shadow shadow-rose-500/20 disabled:opacity-50 cursor-pointer"
+                      title="Hapus permanen semua biodata pelamar yang ditandai"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Hapus {selectedIds.size} Pelamar</span>
                     </button>
                   </div>
                 )}
@@ -426,6 +482,16 @@ export function AdminTalentArchiveModal({
                       >
                         <RotateCcw className="w-3 h-3 text-emerald-400" />
                         <span>Pulihkan</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSingleDelete(talent)}
+                        className="flex items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-500/15 hover:bg-rose-500/25 px-2.5 py-1 text-[11px] font-bold text-rose-300 transition"
+                        title="Hapus permanen biodata pelamar ini"
+                      >
+                        <Trash2 className="w-3 h-3 text-rose-400" />
+                        <span>Hapus</span>
                       </button>
                     </div>
                   </div>
