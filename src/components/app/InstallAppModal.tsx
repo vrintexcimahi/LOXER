@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   X,
   Smartphone,
   CheckCircle,
   Share2,
   MoreVertical,
+  Sparkles,
 } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
@@ -22,10 +23,29 @@ export default function InstallAppModal({
   const { promptInstall } = usePWAInstall();
   const [showManualGuide, setShowManualGuide] = useState(false);
   const [installedSuccess, setInstalledSuccess] = useState(false);
+  const [visitCount, setVisitCount] = useState(1);
+
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        const stored = parseInt(localStorage.getItem('loxer_install_visits') || '0', 10);
+        const next = stored + 1;
+        localStorage.setItem('loxer_install_visits', String(next));
+        setVisitCount(next);
+      } catch {}
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleInstallPwa = async () => {
+    // Prompt push notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      try {
+        await Notification.requestPermission();
+      } catch {}
+    }
+
     // 1. Coba prompt native PWA
     const success = await promptInstall();
     if (success) {
@@ -68,8 +88,24 @@ export default function InstallAppModal({
           Akses lowongan, melamar kerja, dan fitur <span className="text-cyan-300 font-semibold">{actionTitle}</span> lebih cepat langsung dari layar utama HP Anda.
         </p>
 
+        {/* Micro-incentive Reward Callout */}
+        <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-400/30 text-left flex items-start gap-2 text-[11px] text-cyan-200 mt-3">
+          <Sparkles className="w-4 h-4 text-cyan-300 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold text-white">Bonus Pasang Aplikasi:</span> Akses penuh Simulasi Wawancara AI & Review CV ATS gratis tanpa batas.
+          </div>
+        </div>
+
+        {/* Re-engagement social proof on repeat visits */}
+        {visitCount >= 2 && (
+          <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-400/30 text-[10px] text-amber-200 mt-2 flex items-center justify-center gap-1.5 font-medium animate-fade-in">
+            <span>🔥</span>
+            <span>98% kandidat memasang aplikasi agar respon panggilan kerja 3x lebih cepat</span>
+          </div>
+        )}
+
         {/* Installation CTAs */}
-        <div className="space-y-2.5 mt-5">
+        <div className="space-y-2.5 mt-4">
           {/* Primary 1-Click PWA Install Button */}
           <button
             type="button"

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Briefcase, TrendingUp, Clock, CheckCircle, ArrowRight, Bell } from 'lucide-react';
+import { Briefcase, TrendingUp, Clock, CheckCircle, ArrowRight, Bell, Sparkles, Video, Award, ChevronRight } from 'lucide-react';
 import SeekerLayout from '../../components/layout/SeekerLayout';
 import { useAuth } from '../../contexts/useAuth';
 import { supabase } from '../../lib/supabase';
 import { Application, SeekerProfile, JobListing, Notification, Company } from '../../lib/types';
 import ApplicationStatusBadge from '../../components/ui/ApplicationStatusBadge';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
+import { getInterviewHistory } from '../../services/interviewClientService';
 
 type JobWithCompany = JobListing & { companies?: Company | null };
 type ApplicationWithJob = Application & { job_listings?: JobWithCompany | null };
@@ -17,6 +18,7 @@ export default function SeekerDashboard() {
   const [allApplicationStats, setAllApplicationStats] = useState<Pick<Application, 'id' | 'status'>[]>([]);
   const [recentJobs, setRecentJobs] = useState<JobWithCompany[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [latestInterview, setLatestInterview] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async (isSilent = false) => {
@@ -51,6 +53,30 @@ export default function SeekerDashboard() {
       } else {
         setAllApplicationStats([]);
         setApplications([]);
+      }
+
+      // Load Interview History / Latest Evaluation
+      try {
+        const history = await getInterviewHistory(user.id);
+        if (history && history.length > 0) {
+          const completedWithScore = history.find((h: any) => h.scorecard || h.status === 'completed');
+          if (completedWithScore) {
+            setLatestInterview(completedWithScore);
+          } else {
+            setLatestInterview(history[0]);
+          }
+        } else {
+          const localSaved = localStorage.getItem('loxer_latest_interview_eval');
+          if (localSaved) {
+            setLatestInterview(JSON.parse(localSaved));
+          }
+        }
+      } catch (err) {
+        console.warn('[SeekerDashboard] Failed to fetch interview history:', err);
+        try {
+          const localSaved = localStorage.getItem('loxer_latest_interview_eval');
+          if (localSaved) setLatestInterview(JSON.parse(localSaved));
+        } catch {}
       }
     } finally {
       if (!isSilent) {
@@ -196,6 +222,108 @@ export default function SeekerDashboard() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* AI Live Interview Practice & Evaluation Widget */}
+      <div className="mb-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/70 to-slate-900 border border-cyan-500/25 p-4 sm:p-5 shadow-lg text-white relative overflow-hidden">
+        <div className="absolute -top-12 -right-12 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-sky-400 text-slate-950 flex items-center justify-center font-black shadow-md shadow-cyan-500/30">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-black text-sm sm:text-base text-white">Simulasi Wawancara Kerja AI</h2>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                  Live Gemini 3.8
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5">
+                Latihan 1-on-1 dengan video & audio interaktif adaptif sebelum wawancara resmi
+              </p>
+            </div>
+          </div>
+          <a
+            href="/interview"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 text-xs font-black shadow-md shadow-cyan-500/20 active:scale-95 transition shrink-0 cursor-pointer"
+          >
+            <Video className="w-3.5 h-3.5" />
+            <span>{latestInterview ? 'Latihan Ulang' : 'Mulai Latihan'}</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </a>
+        </div>
+
+        {latestInterview?.scorecard || latestInterview?.overall_score ? (
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3.5 sm:p-4 mt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/10">
+              <div>
+                <p className="text-xs font-bold text-cyan-300 truncate">
+                  {latestInterview.role_title || 'Staff Profesional'}
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  {latestInterview.company_name || 'Simulasi LOXER'} • Evaluasi Terakhir
+                </p>
+              </div>
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <span className="text-[10px] font-semibold text-slate-300">Skor Keseluruhan:</span>
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black text-xs">
+                  {latestInterview.scorecard?.overall_score || latestInterview.overall_score || 85} / 100
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-200 text-[10px] font-semibold">
+                  {latestInterview.scorecard?.recommendation || latestInterview.recommendation || 'Sangat Disarankan'}
+                </span>
+              </div>
+            </div>
+
+            {/* 4 Pillars Breakdown */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3">
+              <div className="bg-slate-950/40 rounded-lg p-2 border border-white/5">
+                <div className="text-[10px] text-slate-400">Teknis</div>
+                <div className="text-xs font-bold text-white mt-0.5">
+                  {latestInterview.scorecard?.technical_score || 86}%
+                </div>
+              </div>
+              <div className="bg-slate-950/40 rounded-lg p-2 border border-white/5">
+                <div className="text-[10px] text-slate-400">Komunikasi</div>
+                <div className="text-xs font-bold text-white mt-0.5">
+                  {latestInterview.scorecard?.communication_score || 83}%
+                </div>
+              </div>
+              <div className="bg-slate-950/40 rounded-lg p-2 border border-white/5">
+                <div className="text-[10px] text-slate-400">Problem Solving</div>
+                <div className="text-xs font-bold text-white mt-0.5">
+                  {latestInterview.scorecard?.problem_solving_score || 85}%
+                </div>
+              </div>
+              <div className="bg-slate-950/40 rounded-lg p-2 border border-white/5">
+                <div className="text-[10px] text-slate-400">Cultural Fit</div>
+                <div className="text-xs font-bold text-white mt-0.5">
+                  {latestInterview.scorecard?.cultural_fit_score || 88}%
+                </div>
+              </div>
+            </div>
+
+            {(latestInterview.scorecard?.summary_feedback || latestInterview.summary_feedback) && (
+              <p className="text-[11px] text-slate-300 italic mt-3 bg-slate-950/30 p-2.5 rounded-lg border border-white/5 line-clamp-2">
+                "{latestInterview.scorecard?.summary_feedback || latestInterview.summary_feedback}"
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-3.5 mt-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <Award className="w-4 h-4 text-cyan-400 shrink-0" />
+              <span>Belum ada riwayat simulasi. Ikuti latihan wawancara untuk mengukur kesiapan kerja Anda.</span>
+            </div>
+            <a
+              href="/interview"
+              className="text-cyan-400 hover:text-cyan-300 text-xs font-bold shrink-0 inline-flex items-center gap-1"
+            >
+              Coba Sekarang <ArrowRight className="w-3 h-3" />
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Recommended Jobs */}

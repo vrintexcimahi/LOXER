@@ -334,6 +334,7 @@ export default function LiveInterviewRoom() {
             candidate_skills: skillsParam.length > 0 ? skillsParam : undefined,
             cv_summary: summaryParam || undefined,
             candidate_email: emailParam || undefined,
+            seeker_id: user?.id || undefined,
           });
         }
 
@@ -517,6 +518,14 @@ export default function LiveInterviewRoom() {
     try {
       const card = await evaluateInterviewSession(session.id);
       setScorecard(card);
+      try {
+        localStorage.setItem('loxer_latest_interview_eval', JSON.stringify({
+          ...card,
+          role_title: session.role_title,
+          company_name: session.company_name,
+          created_at: new Date().toISOString(),
+        }));
+      } catch {}
       setShowScorecardModal(true);
     } catch (err: any) {
       console.warn('[LiveInterviewRoom] Fallback scoring calculation:', err.message);
@@ -541,6 +550,14 @@ export default function LiveInterviewRoom() {
         summary_feedback: `Kandidat telah menyelesaikan seluruh simulasi wawancara posisi ${session.role_title}. Kesiapan komunikasi dan motivasi kerja dinilai sangat baik untuk diteruskan ke tahap rekrutmen berikutnya.`,
       };
       setScorecard(fallbackScorecard);
+      try {
+        localStorage.setItem('loxer_latest_interview_eval', JSON.stringify({
+          ...fallbackScorecard,
+          role_title: session.role_title,
+          company_name: session.company_name,
+          created_at: new Date().toISOString(),
+        }));
+      } catch {}
       setShowScorecardModal(true);
     } finally {
       setIsEvaluating(false);

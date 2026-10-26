@@ -160,7 +160,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
   async function resolveNextPath(fallbackEmail?: string, preferredRole?: UserRole) {
     if (preferredRole === 'employer') return '/employer/dashboard';
     if (preferredRole === 'seeker') return '/seeker/dashboard';
-    if (preferredRole === 'freelancer') return '/seeker/marketplace';
+    if (preferredRole === 'freelancer') return '/talents';
     if (preferredRole === 'admin' || preferredRole === 'superadmin') return '/admin/dashboard';
 
     const defaultPath = '/seeker/dashboard';
@@ -197,7 +197,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
     }
 
     if (meta?.role === 'employer') return '/employer/dashboard';
-    if (meta?.role === 'freelancer') return '/seeker/marketplace';
+    if (meta?.role === 'freelancer') return '/talents';
     if (meta?.role === 'admin' || meta?.role === 'superadmin' || isDefaultAdmin) return '/admin/dashboard';
     return '/seeker/dashboard';
   }
@@ -313,7 +313,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
     setSuccess(`Berhasil ${mode === 'login' ? 'masuk' : 'mendaftar'} dengan Google. Mengalihkan...`);
 
     const nextPath = mode === 'register' && role
-      ? (role === 'employer' ? '/employer/dashboard' : role === 'freelancer' ? '/seeker/marketplace' : '/seeker/dashboard')
+      ? (role === 'employer' ? '/employer/dashboard' : role === 'freelancer' ? '/talents' : '/seeker/dashboard')
       : await resolveNextPath(selectedEmail);
     setTimeout(() => {
       onClose();
@@ -418,7 +418,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
           setOtpChannel(authCapabilities.emailOtpEnabled ? 'email' : 'sms');
           setSuccess('Akun berhasil dibuat. Pilih pengiriman OTP untuk verifikasi akun.');
         } else {
-          const nextPath = role === 'employer' ? '/employer/dashboard' : role === 'freelancer' ? '/seeker/marketplace' : '/seeker/dashboard';
+          const nextPath = role === 'employer' ? '/employer/dashboard' : role === 'freelancer' ? '/talents' : '/seeker/dashboard';
           setSuccess('Akun berhasil dibuat. Mengalihkan...');
           setTimeout(() => {
             onClose();

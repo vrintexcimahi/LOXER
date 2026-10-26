@@ -1,3 +1,38 @@
+## [2026-10-26] Implementasi Fitur Saran: Riwayat Evaluasi Wawancara AI Pelamar & Mesin Re-engagement PWA (REC-AUTH-PWA)
+
+### Scope / status
+- Area: Seeker Dashboard Live Interview Evaluation Widget, Backend Telemetry & Scorecard Extraction, PWA Micro-Incentives & Repeat-Visit Urgency, Auto Notification Prompting, Appinstalled Dynamic Unlock (`server/localApiHandler.js`, `src/pages/seeker/SeekerDashboard.tsx`, `src/pages/interview/LiveInterviewRoom.tsx`, `src/components/app/InstallAppModal.tsx`, `src/App.tsx`, `public/sw.js`, `scripts/test_interview_evaluations_and_pwa_reengagement.mjs`)
+- Status: PASS (100% Pipeline Lulus, 134/134 Test Assertions, 0 Blocker, 0 Error)
+
+### Changes & Features Implemented
+1. **Backend Telemetry & Scorecard Query Enhancement (`localApiHandler.js`)**:
+   - Fungsi `handleListInterviewHistory` diperluas untuk mengembalikan seluruh rincian 4 pilar penilaian wawancara: `technical_score`, `communication_score`, `problem_solving_score`, `cultural_fit_score`, `summary_feedback`, `strengths`, dan `weaknesses`.
+   - Mendukung pencocokan ganda berbasis parameter `seeker_id` maupun sesi terautentikasi `user.id`.
+2. **Auto-Persist & Local Cache Sinkronisasi Sesi Wawancara (`LiveInterviewRoom.tsx`)**:
+   - Sesi wawancara baru kini menyematkan `seeker_id: user?.id` secara persisten ke database SQLite.
+   - Menyimpan salinan instan kartu evaluasi ke `localStorage` (`loxer_latest_interview_eval`) agar dashboard pelamar dapat membaca hasil evaluasi secara instan tanpa jeda jaringan.
+3. **Widget Evaluasi Wawancara AI di Dashboard Pelamar (`SeekerDashboard.tsx`)**:
+   - Menambahkan kartu visualizer modern bernuansa glassmorphism di halaman Seeker Dashboard.
+   - Menampilkan metrik skor keseluruhan (misal: 85/100), status rekomendasi ("Sangat Disarankan"), visualizer mini 4 pilar (Teknis, Komunikasi, Problem Solving, Cultural Fit), kutipan saran HRD AI, dan CTA "Latihan Ulang ⚡".
+   - State kosong ramah pengguna menyajikan kartu ajakan interaktif dengan tombol "Coba Sekarang ⚡".
+4. **PWA Micro-Incentive & Repeat-Visit Social Proof (`InstallAppModal.tsx`)**:
+   - Menyematkan kartu hadiah mikro: "🎁 Bonus Pasang Aplikasi: Akses penuh Simulasi Wawancara AI & Review CV ATS gratis tanpa batas".
+   - Melacak kunjungan pengguna (`visitCount` di `localStorage`). Pada kunjungan ke-2 ke atas, menampilkan callout urgensi sosial: "🔥 98% kandidat memasang aplikasi agar respon panggilan kerja 3x lebih cepat".
+   - Otomatis memicu izin push notification (`Notification.requestPermission()`) sesaat setelah aksi instalasi dijalankan.
+5. **Dynamic App Unlock & Service Worker Notification Handlers (`App.tsx`, `public/sw.js`)**:
+   - Menambahkan event listener `appinstalled` di `App.tsx` yang memanggil `markAsAppClient()` dan `closeInstallModal()`, melepaskan mode view-only seketika saat aplikasi terpasang di layar utama.
+   - Memperbarui cache Service Worker PWA ke versi `'loxer-pwa-v6.8.0'` dengan penanganan event `push` dan `notificationclick`.
+6. **Automated Test Suite (`scripts/test_interview_evaluations_and_pwa_reengagement.mjs`)**:
+   - 8 titik asersi memvalidasi skema database, kueri relasional 4 pilar, widget dashboard, micro-incentives, dynamic unlock, dan Service Worker cache.
+
+### Verification
+- `npm run typecheck` — PASS (0 errors pada `tsconfig.app.json`).
+- `node scripts/test_interview_evaluations_and_pwa_reengagement.mjs` — PASS (8/8 assertions 100% sukses).
+- `npm run test:local` — PASS (134/134 assertions lulus di seluruh 7 test suites).
+- `npm run build` — PASS (Vite production bundle terbangun optimal dalam 10.13 detik).
+
+---
+
 ## [2026-10-26] Audit & Bug Fix: Proteksi Akses Interview Belum Login & Pengetatan Halaman Publik View-Only Wajib Popup PWA (AUD-AUTH-PWA)
 
 ### Scope / status

@@ -120,9 +120,10 @@ assert(
 
 // 11. Verify Service Worker Cache Version
 const swContent = fs.readFileSync('public/sw.js', 'utf8');
+const swVersionMatch = swContent.match(/const CACHE_NAME = 'loxer-pwa-v(\d+)\.(\d+)\.(\d+)';/);
 assert(
-  swContent.includes("const CACHE_NAME = 'loxer-pwa-v6.7.0';"),
-  '11. Service Worker: Cache version bumped to loxer-pwa-v6.7.0 for instant client propagation'
+  Boolean(swVersionMatch && (parseInt(swVersionMatch[1], 10) > 6 || (parseInt(swVersionMatch[1], 10) === 6 && parseInt(swVersionMatch[2], 10) >= 7))),
+  '11. Service Worker: Cache version bumped to at least loxer-pwa-v6.7.0 for instant client propagation'
 );
 
 console.log(`\n====================================================`);

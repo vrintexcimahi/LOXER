@@ -53,12 +53,18 @@ const DEFAULT_FALLBACK_QUESTIONS = [
 ];
 
 async function call9RouterChat(messages, temperature = 0.2) {
+  if (aiInterviewCircuitBreaker.isOpen()) {
+    console.warn('[interviewService] aiInterviewCircuitBreaker is OPEN. Providing fast fallback.');
+    return null;
+  }
+
   const endpoint = `${ROUTER_BASE_URL.replace(/\/+$/, '')}/chat/completions`;
   const models = [PRIMARY_MODEL, FALLBACK_MODEL];
+  let lastErr = null;
 
   for (const model of models) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 40000);
+    const timeout = setTimeout(() => controller.abort(), 35000);
 
     try {
       const resp = await fetch(endpoint, {
@@ -79,17 +85,23 @@ async function call9RouterChat(messages, temperature = 0.2) {
       clearTimeout(timeout);
 
       if (!resp.ok) {
+        lastErr = new Error(`HTTP ${resp.status}`);
         continue;
       }
 
       const data = await resp.json();
       const content = data?.choices?.[0]?.message?.content;
-      if (content) return content;
-    } catch {
+      if (content) {
+        aiInterviewCircuitBreaker.recordSuccess();
+        return content;
+      }
+    } catch (err) {
       clearTimeout(timeout);
+      lastErr = err;
     }
   }
 
+  aiInterviewCircuitBreaker.recordFailure(lastErr || new Error('All 9Router interview AI models failed'));
   return null;
 }
 

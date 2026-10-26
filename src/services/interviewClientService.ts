@@ -53,6 +53,18 @@ export interface InterviewSession {
   scorecard?: InterviewScorecard | null;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  const token =
+    localStorage.getItem('loxer_local_auth_token') ||
+    localStorage.getItem('loxer_auth_token') ||
+    localStorage.getItem('sb-access-token');
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+}
+
 export async function createInterviewSession(params: {
   role_title: string;
   company_name: string;
@@ -65,7 +77,7 @@ export async function createInterviewSession(params: {
 }): Promise<InterviewSession> {
   const resp = await fetch('/api/local/interview/create-session', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(params),
   });
 
@@ -79,7 +91,9 @@ export async function createInterviewSession(params: {
 }
 
 export async function getInterviewSession(codeOrId: string): Promise<InterviewSession> {
-  const resp = await fetch(`/api/local/interview/session?code=${encodeURIComponent(codeOrId)}`);
+  const resp = await fetch(`/api/local/interview/session?code=${encodeURIComponent(codeOrId)}`, {
+    headers: { ...getAuthHeaders() },
+  });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
     throw new Error(err.error || `Sesi wawancara tidak ditemukan (${resp.status})`);
@@ -96,7 +110,7 @@ export async function recordInterviewTurn(params: {
 }): Promise<{ is_finished: boolean; next_question?: InterviewQuestion; next_question_idx?: number }> {
   const resp = await fetch('/api/local/interview/record-turn', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(params),
   });
 
@@ -111,7 +125,7 @@ export async function recordInterviewTurn(params: {
 export async function evaluateInterviewSession(sessionId: string): Promise<InterviewScorecard> {
   const resp = await fetch('/api/local/interview/evaluate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ session_id: sessionId }),
   });
 
@@ -128,7 +142,9 @@ export async function getInterviewHistory(seekerId?: string): Promise<InterviewS
   const url = seekerId
     ? `/api/local/interview/history?seeker_id=${encodeURIComponent(seekerId)}`
     : '/api/local/interview/history';
-  const resp = await fetch(url);
+  const resp = await fetch(url, {
+    headers: { ...getAuthHeaders() },
+  });
   if (!resp.ok) return [];
   const data = await resp.json();
   return data.interviews || [];

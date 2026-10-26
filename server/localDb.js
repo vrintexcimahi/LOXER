@@ -646,6 +646,8 @@ export function getLocalDb() {
         );
         CREATE INDEX IF NOT EXISTS idx_interview_sess_code ON interview_sessions(session_code);
         CREATE INDEX IF NOT EXISTS idx_interview_sess_seeker ON interview_sessions(seeker_id);
+        CREATE INDEX IF NOT EXISTS idx_interview_sess_created ON interview_sessions(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_interview_sess_seeker_created ON interview_sessions(seeker_id, created_at DESC);
 
         CREATE TABLE IF NOT EXISTS interview_transcripts (
           id TEXT PRIMARY KEY,

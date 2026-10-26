@@ -98,6 +98,25 @@ function parseBearerToken(req) {
   return authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
 }
 
+function verifyUserToken(req) {
+  try {
+    const token = parseBearerToken(req);
+    if (!token) return null;
+    const decoded = verifyTokenLenient(token, 7 * 24 * 3600);
+    if (decoded && (decoded.sub || decoded.id)) {
+      return {
+        id: decoded.sub || decoded.id,
+        email: decoded.email || '',
+        role: decoded.role || 'seeker',
+        user_metadata: decoded.user_metadata || {},
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function parseJsonBody(req, maxBytes = 25 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let receivedBytes = 0;
@@ -3514,8 +3533,14 @@ async function handleStorageDelete(req, res) {
 // ---------------------------------------------------------------------------
 async function handleCreateInterviewSession(req, res) {
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+  const authUser = verifyUserToken(req);
+  const adminCheck = verifyAdminRequest(req);
+  if (!authUser && !adminCheck.ok) {
+    return sendJson(res, 401, { error: 'Autentikasi akun LOXER diperlukan untuk memulai sesi wawancara AI.' });
+  }
+
   const body = await parseJsonBody(req);
-  const {
+  let {
     role_title = 'Staf Operasional',
     company_name = 'Mitra LOXER',
     candidate_name = 'Kandidat',
@@ -3525,6 +3550,16 @@ async function handleCreateInterviewSession(req, res) {
     seeker_id = null,
     job_id = null,
   } = body || {};
+
+  if (authUser) {
+    if (!seeker_id) seeker_id = authUser.id;
+    if ((!candidate_name || candidate_name === 'Kandidat') && authUser.user_metadata?.full_name) {
+      candidate_name = authUser.user_metadata.full_name;
+    }
+    if (!candidate_email && authUser.email) {
+      candidate_email = authUser.email;
+    }
+  }
 
   const sessionId = crypto.randomUUID();
   const sessionCode = `LOX-IV-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
@@ -3594,7 +3629,8 @@ async function handleGetInterviewSession(req, res) {
   );
   if (!session) return sendJson(res, 404, { error: 'Sesi wawancara tidak ditemukan' });
 
-  const questions = JSON.parse(session.questions_json || '[]');
+  let questions = [];
+  try { questions = JSON.parse(session.questions_json || '[]'); } catch {}
   const transcripts = queryAll(
     `SELECT * FROM interview_transcripts WHERE session_id = ? ORDER BY created_at ASC`,
     [session.id]
@@ -3603,6 +3639,13 @@ async function handleGetInterviewSession(req, res) {
     `SELECT * FROM interview_scorecards WHERE session_id = ?`,
     [session.id]
   );
+
+  let strengths = [];
+  let weaknesses = [];
+  if (scorecard) {
+    try { strengths = JSON.parse(scorecard.strengths_json || '[]'); } catch {}
+    try { weaknesses = JSON.parse(scorecard.weaknesses_json || '[]'); } catch {}
+  }
 
   return sendJson(res, 200, {
     success: true,
@@ -3614,8 +3657,8 @@ async function handleGetInterviewSession(req, res) {
       scorecard: scorecard
         ? {
             ...scorecard,
-            strengths: JSON.parse(scorecard.strengths_json || '[]'),
-            weaknesses: JSON.parse(scorecard.weaknesses_json || '[]'),
+            strengths,
+            weaknesses,
           }
         : null,
     },
@@ -3634,7 +3677,8 @@ async function handleRecordInterviewTurn(req, res) {
   const session = queryOne(`SELECT * FROM interview_sessions WHERE id = ?`, [session_id]);
   if (!session) return sendJson(res, 404, { error: 'Sesi wawancara tidak ditemukan' });
 
-  const questions = JSON.parse(session.questions_json || '[]');
+  let questions = [];
+  try { questions = JSON.parse(session.questions_json || '[]'); } catch {}
 
   // Record candidate answer
   const answerId = crypto.randomUUID();
@@ -3698,15 +3742,16 @@ async function handleEvaluateInterview(req, res) {
         communication_score: existingScorecard.communication_score,
         problem_solving_score: existingScorecard.problem_solving_score,
         cultural_fit_score: existingScorecard.cultural_fit_score,
-        strengths: JSON.parse(existingScorecard.strengths_json || '[]'),
-        weaknesses: JSON.parse(existingScorecard.weaknesses_json || '[]'),
+        strengths: (() => { try { return JSON.parse(existingScorecard.strengths_json || '[]'); } catch { return []; } })(),
+        weaknesses: (() => { try { return JSON.parse(existingScorecard.weaknesses_json || '[]'); } catch { return []; } })(),
         recommendation: existingScorecard.recommendation,
         summary_feedback: existingScorecard.summary_feedback,
       },
     });
   }
 
-  const questions = JSON.parse(session.questions_json || '[]');
+  let questions = [];
+  try { questions = JSON.parse(session.questions_json || '[]'); } catch {}
   const transcripts = queryAll(
     `SELECT * FROM interview_transcripts WHERE session_id = ? ORDER BY created_at ASC`,
     [session_id]

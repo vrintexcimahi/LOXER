@@ -16,6 +16,7 @@ import SecretAdminModal from './components/app/SecretAdminModal';
 import WebModeBanner from './components/app/WebModeBanner';
 import VisitorTracker from './components/VisitorTracker';
 import { navigateTo } from './lib/navigation';
+import { markAsAppClient } from './lib/appAccessService';
 
 const AuthModal = lazy(() => import('./pages/auth/AuthModal'));
 const SeekerDashboard = lazy(() => import('./pages/seeker/SeekerDashboard'));
@@ -145,13 +146,25 @@ function Router() {
       }
     };
 
+    const handleAppInstalled = () => {
+      markAsAppClient();
+      closeInstallModal();
+      if ('Notification' in window && Notification.permission === 'default') {
+        try {
+          Notification.requestPermission();
+        } catch {}
+      }
+    };
+
     window.addEventListener('popstate', handlePopState);
     document.addEventListener('click', handleDocumentClick);
+    window.addEventListener('appinstalled', handleAppInstalled);
     return () => {
       window.removeEventListener('popstate', handlePopState);
       document.removeEventListener('click', handleDocumentClick);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
+  }, [closeInstallModal]);
 
   useEffect(() => {
     const isInterviewPath =
@@ -182,8 +195,8 @@ function Router() {
       window.history.replaceState({}, '', '/browse');
       setPath('/browse');
     } else if (path === '/seeker/marketplace') {
-      window.history.replaceState({}, '', '/seeker/dashboard');
-      setPath('/seeker/dashboard');
+      window.history.replaceState({}, '', '/talents');
+      setPath('/talents');
     } else if (path === '/marketplace' || path === '/products') {
       window.history.replaceState({}, '', '/browse');
       setPath('/browse');
@@ -322,8 +335,8 @@ VITE_SUPABASE_ANON_KEY=...`}
     if (path === '/seeker/applications') return isRoleAuthorized('seeker') ? <Applications /> : null;
     if (path === '/seeker/profile') return isRoleAuthorized('seeker') ? <SeekerProfile /> : null;
     if (path === '/seeker/marketplace') {
-      setTimeout(() => navigateTo('/seeker/dashboard', true), 0);
-      return <SeekerDashboard />;
+      setTimeout(() => navigateTo('/talents', true), 0);
+      return <TalentMarketplace />;
     }
     if (path === '/marketplace' || path === '/products') {
       setTimeout(() => navigateTo('/browse', true), 0);

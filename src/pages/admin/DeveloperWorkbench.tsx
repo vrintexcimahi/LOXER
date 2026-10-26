@@ -74,13 +74,13 @@ const ROLE_CONFIGS: RoleConfig[] = [
       { label: 'Jelajah Lowongan', path: '/browse', icon: '🔍', description: 'Cari & filter loker berdasarkan gaji, lokasi, dan kategori kerja' },
       { label: 'Status Lamaran', path: '/seeker/applications', icon: '📄', description: 'Tracking tahapan seleksi (Terkirim, Review, Interview)' },
       { label: 'Profil & CV Digital', path: '/seeker/profile', icon: '👤', description: 'Kelola data diri, riwayat pendidikan, & skill keahlian' },
-      { label: 'Marketplace Biodata', path: '/seeker/marketplace', icon: '🌟', description: 'Publikasikan profil ke bursa talent agar dilirik perusahaan' },
+      { label: 'Marketplace Biodata', path: '/talents', icon: '🌟', description: 'Publikasikan profil ke bursa talent agar dilirik perusahaan' },
     ],
     testChecklist: [
       { title: 'Uji Lamar 1-Klik', desc: 'Buka lowongan dan klik "Lamar Sekarang" tanpa upload dokumen tambahan', targetPath: '/browse' },
       { title: 'Tracking Status Seleksi', desc: 'Periksa progress lamaran di halaman Status Lamaran', targetPath: '/seeker/applications' },
       { title: 'Kelola Portofolio & Skill', desc: 'Edit keahlian dan data pendidikan di profil pencari kerja', targetPath: '/seeker/profile' },
-      { title: 'Publikasi Biodata Terbuka', desc: 'Atur visibilitas biodata agar muncul di bursa talent nasional', targetPath: '/seeker/marketplace' },
+      { title: 'Publikasi Biodata Terbuka', desc: 'Atur visibilitas biodata agar muncul di bursa talent nasional', targetPath: '/talents' },
     ],
   },
   {
@@ -133,20 +133,20 @@ const ROLE_CONFIGS: RoleConfig[] = [
       headline: 'Teknisi Servis Komputer & Panggilan AC',
       city: 'Bandung',
       stats: 'Badge SIAP PANGGILAN · Tarif Rp 150.000/kunjungan · Bengkel & Panggilan',
-      redirectPath: '/seeker/marketplace',
+      redirectPath: '/talents',
       summary: 'Akun demo Penyedia Jasa Mandiri (misal: jasa pijat, bengkel motor/mobil, servis komputer, pertukangan). Memiliki posting jasa aktif di marketplace dengan penawaran layanan langsung.',
     },
     subFeatures: [
-      { label: 'Kelola Jasa', path: '/seeker/marketplace', icon: '🌟', description: 'Atur posting jasa mandiri, tarif layanan, bio, & kesiapan panggilan' },
+      { label: 'Kelola Jasa', path: '/talents', icon: '🌟', description: 'Atur posting jasa mandiri, tarif layanan, bio, & kesiapan panggilan' },
       { label: 'Katalog Jasa', path: '/talents', icon: '🌐', description: 'Tampilan profil di bursa jasa mandiri yang dilihat pelanggan publik' },
       { label: 'Panggilan', path: '/talents?availability=freelance', icon: '🛵', description: 'Katalog jasa mandiri siap dipanggil ke lokasi pemesan' },
       { label: 'Bengkel & Servis', path: '/talents?category=Servis+Elektronik+%26+Komputer', icon: '🔧', description: 'Kategori spesifik bengkel motor dan servis komputer/elektronik' },
       { label: 'Profil & Kontak WA', path: '/seeker/profile', icon: '👤', description: 'Kelola identitas penyedia jasa dan nomor kontak pemesanan' },
     ],
     testChecklist: [
-      { title: 'Edit Penawaran Tarif Jasa', desc: 'Uji update tarif per layanan, per kunjungan, atau per jam di marketplace', targetPath: '/seeker/marketplace' },
+      { title: 'Edit Penawaran Tarif Jasa', desc: 'Uji update tarif per layanan, per kunjungan, atau per jam di marketplace', targetPath: '/talents' },
       { title: 'Verifikasi Badge Penyedia Jasa', desc: 'Pastikan profil jasa tampil dengan badge aktif di katalog marketplace', targetPath: '/talents' },
-      { title: 'Simulasi Kontak Layanan Panggilan', desc: 'Uji respon order dan penerimaan tawaran kerja jasa mandiri', targetPath: '/seeker/marketplace' },
+      { title: 'Simulasi Kontak Layanan Panggilan', desc: 'Uji respon order dan penerimaan tawaran kerja jasa mandiri', targetPath: '/talents' },
       { title: 'Integrasi WhatsApp Direct', desc: 'Uji tombol kontak langsung untuk pemesanan jasa dari pelanggan', targetPath: '/talents' },
     ],
   },
@@ -194,7 +194,7 @@ export default function DeveloperWorkbench() {
   const [rolePaths] = useState<Record<string, string>>({
     seeker: '/seeker/dashboard',
     employer: '/employer/dashboard',
-    freelancer: '/seeker/marketplace',
+    freelancer: '/talents',
     admin: '/admin/dashboard',
   });
 
@@ -384,7 +384,7 @@ export default function DeveloperWorkbench() {
                     type="text"
                     value={dualInputUrl}
                     onChange={e => setDualInputUrl(e.target.value)}
-                    placeholder="/browse atau /seeker/marketplace"
+                    placeholder="/browse atau /talents"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-32 pr-14 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500"
                   />
                   <button type="submit" className="absolute right-2 px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold rounded-lg transition cursor-pointer">
