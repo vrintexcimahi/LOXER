@@ -251,7 +251,8 @@ export default function LiveInterviewRoom() {
       if (finals.trim()) {
         setCandidateSpeechText((prev) => {
           const trimmedPrev = prev.trim();
-          return (trimmedPrev ? `${trimmedPrev} ${finals.trim()}` : finals.trim()).slice(-600);
+          const combined = trimmedPrev ? `${trimmedPrev} ${finals.trim()}` : finals.trim();
+          return combined.slice(0, 3000);
         });
       }
       setInterimSpeech(interim.trim());
@@ -775,26 +776,36 @@ export default function LiveInterviewRoom() {
 
         {/* 3. Subtitle / Question & Real-Time Answer Banner */}
         <div className="w-full bg-slate-900/95 border border-white/10 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-xl flex flex-col gap-2.5">
-          {/* Question Meta Info */}
-          <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-2">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                Pertanyaan {currentIdx + 1} dari {totalQ}
-              </span>
-              <span className="text-xs font-bold text-slate-300 truncate max-w-[170px] sm:max-w-none">
-                {currentQ?.category || 'Wawancara Kompetensi'}
-              </span>
+          {/* Question Meta Info & Visual Progress */}
+          <div className="flex flex-col gap-2 border-b border-white/5 pb-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                  Pertanyaan {currentIdx + 1} dari {totalQ}
+                </span>
+                <span className="text-xs font-bold text-slate-300 truncate max-w-[170px] sm:max-w-none">
+                  {currentQ?.category || 'Wawancara Kompetensi'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => currentQ && speakQuestion(currentQ.question)}
+                className="px-2 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-[11px] font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-500/20 flex items-center gap-1 transition cursor-pointer"
+                title="Putar Ulang Pertanyaan Suara"
+              >
+                <Volume2 size={13} className={isAiSpeaking ? 'animate-bounce text-cyan-300' : ''} />
+                <span>{isAiSpeaking ? 'Sedang Diputar...' : 'Putar Audio'}</span>
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => currentQ && speakQuestion(currentQ.question)}
-              className="px-2 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-[11px] font-bold text-cyan-400 hover:text-cyan-300 border border-cyan-500/20 flex items-center gap-1 transition cursor-pointer"
-              title="Putar Ulang Pertanyaan Suara"
-            >
-              <Volume2 size={13} className={isAiSpeaking ? 'animate-bounce text-cyan-300' : ''} />
-              <span>{isAiSpeaking ? 'Sedang Diputar...' : 'Putar Audio'}</span>
-            </button>
+            {/* Visual Step Progress Bar */}
+            <div className="w-full h-1.5 bg-slate-800/90 rounded-full overflow-hidden flex">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 rounded-full transition-all duration-500 ease-out shadow-sm shadow-cyan-500/50"
+                style={{ width: `${Math.round(((currentIdx + 1) / totalQ) * 100)}%` }}
+              />
+            </div>
           </div>
 
           {/* Current Question Text */}
@@ -805,7 +816,7 @@ export default function LiveInterviewRoom() {
           {/* Candidate Voice Transcription / Input Box */}
           <div className="relative mt-1">
             <textarea
-              rows={2}
+              rows={3}
               value={candidateSpeechText}
               onChange={(e) => setCandidateSpeechText(e.target.value)}
               placeholder={
@@ -813,7 +824,7 @@ export default function LiveInterviewRoom() {
                   ? '🎙️ Suara Anda sedang direkam secara live... (atau ketik langsung di sini)'
                   : 'Bicara melalui mikrofon atau ketik jawaban Anda di sini...'
               }
-              className="w-full px-3 py-2 pr-28 rounded-2xl bg-slate-950/80 border border-white/10 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 leading-relaxed resize-none"
+              className="w-full px-3.5 py-2.5 pr-28 rounded-2xl bg-slate-950/80 border border-white/10 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 leading-relaxed resize-none min-h-[72px]"
             />
             <div className="absolute right-2 top-2.5 flex items-center gap-1.5">
               <button

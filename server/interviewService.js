@@ -130,14 +130,18 @@ Format output WAJIB HANYA berupa JSON array valid tanpa markdown formatting tamb
     ]);
 
     if (rawAiResponse) {
-      const cleaned = rawAiResponse.replace(/^```json/im, '').replace(/^```/im, '').replace(/```$/im, '').trim();
+      let cleaned = rawAiResponse.replace(/^```json/im, '').replace(/^```/im, '').replace(/```$/im, '').trim();
+      const jsonArrayMatch = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (jsonArrayMatch) {
+        cleaned = jsonArrayMatch[0];
+      }
       const parsed = JSON.parse(cleaned);
       if (Array.isArray(parsed) && parsed.length >= 3) {
         return parsed.slice(0, 5).map((q, idx) => ({
           id: q.id || `q${idx + 1}`,
           category: q.category || `Bagian ${idx + 1}`,
           question: q.question,
-          expectedKeywords: q.expectedKeywords || [],
+          expectedKeywords: Array.isArray(q.expectedKeywords) ? q.expectedKeywords : [],
         }));
       }
     }
@@ -206,18 +210,23 @@ Format output WAJIB HANYA JSON murni tanpa markdown:
     ]);
 
     if (rawAiResponse) {
-      const cleaned = rawAiResponse.replace(/^```json/im, '').replace(/^```/im, '').replace(/```$/im, '').trim();
+      let cleaned = rawAiResponse.replace(/^```json/im, '').replace(/^```/im, '').replace(/```$/im, '').trim();
+      const jsonObjectMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonObjectMatch) {
+        cleaned = jsonObjectMatch[0];
+      }
       const parsed = JSON.parse(cleaned);
-      if (typeof parsed.overall_score === 'number') {
+      const overall = Number(parsed.overall_score);
+      if (!isNaN(overall)) {
         return {
-          overall_score: Math.min(100, Math.max(0, Math.round(parsed.overall_score))),
-          technical_score: Math.min(100, Math.max(0, Math.round(parsed.technical_score || parsed.overall_score))),
-          communication_score: Math.min(100, Math.max(0, Math.round(parsed.communication_score || parsed.overall_score))),
-          problem_solving_score: Math.min(100, Math.max(0, Math.round(parsed.problem_solving_score || parsed.overall_score))),
-          cultural_fit_score: Math.min(100, Math.max(0, Math.round(parsed.cultural_fit_score || parsed.overall_score))),
-          strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['Komunikasi responsif dan antusias'],
-          weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : ['Dapat memberikan contoh metrik pencapaian yang lebih spesifik'],
-          recommendation: parsed.recommendation || 'Dipertimbangkan',
+          overall_score: Math.min(100, Math.max(0, Math.round(overall))),
+          technical_score: Math.min(100, Math.max(0, Math.round(Number(parsed.technical_score) || overall))),
+          communication_score: Math.min(100, Math.max(0, Math.round(Number(parsed.communication_score) || overall))),
+          problem_solving_score: Math.min(100, Math.max(0, Math.round(Number(parsed.problem_solving_score) || overall))),
+          cultural_fit_score: Math.min(100, Math.max(0, Math.round(Number(parsed.cultural_fit_score) || overall))),
+          strengths: Array.isArray(parsed.strengths) && parsed.strengths.length > 0 ? parsed.strengths : ['Komunikasi responsif dan antusias'],
+          weaknesses: Array.isArray(parsed.weaknesses) && parsed.weaknesses.length > 0 ? parsed.weaknesses : ['Dapat memberikan contoh metrik pencapaian yang lebih spesifik'],
+          recommendation: parsed.recommendation || (overall >= 80 ? 'Sangat Disarankan' : 'Dipertimbangkan'),
           summary_feedback: parsed.summary_feedback || 'Kandidat telah menyelesaikan seluruh pertanyaan wawancara dengan baik.',
         };
       }

@@ -3913,6 +3913,27 @@ async function handleEvaluateInterview(req, res) {
   const session = queryOne(`SELECT * FROM interview_sessions WHERE id = ?`, [session_id]);
   if (!session) return sendJson(res, 404, { error: 'Sesi tidak ditemukan' });
 
+  // Return existing scorecard if session was already evaluated
+  const existingScorecard = queryOne(`SELECT * FROM interview_scorecards WHERE session_id = ?`, [session_id]);
+  if (existingScorecard && session.status === 'completed') {
+    return sendJson(res, 200, {
+      success: true,
+      scorecard: {
+        id: existingScorecard.id,
+        session_id: existingScorecard.session_id,
+        overall_score: existingScorecard.overall_score,
+        technical_score: existingScorecard.technical_score,
+        communication_score: existingScorecard.communication_score,
+        problem_solving_score: existingScorecard.problem_solving_score,
+        cultural_fit_score: existingScorecard.cultural_fit_score,
+        strengths: JSON.parse(existingScorecard.strengths_json || '[]'),
+        weaknesses: JSON.parse(existingScorecard.weaknesses_json || '[]'),
+        recommendation: existingScorecard.recommendation,
+        summary_feedback: existingScorecard.summary_feedback,
+      },
+    });
+  }
+
   const questions = JSON.parse(session.questions_json || '[]');
   const transcripts = queryAll(
     `SELECT * FROM interview_transcripts WHERE session_id = ? ORDER BY created_at ASC`,
