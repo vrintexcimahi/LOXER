@@ -7,6 +7,7 @@ import {
   Sliders,
   CheckCircle2,
   Wand2,
+  Camera,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
@@ -299,7 +300,7 @@ export function AdminRegeneratePhotoModal({
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/30">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 shadow-inner">
-              <Sparkles className="w-6 h-6 animate-pulse" />
+              <Camera className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">

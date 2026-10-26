@@ -47,6 +47,7 @@ import {
   rollbackSystemSettings,
   SystemSettingsRevision,
 } from '../../lib/systemSettingsService';
+import { getDefaultPixarAvatar } from '../../lib/avatarService';
 
 export default function AdminSystemSettings() {
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
