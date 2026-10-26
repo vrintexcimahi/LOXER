@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import AppLogo from '../../components/ui/AppLogo';
 import ThemeToggle from '../../components/ui/ThemeToggle';
+import { navigateTo } from '../../lib/navigation';
 import NotificationBell from '../../components/ui/NotificationBell';
 import usePersistentSidebar from '../../components/layout/usePersistentSidebar';
 import DashboardGuideAssistant from '../../components/ui/DashboardGuideAssistant';
@@ -331,7 +332,7 @@ export default function GodModeLayout({ title, description, actions, children }:
                 </div>
                 <button
                   onClick={() => {
-                    void signOut().then(() => window.location.assign('/superadmin'));
+                    void signOut().then(() => navigateTo('/superadmin'));
                   }}
                   title="Logout"
                   className="rounded-xl border border-red-500/30 bg-red-500/15 p-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-red-200 hover:bg-red-500/25 transition cursor-pointer shrink-0"

@@ -28,6 +28,16 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
 const JWT_EXPIRES_DAYS = 7;
 
 let dbInstance = globalThis.__loxer_db_instance || null;
+let lastDbPingTime = 0;
+
+function syncSleep(ms) {
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch {
+    const start = Date.now();
+    while (Date.now() - start < ms) {}
+  }
+}
 
 export function closeLocalDb() {
   clearStatementCache();
@@ -45,28 +55,38 @@ export function closeLocalDb() {
     }
     dbInstance = null;
     globalThis.__loxer_db_instance = null;
+    lastDbPingTime = 0;
   }
 }
 
 export function getLocalDb() {
+  const now = Date.now();
   if (dbInstance) {
-    try {
-      dbInstance.exec('SELECT 1;');
-      return dbInstance;
-    } catch {
-      dbInstance = null;
-      globalThis.__loxer_db_instance = null;
+    if (now - lastDbPingTime > 15000) {
+      try {
+        dbInstance.exec('SELECT 1;');
+        lastDbPingTime = now;
+      } catch {
+        dbInstance = null;
+        globalThis.__loxer_db_instance = null;
+      }
     }
+    if (dbInstance) return dbInstance;
   }
 
   if (globalThis.__loxer_db_instance) {
-    try {
-      globalThis.__loxer_db_instance.exec('SELECT 1;');
+    if (now - lastDbPingTime > 15000) {
+      try {
+        globalThis.__loxer_db_instance.exec('SELECT 1;');
+        lastDbPingTime = now;
+        dbInstance = globalThis.__loxer_db_instance;
+      } catch {
+        globalThis.__loxer_db_instance = null;
+      }
+    } else {
       dbInstance = globalThis.__loxer_db_instance;
-      return dbInstance;
-    } catch {
-      globalThis.__loxer_db_instance = null;
     }
+    if (dbInstance) return dbInstance;
   }
 
   if (!dbInstance) {
@@ -116,8 +136,7 @@ export function getLocalDb() {
           pendingDb = null;
           if (e.message && (e.message.includes('locked') || e.message.includes('busy')) && attempt < 7) {
             const delay = 100 * (attempt + 1);
-            const start = Date.now();
-            while (Date.now() - start < delay) {}
+            syncSleep(delay);
             continue;
           }
           throw e;
@@ -346,6 +365,8 @@ export function getLocalDb() {
         CREATE INDEX IF NOT EXISTS idx_traffic_user_id ON web_traffic_logs(user_id);
         CREATE INDEX IF NOT EXISTS idx_traffic_created_at ON web_traffic_logs(created_at);
         CREATE INDEX IF NOT EXISTS idx_traffic_path ON web_traffic_logs(path);
+        CREATE INDEX IF NOT EXISTS idx_traffic_session_path ON web_traffic_logs(session_id, path);
+        CREATE INDEX IF NOT EXISTS idx_traffic_device_type ON web_traffic_logs(device_type);
       `);
     } catch {
       // ignore
@@ -429,6 +450,23 @@ export function getLocalDb() {
       }
     } catch (e) {
       console.warn('[localDb] talent_marketplace_posts nullable user_id migration notice:', e.message);
+    }
+
+    // Auto-migrate talent_marketplace_posts for Archive feature: is_archived, archive_reason, archived_at
+    try {
+      const talentCols = dbInstance.prepare("PRAGMA table_info(talent_marketplace_posts)").all();
+      if (!talentCols.some((c) => c.name === 'is_archived')) {
+        dbInstance.exec('ALTER TABLE talent_marketplace_posts ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;');
+      }
+      if (!talentCols.some((c) => c.name === 'archive_reason')) {
+        dbInstance.exec("ALTER TABLE talent_marketplace_posts ADD COLUMN archive_reason TEXT DEFAULT '';");
+      }
+      if (!talentCols.some((c) => c.name === 'archived_at')) {
+        dbInstance.exec('ALTER TABLE talent_marketplace_posts ADD COLUMN archived_at TEXT DEFAULT NULL;');
+      }
+      dbInstance.exec('CREATE INDEX IF NOT EXISTS idx_talent_posts_archived ON talent_marketplace_posts(is_archived);');
+    } catch (e) {
+      console.warn('[localDb] talent_marketplace_posts archive columns notice:', e.message);
     }
 
     // Auto-heal missing parent user references for company profiles, while keeping seeker talents independent of users table
@@ -597,6 +635,53 @@ export function getLocalDb() {
           created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
         );
         CREATE INDEX IF NOT EXISTS idx_settings_rev_key ON system_settings_revisions(setting_key, created_at DESC);
+
+        -- AI Video/Voice Interview Module Tables
+        CREATE TABLE IF NOT EXISTS interview_sessions (
+          id TEXT PRIMARY KEY,
+          session_code TEXT UNIQUE NOT NULL,
+          seeker_id TEXT,
+          job_id TEXT,
+          role_title TEXT NOT NULL,
+          company_name TEXT NOT NULL,
+          candidate_name TEXT NOT NULL,
+          candidate_email TEXT,
+          questions_json TEXT NOT NULL,
+          current_question_idx INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL DEFAULT 'in_progress', -- in_progress, completed, abandoned
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+          completed_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_interview_sess_code ON interview_sessions(session_code);
+        CREATE INDEX IF NOT EXISTS idx_interview_sess_seeker ON interview_sessions(seeker_id);
+
+        CREATE TABLE IF NOT EXISTS interview_transcripts (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          speaker TEXT NOT NULL, -- 'ai' or 'candidate'
+          message TEXT NOT NULL,
+          question_index INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+          FOREIGN KEY (session_id) REFERENCES interview_sessions(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_interview_trans_sess ON interview_transcripts(session_id, created_at ASC);
+
+        CREATE TABLE IF NOT EXISTS interview_scorecards (
+          id TEXT PRIMARY KEY,
+          session_id TEXT UNIQUE NOT NULL,
+          overall_score INTEGER NOT NULL DEFAULT 0,
+          technical_score INTEGER NOT NULL DEFAULT 0,
+          communication_score INTEGER NOT NULL DEFAULT 0,
+          problem_solving_score INTEGER NOT NULL DEFAULT 0,
+          cultural_fit_score INTEGER NOT NULL DEFAULT 0,
+          strengths_json TEXT,
+          weaknesses_json TEXT,
+          recommendation TEXT NOT NULL, -- 'Sangat Disarankan', 'Dipertimbangkan', 'Perlu Peningkatan'
+          summary_feedback TEXT,
+          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+          FOREIGN KEY (session_id) REFERENCES interview_sessions(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_interview_score_sess ON interview_scorecards(session_id);
       `);
     } catch (e) {
       console.warn('[localDb] system_settings setup notice:', e.message);
@@ -717,7 +802,9 @@ export function verifyTokenLenient(token, graceSeconds = 0) {
       .replace(/=/g, '')
       .replace(/\+/g, '-')
       .replace(/\//g, '_');
-    if (signature === expectedSignature) {
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSignature);
+    if (sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)) {
       isValidSig = true;
       break;
     }
@@ -873,10 +960,7 @@ function runWithBusyRetry(operation, maxRetries = 3, backoffs = [50, 150, 300]) 
 
       if (isBusy && attempt < maxRetries) {
         const delayMs = backoffs[attempt] || 100;
-        const start = Date.now();
-        while (Date.now() - start < delayMs) {
-          // Synchronous sleep spin-wait for busy backoff
-        }
+        syncSleep(delayMs);
         continue;
       }
       throw err;
@@ -1316,6 +1400,17 @@ export function purgeOldNotifications(maxDays = 90) {
   return res.changes;
 }
 
+export function purgeOldTrafficLogs(maxDays = 90) {
+  const db = getLocalDb();
+  try {
+    const cutoff = new Date(Date.now() - maxDays * 24 * 60 * 60 * 1000).toISOString();
+    const res = db.prepare('DELETE FROM web_traffic_logs WHERE created_at < ?').run(cutoff);
+    return res.changes;
+  } catch {
+    return 0;
+  }
+}
+
 export function notifyExpiringJobListings(daysThreshold = 3) {
   const db = getLocalDb();
   try {
@@ -1485,8 +1580,9 @@ export function optimizeLocalDatabase() {
   }
 
   try {
-    // 5. Purge old read notifications (older than 90 days)
+    // 5. Purge old read notifications and old traffic logs (older than 90 days)
     results.purgedNotifications = purgeOldNotifications(90);
+    results.purgedTrafficLogs = purgeOldTrafficLogs(90);
   } catch {
     // ignore
   }

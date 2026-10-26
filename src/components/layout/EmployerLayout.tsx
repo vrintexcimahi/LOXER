@@ -20,6 +20,7 @@ import usePersistentSidebar from './usePersistentSidebar';
 import NotificationBell from '../ui/NotificationBell';
 import DashboardGuideAssistant from '../ui/DashboardGuideAssistant';
 import { employerGuideContent } from '../../lib/dashboardGuideContent';
+import { navigateTo } from '../../lib/navigation';
 
 const navItems = [
   { label: 'Dashboard', description: 'Ringkasan performa rekrutmen', icon: LayoutDashboard, href: '/employer/dashboard' },
@@ -73,7 +74,7 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
   const handleSignOut = async () => {
     closeMobile();
     await signOut();
-    window.location.assign('/');
+    navigateTo('/');
   };
 
   return (

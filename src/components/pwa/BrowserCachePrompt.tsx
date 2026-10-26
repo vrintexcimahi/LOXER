@@ -3,6 +3,7 @@ import { Database, Zap, ShieldCheck, CheckCircle2, X, HardDrive, RefreshCw } fro
 
 const STORAGE_KEY = 'loxer_browser_cache_consent';
 const STORAGE_TIMESTAMP_KEY = 'loxer_browser_cache_timestamp';
+const CACHE_NAME = 'loxer-pwa-v5.8.0';
 const DISMISS_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000; // 5 days cooldown if dismissed
 
 export default function BrowserCachePrompt() {
@@ -79,7 +80,7 @@ export default function BrowserCachePrompt() {
       // 2. Pre-cache essential core assets if Cache API is available
       if ('caches' in window) {
         try {
-          const cache = await caches.open('loxer-pwa-v1.2.0');
+          const cache = await caches.open(CACHE_NAME);
           await cache.addAll([
             '/',
             '/index.html',

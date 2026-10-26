@@ -16,6 +16,7 @@ import InstallAppModal from './components/app/InstallAppModal';
 import SecretAdminModal from './components/app/SecretAdminModal';
 import WebModeBanner from './components/app/WebModeBanner';
 import VisitorTracker from './components/VisitorTracker';
+import { navigateTo } from './lib/navigation';
 
 const AuthModal = lazy(() => import('./pages/auth/AuthModal'));
 const SeekerDashboard = lazy(() => import('./pages/seeker/SeekerDashboard'));
@@ -42,6 +43,9 @@ const TalentMarketplace = lazy(() => import('./pages/public/TalentMarketplace'))
 const AdminPartners = lazy(() => import('./pages/admin/AdminPartners'));
 const PartnerAccess = lazy(() => import('./pages/partner/PartnerAccess'));
 const PartnerProgram = lazy(() => import('./pages/partner/PartnerProgram'));
+const CvGenerator = lazy(() => import('./pages/cv/CvGenerator'));
+const LiveInterviewRoom = lazy(() => import('./pages/interview/LiveInterviewRoom'));
+import { getActiveSimRole } from './lib/simSession';
 
 type AuthMode = 'login' | 'register' | null;
 
@@ -55,8 +59,6 @@ function FullScreenLoader({ message = 'Memuat LOXER...' }: { message?: string })
     </div>
   );
 }
-
-import { getActiveSimRole } from './lib/simSession';
 
 function Router() {
   const { user, userMeta, loading, configured } = useAuth();
@@ -116,11 +118,57 @@ function Router() {
       setPath(window.location.pathname);
     };
 
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const target = (e.target as HTMLElement)?.closest('a');
+      if (!target) return;
+      const href = target.getAttribute('href');
+      if (
+        !href ||
+        href.startsWith('http://') ||
+        href.startsWith('https://') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:') ||
+        href.startsWith('#') ||
+        href.startsWith('blob:') ||
+        href.startsWith('javascript:')
+      ) {
+        return;
+      }
+      if (target.getAttribute('target') === '_blank' || target.hasAttribute('download')) return;
+
+      e.preventDefault();
+      if (window.location.pathname !== href) {
+        window.history.pushState({}, '', href);
+        setPath(window.location.pathname);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+
     window.addEventListener('popstate', handlePopState);
+    document.addEventListener('click', handleDocumentClick);
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      document.removeEventListener('click', handleDocumentClick);
     };
   }, []);
+
+  useEffect(() => {
+    if (isViewOnlyWeb && (path.startsWith('/seeker/') || path.startsWith('/employer/'))) {
+      requireApp('Mengakses Portal Pengguna');
+      window.history.replaceState({}, '', '/browse');
+      setPath('/browse');
+    } else if (path === '/seeker/marketplace') {
+      window.history.replaceState({}, '', '/seeker/dashboard');
+      setPath('/seeker/dashboard');
+    } else if (path === '/marketplace' || path === '/products') {
+      window.history.replaceState({}, '', '/browse');
+      setPath('/browse');
+    } else if (path === '/admin/editor' || path === '/admin/jobs' || path === '/admin/jasa') {
+      window.history.replaceState({}, '', '/admin/dashboard');
+      setPath('/admin/dashboard');
+    }
+  }, [isViewOnlyWeb, path, requireApp]);
 
   const getHomePathByRole = () => {
     if (previewRole === 'admin') return '/admin/dashboard';
@@ -205,18 +253,8 @@ VITE_SUPABASE_ANON_KEY=...`}
     if (path === '/mitra' || path.startsWith('/mitra/')) return <PartnerProgram />;
     if (path === '/portal-mitra' || path === '/mitra/masuk') return <PartnerAccess />;
     // Mode Web View-Only: akses portal dashboard Seeker/Employer dialihkan dengan popup edukasi
-    if (isViewOnlyWeb) {
-      if (
-        path.startsWith('/seeker/') ||
-        path.startsWith('/employer/')
-      ) {
-        setTimeout(() => {
-          requireApp('Mengakses Portal Pengguna');
-        }, 150);
-        window.history.pushState({}, '', '/browse');
-        setPath('/browse');
-        return <Browse />;
-      }
+    if (isViewOnlyWeb && (path.startsWith('/seeker/') || path.startsWith('/employer/'))) {
+      return <Browse />;
     }
 
     if (path === '/seeker/dashboard') return isRoleAuthorized('seeker') ? <SeekerDashboard /> : null;
@@ -224,18 +262,31 @@ VITE_SUPABASE_ANON_KEY=...`}
     if (path === '/seeker/applications') return isRoleAuthorized('seeker') ? <Applications /> : null;
     if (path === '/seeker/profile') return isRoleAuthorized('seeker') ? <SeekerProfile /> : null;
     if (path === '/seeker/marketplace') {
-      window.location.replace('/seeker/dashboard');
-      return null;
+      setTimeout(() => navigateTo('/seeker/dashboard', true), 0);
+      return <SeekerDashboard />;
     }
     if (path === '/marketplace' || path === '/products') {
-      window.location.replace('/browse');
-      return null;
+      setTimeout(() => navigateTo('/browse', true), 0);
+      return <Browse />;
     }
     if (path === '/talents' || path === '/employer/talents' || path === '/pelamar' || path === '/pelamar-kerja' || path === '/freelance' || path === '/jasa') return <TalentMarketplace />;
   if (path === '/cv' || path === '/buat-cv' || path === '/cv-maker' || path === '/cv-generator') {
     return (
       <Suspense fallback={<FullScreenLoader />}>
         <CvGenerator />
+      </Suspense>
+    );
+  }
+  if (
+    path === '/interview' ||
+    path.startsWith('/interview/') ||
+    path === '/live-interview' ||
+    path === '/wawancara' ||
+    path === '/interview-ai'
+  ) {
+    return (
+      <Suspense fallback={<FullScreenLoader message="Menyiapkan Ruang Interview AI..." />}>
+        <LiveInterviewRoom />
       </Suspense>
     );
   }
@@ -256,8 +307,8 @@ VITE_SUPABASE_ANON_KEY=...`}
       normalizedPath === '/admin-login'
     ) {
       if (normalizedPath === '/admin' && (isRoleAuthorized('admin') || isRoleAuthorized('superadmin'))) {
-        window.location.href = '/admin/dashboard';
-        return null;
+        setTimeout(() => navigateTo('/admin/dashboard', true), 0);
+        return <AdminDashboard tab="overview" />;
       }
       return <AdminInternalLogin />;
     }
@@ -280,10 +331,10 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/moderation': <ModerationQueue />,
         '/admin/settings': <AdminSystemSettings />,
       };
-      
+
       if (normalizedPath === '/admin/editor' || normalizedPath === '/admin/jobs' || normalizedPath === '/admin/jasa') {
-        window.location.href = '/admin/dashboard';
-        return null;
+        setTimeout(() => navigateTo('/admin/dashboard', true), 0);
+        return <AdminDashboard tab="overview" />;
       }
 
       const superPages: Record<string, JSX.Element> = {
@@ -301,10 +352,10 @@ VITE_SUPABASE_ANON_KEY=...`}
       };
 
       if (superPages[normalizedPath] && !isSuper && normalizedPath !== '/admin/settings') {
-        window.location.href = '/admin/dashboard';
-        return null;
+        setTimeout(() => navigateTo('/admin/dashboard', true), 0);
+        return <AdminDashboard tab="overview" />;
       }
-      
+
       const page = adminPages[normalizedPath] || (isSuper ? superPages[normalizedPath] : null);
       return page || null;
     }
@@ -330,7 +381,7 @@ VITE_SUPABASE_ANON_KEY=...`}
     } else {
       const homePath = getHomePathByRole();
       if (homePath !== path && !homePath.startsWith(path)) {
-        window.location.href = homePath;
+        setTimeout(() => navigateTo(homePath, true), 0);
       }
       return null;
     }
@@ -391,8 +442,6 @@ VITE_SUPABASE_ANON_KEY=...`}
     </>
   );
 }
-
-const CvGenerator = lazy(() => import('./pages/cv/CvGenerator'));
 
 export default function App() {
   return (

@@ -41,6 +41,10 @@ import {
   getStorageStats,
   deleteFile as deleteStorageFile,
 } from './storageService.js';
+import {
+  generateInterviewQuestions,
+  evaluateInterviewTranscript,
+} from './interviewService.js';
 
 const PUBLIC_UPLOADS_DIR = path.resolve(process.cwd(), 'public', 'uploads');
 
@@ -3028,11 +3032,22 @@ async function handleTrafficTrack(req, res) {
 
     // Otherwise, create a new web_traffic_log row
     const newLogId = crypto.randomUUID();
+    const cfCity = req.headers['cf-ipcity'] ? decodeURIComponent(String(req.headers['cf-ipcity'])) : null;
+    const cfCountry = req.headers['cf-ipcountry'] ? String(req.headers['cf-ipcountry']) : null;
+    const detectedCity = body.city || cfCity || req.headers['x-vercel-ip-city'] || null;
+    const detectedCountry = body.country || cfCountry || req.headers['x-vercel-ip-country'] || 'ID';
+
     const metadata = JSON.stringify({
       utm_source: body.utm_source || null,
       utm_medium: body.utm_medium || null,
       utm_campaign: body.utm_campaign || null,
       is_guest: !userId,
+      city: detectedCity,
+      country: detectedCountry,
+      network: body.network || null,
+      language: body.language || null,
+      timezone: body.timezone || null,
+      pixel_ratio: body.pixel_ratio || null,
     });
 
     execute(
@@ -3056,7 +3071,7 @@ async function handleTrafficTrack(req, res) {
         os,
         screenRes,
         ip,
-        body.city || null,
+        detectedCity,
         durationSeconds,
         metadata,
         now,
@@ -3095,15 +3110,16 @@ async function handleTrafficStats(req, res) {
     const guestUvRow = queryOne("SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE user_role = 'guest' OR user_id IS NULL");
     const registeredUvRow = queryOne("SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE user_role != 'guest' AND user_id IS NOT NULL");
 
-    // Online Now (last 5 minutes)
+    // Online Now (last 5 minutes or active heartbeat within 5 minutes)
+    const onlineCond = "(created_at >= datetime('now', '-5 minutes') OR datetime(created_at, '+' || duration_seconds || ' seconds') >= datetime('now', '-5 minutes'))";
     const onlineTotalRow = queryOne(
-      "SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE created_at >= datetime('now', '-5 minutes')"
+      `SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE ${onlineCond}`
     );
     const onlineGuestsRow = queryOne(
-      "SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE (user_role = 'guest' OR user_id IS NULL) AND created_at >= datetime('now', '-5 minutes')"
+      `SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE (user_role = 'guest' OR user_id IS NULL) AND ${onlineCond}`
     );
     const onlineRegisteredRow = queryOne(
-      "SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE user_role != 'guest' AND user_id IS NOT NULL AND created_at >= datetime('now', '-5 minutes')"
+      `SELECT COUNT(DISTINCT visitor_id) as c FROM web_traffic_logs WHERE user_role != 'guest' AND user_id IS NOT NULL AND ${onlineCond}`
     );
 
     // Today Metrics
@@ -3179,6 +3195,12 @@ async function handleTrafficStats(req, res) {
       conditions.push("(user_role = 'guest' OR user_id IS NULL)");
     } else if (filter === 'registered') {
       conditions.push("(user_role != 'guest' AND user_id IS NOT NULL)");
+    } else if (filter === 'online') {
+      conditions.push("(created_at >= datetime('now', '-5 minutes') OR datetime(created_at, '+' || duration_seconds || ' seconds') >= datetime('now', '-5 minutes'))");
+    } else if (filter === 'mobile') {
+      conditions.push("device_type = 'mobile'");
+    } else if (filter === 'desktop') {
+      conditions.push("device_type = 'desktop'");
     }
 
     if (search) {
@@ -3186,13 +3208,16 @@ async function handleTrafficStats(req, res) {
         LOWER(path) LIKE ? OR
         LOWER(COALESCE(page_title, '')) LIKE ? OR
         LOWER(COALESCE(ip_address, '')) LIKE ? OR
+        LOWER(COALESCE(city, '')) LIKE ? OR
         LOWER(COALESCE(user_email, '')) LIKE ? OR
         LOWER(COALESCE(visitor_id, '')) LIKE ? OR
+        LOWER(COALESCE(session_id, '')) LIKE ? OR
         LOWER(COALESCE(browser, '')) LIKE ? OR
-        LOWER(COALESCE(os, '')) LIKE ?
+        LOWER(COALESCE(os, '')) LIKE ? OR
+        LOWER(COALESCE(referrer, '')) LIKE ?
       )`);
-      const s = `%${search}%`;
-      params.push(s, s, s, s, s, s, s);
+      const s = `%${search.toLowerCase()}%`;
+      params.push(s, s, s, s, s, s, s, s, s, s);
     }
 
     const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -3201,38 +3226,53 @@ async function handleTrafficStats(req, res) {
     const totalLogs = countRow?.total || 0;
 
     const logs = queryAll(`
-      SELECT 
+      SELECT
         id, visitor_id, session_id, user_id, user_email, user_role,
         path, page_title, referrer, device_type, browser, os, screen_res,
-        ip_address, city, duration_seconds, created_at,
-        CASE WHEN created_at >= datetime('now', '-5 minutes') THEN 1 ELSE 0 END as is_online
+        ip_address, city, duration_seconds, metadata, created_at,
+        CASE WHEN (created_at >= datetime('now', '-5 minutes') OR datetime(created_at, '+' || duration_seconds || ' seconds') >= datetime('now', '-5 minutes')) THEN 1 ELSE 0 END as is_online
       FROM web_traffic_logs
       ${whereSql}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
     `, [...params, pageSize, offset]);
 
-    const formattedLogs = logs.map(l => ({
-      id: l.id,
-      visitorId: l.visitor_id,
-      sessionId: l.session_id,
-      userId: l.user_id,
-      userEmail: l.user_email,
-      userRole: l.user_role || (l.user_id ? 'seeker' : 'guest'),
-      isGuest: !l.user_id || l.user_role === 'guest',
-      path: l.path,
-      pageTitle: l.page_title || l.path,
-      referrer: l.referrer,
-      deviceType: l.device_type || 'desktop',
-      browser: l.browser || '—',
-      os: l.os || '—',
-      screenRes: l.screen_res || '—',
-      ip: l.ip_address,
-      maskedIp: maskIp(l.ip_address),
-      durationSeconds: l.duration_seconds || 0,
-      createdAt: l.created_at,
-      isOnline: Boolean(l.is_online),
-    }));
+    const formattedLogs = logs.map(l => {
+      let meta = {};
+      try {
+        meta = l.metadata ? (typeof l.metadata === 'string' ? JSON.parse(l.metadata) : l.metadata) : {};
+      } catch {
+        meta = {};
+      }
+      return {
+        id: l.id,
+        visitorId: l.visitor_id,
+        sessionId: l.session_id,
+        userId: l.user_id,
+        userEmail: l.user_email,
+        userRole: l.user_role || (l.user_id ? 'seeker' : 'guest'),
+        isGuest: !l.user_id || l.user_role === 'guest',
+        path: l.path,
+        pageTitle: l.page_title || l.path,
+        referrer: l.referrer,
+        deviceType: l.device_type || 'desktop',
+        browser: l.browser || '—',
+        os: l.os || '—',
+        screenRes: l.screen_res || '—',
+        ip: l.ip_address,
+        maskedIp: maskIp(l.ip_address),
+        city: l.city || meta.city || '—',
+        country: meta.country || 'ID',
+        network: meta.network || '—',
+        language: meta.language || '—',
+        timezone: meta.timezone || '—',
+        pixelRatio: meta.pixel_ratio || '1x',
+        durationSeconds: l.duration_seconds || 0,
+        metadata: meta,
+        createdAt: l.created_at,
+        isOnline: Boolean(l.is_online),
+      };
+    });
 
     return sendJson(res, 200, {
       stats: {
@@ -3697,6 +3737,260 @@ async function handleStorageDelete(req, res) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// AI Live Video/Voice Interview Handlers
+// ---------------------------------------------------------------------------
+async function handleCreateInterviewSession(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+  const body = await parseJsonBody(req);
+  const {
+    role_title = 'Staf Operasional',
+    company_name = 'Mitra LOXER',
+    candidate_name = 'Kandidat',
+    candidate_email = '',
+    cv_summary = '',
+    candidate_skills = [],
+    seeker_id = null,
+    job_id = null,
+  } = body || {};
+
+  const sessionId = crypto.randomUUID();
+  const sessionCode = `LOX-IV-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+  // Generate 5 questions via Gemini 3.8 Flash High
+  const questions = await generateInterviewQuestions({
+    roleTitle: role_title,
+    companyName: company_name,
+    candidateName: candidate_name,
+    cvSummary: cv_summary,
+    candidateSkills: candidate_skills,
+  });
+
+  execute(
+    `INSERT INTO interview_sessions (id, session_code, seeker_id, job_id, role_title, company_name, candidate_name, candidate_email, questions_json, current_question_idx, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'in_progress')`,
+    [
+      sessionId,
+      sessionCode,
+      seeker_id,
+      job_id,
+      role_title,
+      company_name,
+      candidate_name,
+      candidate_email,
+      JSON.stringify(questions),
+    ]
+  );
+
+  // Record initial welcome question
+  const initialTranscriptId = crypto.randomUUID();
+  const firstQuestion = questions[0] || { question: 'Selamat datang di sesi wawancara LOXER.' };
+  execute(
+    `INSERT INTO interview_transcripts (id, session_id, speaker, message, question_index)
+     VALUES (?, ?, 'ai', ?, 0)`,
+    [initialTranscriptId, sessionId, firstQuestion.question]
+  );
+
+  return sendJson(res, 201, {
+    success: true,
+    session: {
+      id: sessionId,
+      session_code: sessionCode,
+      role_title,
+      company_name,
+      candidate_name,
+      questions,
+      current_question_idx: 0,
+      current_question: firstQuestion,
+    },
+  });
+}
+
+async function handleGetInterviewSession(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const code = url.searchParams.get('code') || url.pathname.split('/').pop();
+  if (!code) return sendJson(res, 400, { error: 'Kode sesi wawancara wajib diisi' });
+
+  const session = queryOne(
+    `SELECT * FROM interview_sessions WHERE session_code = ? OR id = ?`,
+    [code, code]
+  );
+  if (!session) return sendJson(res, 404, { error: 'Sesi wawancara tidak ditemukan' });
+
+  const questions = JSON.parse(session.questions_json || '[]');
+  const transcripts = queryAll(
+    `SELECT * FROM interview_transcripts WHERE session_id = ? ORDER BY created_at ASC`,
+    [session.id]
+  );
+  const scorecard = queryOne(
+    `SELECT * FROM interview_scorecards WHERE session_id = ?`,
+    [session.id]
+  );
+
+  return sendJson(res, 200, {
+    success: true,
+    session: {
+      ...session,
+      questions,
+      current_question: questions[session.current_question_idx] || null,
+      transcripts,
+      scorecard: scorecard
+        ? {
+            ...scorecard,
+            strengths: JSON.parse(scorecard.strengths_json || '[]'),
+            weaknesses: JSON.parse(scorecard.weaknesses_json || '[]'),
+          }
+        : null,
+    },
+  });
+}
+
+async function handleRecordInterviewTurn(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+  const body = await parseJsonBody(req);
+  const { session_id, candidate_answer, question_index = 0 } = body || {};
+
+  if (!session_id || !candidate_answer) {
+    return sendJson(res, 400, { error: 'session_id dan candidate_answer wajib diisi' });
+  }
+
+  const session = queryOne(`SELECT * FROM interview_sessions WHERE id = ?`, [session_id]);
+  if (!session) return sendJson(res, 404, { error: 'Sesi wawancara tidak ditemukan' });
+
+  const questions = JSON.parse(session.questions_json || '[]');
+
+  // Record candidate answer
+  const answerId = crypto.randomUUID();
+  execute(
+    `INSERT INTO interview_transcripts (id, session_id, speaker, message, question_index)
+     VALUES (?, ?, 'candidate', ?, ?)`,
+    [answerId, session_id, candidate_answer.trim(), question_index]
+  );
+
+  const nextIdx = question_index + 1;
+  const isFinished = nextIdx >= questions.length;
+
+  if (!isFinished) {
+    const nextQ = questions[nextIdx];
+    const nextQId = crypto.randomUUID();
+    execute(
+      `INSERT INTO interview_transcripts (id, session_id, speaker, message, question_index)
+       VALUES (?, ?, 'ai', ?, ?)`,
+      [nextQId, session_id, nextQ.question, nextIdx]
+    );
+
+    execute(`UPDATE interview_sessions SET current_question_idx = ? WHERE id = ?`, [nextIdx, session_id]);
+
+    return sendJson(res, 200, {
+      success: true,
+      is_finished: false,
+      next_question_idx: nextIdx,
+      next_question: nextQ,
+    });
+  } else {
+    execute(`UPDATE interview_sessions SET current_question_idx = ? WHERE id = ?`, [nextIdx, session_id]);
+    return sendJson(res, 200, {
+      success: true,
+      is_finished: true,
+      message: 'Seluruh pertanyaan telah dijawab.',
+    });
+  }
+}
+
+async function handleEvaluateInterview(req, res) {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+  const body = await parseJsonBody(req);
+  const { session_id } = body || {};
+  if (!session_id) return sendJson(res, 400, { error: 'session_id wajib diisi' });
+
+  const session = queryOne(`SELECT * FROM interview_sessions WHERE id = ?`, [session_id]);
+  if (!session) return sendJson(res, 404, { error: 'Sesi tidak ditemukan' });
+
+  const questions = JSON.parse(session.questions_json || '[]');
+  const transcripts = queryAll(
+    `SELECT * FROM interview_transcripts WHERE session_id = ? ORDER BY created_at ASC`,
+    [session_id]
+  );
+
+  const evalResult = await evaluateInterviewTranscript({
+    roleTitle: session.role_title,
+    companyName: session.company_name,
+    candidateName: session.candidate_name,
+    questions,
+    transcripts,
+  });
+
+  const scorecardId = crypto.randomUUID();
+  execute(
+    `INSERT OR REPLACE INTO interview_scorecards (
+       id, session_id, overall_score, technical_score, communication_score,
+       problem_solving_score, cultural_fit_score, strengths_json, weaknesses_json,
+       recommendation, summary_feedback
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      scorecardId,
+      session_id,
+      evalResult.overall_score,
+      evalResult.technical_score,
+      evalResult.communication_score,
+      evalResult.problem_solving_score,
+      evalResult.cultural_fit_score,
+      JSON.stringify(evalResult.strengths),
+      JSON.stringify(evalResult.weaknesses),
+      evalResult.recommendation,
+      evalResult.summary_feedback,
+    ]
+  );
+
+  execute(
+    `UPDATE interview_sessions SET status = 'completed', completed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
+    [session_id]
+  );
+
+  return sendJson(res, 200, {
+    success: true,
+    scorecard: {
+      id: scorecardId,
+      session_id,
+      ...evalResult,
+    },
+  });
+}
+
+async function handleListInterviewHistory(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
+  const seekerId = url.searchParams.get('seeker_id');
+
+  let rows;
+  if (seekerId) {
+    rows = queryAll(
+      `SELECT s.*, c.overall_score, c.recommendation
+       FROM interview_sessions s
+       LEFT JOIN interview_scorecards c ON c.session_id = s.id
+       WHERE s.seeker_id = ?
+       ORDER BY s.created_at DESC LIMIT ?`,
+      [seekerId, limit]
+    );
+  } else {
+    rows = queryAll(
+      `SELECT s.*, c.overall_score, c.recommendation
+       FROM interview_sessions s
+       LEFT JOIN interview_scorecards c ON c.session_id = s.id
+       ORDER BY s.created_at DESC LIMIT ?`,
+      [limit]
+    );
+  }
+
+  return sendJson(res, 200, {
+    success: true,
+    interviews: rows.map((r) => ({
+      ...r,
+      questions: JSON.parse(r.questions_json || '[]'),
+    })),
+  });
+}
+
 export function createLocalDbMiddleware(env = {}) {
   activeMiddlewareEnv = env || {};
   if (env.VITE_USE_LOCAL_DB) process.env.VITE_USE_LOCAL_DB = env.VITE_USE_LOCAL_DB;
@@ -3741,6 +4035,13 @@ export function createLocalDbMiddleware(env = {}) {
     if (path === '/api/storage/file' && req.method === 'DELETE') {
       return handleStorageDelete(req, res);
     }
+
+    // AI Live Video/Voice Interview Endpoints
+    if (path === '/api/local/interview/create-session') return handleCreateInterviewSession(req, res);
+    if (path === '/api/local/interview/session') return handleGetInterviewSession(req, res);
+    if (path === '/api/local/interview/record-turn') return handleRecordInterviewTurn(req, res);
+    if (path === '/api/local/interview/evaluate') return handleEvaluateInterview(req, res);
+    if (path === '/api/local/interview/history') return handleListInterviewHistory(req, res);
 
     if (path === '/api/local/partner/apply') return handlePartnerApply(req, res);
     if (path === '/api/local/partner/applications' || path.startsWith('/api/local/partner/applications/')) {
@@ -3899,6 +4200,15 @@ export function createLocalDbMiddleware(env = {}) {
       }
       if (url.startsWith('/api/admin/system/optimize-db') && req.method === 'POST') {
         return handleAdminOptimizeDb(req, res);
+      }
+      if (url.startsWith('/api/admin/talents/auto-archive-no-photo') && req.method === 'POST') {
+        return handleAdminTalentsAutoArchiveNoPhoto(req, res);
+      }
+      if (url.startsWith('/api/admin/talents/toggle-archive') && req.method === 'POST') {
+        return handleAdminTalentsToggleArchive(req, res);
+      }
+      if (url.startsWith('/api/admin/talents/bulk-archive') && req.method === 'POST') {
+        return handleAdminTalentsBulkArchive(req, res);
       }
     }
 
@@ -4583,6 +4893,19 @@ async function handleAdminPublishSmartCv(req, res) {
       [seekerIdToUse]
     );
 
+    // Auto-archive check: jika foto kosong atau avatar pixar placeholder, simpan ke arsip
+    const isMissingPhoto = !finalPhotoUrl || 
+      finalPhotoUrl.trim() === '' || 
+      finalPhotoUrl.includes('pixar_') || 
+      finalPhotoUrl.includes('placeholder') || 
+      finalPhotoUrl.includes('dicebear');
+
+    const shouldArchive = isMissingPhoto;
+    const isPublishedVal = shouldArchive ? 0 : 1;
+    const isArchivedVal = shouldArchive ? 1 : 0;
+    const archiveReasonVal = shouldArchive ? 'Otomatis diarsipkan: Pas foto tidak terdeteksi di berkas CV' : '';
+    const archivedAtVal = shouldArchive ? now : null;
+
     let talentPostId;
     let isUpdated = false;
 
@@ -4608,7 +4931,10 @@ async function handleAdminPublishSmartCv(req, res) {
            portfolio_url = COALESCE(NULLIF(?, ''), portfolio_url),
            badge = ?,
            photo_url = COALESCE(NULLIF(?, ''), photo_url),
-           is_published = 1,
+           is_published = ?,
+           is_archived = ?,
+           archive_reason = ?,
+           archived_at = ?,
            updated_at = ?
          WHERE id = ?`,
         [
@@ -4628,6 +4954,10 @@ async function handleAdminPublishSmartCv(req, res) {
           portfolio_url || '',
           badge || 'SIAP KERJA',
           finalPhotoUrl,
+          isPublishedVal,
+          isArchivedVal,
+          archiveReasonVal,
+          archivedAtVal,
           now,
           talentPostId,
         ]
@@ -4639,8 +4969,8 @@ async function handleAdminPublishSmartCv(req, res) {
         `INSERT INTO talent_marketplace_posts (
           id, seeker_id, user_id, headline, category, bio, bio_summary, skills, experience_years,
           availability, availability_status, expected_salary, rate_type, domicile_city, whatsapp_number,
-          portfolio_url, badge, photo_url, views_count, is_published, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
+          portfolio_url, badge, photo_url, views_count, is_published, is_archived, archive_reason, archived_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
         [
           talentPostId,
           seekerIdToUse,
@@ -4660,6 +4990,10 @@ async function handleAdminPublishSmartCv(req, res) {
           portfolio_url || '',
           badge || 'SIAP KERJA',
           finalPhotoUrl,
+          isPublishedVal,
+          isArchivedVal,
+          archiveReasonVal,
+          archivedAtVal,
           now,
           now,
         ]
@@ -4675,7 +5009,7 @@ async function handleAdminPublishSmartCv(req, res) {
           callerId,
           callerMeta.email || 'admin@loxer.local',
           talentPostId,
-          JSON.stringify({ name: cleanName, headline: headline.trim(), category, city: domicile_city }),
+          JSON.stringify({ name: cleanName, headline: headline.trim(), category, city: domicile_city, is_archived: isArchivedVal }),
           now,
         ]
       );
@@ -4693,7 +5027,10 @@ async function handleAdminPublishSmartCv(req, res) {
 
     return sendJson(res, 200, {
       ok: true,
-      message: isUpdated
+      is_archived: isArchivedVal,
+      message: shouldArchive
+        ? `Biodata pelamar ${cleanName} otomatis disimpan ke Pusat Arsip (Pas foto profil belum terdeteksi). Anda dapat me-regenerate foto profil AI di Katalog Pelamar.`
+        : isUpdated
         ? `Data kandidat ${cleanName} sudah terdaftar, berhasil diperbarui tanpa duplikasi!`
         : `Biodata pelamar kerja ${cleanName} berhasil diterbitkan ke Bursa Talent LOXER!`,
       talent_id: talentPostId,
@@ -5185,6 +5522,170 @@ For every restoration request:
     });
   }
 }
+
+// ---------------------------------------------------------------------------
+// Talent Biodata Archive Handlers (Auto-archive candidates without real photos)
+// ---------------------------------------------------------------------------
+async function handleAdminTalentsAutoArchiveNoPhoto(req, res) {
+  const auth = verifyAdminRequest(req);
+  if (!auth.ok) {
+    return sendJson(res, auth.status, { message: auth.message });
+  }
+
+  try {
+    const body = await parseJsonBody(req).catch(() => ({}));
+    const dryRun = body.dry_run === true;
+
+    // Detect all talents without real photos:
+    // Empty/null OR placeholder pixar/avatar/dicebear
+    const candidateSql = `
+      SELECT id, headline, photo_url, is_published, is_archived
+      FROM talent_marketplace_posts
+      WHERE (
+        photo_url IS NULL 
+        OR TRIM(photo_url) = '' 
+        OR photo_url LIKE '%/avatars/%' 
+        OR photo_url LIKE '%pixar_%' 
+        OR photo_url LIKE '%dicebear%' 
+        OR photo_url LIKE '%placeholder%'
+      )
+    `;
+    const matchingRows = queryAll(candidateSql);
+
+    if (dryRun) {
+      return sendJson(res, 200, {
+        ok: true,
+        dry_run: true,
+        total_matching: matchingRows.length,
+        already_archived: matchingRows.filter((r) => r.is_archived === 1).length,
+        to_archive: matchingRows.filter((r) => r.is_archived !== 1).length,
+        candidates: matchingRows,
+      });
+    }
+
+    const now = new Date().toISOString();
+    // Update all matching rows to be archived and unpublished
+    const updateSql = `
+      UPDATE talent_marketplace_posts
+      SET is_archived = 1,
+          is_published = 0,
+          archive_reason = 'Foto profil tidak terdeteksi otomatis (membutuhkan pas foto asli)',
+          archived_at = ?,
+          updated_at = ?
+      WHERE (
+        photo_url IS NULL 
+        OR TRIM(photo_url) = '' 
+        OR photo_url LIKE '%/avatars/%' 
+        OR photo_url LIKE '%pixar_%' 
+        OR photo_url LIKE '%dicebear%' 
+        OR photo_url LIKE '%placeholder%'
+      )
+      AND (is_archived IS NULL OR is_archived = 0)
+    `;
+
+    execute(updateSql, [now, now]);
+
+    const updatedRows = queryAll(
+      `SELECT id, headline, is_archived, is_published FROM talent_marketplace_posts WHERE is_archived = 1`
+    );
+
+    return sendJson(res, 200, {
+      ok: true,
+      archived_count: matchingRows.length,
+      message: `Berhasil mengarsipkan otomatis ${matchingRows.length} biodata pelamar yang tidak terdeteksi foto profilnya.`,
+      updated_rows: updatedRows,
+    });
+  } catch (err) {
+    console.error('[handleAdminTalentsAutoArchiveNoPhoto Error]:', err);
+    return sendJson(res, 500, {
+      ok: false,
+      message: err.message || 'Gagal memproses arsip otomatis pelamar tanpa foto',
+    });
+  }
+}
+
+async function handleAdminTalentsToggleArchive(req, res) {
+  const auth = verifyAdminRequest(req);
+  if (!auth.ok) {
+    return sendJson(res, auth.status, { message: auth.message });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const { id, is_archived, reason } = body;
+    if (!id) {
+      return sendJson(res, 400, { message: 'ID talent wajib diisi.' });
+    }
+
+    const target = queryOne('SELECT * FROM talent_marketplace_posts WHERE id = ?', [id]);
+    if (!target) {
+      return sendJson(res, 404, { message: 'Data talent tidak ditemukan.' });
+    }
+
+    const now = new Date().toISOString();
+    const newArchived = is_archived ? 1 : 0;
+    // If archiving: set is_published to 0. If unarchiving: restore is_published to 1
+    const newPublished = newArchived === 1 ? 0 : 1;
+    const archiveReason = newArchived === 1 ? (reason || 'Diarsipkan oleh Admin') : '';
+    const archivedAt = newArchived === 1 ? now : null;
+
+    execute(
+      `UPDATE talent_marketplace_posts 
+       SET is_archived = ?, is_published = ?, archive_reason = ?, archived_at = ?, updated_at = ?
+       WHERE id = ?`,
+      [newArchived, newPublished, archiveReason, archivedAt, now, id]
+    );
+
+    const updated = queryOne('SELECT * FROM talent_marketplace_posts WHERE id = ?', [id]);
+    return sendJson(res, 200, {
+      ok: true,
+      talent: enrichRowRelations('talent_marketplace_posts', updated),
+      message: newArchived === 1 ? 'Biodata berhasil diarsipkan.' : 'Biodata berhasil dipulihkan dari arsip.',
+    });
+  } catch (err) {
+    console.error('[handleAdminTalentsToggleArchive Error]:', err);
+    return sendJson(res, 500, { ok: false, message: err.message });
+  }
+}
+
+async function handleAdminTalentsBulkArchive(req, res) {
+  const auth = verifyAdminRequest(req);
+  if (!auth.ok) {
+    return sendJson(res, auth.status, { message: auth.message });
+  }
+
+  try {
+    const body = await parseJsonBody(req);
+    const { ids, is_archived, reason } = body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return sendJson(res, 400, { message: 'Daftar ID talent wajib disertakan.' });
+    }
+
+    const now = new Date().toISOString();
+    const newArchived = is_archived ? 1 : 0;
+    const newPublished = newArchived === 1 ? 0 : 1;
+    const archiveReason = newArchived === 1 ? (reason || 'Diarsipkan massal oleh Admin') : '';
+    const archivedAt = newArchived === 1 ? now : null;
+
+    const placeholders = ids.map(() => '?').join(', ');
+    execute(
+      `UPDATE talent_marketplace_posts 
+       SET is_archived = ?, is_published = ?, archive_reason = ?, archived_at = ?, updated_at = ?
+       WHERE id IN (${placeholders})`,
+      [newArchived, newPublished, archiveReason, archivedAt, now, ...ids]
+    );
+
+    return sendJson(res, 200, {
+      ok: true,
+      count: ids.length,
+      message: `${ids.length} biodata pelamar berhasil ${newArchived === 1 ? 'diarsipkan' : 'dipulihkan'}.`,
+    });
+  } catch (err) {
+    console.error('[handleAdminTalentsBulkArchive Error]:', err);
+    return sendJson(res, 500, { ok: false, message: err.message });
+  }
+}
+
 
 
 

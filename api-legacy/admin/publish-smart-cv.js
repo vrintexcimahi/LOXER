@@ -191,7 +191,14 @@ export default async function handler(req, res) {
       }
     }
 
-    const talentPostId = existingPost ? existingPost.id : `tal_cv_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const isMissingPhoto = !photo_url || 
+      String(photo_url).trim() === '' || 
+      String(photo_url).includes('pixar_') || 
+      String(photo_url).includes('placeholder') || 
+      String(photo_url).includes('dicebear');
+
+    const shouldArchive = isMissingPhoto;
+
     const talentPayload = {
       id: talentPostId,
       seeker_id: candidateSeekerId,
@@ -212,7 +219,10 @@ export default async function handler(req, res) {
       badge: badge || 'SIAP KERJA',
       photo_url: photo_url || '',
       views_count: 0,
-      is_published: 1,
+      is_published: shouldArchive ? 0 : 1,
+      is_archived: shouldArchive ? 1 : 0,
+      archive_reason: shouldArchive ? 'Otomatis diarsipkan: Pas foto tidak terdeteksi di berkas CV' : '',
+      archived_at: shouldArchive ? now : null,
       updated_at: now,
     };
 

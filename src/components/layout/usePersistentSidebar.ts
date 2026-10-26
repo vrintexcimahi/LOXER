@@ -9,19 +9,14 @@ interface UsePersistentSidebarResult {
 }
 
 export default function usePersistentSidebar(storageKey: string): UsePersistentSidebarResult {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-
-  useEffect(() => {
+  const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
-      const saved = window.localStorage.getItem(storageKey);
-      if (saved === 'collapsed') {
-        setIsCollapsed(true);
-      }
+      return typeof window !== 'undefined' && window.localStorage.getItem(storageKey) === 'collapsed';
     } catch {
-      // Ignore localStorage read issues; sidebar still works with in-memory state.
+      return false;
     }
-  }, [storageKey]);
+  });
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   useEffect(() => {
     try {

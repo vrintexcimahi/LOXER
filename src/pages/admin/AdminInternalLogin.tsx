@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { isDefaultAdminEmail } from '../../lib/constants';
+import { navigateTo } from '../../lib/navigation';
 
 export default function AdminInternalLogin() {
   const { user, userMeta, signIn } = useAuth();
@@ -92,7 +93,7 @@ export default function AdminInternalLogin() {
 
         setSuccess(true);
         setTimeout(() => {
-          window.location.href = '/admin/dashboard';
+          navigateTo('/admin/dashboard');
         }, 800);
         return;
       }
@@ -115,7 +116,7 @@ export default function AdminInternalLogin() {
 
       setSuccess(true);
       setTimeout(() => {
-        window.location.href = '/admin/dashboard';
+        navigateTo('/admin/dashboard');
       }, 800);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal memproses login.';
@@ -213,7 +214,7 @@ export default function AdminInternalLogin() {
                 Anda telah terotentikasi sebagai <strong className="text-white">{user?.email}</strong>.
               </p>
               <button
-                onClick={() => (window.location.href = '/admin/dashboard')}
+                onClick={() => navigateTo('/admin/dashboard')}
                 className="gradient-cta w-full py-2.5 rounded-xl font-bold text-sm text-slate-950 flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
               >
                 Buka Dashboard Admin

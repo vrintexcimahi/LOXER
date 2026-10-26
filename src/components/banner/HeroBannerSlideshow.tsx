@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { UserRole } from '../../lib/types';
 import UserOnlinePresence from './UserOnlinePresence';
+import { navigateTo } from '../../lib/navigation';
 
 export interface BannerSlide {
   id: string;
@@ -94,7 +95,7 @@ export default function HeroBannerSlideshow({
 
   const handleSlideClick = (slide: BannerSlide) => {
     if (slide.actionUrl && window.location.pathname + window.location.search !== slide.actionUrl) {
-      window.location.href = slide.actionUrl;
+      navigateTo(slide.actionUrl);
     } else if (onRegister && slide.targetRole) {
       onRegister(slide.targetRole);
     }

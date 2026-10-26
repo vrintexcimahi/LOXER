@@ -231,7 +231,15 @@ class QueryBuilder<T = unknown> implements PromiseLike<QueryResult<T>> {
         body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      let result: any = null;
+      try {
+        result = await response.json();
+      } catch {
+        return {
+          data: null,
+          error: { message: `Respon server tidak valid (${response.status} ${response.statusText})` },
+        };
+      }
 
       if (!response.ok || result.error) {
         return {

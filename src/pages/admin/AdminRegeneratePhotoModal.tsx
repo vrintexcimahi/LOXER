@@ -253,11 +253,16 @@ export function AdminRegeneratePhotoModal({
     try {
       const nowIso = new Date().toISOString();
 
-      // 1. Update talent_marketplace_posts
+      const isArchived = Number(talent.is_archived) === 1;
+
+      // 1. Update talent_marketplace_posts (auto unarchive and publish once valid photo is provided)
       const { error: talentError } = await supabase
         .from('talent_marketplace_posts')
         .update({
           photo_url: selectedPhoto,
+          is_archived: 0,
+          is_published: 1,
+          archive_reason: '',
           updated_at: nowIso,
         })
         .eq('id', talent.id);
@@ -283,6 +288,9 @@ export function AdminRegeneratePhotoModal({
       const updatedTalent: TalentMarketplacePost = {
         ...talent,
         photo_url: selectedPhoto,
+        is_archived: 0,
+        is_published: 1,
+        archive_reason: '',
         seeker_profiles: talent.seeker_profiles
           ? {
               ...talent.seeker_profiles,
@@ -292,7 +300,12 @@ export function AdminRegeneratePhotoModal({
       };
 
       onSuccess(updatedTalent);
-      onToast('success', `Foto profil ${fullName} berhasil diperbarui & disimpan!`);
+      onToast(
+        'success',
+        isArchived
+          ? `Foto profil ${fullName} berhasil diperbarui & otomatis dipulihkan ke Bursa Publik!`
+          : `Foto profil ${fullName} berhasil diperbarui & disimpan!`
+      );
       onClose();
     } catch (err: unknown) {
       console.error('[AdminRegeneratePhoto Error]:', err);

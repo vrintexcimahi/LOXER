@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import {
+  Activity,
   AlertTriangle,
   BadgeCheck,
   Briefcase,
@@ -84,6 +85,8 @@ import AdminDeviceManagement from './AdminDeviceManagement';
 import { fetchUnifiedJobs } from '../../services/careerjetService';
 import { AdminTalentCatalogSection, SmartAddCvSection, useTalentCatalog } from './AdminTalentComponents';
 import AdminRbacMatrix from './AdminRbacMatrix';
+import RealtimeTrafficTracker from '../../components/admin/RealtimeTrafficTracker';
+import { navigateTo } from '../../lib/navigation';
 
 type AdminTab = 'overview' | 'user-data' | 'devices' | 'users' | 'jobs' | 'applications' | 'companies' | 'logs' | 'integrations';
 type ToastType = 'success' | 'error' | 'info';
@@ -252,7 +255,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
 
   useEffect(() => {
     if (tab === 'logs') {
-      window.location.replace('/admin/monitoring?tab=audit');
+      navigateTo('/admin/monitoring?tab=audit', true);
       return;
     }
     setActiveTab(tab);
@@ -266,7 +269,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
 
   useEffect(() => {
     if (activeTab === 'jobs' || (activeTab as string) === 'jasa') {
-      window.location.replace('/admin/dashboard');
+      navigateTo('/admin/dashboard', true);
     }
   }, [activeTab]);
 
@@ -315,7 +318,7 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
   const handleSignOut = async () => {
     closeMobile();
     await signOut();
-    window.location.assign('/superadmin');
+    navigateTo('/superadmin');
   };
 
   if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'superadmin')) {
@@ -4734,10 +4737,18 @@ function AdminApplications({
   const isSuperAdminUser = Boolean(isSuperAdmin || checkIsSuperAdmin(null, adminEmail));
   const { session } = useAuth();
 
-  // Sub-tabs: 'applications' | 'talents' | 'smart-cv'
-  const [activeSubTab, setActiveSubTab] = useState<'applications' | 'talents' | 'smart-cv'>(() => {
+  // Sub-tabs: 'applications' | 'talents' | 'smart-cv' | 'traffic'
+  const [activeSubTab, setActiveSubTab] = useState<'applications' | 'talents' | 'smart-cv' | 'traffic'>(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
+      if (
+        p.get('view') === 'traffic' ||
+        p.get('sub') === 'traffic' ||
+        p.get('view') === 'live' ||
+        p.get('sub') === 'live' ||
+        p.get('view') === 'pengunjung' ||
+        p.get('sub') === 'pengunjung'
+      ) return 'traffic';
       if (p.get('view') === 'smart-cv' || p.get('sub') === 'smart-cv' || p.get('view') === 'smart-add' || p.get('sub') === 'smart-add') return 'smart-cv';
       if (
         p.get('view') === 'talents' ||
@@ -4751,7 +4762,7 @@ function AdminApplications({
     return 'applications';
   });
 
-  const handleSubTabChange = (tab: 'applications' | 'talents' | 'smart-cv') => {
+  const handleSubTabChange = (tab: 'applications' | 'talents' | 'smart-cv' | 'traffic') => {
     setActiveSubTab(tab);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -4762,6 +4773,8 @@ function AdminApplications({
         url.searchParams.set('view', 'talents');
       } else if (tab === 'smart-cv') {
         url.searchParams.set('view', 'smart-cv');
+      } else if (tab === 'traffic') {
+        url.searchParams.set('view', 'traffic');
       }
       window.history.replaceState({}, '', url.toString());
     }
@@ -5040,6 +5053,27 @@ function AdminApplications({
               Gemini 3.8
             </span>
           </button>
+
+          <button
+            onClick={() => handleSubTabChange('traffic')}
+            className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all whitespace-nowrap ${
+              activeSubTab === 'traffic'
+                ? 'bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 text-white shadow-md shadow-rose-500/25 ring-1 ring-white/20'
+                : 'text-rose-700 dark:text-rose-400 hover:text-rose-900 dark:hover:text-white hover:bg-rose-100/60 dark:hover:bg-white/5 border border-rose-500/30 bg-rose-500/10'
+            }`}
+          >
+            <Activity className="w-4 h-4 text-rose-500 dark:text-rose-300 animate-pulse" />
+            <span>Deteksi Trafik Real-time</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase ${
+                activeSubTab === 'traffic'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-rose-400/20 text-rose-700 dark:text-rose-300 border border-rose-400/30'
+              }`}
+            >
+              Live
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2 px-1">
@@ -5058,7 +5092,7 @@ function AdminApplications({
       {activeSubTab === 'applications' && (
         <div className="space-y-4 animate-fade-in">
           {/* Mini Stats Bar */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <StatMini title="Total Lamaran Masuk" value={total} />
             <StatMini title="Menunggu Review" value={reviewCount} />
             <StatMini title="Shortlist & Interview" value={shortlistedCount} />
@@ -5069,12 +5103,30 @@ function AdminApplications({
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-wide text-cyan-700 dark:text-cyan-400 font-semibold flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" /> Total Talent Pelamar
+                  <Users className="w-3.5 h-3.5" /> Total Talent
                 </p>
                 <ChevronRight className="w-4 h-4 text-cyan-600 dark:text-cyan-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
               </div>
               <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition">
                 {talents.length.toLocaleString('id-ID')}
+              </p>
+            </div>
+            <div
+              onClick={() => handleSubTabChange('traffic')}
+              className="cursor-pointer rounded-xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-white/95 dark:to-slate-900 p-4 transition hover:border-rose-500/60 hover:bg-rose-50/50 dark:hover:bg-slate-800/80 group shadow-sm"
+              title="Klik untuk membuka Deteksi Trafik Real-time"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide text-rose-700 dark:text-rose-400 font-semibold flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-rose-500 animate-pulse" /> Deteksi Trafik
+                </p>
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-300 group-hover:translate-x-0.5 transition flex items-center gap-1">
+                <span>Pantau Pengunjung</span> &rarr;
               </p>
             </div>
           </div>
@@ -5270,6 +5322,13 @@ function AdminApplications({
             handleSubTabChange('talents');
           }}
         />
+      )}
+
+      {/* SUB-TAB 4: DETEKSI TRAFIK REAL-TIME (LIVE VISITORS & WEBPAGE DETECTION) */}
+      {activeSubTab === 'traffic' && (
+        <div className="animate-fade-in">
+          <RealtimeTrafficTracker onToast={onToast} />
+        </div>
       )}
 
       {/* Interactive Auto-Void Stale Applications Modal */}

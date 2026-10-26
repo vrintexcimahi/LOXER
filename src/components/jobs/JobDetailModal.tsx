@@ -13,7 +13,9 @@ import {
   Briefcase,
   Users,
   Check,
+  Video,
 } from 'lucide-react';
+import { navigateTo } from '../../lib/navigation';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { queueApplicationOffline, getQueuedApplications } from '../../lib/offlineSyncService';
@@ -522,24 +524,44 @@ export default function JobDetailModal({
                   </a>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleApply}
-                  disabled={applying}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:brightness-110 active:scale-95 transition disabled:opacity-50"
-                >
-                  {applying ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                      <span>Mengirim Lamaran...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4" />
-                      <span>Kirim Lamaran Sekarang</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const params = new URLSearchParams({
+                        role: job?.title || 'Lowongan Kerja',
+                        company: job?.companies?.name || 'Mitra LOXER',
+                        name: user?.email?.split('@')[0] || 'Kandidat',
+                      });
+                      onClose();
+                      navigateTo(`/interview?${params.toString()}`);
+                    }}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 px-4 py-2.5 text-xs font-bold text-cyan-400 hover:bg-cyan-500/25 active:scale-95 transition"
+                    title="Simulasi Wawancara AI untuk lowongan ini"
+                  >
+                    <Video className="h-4 w-4 text-cyan-400 animate-pulse" />
+                    <span>Interview AI</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleApply}
+                    disabled={applying}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:brightness-110 active:scale-95 transition disabled:opacity-50"
+                  >
+                    {applying ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        <span>Mengirim Lamaran...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        <span>Kirim Lamaran Sekarang</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               )
             ) : (
               <div className="text-xs text-slate-500 italic text-center sm:text-right">

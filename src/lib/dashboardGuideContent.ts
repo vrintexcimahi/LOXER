@@ -170,16 +170,17 @@ export const adminGuideContent: Record<string, DashboardGuideContent> = {
     ],
   },
   '/admin/applications': {
-    summary: 'Halaman pelamar admin memusatkan seluruh aplikasi kandidat agar tim admin bisa memantau proses lintas perusahaan.',
+    summary: 'Pusat pemantauan pelamar, kandidat talent, dan deteksi trafik pengunjung web loxer.web.id secara real-time.',
     detailFunctions: [
-      'Menampilkan semua lamaran yang masuk di seluruh platform.',
-      'Membantu mengecek distribusi status aplikasi antar perusahaan.',
-      'Memudahkan audit proses hiring dan tindak lanjut kandidat.',
+      'Menampilkan semua lamaran yang masuk di seluruh platform LOXER.',
+      'Sub-tab Katalog Pelamar Kerja: Akses terpadu CV digital dan talenta siap kerja.',
+      'Sub-tab Smart Add CV: Ekstraksi biodata dan resume otomatis dengan AI Multimodal Gemini 3.8.',
+      'Sub-tab Deteksi Trafik Real-time: Inspeksi setiap kunjungan ke loxer.web.id secara live (IP, lokasi, perangkat, durasi, dan halaman).',
     ],
     usageTips: [
-      'Gunakan halaman ini saat perlu investigasi keluhan kandidat atau employer.',
-      'Perhatikan status yang macet terlalu lama pada tahap tertentu.',
-      'Bandingkan pola lamaran untuk memahami performa lowongan.',
+      'Gunakan tab Deteksi Trafik Real-time untuk memantau pengunjung online, rute kunjungan, dan keamanan IP secara live.',
+      'Aktifkan live stream untuk melihat pembaruan trafik otomatis setiap beberapa detik.',
+      'Gunakan fitur sensor/buka IP untuk kebutuhan investigasi teknis dan kepatuhan privasi.',
     ],
   },
   '/admin/companies': {

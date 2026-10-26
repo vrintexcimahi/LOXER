@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/useAuth';
 import { supabase } from '../lib/supabase';
 import type { Notification as AppNotification } from '../lib/types';
 import { useRealtimeSync } from './useRealtimeSync';
+import { navigateTo } from '../lib/navigation';
 
 export default function useNotifications(limit = 10) {
   const { user } = useAuth();
@@ -72,7 +73,7 @@ export default function useNotifications(limit = 10) {
               window.focus();
               const targetUrl = (latest.metadata?.link as string) || (latest.metadata?.url as string);
               if (targetUrl) {
-                window.location.href = targetUrl;
+                navigateTo(targetUrl);
               }
             };
           } catch {

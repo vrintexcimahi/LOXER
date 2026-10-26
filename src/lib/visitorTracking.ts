@@ -57,12 +57,17 @@ export interface TrackPayload {
   browser: string;
   os: string;
   screen_res: string;
+  pixel_ratio?: string;
   duration_seconds: number;
   is_heartbeat?: boolean;
   log_id?: string | null;
   utm_source?: string | null;
   utm_medium?: string | null;
   utm_campaign?: string | null;
+  city?: string | null;
+  network?: string | null;
+  language?: string | null;
+  timezone?: string | null;
 }
 
 export class VisitorTrackerService {
@@ -89,8 +94,9 @@ export class VisitorTrackerService {
     const originalReplaceState = window.history.replaceState;
     window.history.replaceState = function (...args) {
       originalReplaceState.apply(window.history, args);
-      // For replaceState, check if path actually changed
-      if (window.location.pathname !== VisitorTrackerService.currentPath) {
+      // For replaceState, check if full path (pathname + search) actually changed
+      const fullPath = window.location.pathname + window.location.search;
+      if (fullPath !== VisitorTrackerService.currentPath) {
         VisitorTrackerService.trackCurrentPage();
       }
     };
@@ -153,6 +159,22 @@ export class VisitorTrackerService {
       else if (/Linux/i.test(ua)) { os = 'Linux'; }
     }
 
+    let timezone = '';
+    let cityGuess = '';
+    try {
+      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      if (timezone.includes('/')) {
+        const rawCity = timezone.split('/')[1] || '';
+        cityGuess = rawCity.replace(/_/g, ' ');
+      }
+    } catch {
+      // ignore
+    }
+
+    const network = (navigator as unknown as { connection?: { effectiveType?: string } })?.connection?.effectiveType || '';
+    const language = typeof navigator !== 'undefined' ? (navigator.language || '') : '';
+    const pixelRatio = typeof window !== 'undefined' ? `${window.devicePixelRatio || 1}x` : '1x';
+
     const urlParams = new URLSearchParams(window.location.search);
     const payload: TrackPayload = {
       visitor_id: visitorId,
@@ -164,13 +186,20 @@ export class VisitorTrackerService {
       browser,
       os,
       screen_res: `${window.screen.width}x${window.screen.height}`,
+      pixel_ratio: pixelRatio,
       duration_seconds: 0,
       utm_source: urlParams.get('utm_source'),
       utm_medium: urlParams.get('utm_medium'),
       utm_campaign: urlParams.get('utm_campaign'),
+      city: cityGuess || null,
+      network: network || null,
+      language: language || null,
+      timezone: timezone || null,
     };
 
-    const token = localStorage.getItem('loxer_local_auth_token');
+    const token = typeof window !== 'undefined'
+      ? (localStorage.getItem('loxer_local_auth_token_admin') || localStorage.getItem('loxer_local_auth_token'))
+      : null;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -208,7 +237,9 @@ export class VisitorTrackerService {
     if (typeof window === 'undefined' || !this.currentPath) return;
 
     const durationSeconds = Math.round((Date.now() - this.pageStartTime) / 1000);
-    const token = localStorage.getItem('loxer_local_auth_token');
+    const token = typeof window !== 'undefined'
+      ? (localStorage.getItem('loxer_local_auth_token_admin') || localStorage.getItem('loxer_local_auth_token'))
+      : null;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };

@@ -10,6 +10,7 @@ import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
 import { DEFAULT_ADMIN_EMAIL, isDefaultAdminEmail, normalizeComparableEmail } from '../../lib/constants';
 import { isLocalMode, supabase } from '../../lib/supabase';
 import { hasGoogleClientId, triggerNativeGoogleOAuth } from '../../lib/googleAuth';
+import { navigateTo } from '../../lib/navigation';
 
 interface AuthModalProps {
   mode: 'login' | 'register';
@@ -268,7 +269,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
     setLoading(false);
     setTimeout(() => {
       onClose();
-      window.location.href = nextPath;
+      navigateTo(nextPath);
     }, 800);
   }
 
@@ -317,7 +318,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
       : await resolveNextPath(selectedEmail);
     setTimeout(() => {
       onClose();
-      window.location.href = nextPath;
+      navigateTo(nextPath);
     }, 600);
   }
 
@@ -402,7 +403,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
         const nextPath = await resolveNextPath(normalizedEmail);
         onClose();
         const targetPath = demoRedirectTarget || (isSuperAdminAttempt ? '/admin/dashboard' : nextPath);
-        window.location.href = targetPath;
+        navigateTo(targetPath);
       }
     } else {
       resetOtpState();
@@ -422,7 +423,7 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
           setSuccess('Akun berhasil dibuat. Mengalihkan...');
           setTimeout(() => {
             onClose();
-            window.location.href = nextPath;
+            navigateTo(nextPath);
           }, 800);
         }
       }

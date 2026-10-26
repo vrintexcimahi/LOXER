@@ -4,6 +4,7 @@ import EmployerLayout from '../../components/layout/EmployerLayout';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { Company } from '../../lib/types';
+import { navigateTo } from '../../lib/navigation';
 
 const CATEGORIES = [
   'Teknologi & IT',
@@ -148,7 +149,7 @@ export default function PostJob() {
       setError('Gagal menyimpan lowongan. Silakan coba lagi.');
     } else {
       setSuccess(true);
-      setTimeout(() => { window.location.href = '/employer/jobs'; }, 1500);
+      setTimeout(() => { navigateTo('/employer/jobs'); }, 1500);
     }
     setSaving(false);
   }

@@ -25,7 +25,9 @@ import {
   Bold,
   Italic,
   X,
+  Video,
 } from 'lucide-react';
+import { navigateTo } from '../../lib/navigation';
 import Navbar from '../../components/layout/Navbar';
 import PublicMobileBottomNav from '../../components/layout/PublicMobileBottomNav';
 import { CV_TEMPLATES, CvTemplateInfo } from '../../lib/cvTemplates';
@@ -594,7 +596,25 @@ export default function CvGenerator() {
                     {showAtsDetails ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                   </button>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Live AI Interview Simulation CTA */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const params = new URLSearchParams({
+                          role: cvData.headline || 'Staff Operasional & Administrasi',
+                          name: cvData.fullName || 'Kandidat',
+                          company: 'Simulasi Wawancara LOXER',
+                        });
+                        navigateTo(`/interview?${params.toString()}`);
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-600/20 hover:from-cyan-500/30 hover:to-blue-600/30 text-cyan-500 dark:text-cyan-400 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                      title="Mulai Simulasi Wawancara Video Call Otomatis dengan AI Gemini"
+                    >
+                      <Video size={13} className="text-cyan-400 animate-pulse" />
+                      <span>Interview AI</span>
+                    </button>
+
                     {/* 1-Click Sync LOXER Profile */}
                     <button
                       type="button"

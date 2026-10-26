@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ArrowRight, Briefcase, Building2, Check, Crown, MapPin, Search, ShieldCheck, Sparkles, Users, Wrench } from 'lucide-react';
 import AppLogo from './AppLogo';
 import type { UserRole } from '../../lib/types';
+import { navigateTo } from '../../lib/navigation';
 
 const roles = [
   { title: 'Pencari Kerja', description: 'Temukan peluang untuk langkah karir berikutnya.', icon: Briefcase, href: '/browse', avatar: '/avatars/pixar_male_1.jpg', label: 'Cari pekerjaan' },
@@ -18,7 +19,8 @@ export default function ClayHero({ onRegister }: { onRegister: (role?: UserRole)
     const params = new URLSearchParams();
     if (query.trim()) params.set('q', query.trim());
     if (location.trim()) params.set('location', location.trim());
-    window.location.assign(`/browse?${params.toString()}`);
+    const targetUrl = params.toString() ? `/browse?${params.toString()}` : '/browse';
+    navigateTo(targetUrl);
   }
 
   return (

@@ -2,7 +2,7 @@
 // LOXER Progressive Web App Service Worker (v4.0.0)
 // ==============================================================================
 
-const CACHE_NAME = 'loxer-pwa-v5.7.0';
+const CACHE_NAME = 'loxer-pwa-v5.8.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -141,11 +141,21 @@ self.addEventListener('fetch', (event) => {
     return false;
   };
 
+  // Check if asset is content-hashed and immutable (e.g. /assets/*.js, *.css)
+  const isImmutableAsset =
+    url.pathname.startsWith('/assets/') &&
+    /\.[a-zA-Z0-9_-]{8,}\.(js|css|woff2?|png|jpg|svg)$/i.test(url.pathname);
+
   // Static Assets (CSS, JS, Fonts, Images): Cache-first with background network revalidation
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse && !isInvalidAssetResponse(cachedResponse)) {
-        // Asynchronously update cache in the background for immutable assets
+        // If the asset is hashed and immutable, serve directly from cache with zero network overhead
+        if (isImmutableAsset) {
+          return cachedResponse;
+        }
+
+        // For non-hashed assets (icons, manifest), revalidate in the background
         fetch(request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200 && !isInvalidAssetResponse(networkResponse)) {

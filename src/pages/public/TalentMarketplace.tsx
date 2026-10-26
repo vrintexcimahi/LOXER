@@ -14,6 +14,7 @@ import { TalentMarketplacePost, UserRole } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
+import { navigateTo } from '../../lib/navigation';
 
 const CATEGORIES = [
   'Semua',
@@ -109,12 +110,17 @@ export default function TalentMarketplace() {
 
   const filteredTalents = useMemo(() => {
     return talents.filter((t) => {
+      // Pastikan kandidat yang diarsipkan atau non-aktif tidak pernah tampil di bursa publik
+      if (Number(t.is_archived) === 1 || Number(t.is_published) !== 1) {
+        return false;
+      }
+
       const matchesCategory =
         selectedCategory === 'Semua' || t.category === selectedCategory;
 
       const matchesCity =
         selectedCity === 'all' ||
-        t.domicile_city.toLowerCase() === selectedCity.toLowerCase();
+        (t.domicile_city || '').toLowerCase() === selectedCity.toLowerCase();
 
       const q = searchQuery.toLowerCase().trim();
       const skillsStr = Array.isArray(t.skills)
@@ -151,7 +157,7 @@ export default function TalentMarketplace() {
       setAuthMode('login');
       return;
     }
-    window.location.href = '/seeker/profile';
+    navigateTo('/seeker/profile');
   };
   void handleNavigatePost;
 

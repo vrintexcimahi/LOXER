@@ -23,6 +23,7 @@ import {
 import BrandText from '../../components/ui/BrandText';
 import { childLink, tenantPrefix, tenantRequest, type ChildTenant, type TenantMember } from '../../lib/tenantApi';
 import PartnerBannerCarousel from '../../components/partner/PartnerBannerCarousel';
+import { navigateTo } from '../../lib/navigation';
 
 export default function ChildPanel({ initialTenant }: { initialTenant: ChildTenant }) {
   const [tenant, setTenant] = useState(initialTenant);
@@ -115,7 +116,7 @@ export default function ChildPanel({ initialTenant }: { initialTenant: ChildTena
         const result = await tenantRequest<{ session: { access_token: string } }>('/login', { method: 'POST', body });
         sessionStorage.setItem(storageKey, result.session.access_token);
         setToken(result.session.access_token);
-        window.location.assign(childLink('/partner'));
+        navigateTo(childLink('/partner'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Permintaan gagal.');
@@ -136,7 +137,7 @@ export default function ChildPanel({ initialTenant }: { initialTenant: ChildTena
       setMe(null);
       setMembers([]);
       setBusy(false);
-      window.location.assign(childLink('/'));
+      navigateTo(childLink('/'));
     }
   }
 

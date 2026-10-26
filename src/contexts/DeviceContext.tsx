@@ -98,7 +98,7 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
     [user?.id, session?.access_token]
   );
 
-  // Initial enrichment and registration
+  // Initial enrichment and registration (run once on mount)
   useEffect(() => {
     let mounted = true;
 
@@ -111,14 +111,12 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
           registerDevice(enriched, true);
         }
       });
-    } else {
-      registerDevice(device);
     }
 
     return () => {
       mounted = false;
     };
-  }, [device, registerDevice]);
+  }, [registerDevice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-register and load user preferences when user logs in or changes
   useEffect(() => {

@@ -18,19 +18,26 @@ export interface SystemLogEntry {
 }
 
 const STORAGE_KEY = 'loxer_system_logs_v1';
-const MAX_LOG_ENTRIES = 1000;
+const MAX_LOG_ENTRIES = 300;
 const subscribers = new Set<(logs: SystemLogEntry[]) => void>();
 
 let isInterceptorInitialized = false;
+let memoryLogsCache: SystemLogEntry[] | null = null;
 
 function getStoredLogs(): SystemLogEntry[] {
   if (typeof window === 'undefined') return [];
+  if (memoryLogsCache !== null) return memoryLogsCache;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as SystemLogEntry[];
+    if (!raw) {
+      memoryLogsCache = [];
+      return memoryLogsCache;
+    }
+    memoryLogsCache = JSON.parse(raw) as SystemLogEntry[];
+    return memoryLogsCache;
   } catch {
-    return [];
+    memoryLogsCache = [];
+    return memoryLogsCache;
   }
 }
 
@@ -38,9 +45,17 @@ function saveLogs(logs: SystemLogEntry[]) {
   if (typeof window === 'undefined') return;
   try {
     const trimmed = logs.slice(-MAX_LOG_ENTRIES);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-    subscribers.forEach((fn) => fn(trimmed));
-    window.dispatchEvent(new CustomEvent('loxer:system-log-change', { detail: { count: trimmed.length } }));
+    memoryLogsCache = trimmed;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    } catch {
+      // Handle storage quota exhaustion by evicting older half
+      const emergencyTrimmed = trimmed.slice(-100);
+      memoryLogsCache = emergencyTrimmed;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(emergencyTrimmed));
+    }
+    subscribers.forEach((fn) => fn(memoryLogsCache || []));
+    window.dispatchEvent(new CustomEvent('loxer:system-log-change', { detail: { count: (memoryLogsCache || []).length } }));
   } catch (err) {
     console.warn('[LogService] Gagal menyimpan log ke localStorage:', err);
   }
@@ -85,6 +100,7 @@ export const logger = {
 
 export function clearLogs() {
   if (typeof window === 'undefined') return;
+  memoryLogsCache = [];
   localStorage.removeItem(STORAGE_KEY);
   subscribers.forEach((fn) => fn([]));
   window.dispatchEvent(new CustomEvent('loxer:system-log-change', { detail: { count: 0 } }));

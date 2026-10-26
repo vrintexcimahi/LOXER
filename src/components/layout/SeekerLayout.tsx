@@ -8,6 +8,7 @@ import usePersistentSidebar from './usePersistentSidebar';
 import NotificationBell from '../ui/NotificationBell';
 import DashboardGuideAssistant from '../ui/DashboardGuideAssistant';
 import { seekerGuideContent } from '../../lib/dashboardGuideContent';
+import { navigateTo } from '../../lib/navigation';
 
 const navItems = [
   { label: 'Dashboard', description: 'Ringkasan progres pencarian kerja', icon: Home, href: '/seeker/dashboard' },
@@ -51,7 +52,7 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
   const handleSignOut = async () => {
     closeMobile();
     await signOut();
-    window.location.assign('/');
+    navigateTo('/');
   };
 
   const isFreelancer = false;

@@ -206,6 +206,9 @@ export interface TalentMarketplacePost {
   photo_url?: string;
   views_count: number;
   is_published: boolean | number;
+  is_archived?: boolean | number;
+  archive_reason?: string;
+  archived_at?: string;
   created_at: string;
   updated_at: string;
   seeker_profiles?: Partial<SeekerProfile>;

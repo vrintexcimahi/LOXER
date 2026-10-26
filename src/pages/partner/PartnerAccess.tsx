@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react';
 import BrandText from '../../components/ui/BrandText';
+import { navigateTo } from '../../lib/navigation';
 
 function normalizeSlug(value: string) {
   return value.trim().toLowerCase().replace(/^\/p\//, '').replace(/[^a-z0-9-]/g, '');
@@ -18,7 +19,7 @@ export default function PartnerAccess() {
       return;
     }
     setError('');
-    window.location.assign(`/p/${nextSlug}/login`);
+    navigateTo(`/p/${nextSlug}/login`);
   }
 
   return <main className="min-h-screen bg-[#071527] text-white">

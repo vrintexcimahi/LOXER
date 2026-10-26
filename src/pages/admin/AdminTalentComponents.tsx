@@ -24,6 +24,8 @@ import {
   ZoomIn,
   Archive,
   Camera,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
@@ -36,6 +38,12 @@ import { openImageSafelyInNewTab } from '../../lib/imageViewerHelper';
 import { BulkSmartCvManager } from './BulkSmartCvManager';
 import { PdfDocumentSplitter } from './PdfDocumentSplitter';
 import { AdminRegeneratePhotoModal } from './AdminRegeneratePhotoModal';
+import { AdminTalentArchiveModal } from './AdminTalentArchiveModal';
+import {
+  isCandidateMissingPhoto,
+  isCandidateArchived,
+  executeAutoArchiveNoPhoto,
+} from '../../lib/talentArchiveService';
 import { CandidateIdentity } from '../../lib/duplicateDetectionService';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -137,7 +145,59 @@ export function useTalentCatalog(onToast: (type: ToastType, message: string) => 
     }
   };
 
-  return { talents, setTalents, loading, fetchTalents, togglePublish, deleteTalent };
+  const toggleArchive = async (talent: TalentMarketplacePost, forceStatus?: boolean) => {
+    if (!supabase) return;
+    const isCurrentlyArchived = Number(talent.is_archived) === 1;
+    const newArchived = forceStatus !== undefined ? forceStatus : !isCurrentlyArchived;
+    const newPublished = newArchived ? 0 : 1;
+    const reason = newArchived
+      ? isCandidateMissingPhoto(talent)
+        ? 'Foto profil tidak terdeteksi otomatis'
+        : 'Diarsipkan oleh admin'
+      : '';
+    const nowIso = new Date().toISOString();
+
+    try {
+      const { error } = await supabase
+        .from('talent_marketplace_posts')
+        .update({
+          is_archived: newArchived ? 1 : 0,
+          is_published: newPublished,
+          archive_reason: reason,
+          archived_at: newArchived ? nowIso : null,
+          updated_at: nowIso,
+        })
+        .eq('id', talent.id);
+
+      if (error) throw error;
+
+      setTalents((prev) =>
+        prev.map((t) =>
+          t.id === talent.id
+            ? {
+                ...t,
+                is_archived: newArchived ? 1 : 0,
+                is_published: newPublished,
+                archive_reason: reason,
+                archived_at: newArchived ? nowIso : undefined,
+              }
+            : t
+        )
+      );
+
+      onToast(
+        'success',
+        newArchived
+          ? `Biodata "${talent.headline}" berhasil dipindahkan ke Arsip.`
+          : `Biodata "${talent.headline}" berhasil dipulihkan dari Arsip ke Bursa Publik!`
+      );
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem';
+      onToast('error', `Gagal mengubah status arsip: ${errMsg}`);
+    }
+  };
+
+  return { talents, setTalents, loading, fetchTalents, togglePublish, toggleArchive, deleteTalent };
 }
 
 // ==============================================================================
@@ -147,11 +207,13 @@ export function AdminTalentDetailModal({
   talent,
   onClose,
   onTogglePublish,
+  onToggleArchive,
   onOpenRegeneratePhoto,
 }: {
   talent: TalentMarketplacePost | null;
   onClose: () => void;
   onTogglePublish: (talent: TalentMarketplacePost) => void;
+  onToggleArchive?: (talent: TalentMarketplacePost) => void;
   onOpenRegeneratePhoto?: (talent: TalentMarketplacePost) => void;
 }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -167,6 +229,7 @@ export function AdminTalentDetailModal({
   const fullName = talent.seeker_profiles?.full_name || talent.headline.split(' / ')[0] || 'Kandidat Pelamar';
   const photoUrl = talent.photo_url || talent.seeker_profiles?.photo_url;
   const isPublished = Number(talent.is_published) === 1;
+  const isArchived = isCandidateArchived(talent);
 
   const parsedSkills: string[] = Array.isArray(talent.skills)
     ? talent.skills
@@ -219,15 +282,22 @@ export function AdminTalentDetailModal({
                 <span className="rounded-md border border-cyan-400/40 bg-cyan-500/20 px-2 py-0.5 text-[10px] font-black uppercase text-cyan-300">
                   {talent.badge || 'SIAP KERJA'}
                 </span>
-                <span
-                  className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${
-                    isPublished
-                      ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
-                      : 'border-amber-500/40 bg-amber-500/20 text-amber-300'
-                  }`}
-                >
-                  {isPublished ? '● Tayang di Bursa' : '○ Draft / Nonaktif'}
-                </span>
+                {isArchived ? (
+                  <span className="rounded-md border border-amber-500/50 bg-amber-500/25 px-2 py-0.5 text-[10px] font-black text-amber-300 flex items-center gap-1 shadow-sm">
+                    <Archive className="w-3 h-3" />
+                    <span>🗃️ DIARSIPKAN</span>
+                  </span>
+                ) : (
+                  <span
+                    className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${
+                      isPublished
+                        ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-300'
+                        : 'border-amber-500/40 bg-amber-500/20 text-amber-300'
+                    }`}
+                  >
+                    {isPublished ? '● Tayang di Bursa' : '○ Draft / Nonaktif'}
+                  </span>
+                )}
               </div>
               <h2 className="mt-1 text-lg font-bold text-white uppercase tracking-wide">{fullName}</h2>
               <p className="text-xs text-cyan-400 font-medium">{talent.headline}</p>
@@ -264,6 +334,21 @@ export function AdminTalentDetailModal({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Alert Banner for Archived Status */}
+        {isArchived && (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-950/40 p-3.5 flex items-start gap-3 shadow-sm">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wide">
+                Biodata Pelamar Ini Sedang Diarsipkan
+              </h4>
+              <p className="text-xs text-amber-200/90 mt-0.5 leading-relaxed">
+                {talent.archive_reason || 'Foto profil asli tidak terdeteksi di CV. Biodata tidak ditayangkan di Bursa Publik hingga pas foto dilengkapi.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Financial & Status Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -447,6 +532,20 @@ export function AdminTalentDetailModal({
             >
               {isPublished ? '✕ Nonaktifkan dari Bursa' : '✓ Terbitkan ke Bursa Publik'}
             </button>
+            {onToggleArchive && (
+              <button
+                type="button"
+                onClick={() => onToggleArchive(talent)}
+                className={`rounded-xl border px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 ${
+                  isArchived
+                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+                    : 'border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25'
+                }`}
+              >
+                {isArchived ? <RotateCcw className="w-3.5 h-3.5 text-emerald-400" /> : <Archive className="w-3.5 h-3.5 text-amber-400" />}
+                <span>{isArchived ? 'Pulihkan dari Arsip' : 'Arsipkan Pelamar'}</span>
+              </button>
+            )}
             {onOpenRegeneratePhoto && (
               <button
                 type="button"
@@ -499,17 +598,20 @@ export function AdminTalentCatalogSection({
   onToast: (type: ToastType, message: string) => void;
   onNavigateToSmartAdd: () => void;
 }) {
-  const { talents, setTalents, loading, fetchTalents, togglePublish, deleteTalent } = useTalentCatalog(onToast);
+  const { talents, setTalents, loading, fetchTalents, togglePublish, toggleArchive, deleteTalent } = useTalentCatalog(onToast);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [selectedAvailability, setSelectedAvailability] = useState('all');
   const [selectedCity, setSelectedCity] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'archived' | 'draft'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [cardImageMode, setCardImageMode] = useState<Record<string, 'photo' | 'cv'>>({});
   const [previewTalent, setPreviewTalent] = useState<TalentMarketplacePost | null>(null);
   const [chatTalent, setChatTalent] = useState<TalentMarketplacePost | null>(null);
   const [showGalleryModal, setShowGalleryModal] = useState<boolean>(false);
+  const [showArchiveModal, setShowArchiveModal] = useState<boolean>(false);
+  const [isQuickArchiving, setIsQuickArchiving] = useState<boolean>(false);
   const [regenerateTalent, setRegenerateTalent] = useState<TalentMarketplacePost | null>(null);
 
   const handlePhotoRegenerated = (updatedTalent: TalentMarketplacePost) => {
@@ -554,6 +656,38 @@ export function AdminTalentCatalogSection({
     return Array.from(set);
   }, [talents]);
 
+  const archivedCount = useMemo(() => talents.filter((t) => isCandidateArchived(t)).length, [talents]);
+  const publishedCount = useMemo(
+    () => talents.filter((t) => !isCandidateArchived(t) && Number(t.is_published) === 1).length,
+    [talents]
+  );
+  const draftCount = useMemo(
+    () => talents.filter((t) => !isCandidateArchived(t) && Number(t.is_published) !== 1).length,
+    [talents]
+  );
+  const unarchivedMissingPhotoCount = useMemo(
+    () => talents.filter((t) => !isCandidateArchived(t) && isCandidateMissingPhoto(t)).length,
+    [talents]
+  );
+
+  const handleQuickAutoArchive = async () => {
+    setIsQuickArchiving(true);
+    try {
+      const res = await executeAutoArchiveNoPhoto();
+      if (res.ok) {
+        onToast('success', res.message);
+        await fetchTalents();
+      } else {
+        onToast('error', res.message);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal arsip otomatis';
+      onToast('error', msg);
+    } finally {
+      setIsQuickArchiving(false);
+    }
+  };
+
   const filteredTalents = useMemo(() => {
     return talents.filter((t) => {
       const matchesCategory = selectedCategory === 'Semua' || t.category === selectedCategory;
@@ -562,6 +696,12 @@ export function AdminTalentCatalogSection({
         String(t.availability || '').toLowerCase() === selectedAvailability.toLowerCase() ||
         String(t.availability_status || '').toLowerCase() === selectedAvailability.toLowerCase();
       const matchesCity = selectedCity === 'all' || (t.domicile_city || '').toLowerCase() === selectedCity.toLowerCase();
+
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'published' && !isCandidateArchived(t) && Number(t.is_published) === 1) ||
+        (statusFilter === 'archived' && isCandidateArchived(t)) ||
+        (statusFilter === 'draft' && !isCandidateArchived(t) && Number(t.is_published) !== 1);
 
       const q = searchQuery.toLowerCase().trim();
       const skillsStr = Array.isArray(t.skills)
@@ -579,9 +719,9 @@ export function AdminTalentCatalogSection({
         fullName.toLowerCase().includes(q) ||
         (t.domicile_city || '').toLowerCase().includes(q);
 
-      return matchesCategory && matchesAvail && matchesCity && matchesQuery;
+      return matchesCategory && matchesAvail && matchesCity && matchesStatus && matchesQuery;
     });
-  }, [talents, selectedCategory, selectedAvailability, selectedCity, searchQuery]);
+  }, [talents, selectedCategory, selectedAvailability, selectedCity, statusFilter, searchQuery]);
 
   const fulltimeCount = useMemo(() => {
     return talents.filter((t) => t.availability === 'fulltime' || t.availability_status === 'fulltime' || t.availability === 'available').length;
@@ -597,38 +737,58 @@ export function AdminTalentCatalogSection({
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* Mini Stats Bar */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Mini Stats Bar (5 Kolom: Termasuk Status Arsip & Tayang) */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-xl border border-cyan-500/20 bg-slate-900 p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-cyan-400 font-semibold flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5" /> Total Talent Pelamar
+            <Users className="w-3.5 h-3.5" /> Total Pelamar
           </p>
           <p className="mt-1 text-2xl font-bold text-white">{talents.length}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Tersinkronisasi bursa publik</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Database lengkap</p>
         </div>
 
         <div className="rounded-xl border border-emerald-500/20 bg-slate-900 p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-emerald-400 font-semibold flex items-center gap-1.5">
-            <Briefcase className="w-3.5 h-3.5" /> Siap Kerja (Fulltime)
+            <Check className="w-3.5 h-3.5" /> Tayang Publik
           </p>
-          <p className="mt-1 text-2xl font-bold text-white">{fulltimeCount}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Penempatan di tempat/bengkel</p>
+          <p className="mt-1 text-2xl font-bold text-white">{publishedCount}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Bursa kerja aktif</p>
         </div>
 
-        <div className="rounded-xl border border-amber-500/20 bg-slate-900 p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-amber-400 font-semibold flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5" /> Layanan Panggilan / Jasa
+        <div className="rounded-xl border border-sky-500/20 bg-slate-900 p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-sky-400 font-semibold flex items-center gap-1.5">
+            <Briefcase className="w-3.5 h-3.5" /> Siap Kerja
           </p>
-          <p className="mt-1 text-2xl font-bold text-white">{freelanceCount}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Kandidat mandiri & freelance</p>
+          <p className="mt-1 text-2xl font-bold text-white">{fulltimeCount}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Di tempat / bengkel</p>
+        </div>
+
+        <div
+          onClick={() => {
+            setStatusFilter('archived');
+            setShowArchiveModal(true);
+          }}
+          className="rounded-xl border border-amber-500/30 bg-slate-900 p-4 shadow-sm cursor-pointer hover:border-amber-400 hover:scale-[1.01] transition"
+          title="Buka Pusat Arsip Biodata Pelamar"
+        >
+          <p className="text-xs uppercase tracking-wide text-amber-400 font-semibold flex items-center justify-between">
+            <span className="flex items-center gap-1.5"><Archive className="w-3.5 h-3.5" /> Arsip Pelamar</span>
+            {unarchivedMissingPhotoCount > 0 && (
+              <span className="rounded-full bg-amber-500/25 border border-amber-400/50 text-[9px] px-1.5 text-amber-300 font-black animate-pulse">
+                {unarchivedMissingPhotoCount} butuh arsip
+              </span>
+            )}
+          </p>
+          <p className="mt-1 text-2xl font-bold text-white">{archivedCount}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Tanpa foto / nonaktif</p>
         </div>
 
         <div className="rounded-xl border border-rose-500/20 bg-slate-900 p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-rose-400 font-semibold flex items-center gap-1.5">
-            <Award className="w-3.5 h-3.5" /> Top Talent Unggulan
+            <Award className="w-3.5 h-3.5" /> Top Talent
           </p>
           <p className="mt-1 text-2xl font-bold text-white">{topTalentCount}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Kandidat terverifikasi LOXER</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Kandidat unggulan</p>
         </div>
       </div>
 
@@ -645,7 +805,37 @@ export function AdminTalentCatalogSection({
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* FITUR ARSIP: Tombol Pusat Arsip & Tombol Arsip Otomatis Tanpa Foto */}
+            <button
+              onClick={() => setShowArchiveModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-amber-500/20 transition hover:scale-[1.02]"
+              title="Buka Pusat Arsip Biodata Pelamar (Kelola Pelamar Tanpa Foto Profil)"
+            >
+              <Archive className="w-4 h-4" />
+              <span>Pusat Arsip</span>
+              {archivedCount > 0 && (
+                <span className="rounded-full bg-black/30 px-1.5 py-0.2 text-[10px] font-black text-amber-200 border border-amber-400/40">
+                  {archivedCount}
+                </span>
+              )}
+            </button>
+
+            {unarchivedMissingPhotoCount > 0 && (
+              <button
+                onClick={handleQuickAutoArchive}
+                disabled={isQuickArchiving}
+                className="flex items-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 hover:bg-amber-500/25 px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-300 transition hover:scale-[1.02] shadow-sm disabled:opacity-50"
+                title={`Arsipkan otomatis ${unarchivedMissingPhotoCount} biodata pelamar yang tidak terdeteksi pas foto profil`}
+              >
+                <Sparkles className={`w-3.5 h-3.5 text-amber-500 ${isQuickArchiving ? 'animate-spin' : 'animate-pulse'}`} />
+                <span className="hidden sm:inline">Arsip Otomatis</span>
+                <span className="rounded-full bg-amber-500 text-slate-950 px-1.5 py-0.2 text-[10px] font-black">
+                  {unarchivedMissingPhotoCount}
+                </span>
+              </button>
+            )}
+
             <button
               onClick={() => setShowGalleryModal(true)}
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-violet-500/20 transition hover:scale-[1.02]"
@@ -693,6 +883,58 @@ export function AdminTalentCatalogSection({
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Status Filter Tabs (Semua, Aktif Tayang, Arsip Tanpa Foto, Draft) */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-200 dark:border-white/5">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              statusFilter === 'all'
+                ? 'bg-cyan-500 text-slate-950 shadow'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800'
+            }`}
+          >
+            Semua Biodata ({talents.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('published')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              statusFilter === 'published'
+                ? 'bg-emerald-500 text-slate-950 shadow'
+                : 'text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-white bg-emerald-500/10 border border-emerald-500/20'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>Tayang di Bursa ({publishedCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('archived')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              statusFilter === 'archived'
+                ? 'bg-amber-500 text-slate-950 shadow'
+                : 'text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white bg-amber-500/15 border border-amber-500/30'
+            }`}
+          >
+            <Archive className="w-3.5 h-3.5 text-amber-500" />
+            <span>Arsip Tanpa Foto ({archivedCount})</span>
+          </button>
+          {draftCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setStatusFilter('draft')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                statusFilter === 'draft'
+                  ? 'bg-slate-600 text-white shadow'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800'
+              }`}
+            >
+              Draft / Nonaktif ({draftCount})
+            </button>
+          )}
         </div>
 
         {/* Dropdowns & Category Filters */}
@@ -893,14 +1135,24 @@ export function AdminTalentCatalogSection({
                       <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                       <span className="hidden sm:inline">Regen Foto</span>
                     </button>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[8px] sm:text-[9px] font-bold backdrop-blur-md shadow-sm ${
-                        isPublished ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/50' : 'bg-slate-900/80 text-slate-300 border border-white/20'
-                      }`}
-                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
-                    >
-                      {isPublished ? 'Tayang' : 'Draft'}
-                    </span>
+                    {isCandidateArchived(talent) ? (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[8px] sm:text-[9px] font-bold backdrop-blur-md shadow-sm bg-amber-500/30 text-amber-300 border border-amber-400/50"
+                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+                        title={talent.archive_reason || 'Diarsipkan: Tanpa pas foto asli'}
+                      >
+                        🗃️ Arsip
+                      </span>
+                    ) : (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[8px] sm:text-[9px] font-bold backdrop-blur-md shadow-sm ${
+                          isPublished ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/50' : 'bg-slate-900/80 text-slate-300 border border-white/20'
+                        }`}
+                        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+                      >
+                        {isPublished ? 'Tayang' : 'Draft'}
+                      </span>
+                    )}
                   </div>
 
                   {/* Category & City Bar: Protected dark-glass pill over the bottom gradient scrim */}
@@ -974,7 +1226,7 @@ export function AdminTalentCatalogSection({
                     )}
                   </div>
 
-                  {/* Mobile Actions Bar (2 buttons) */}
+                  {/* Mobile Actions Bar */}
                   <div className="sm:hidden pt-2 border-t border-slate-200 dark:border-white/10 flex items-center gap-1.5">
                     <button
                       onClick={() => setPreviewTalent(talent)}
@@ -982,6 +1234,18 @@ export function AdminTalentCatalogSection({
                     >
                       <Eye className="w-3 h-3" />
                       <span>Detail</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleArchive(talent)}
+                      className={`p-1.5 rounded-lg border text-[10px] font-bold transition flex items-center justify-center ${
+                        isCandidateArchived(talent)
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                      }`}
+                      title={isCandidateArchived(talent) ? 'Pulihkan dari Arsip' : 'Arsipkan Pelamar'}
+                    >
+                      {isCandidateArchived(talent) ? <RotateCcw className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
                     </button>
                     <button
                       type="button"
@@ -1034,6 +1298,26 @@ export function AdminTalentCatalogSection({
                       >
                         <Check className="w-4 h-4" />
                       </button>
+
+                      {isCandidateArchived(talent) ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleArchive(talent, false)}
+                          className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 p-1.5 text-emerald-700 dark:text-emerald-300 transition shadow-sm"
+                          title="Pulihkan dari Arsip ke Bursa Aktif"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => toggleArchive(talent, true)}
+                          className="rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 p-1.5 text-amber-700 dark:text-amber-300 transition shadow-sm"
+                          title="Pindahkan ke Arsip"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                      )}
 
                       <button
                         onClick={() => deleteTalent(talent.id, fullName)}
@@ -1111,15 +1395,21 @@ export function AdminTalentCatalogSection({
                     </td>
                     <td className="px-4 py-3 capitalize">{talent.availability || 'fulltime'}</td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          isPublished
-                            ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10'
-                        }`}
-                      >
-                        {isPublished ? 'Tayang' : 'Draft'}
-                      </span>
+                      {isCandidateArchived(talent) ? (
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                          Diarsipkan
+                        </span>
+                      ) : (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            isPublished
+                              ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10'
+                          }`}
+                        >
+                          {isPublished ? 'Tayang' : 'Draft'}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -1153,6 +1443,18 @@ export function AdminTalentCatalogSection({
                           {isPublished ? 'Draft' : 'Tayang'}
                         </button>
                         <button
+                          onClick={() => toggleArchive(talent)}
+                          className={`rounded-lg border px-2 py-1 text-xs transition flex items-center gap-1 ${
+                            isCandidateArchived(talent)
+                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                              : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20'
+                          }`}
+                          title={isCandidateArchived(talent) ? 'Pulihkan dari Arsip ke Bursa Aktif' : 'Pindahkan ke Arsip'}
+                        >
+                          {isCandidateArchived(talent) ? <RotateCcw className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
+                          <span>{isCandidateArchived(talent) ? 'Pulihkan' : 'Arsip'}</span>
+                        </button>
+                        <button
                           onClick={() => deleteTalent(talent.id, fullName)}
                           className="rounded-lg border border-rose-500/30 text-rose-600 dark:text-rose-300 px-2 py-1 hover:bg-rose-500/10 transition"
                         >
@@ -1173,7 +1475,21 @@ export function AdminTalentCatalogSection({
         talent={previewTalent}
         onClose={() => setPreviewTalent(null)}
         onTogglePublish={togglePublish}
+        onToggleArchive={toggleArchive}
         onOpenRegeneratePhoto={(t) => setRegenerateTalent(t)}
+      />
+
+      {/* Pusat Arsip Pelamar Modal */}
+      <AdminTalentArchiveModal
+        isOpen={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+        talents={talents}
+        onRefreshTalents={fetchTalents}
+        onToast={onToast}
+        onOpenRegeneratePhoto={(t) => {
+          setShowArchiveModal(false);
+          setRegenerateTalent(t);
+        }}
       />
 
       {/* Regenerate Profile Photo Modal (Admin Exclusive) */}

@@ -146,7 +146,9 @@ export default function JobList({
     if (nextProvider && nextProvider !== 'all') params.set('provider', nextProvider);
     if (nextPage > 1) params.set('page', String(nextPage));
     const query = params.toString();
-    const nextUrl = query ? `/seeker/browse?${query}` : '/seeker/browse';
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/browse';
+    const basePath = currentPath.startsWith('/seeker/browse') ? '/seeker/browse' : '/browse';
+    const nextUrl = query ? `${basePath}?${query}` : basePath;
     window.history.replaceState({}, '', nextUrl);
   }
 
