@@ -35,7 +35,10 @@ import { CvData, INITIAL_CV_DATA, CvExperience, CvEducation } from '../../lib/cv
 import { ROLE_PRESETS, generateCvDataAutomatically } from '../../services/cvAiService';
 import { CvCanvasRenderer, CanvaElementStyle } from '../../components/cv/CvCanvasRenderer';
 import { useAuth } from '../../contexts/useAuth';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 import { supabase } from '../../lib/supabase';
+import AuthModal from '../auth/AuthModal';
+import { UserRole } from '../../lib/types';
 
 const ELEMENT_LABELS: Record<string, string> = {
   fullName: 'Nama Lengkap',
@@ -71,6 +74,9 @@ export default function CvGenerator() {
 
   // Auth & Seeker Sync
   const { user } = useAuth();
+  const { requireApp } = useAppAccess();
+  const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null);
+  const [authInitialRole, setAuthInitialRole] = useState<UserRole>('seeker');
   const [isSyncingProfile, setIsSyncingProfile] = useState<boolean>(false);
   const [showAtsDetails, setShowAtsDetails] = useState<boolean>(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
@@ -412,6 +418,9 @@ export default function CvGenerator() {
   };
 
   const handlePrintPdf = () => {
+    if (!requireApp('Unduh & Cetak Berkas CV PDF')) {
+      return;
+    }
     window.print();
   };
 
@@ -503,7 +512,14 @@ export default function CvGenerator() {
   return (
     <div className="bg-slate-50 dark:bg-[#071220] min-h-screen text-slate-800 dark:text-slate-100 flex flex-col pb-24 md:pb-12 transition-colors duration-200">
       {/* Navbar Header */}
-      <Navbar />
+      <Navbar
+        onLogin={() => setAuthMode('login')}
+        onRegister={(role) => {
+          if (!requireApp('Mendaftar Akun')) return;
+          setAuthInitialRole(role || 'seeker');
+          setAuthMode('register');
+        }}
+      />
 
       {/* Main Container */}
       <main className="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-3 flex-1 flex flex-col">
@@ -601,13 +617,21 @@ export default function CvGenerator() {
                     <button
                       type="button"
                       onClick={() => {
+                        if (!user) {
+                          showToast('Silakan masuk ke akun LOXER terlebih dahulu untuk mengikuti sesi wawancara AI.');
+                          setAuthMode('login');
+                          return;
+                        }
+                        if (!requireApp('Simulasi Live Interview AI')) {
+                          return;
+                        }
                         const params = new URLSearchParams({
                           role: cvData.headline || 'Staff Operasional & Administrasi',
-                          name: cvData.fullName || 'Kandidat',
+                          name: cvData.fullName || user?.user_metadata?.full_name || 'Kandidat',
                           company: 'Simulasi Wawancara LOXER',
                           skills: (cvData.skills || []).slice(0, 6).join(','),
                           summary: cvData.summary || '',
-                          email: cvData.email || '',
+                          email: cvData.email || user?.email || '',
                         });
                         navigateTo(`/interview?${params.toString()}`);
                       }}
@@ -626,7 +650,17 @@ export default function CvGenerator() {
                     <button
                       type="button"
                       disabled={isSyncingProfile}
-                      onClick={handleSyncFromSeekerProfile}
+                      onClick={() => {
+                        if (!user) {
+                          showToast('Silakan masuk ke akun LOXER Anda untuk menarik data profil.');
+                          setAuthMode('login');
+                          return;
+                        }
+                        if (!requireApp('Tarik Data Profil LOXER')) {
+                          return;
+                        }
+                        handleSyncFromSeekerProfile();
+                      }}
                       className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-cyan-500/15 text-slate-700 dark:text-slate-300 hover:text-cyan-400 border border-slate-200 dark:border-white/5 text-[11px] font-bold flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
                       title="Tarik data otomatis dari akun Profil Pencari Kerja LOXER Anda"
                     >
@@ -2026,8 +2060,21 @@ export default function CvGenerator() {
         </div>
       )}
 
+      {/* Auth Modal for CV Page */}
+      {authMode && (
+        <AuthModal
+          mode={authMode}
+          initialRole={authInitialRole}
+          onClose={() => setAuthMode(null)}
+          onSwitchMode={setAuthMode}
+        />
+      )}
+
       {/* 5-Menu Unified Mobile Bottom Navigation Bar */}
-      <PublicMobileBottomNav currentPath="/cv" />
+      <PublicMobileBottomNav
+        currentPath="/cv"
+        onLogin={() => setAuthMode('login')}
+      />
     </div>
   );
 }

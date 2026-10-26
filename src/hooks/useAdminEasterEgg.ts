@@ -23,8 +23,8 @@ export function useAdminEasterEgg({
       const hash = window.location.hash || '';
 
       const urlUnlocked = allowUrlBypass && (
-        params.get('role') === 'admin' ||
         params.get('preview_role') === 'admin' ||
+        params.get('sim_role') === 'admin' ||
         params.get('dev') === 'admin' ||
         params.get('mode') === 'god' ||
         hash.includes('admin')

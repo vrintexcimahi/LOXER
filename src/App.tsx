@@ -39,9 +39,6 @@ const DatabaseBackup = lazy(() => import('./pages/admin/DatabaseBackup'));
 const DeveloperWorkbench = lazy(() => import('./pages/admin/DeveloperWorkbench'));
 const AdminSystemSettings = lazy(() => import('./pages/admin/AdminSystemSettings'));
 const TalentMarketplace = lazy(() => import('./pages/public/TalentMarketplace'));
-const AdminPartners = lazy(() => import('./pages/admin/AdminPartners'));
-const PartnerAccess = lazy(() => import('./pages/partner/PartnerAccess'));
-const PartnerProgram = lazy(() => import('./pages/partner/PartnerProgram'));
 const CvGenerator = lazy(() => import('./pages/cv/CvGenerator'));
 const LiveInterviewRoom = lazy(() => import('./pages/interview/LiveInterviewRoom'));
 import { getActiveSimRole } from './lib/simSession';
@@ -78,7 +75,8 @@ function Router() {
   const [path, setPath] = useState<string>(() => window.location.pathname);
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const simRole = getActiveSimRole();
-  const previewRole = searchParams?.get('preview_role') || searchParams?.get('role') || simRole;
+  const rawPreviewRole = searchParams?.get('preview_role') || simRole;
+  const previewRole = rawPreviewRole && ['admin', 'employer', 'seeker', 'freelancer', 'jasa'].includes(rawPreviewRole) ? rawPreviewRole : null;
 
   const isGodModeUnlocked = (() => {
     try {
@@ -156,6 +154,29 @@ function Router() {
   }, []);
 
   useEffect(() => {
+    const isInterviewPath =
+      path === '/interview' ||
+      path.startsWith('/interview/') ||
+      path === '/live-interview' ||
+      path === '/live' ||
+      path.startsWith('/live/') ||
+      path === '/live-call' ||
+      path === '/wawancara' ||
+      path === '/interview-ai' ||
+      path === '/ai-interview';
+
+    if (isInterviewPath && (!user || (isViewOnlyWeb && !isSuperAdmin))) {
+      if (!user) {
+        setAuthMode('login');
+      }
+      if (isViewOnlyWeb && !isSuperAdmin) {
+        openInstallModal('Akses Fitur Live Interview AI');
+      }
+      window.history.replaceState({}, '', '/browse');
+      setPath('/browse');
+      return;
+    }
+
     if (isViewOnlyWeb && (path.startsWith('/seeker/') || path.startsWith('/employer/'))) {
       requireApp('Mengakses Portal Pengguna');
       window.history.replaceState({}, '', '/browse');
@@ -170,22 +191,46 @@ function Router() {
       window.history.replaceState({}, '', '/admin/dashboard');
       setPath('/admin/dashboard');
     }
-  }, [isViewOnlyWeb, path, requireApp]);
+  }, [isViewOnlyWeb, path, requireApp, user, isSuperAdmin, openInstallModal]);
 
-  // Jika user terdeteksi belum menginstal PWA (isViewOnlyWeb), munculkan popup install PWA saat membuka fitur interaktif
+  // Mandat Audit: Perketat semua menu halaman publik view-only & wajib munculkan popup instal PWA
   useEffect(() => {
-    if (user && isViewOnlyWeb && (effectiveRole === 'seeker' || effectiveRole === 'employer')) {
-      const hasPrompted = sessionStorage.getItem('loxer_pwa_install_prompted');
-      if (!hasPrompted) {
-        sessionStorage.setItem('loxer_pwa_install_prompted', 'true');
-        openInstallModal(
-          effectiveRole === 'employer'
-            ? 'Instal Aplikasi LOXER untuk Akses Portal Perusahaan'
-            : 'Instal Aplikasi LOXER untuk Akses Portal Pekerja'
-        );
-      }
+    if (!isViewOnlyWeb) return;
+
+    const isPublicPage =
+      path === '/' ||
+      path === '' ||
+      path === '/browse' ||
+      path === '/seeker/browse' ||
+      path.startsWith('/talents') ||
+      path === '/pelamar' ||
+      path === '/pelamar-kerja' ||
+      path === '/freelance' ||
+      path === '/jasa' ||
+      path.startsWith('/cv') ||
+      path.startsWith('/buat-cv') ||
+      path.startsWith('/cv-maker') ||
+      path.startsWith('/cv-generator');
+
+    if (!isPublicPage) return;
+
+    let contextualAction = 'Akses Penuh Layanan Resmi LOXER';
+    if (path === '/' || path === '') {
+      contextualAction = 'Akses Lengkap Lowongan Kerja & Karir';
+    } else if (path === '/browse' || path === '/seeker/browse') {
+      contextualAction = 'Melamar Lowongan & Akses Lengkap Loker';
+    } else if (path.startsWith('/talents') || path === '/pelamar' || path === '/pelamar-kerja' || path === '/freelance' || path === '/jasa') {
+      contextualAction = 'Akses Kontak & Rekrut Tenaga Kerja';
+    } else if (path.startsWith('/cv') || path.startsWith('/buat-cv') || path.startsWith('/cv-maker') || path.startsWith('/cv-generator')) {
+      contextualAction = 'Buat CV Lengkap, Ekspor PDF & Interview AI';
     }
-  }, [user, isViewOnlyWeb, effectiveRole, openInstallModal]);
+
+    const timer = setTimeout(() => {
+      openInstallModal(contextualAction);
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [path, isViewOnlyWeb, openInstallModal]);
 
   const getHomePathByRole = () => {
     if (previewRole === 'admin') return '/admin/dashboard';
@@ -267,8 +312,6 @@ VITE_SUPABASE_ANON_KEY=...`}
   };
 
   const renderPage = () => {
-    if (path === '/mitra' || path.startsWith('/mitra/')) return <PartnerProgram />;
-    if (path === '/portal-mitra' || path === '/mitra/masuk') return <PartnerAccess />;
     // Mode Web View-Only: akses portal dashboard Seeker/Employer dialihkan dengan popup edukasi
     if (isViewOnlyWeb && (path.startsWith('/seeker/') || path.startsWith('/employer/'))) {
       return <Browse />;
@@ -305,6 +348,22 @@ VITE_SUPABASE_ANON_KEY=...`}
     path === '/interview-ai' ||
     path === '/ai-interview'
   ) {
+    if (!user) {
+      setTimeout(() => {
+        setAuthMode('login');
+        if (isViewOnlyWeb) openInstallModal('Akses Fitur Live Interview AI');
+        navigateTo('/browse', true);
+      }, 0);
+      return null;
+    }
+    if (isViewOnlyWeb && !isSuperAdmin) {
+      setTimeout(() => {
+        openInstallModal('Akses Fitur Live Interview AI');
+        navigateTo('/browse', true);
+      }, 0);
+      return null;
+    }
+
     return (
       <Suspense fallback={<FullScreenLoader message="Menyiapkan Ruang Interview AI (Live)..." />}>
         <LiveInterviewRoom />
@@ -355,7 +414,6 @@ VITE_SUPABASE_ANON_KEY=...`}
         }
         return null;
       }
-      if (normalizedPath === '/admin/partners') return <AdminPartners />;
 
       const adminPages: Record<string, JSX.Element> = {
         '/admin/dashboard': <AdminDashboard tab="overview" />,

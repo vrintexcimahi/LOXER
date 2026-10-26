@@ -60,33 +60,26 @@ export function closeLocalDb() {
 }
 
 export function getLocalDb() {
-  const now = Date.now();
   if (dbInstance) {
-    if (now - lastDbPingTime > 15000) {
-      try {
-        dbInstance.exec('SELECT 1;');
-        lastDbPingTime = now;
-      } catch {
-        dbInstance = null;
-        globalThis.__loxer_db_instance = null;
-      }
+    try {
+      dbInstance.exec('SELECT 1;');
+      return dbInstance;
+    } catch {
+      clearStatementCache();
+      dbInstance = null;
+      globalThis.__loxer_db_instance = null;
     }
-    if (dbInstance) return dbInstance;
   }
 
   if (globalThis.__loxer_db_instance) {
-    if (now - lastDbPingTime > 15000) {
-      try {
-        globalThis.__loxer_db_instance.exec('SELECT 1;');
-        lastDbPingTime = now;
-        dbInstance = globalThis.__loxer_db_instance;
-      } catch {
-        globalThis.__loxer_db_instance = null;
-      }
-    } else {
+    try {
+      globalThis.__loxer_db_instance.exec('SELECT 1;');
       dbInstance = globalThis.__loxer_db_instance;
+      return dbInstance;
+    } catch {
+      clearStatementCache();
+      globalThis.__loxer_db_instance = null;
     }
-    if (dbInstance) return dbInstance;
   }
 
   if (!dbInstance) {
@@ -616,29 +609,6 @@ export function getLocalDb() {
       console.warn('[localDb] marketplace tables setup notice:', e.message);
     }
 
-    // Partner applications table
-    try {
-      dbInstance.exec(`
-        CREATE TABLE IF NOT EXISTS partner_applications (
-          id TEXT PRIMARY KEY,
-          business_name TEXT NOT NULL,
-          suggested_slug TEXT NOT NULL,
-          city TEXT NOT NULL,
-          pic_phone TEXT NOT NULL,
-          notes TEXT NOT NULL DEFAULT '',
-          owner_user_id TEXT,
-          status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
-          reviewed_by TEXT,
-          reviewed_at TEXT,
-          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        );
-        CREATE INDEX IF NOT EXISTS partner_apps_status ON partner_applications(status, created_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_partner_apps_slug ON partner_applications(suggested_slug);
-      `);
-    } catch (e) {
-      console.warn('[localDb] partner_applications setup notice:', e.message);
-    }
-
     // System wide settings & level-max customization table
     try {
       dbInstance.exec(`
@@ -994,8 +964,21 @@ export function queryOne(sql, params = []) {
   return runWithBusyRetry(() => {
     const t0 = performance.now();
     const db = getLocalDb();
-    const stmt = getCachedStatement(db, sql);
-    const result = stmt.get(...params);
+    let stmt = getCachedStatement(db, sql);
+    let result;
+    try {
+      result = stmt.get(...params);
+    } catch (err) {
+      if (err?.code === 'ERR_INVALID_STATE' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('finalized'))) {
+        const cache = dbStatementCaches.get(db);
+        if (cache) cache.delete(sql);
+        stmt = db.prepare(sql);
+        if (cache) cache.set(sql, stmt);
+        result = stmt.get(...params);
+      } else {
+        throw err;
+      }
+    }
     const duration = performance.now() - t0;
     if (duration > 100) {
       console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);
@@ -1008,8 +991,21 @@ export function queryAll(sql, params = []) {
   return runWithBusyRetry(() => {
     const t0 = performance.now();
     const db = getLocalDb();
-    const stmt = getCachedStatement(db, sql);
-    const result = stmt.all(...params);
+    let stmt = getCachedStatement(db, sql);
+    let result;
+    try {
+      result = stmt.all(...params);
+    } catch (err) {
+      if (err?.code === 'ERR_INVALID_STATE' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('finalized'))) {
+        const cache = dbStatementCaches.get(db);
+        if (cache) cache.delete(sql);
+        stmt = db.prepare(sql);
+        if (cache) cache.set(sql, stmt);
+        result = stmt.all(...params);
+      } else {
+        throw err;
+      }
+    }
     const duration = performance.now() - t0;
     if (duration > 100) {
       console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);
@@ -1022,8 +1018,21 @@ export function execute(sql, params = []) {
   return runWithBusyRetry(() => {
     const t0 = performance.now();
     const db = getLocalDb();
-    const stmt = getCachedStatement(db, sql);
-    const result = stmt.run(...params);
+    let stmt = getCachedStatement(db, sql);
+    let result;
+    try {
+      result = stmt.run(...params);
+    } catch (err) {
+      if (err?.code === 'ERR_INVALID_STATE' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('finalized'))) {
+        const cache = dbStatementCaches.get(db);
+        if (cache) cache.delete(sql);
+        stmt = db.prepare(sql);
+        if (cache) cache.set(sql, stmt);
+        result = stmt.run(...params);
+      } else {
+        throw err;
+      }
+    }
     const duration = performance.now() - t0;
     if (duration > 100) {
       console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);
@@ -1503,58 +1512,6 @@ export function extendJobListing(jobId, daysToAdd = 30) {
   return res.changes > 0;
 }
 
-export function insertPartnerApplication({ id, business_name, suggested_slug, city, pic_phone, notes, owner_user_id }) {
-  const db = getLocalDb();
-  db.prepare(
-    `INSERT INTO partner_applications (id, business_name, suggested_slug, city, pic_phone, notes, owner_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, business_name, suggested_slug, city, pic_phone, notes, owner_user_id ?? null);
-}
-
-export function getPartnerApplicationById(id) {
-  const db = getLocalDb();
-  return db.prepare(`SELECT * FROM partner_applications WHERE id = ?`).get(id) || null;
-}
-
-export function getPartnerApplicationBySlug(slug) {
-  const db = getLocalDb();
-  return db.prepare(
-    `SELECT * FROM partner_applications WHERE LOWER(suggested_slug) = LOWER(?) AND status != 'rejected' LIMIT 1`
-  ).get(slug) || null;
-}
-
-export function countPartnerApplications(status = null) {
-  const db = getLocalDb();
-  if (!status || status === 'all') {
-    return db.prepare(`SELECT COUNT(*) as total FROM partner_applications`).get()?.total || 0;
-  }
-  return db.prepare(`SELECT COUNT(*) as total FROM partner_applications WHERE status = ?`).get(status)?.total || 0;
-}
-
-export function listPartnerApplications(status = 'pending', limit = 50, offset = 0) {
-  const db = getLocalDb();
-  if (!status || status === 'all') {
-    return db.prepare(
-      `SELECT * FROM partner_applications ORDER BY created_at DESC LIMIT ? OFFSET ?`
-    ).all(limit, offset);
-  }
-  return db.prepare(
-    `SELECT * FROM partner_applications WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
-  ).all(status, limit, offset);
-}
-
-export function updatePartnerApplicationStatus(id, status, reviewed_by) {
-  const db = getLocalDb();
-  const res = db.prepare(
-    `UPDATE partner_applications SET status=?, reviewed_by=?, reviewed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?`
-  ).run(status, reviewed_by, id);
-  return res.changes > 0;
-}
-
-// ---------------------------------------------------------------------------
-// Rekomendasi 25: Automated SQLite VACUUM, Query Optimization & WAL Truncation
-// ---------------------------------------------------------------------------
-
 export function optimizeLocalDatabase() {
   const db = getLocalDb();
   const results = {
@@ -1622,5 +1579,3 @@ export function checkpointDatabase() {
     return false;
   }
 }
-
-

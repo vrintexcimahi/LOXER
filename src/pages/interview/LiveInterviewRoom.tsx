@@ -21,7 +21,12 @@ import {
   ArrowLeft,
   Copy,
   Check,
+  Lock,
+  Smartphone,
+  LogIn,
 } from 'lucide-react';
+import { useAuth } from '../../contexts/useAuth';
+import { useAppAccess } from '../../contexts/AppAccessContext';
 import {
   createInterviewSession,
   getInterviewSession,
@@ -33,18 +38,24 @@ import {
 } from '../../services/interviewClientService';
 
 export default function LiveInterviewRoom() {
+  const { user } = useAuth();
+  const { isViewOnlyWeb, isSuperAdmin, openInstallModal } = useAppAccess();
   const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
 
   const sessionCodeParam = searchParams.get('code') || searchParams.get('session');
   const roleParam = searchParams.get('role') || 'Staff Operasional & Administrasi';
   const companyParam = searchParams.get('company') || 'Simulasi Wawancara LOXER';
-  const candidateParam = searchParams.get('name') || 'Kandidat LOXER';
+  const candidateParam =
+    user?.user_metadata?.full_name ||
+    (user?.email ? user.email.split('@')[0] : '') ||
+    searchParams.get('name') ||
+    'Kandidat LOXER';
   const skillsParam = (searchParams.get('skills') || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   const summaryParam = searchParams.get('summary') || '';
-  const emailParam = searchParams.get('email') || '';
+  const emailParam = user?.email || searchParams.get('email') || '';
 
   // Room State
   const [session, setSession] = useState<InterviewSession | null>(null);
@@ -166,6 +177,8 @@ export default function LiveInterviewRoom() {
 
   // 2. Initialize Media Devices (Webcam & Mic)
   const startCameraAndMic = useCallback(async () => {
+    // Jangan akses kamera/mic jika belum login atau di web view-only
+    if (!user || (isViewOnlyWeb && !isSuperAdmin)) return;
     try {
       setHasCameraError(false);
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -297,6 +310,12 @@ export default function LiveInterviewRoom() {
 
   // 4. Session Setup & Call Timer
   useEffect(() => {
+    // Cegah inisialisasi sesi otomatis jika belum login atau mode Web View-Only
+    if (!user || (isViewOnlyWeb && !isSuperAdmin)) {
+      setIsLoadingSession(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function initSession() {
@@ -582,6 +601,74 @@ export default function LiveInterviewRoom() {
     setIsCopiedReport(true);
     setTimeout(() => setIsCopiedReport(false), 2500);
   };
+
+  // Guard: Unauthenticated Visitor Barrier
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#070e17] text-white flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-gradient-to-b from-slate-900 to-[#0c1427] border border-cyan-500/30 rounded-3xl p-6 shadow-2xl text-center animate-fade-in">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-4">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-lg font-black text-white">Sesi Interview AI Memerlukan Login</h2>
+          <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+            Untuk menjaga validitas profil, perekaman hasil wawancara, dan sertifikat skor kecocokan, Anda harus masuk ke akun LOXER Anda terlebih dahulu.
+          </p>
+          <div className="mt-6 space-y-2.5">
+            <button
+              type="button"
+              onClick={() => navigateTo('/browse?login=true')}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-400 hover:from-cyan-300 hover:to-sky-300 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 active:scale-95 transition cursor-pointer"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Masuk ke Akun LOXER</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo('/browse')}
+              className="w-full py-2.5 text-xs text-slate-400 hover:text-slate-200 transition cursor-pointer"
+            >
+              Kembali ke Katalog Loker
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Guard: View-Only Web Barrier
+  if (isViewOnlyWeb && !isSuperAdmin) {
+    return (
+      <div className="min-h-screen bg-[#070e17] text-white flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-gradient-to-b from-slate-900 to-[#0c1427] border border-cyan-500/30 rounded-3xl p-6 shadow-2xl text-center animate-fade-in">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-sky-400 flex items-center justify-center text-slate-950 mb-4 shadow-lg shadow-cyan-500/30">
+            <Smartphone className="w-8 h-8" strokeWidth={2.4} />
+          </div>
+          <h2 className="text-lg font-black text-white">Aplikasi Resmi LOXER Diperlukan</h2>
+          <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+            Fitur Live Interview AI memanfaatkan panggilan video HD, kamera, mikrofon, dan evaluasi suara AI dua arah yang dioptimalkan khusus untuk Aplikasi Resmi LOXER (PWA).
+          </p>
+          <div className="mt-6 space-y-2.5">
+            <button
+              type="button"
+              onClick={() => openInstallModal('Akses Fitur Live Interview AI')}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 active:scale-95 transition cursor-pointer"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Pasang Aplikasi Sekarang</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo('/browse')}
+              className="w-full py-2.5 text-xs text-slate-400 hover:text-slate-200 transition cursor-pointer"
+            >
+              Kembali ke Katalog Loker
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoadingSession) {
     return (

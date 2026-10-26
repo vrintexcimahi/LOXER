@@ -251,7 +251,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const simRole = typeof window !== 'undefined' ? (searchParams?.get('sim_role') || (window.name?.startsWith('loxer_sim_') ? window.name.replace('loxer_sim_', '') : null)) : null;
-    const previewRole = searchParams?.get('preview_role') || searchParams?.get('role') || simRole;
+    const rawPreviewRole = searchParams?.get('preview_role') || simRole;
+    const previewRole = rawPreviewRole && ['admin', 'employer', 'seeker', 'freelancer', 'jasa'].includes(rawPreviewRole) ? rawPreviewRole : null;
 
     supabase.auth
       .getSession()

@@ -278,9 +278,11 @@ export function AdminTalentDetailModal({
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md border border-cyan-400/40 bg-cyan-500/20 px-2 py-0.5 text-[10px] font-black uppercase text-cyan-300">
-                  {talent.badge || 'SIAP KERJA'}
-                </span>
+                {Boolean(talent.badge && talent.badge !== 'SIAP KERJA') && (
+                  <span className="rounded-md border border-cyan-400/40 bg-cyan-500/20 px-2 py-0.5 text-[10px] font-black uppercase text-cyan-300">
+                    {talent.badge}
+                  </span>
+                )}
                 {isArchived ? (
                   <span className="rounded-md border border-amber-500/50 bg-amber-500/25 px-2 py-0.5 text-[10px] font-black text-amber-300 flex items-center gap-1 shadow-sm">
                     <Archive className="w-3 h-3" />
@@ -1057,54 +1059,20 @@ export function AdminTalentCatalogSection({
                     }}
                   />
 
-                  {/* Top Badges */}
-                  <div className="absolute left-2.5 sm:left-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-10">
-                    <span
-                      className={`rounded-md border px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider backdrop-blur-md shadow-sm truncate max-w-[95px] sm:max-w-none ${badgeTheme}`}
-                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
-                    >
-                      {talent.badge || 'SIAP KERJA'}
-                    </span>
-                    {Boolean(talent.availability) && (
+                  {/* Top Badges (Hanya tampil jika ada badge khusus selain SIAP KERJA) */}
+                  {Boolean(talent.badge && talent.badge !== 'SIAP KERJA') && (
+                    <div className="absolute left-2.5 sm:left-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-10">
                       <span
-                        className="hidden sm:flex items-center gap-1 rounded-md border border-emerald-400/50 bg-emerald-950/80 px-2 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md shadow-sm"
+                        className={`rounded-md border px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider backdrop-blur-md shadow-sm truncate max-w-[95px] sm:max-w-none ${badgeTheme}`}
                         style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
                       >
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        {AVAILABILITY_LABELS[talent.availability] || talent.availability}
+                        {talent.badge}
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
-                  {/* Top Right: Verified / Publish indicator + Mode Switcher */}
-                  <div className="absolute right-2.5 sm:right-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-10">
-                    {hasCvImage && (
-                      <div
-                        className="flex items-center gap-0.5 rounded-lg bg-black/80 p-0.5 border border-white/20 backdrop-blur-md shadow-md"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setCardImageMode((prev) => ({ ...prev, [talent.id]: 'photo' }))}
-                          className={`px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold rounded transition ${
-                            currentMode === 'photo' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
-                          }`}
-                          title="Tampilkan Pas Foto"
-                        >
-                          Foto
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCardImageMode((prev) => ({ ...prev, [talent.id]: 'cv' }))}
-                          className={`px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold rounded transition ${
-                            currentMode === 'cv' ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
-                          }`}
-                          title="Tampilkan Berkas CV Full (Kontak Diblur)"
-                        >
-                          CV
-                        </button>
-                      </div>
-                    )}
+                  {/* Top Right: Actions & Status */}
+                  <div className="absolute right-2.5 sm:right-3.5 top-2.5 sm:top-3.5 flex items-center gap-1.5 z-10">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -1361,7 +1329,9 @@ export function AdminTalentCatalogSection({
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 dark:text-white uppercase">{fullName}</p>
-                          <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-semibold">{talent.badge || 'SIAP KERJA'}</span>
+                          {Boolean(talent.badge && talent.badge !== 'SIAP KERJA') && (
+                            <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-semibold">{talent.badge}</span>
+                          )}
                         </div>
                       </div>
                     </td>
