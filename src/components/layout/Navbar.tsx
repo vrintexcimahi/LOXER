@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, RefreshCw } from 'lucide-react';
 import AppLogo from '../ui/AppLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useAdminEasterEgg } from '../../hooks/useAdminEasterEgg';
@@ -16,9 +16,11 @@ interface BeforeInstallPromptEvent extends Event {
 export interface NavbarProps {
   onLogin?: () => void;
   onRegister?: (role?: UserRole) => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
-export default function Navbar({ onLogin: _onLogin }: NavbarProps) {
+export default function Navbar({ onLogin: _onLogin, onRefresh, isRefreshing = false }: NavbarProps) {
   const { openSecretAdminModal } = useAppAccess();
   const [, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => {
     if (typeof window !== 'undefined') {
@@ -95,7 +97,24 @@ export default function Navbar({ onLogin: _onLogin }: NavbarProps) {
     <header className="loxer-pwa-header w-full bg-transparent border-0 pt-safe pb-1 px-4 select-none">
       <div className="w-full max-w-xl mx-auto flex flex-col items-center">
         <div className="w-full flex items-center justify-between py-1">
-          <div className="w-9" aria-hidden="true" />
+          {/* Top-Left Refresh Button (Icon Only di Posisi Petunjuk) */}
+          <div className="w-9 flex items-center justify-start">
+            <button
+              type="button"
+              onClick={() => {
+                if (onRefresh) {
+                  onRefresh();
+                } else {
+                  window.location.reload();
+                }
+              }}
+              title="Segarkan data"
+              aria-label="Segarkan data"
+              className="!rounded-full !h-8 !w-8 flex items-center justify-center shadow-none border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-cyan-500 dark:hover:text-cyan-400 active:scale-90 transition-all backdrop-blur-sm cursor-pointer"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-cyan-400' : ''} />
+            </button>
+          </div>
 
           {/* Centered Brand Logo with Admin Trigger */}
           <div

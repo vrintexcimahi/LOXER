@@ -119,8 +119,7 @@ html:not(.dark) .loxer-mobile-nav { border-radius: 18px 18px 0 0; }
 @media (max-width: 767px) {
   .loxer-job-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px 44px; }
   .loxer-job-filters > :is(input, select) { width: 100%; padding-inline: 8px; }
-  .loxer-talent-filters { display: grid; grid-template-columns: minmax(0, 1fr) 44px; }
-  .loxer-talent-filters > select:first-child { grid-column: 1 / -1; }
+  .loxer-talent-filters { width: 100%; display: block; }
   .loxer-talent-filters > select { width: 100%; }
   .loxer-mobile-nav > div > :is(a, button) { min-width: 0; }
   .loxer-mobile-nav > div > :is(a, button) > span:last-child { max-width: 100%; font-size: clamp(8px, 2.5vw, 10px); }

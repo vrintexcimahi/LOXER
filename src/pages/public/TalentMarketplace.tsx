@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 import {
   Search,
   Users,
-  RefreshCw,
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import TalentCard from '../../components/marketplace/TalentCard';
@@ -171,10 +170,12 @@ export default function TalentMarketplace() {
 
   return (
     <div className="loxer-workspace min-h-screen bg-slate-50 dark:bg-[#071220] text-slate-800 dark:text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black pb-20 md:pb-0 transition-colors duration-200">
-      {/* Public Navbar */}
+      {/* Public Navbar dengan tombol refresh icon-only di posisi petunjuk */}
       <Navbar
         onLogin={() => setAuthMode('login')}
         onRegister={handleOpenRegister}
+        onRefresh={fetchTalents}
+        isRefreshing={loading}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-1 sm:pt-2 pb-6 sm:pb-8 space-y-5 sm:space-y-6">
@@ -196,13 +197,13 @@ export default function TalentMarketplace() {
               />
             </div>
 
-            {/* City Filter & Refresh */}
+            {/* City Filter (Tanpa kotak refresh memanjang) */}
             <div className="loxer-talent-filters flex items-center gap-2">
               <select
                 aria-label="Kota talent"
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:border-cyan-400 shadow-sm"
+                className="w-full md:w-auto px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-800 dark:text-white focus:outline-none focus:border-cyan-400 shadow-sm"
               >
                 <option value="all">Semua Kota</option>
                 {cities.map((c) => (
@@ -211,14 +212,6 @@ export default function TalentMarketplace() {
                   </option>
                 ))}
               </select>
-
-              <button
-                onClick={fetchTalents}
-                title="Segarkan data"
-                className="p-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shadow-sm"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              </button>
             </div>
           </div>
 
