@@ -93,7 +93,7 @@ type ToastType = 'success' | 'error' | 'info';
 
 interface AdminDashboardProps {
   tab?: AdminTab;
-  subTab?: 'accounts' | 'intelligence' | 'devices' | 'rbac';
+  subTab?: 'accounts' | 'intelligence' | 'devices' | 'rbac' | 'traffic' | 'live';
 }
 
 interface ToastState {
@@ -322,6 +322,14 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
   };
 
   if (!user || (effectiveRole !== 'admin' && effectiveRole !== 'superadmin')) {
+    if (effectiveRole === 'employer') {
+      setTimeout(() => navigateTo('/employer/dashboard', true), 0);
+      return null;
+    }
+    if (effectiveRole === 'seeker') {
+      setTimeout(() => navigateTo('/seeker/dashboard', true), 0);
+      return null;
+    }
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-6">
         <div className="max-w-md rounded-2xl border border-red-400/30 bg-red-500/10 p-6 text-center">
@@ -518,14 +526,24 @@ export default function AdminDashboard({ tab = 'overview', subTab }: AdminDashbo
                 adminEmail={adminEmail}
                 isSuperAdmin={isSuperAdmin}
                 onToast={showToast}
-                initialSubTab={subTab || (activeTab === 'user-data' ? 'intelligence' : activeTab === 'devices' ? 'devices' : 'accounts')}
+                initialSubTab={
+                  subTab === 'accounts' || subTab === 'intelligence' || subTab === 'devices' || subTab === 'rbac'
+                    ? subTab
+                    : (activeTab === 'user-data' ? 'intelligence' : activeTab === 'devices' ? 'devices' : 'accounts')
+                }
               />
             )}
             {activeTab === 'jobs' && (
               <AdminJobs adminId={user.id} adminEmail={adminEmail} isSuperAdmin={isSuperAdmin} onToast={showToast} />
             )}
             {activeTab === 'applications' && (
-              <AdminApplications adminId={user.id} adminEmail={adminEmail} isSuperAdmin={isSuperAdmin} onToast={showToast} />
+              <AdminApplications
+                adminId={user.id}
+                adminEmail={adminEmail}
+                isSuperAdmin={isSuperAdmin}
+                onToast={showToast}
+                initialSubTab={subTab === 'traffic' || subTab === 'live' ? 'traffic' : undefined}
+              />
             )}
             {activeTab === 'companies' && (
               <AdminCompanies adminId={user.id} adminEmail={adminEmail} isSuperAdmin={isSuperAdmin} onToast={showToast} />
@@ -4728,17 +4746,20 @@ function AdminApplications({
   adminEmail,
   isSuperAdmin,
   onToast,
+  initialSubTab,
 }: {
   adminId: string;
   adminEmail: string;
   isSuperAdmin?: boolean;
   onToast: (type: ToastType, message: string) => void;
+  initialSubTab?: 'applications' | 'talents' | 'smart-cv' | 'traffic';
 }) {
   const isSuperAdminUser = Boolean(isSuperAdmin || checkIsSuperAdmin(null, adminEmail));
   const { session } = useAuth();
 
   // Sub-tabs: 'applications' | 'talents' | 'smart-cv' | 'traffic'
   const [activeSubTab, setActiveSubTab] = useState<'applications' | 'talents' | 'smart-cv' | 'traffic'>(() => {
+    if (initialSubTab) return initialSubTab;
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
       if (

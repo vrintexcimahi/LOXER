@@ -605,14 +605,21 @@ export default function CvGenerator() {
                           role: cvData.headline || 'Staff Operasional & Administrasi',
                           name: cvData.fullName || 'Kandidat',
                           company: 'Simulasi Wawancara LOXER',
+                          skills: (cvData.skills || []).slice(0, 6).join(','),
+                          summary: cvData.summary || '',
+                          email: cvData.email || '',
                         });
                         navigateTo(`/interview?${params.toString()}`);
                       }}
                       className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-600/20 hover:from-cyan-500/30 hover:to-blue-600/30 text-cyan-500 dark:text-cyan-400 border border-cyan-500/30 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-                      title="Mulai Simulasi Wawancara Video Call Otomatis dengan AI Gemini"
+                      title="Mulai Simulasi Wawancara Video Call Otomatis (Live) dengan AI Gemini"
                     >
-                      <Video size={13} className="text-cyan-400 animate-pulse" />
-                      <span>Interview AI</span>
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                      </span>
+                      <Video size={13} className="text-cyan-400" />
+                      <span>Interview AI (Live)</span>
                     </button>
 
                     {/* 1-Click Sync LOXER Profile */}

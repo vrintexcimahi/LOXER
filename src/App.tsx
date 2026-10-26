@@ -69,6 +69,7 @@ function Router() {
     installModalAction,
     secretAdminModalOpen,
     requireApp,
+    openInstallModal,
     closeInstallModal,
     openSecretAdminModal,
     closeSecretAdminModal,
@@ -100,9 +101,11 @@ function Router() {
     ? 'employer'
     : previewRole === 'seeker' || previewRole === 'freelancer' || previewRole === 'jasa'
     ? 'seeker'
+    : userMeta?.role
+    ? userMeta.role
     : isDefaultAdminAccount
     ? 'admin'
-    : userMeta?.role;
+    : 'seeker';
 
 
   const handleOpenRegister = (role: UserRole = 'seeker') => {
@@ -169,6 +172,21 @@ function Router() {
       setPath('/admin/dashboard');
     }
   }, [isViewOnlyWeb, path, requireApp]);
+
+  // Jika user terdeteksi belum menginstal PWA (isViewOnlyWeb), munculkan popup install PWA saat membuka fitur interaktif
+  useEffect(() => {
+    if (user && isViewOnlyWeb && (effectiveRole === 'seeker' || effectiveRole === 'employer')) {
+      const hasPrompted = sessionStorage.getItem('loxer_pwa_install_prompted');
+      if (!hasPrompted) {
+        sessionStorage.setItem('loxer_pwa_install_prompted', 'true');
+        openInstallModal(
+          effectiveRole === 'employer'
+            ? 'Instal Aplikasi LOXER untuk Akses Portal Perusahaan'
+            : 'Instal Aplikasi LOXER untuk Akses Portal Pekerja'
+        );
+      }
+    }
+  }, [user, isViewOnlyWeb, effectiveRole, openInstallModal]);
 
   const getHomePathByRole = () => {
     if (previewRole === 'admin') return '/admin/dashboard';
@@ -281,11 +299,15 @@ VITE_SUPABASE_ANON_KEY=...`}
     path === '/interview' ||
     path.startsWith('/interview/') ||
     path === '/live-interview' ||
+    path === '/live' ||
+    path.startsWith('/live/') ||
+    path === '/live-call' ||
     path === '/wawancara' ||
-    path === '/interview-ai'
+    path === '/interview-ai' ||
+    path === '/ai-interview'
   ) {
     return (
-      <Suspense fallback={<FullScreenLoader message="Menyiapkan Ruang Interview AI..." />}>
+      <Suspense fallback={<FullScreenLoader message="Menyiapkan Ruang Interview AI (Live)..." />}>
         <LiveInterviewRoom />
       </Suspense>
     );
@@ -317,7 +339,23 @@ VITE_SUPABASE_ANON_KEY=...`}
       const isSuper = isRoleAuthorized('superadmin');
       const isAdmin = isRoleAuthorized('admin') || isSuper;
 
-      if (!isAdmin) return null;
+      if (!isAdmin) {
+        if (effectiveRole === 'employer') {
+          setTimeout(() => {
+            if (isViewOnlyWeb) openInstallModal('Akses Portal Perusahaan LOXER');
+            navigateTo('/employer/dashboard', true);
+          }, 0);
+          return null;
+        }
+        if (effectiveRole === 'seeker') {
+          setTimeout(() => {
+            if (isViewOnlyWeb) openInstallModal('Akses Portal Pekerja LOXER');
+            navigateTo('/seeker/dashboard', true);
+          }, 0);
+          return null;
+        }
+        return null;
+      }
       if (normalizedPath === '/admin/partners') return <AdminPartners />;
 
       const adminPages: Record<string, JSX.Element> = {
@@ -326,6 +364,8 @@ VITE_SUPABASE_ANON_KEY=...`}
         '/admin/user-data': <AdminDashboard tab="users" subTab="intelligence" />,
         '/admin/devices': <AdminDashboard tab="users" subTab="devices" />,
         '/admin/applications': <AdminDashboard tab="applications" />,
+        '/admin/traffic': <AdminDashboard tab="applications" subTab="traffic" />,
+        '/admin/live': <AdminDashboard tab="applications" subTab="traffic" />,
         '/admin/companies': <AdminDashboard tab="companies" />,
         '/admin/integrations': <AdminDashboard tab="integrations" />,
         '/admin/moderation': <ModerationQueue />,

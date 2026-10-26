@@ -532,15 +532,20 @@ export default function JobDetailModal({
                         role: job?.title || 'Lowongan Kerja',
                         company: job?.companies?.name || 'Mitra LOXER',
                         name: user?.email?.split('@')[0] || 'Kandidat',
+                        summary: job?.description?.slice(0, 300) || '',
                       });
                       onClose();
                       navigateTo(`/interview?${params.toString()}`);
                     }}
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 px-4 py-2.5 text-xs font-bold text-cyan-400 hover:bg-cyan-500/25 active:scale-95 transition"
-                    title="Simulasi Wawancara AI untuk lowongan ini"
+                    title="Simulasi Wawancara AI (Live) untuk lowongan ini"
                   >
-                    <Video className="h-4 w-4 text-cyan-400 animate-pulse" />
-                    <span>Interview AI</span>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                    </span>
+                    <Video className="h-4 w-4 text-cyan-400" />
+                    <span>Interview AI (Live)</span>
                   </button>
 
                   <button
