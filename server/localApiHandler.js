@@ -5537,17 +5537,20 @@ async function handleAdminTalentsAutoArchiveNoPhoto(req, res) {
     const dryRun = body.dry_run === true;
 
     // Detect all talents without real photos:
-    // Empty/null OR placeholder pixar/avatar/dicebear
+    // Detect all talents without real photos:
+    // Empty/null OR avatar / pixar / dicebear / placeholder
     const candidateSql = `
       SELECT id, headline, photo_url, is_published, is_archived
       FROM talent_marketplace_posts
       WHERE (
         photo_url IS NULL 
         OR TRIM(photo_url) = '' 
-        OR photo_url LIKE '%/avatars/%' 
-        OR photo_url LIKE '%pixar_%' 
-        OR photo_url LIKE '%dicebear%' 
-        OR photo_url LIKE '%placeholder%'
+        OR LOWER(photo_url) LIKE '%avatar%'
+        OR LOWER(photo_url) LIKE '%pixar%' 
+        OR LOWER(photo_url) LIKE '%dicebear%' 
+        OR LOWER(photo_url) LIKE '%placeholder%'
+        OR LOWER(photo_url) LIKE '%illustration%'
+        OR LOWER(photo_url) LIKE '%cartoon%'
       )
     `;
     const matchingRows = queryAll(candidateSql);
@@ -5569,16 +5572,18 @@ async function handleAdminTalentsAutoArchiveNoPhoto(req, res) {
       UPDATE talent_marketplace_posts
       SET is_archived = 1,
           is_published = 0,
-          archive_reason = 'Foto profil tidak terdeteksi otomatis (membutuhkan pas foto asli)',
+          archive_reason = 'Otomatis diarsipkan: Menggunakan profil avatar (bukan pas foto asli)',
           archived_at = ?,
           updated_at = ?
       WHERE (
         photo_url IS NULL 
         OR TRIM(photo_url) = '' 
-        OR photo_url LIKE '%/avatars/%' 
-        OR photo_url LIKE '%pixar_%' 
-        OR photo_url LIKE '%dicebear%' 
-        OR photo_url LIKE '%placeholder%'
+        OR LOWER(photo_url) LIKE '%avatar%'
+        OR LOWER(photo_url) LIKE '%pixar%' 
+        OR LOWER(photo_url) LIKE '%dicebear%' 
+        OR LOWER(photo_url) LIKE '%placeholder%'
+        OR LOWER(photo_url) LIKE '%illustration%'
+        OR LOWER(photo_url) LIKE '%cartoon%'
       )
       AND (is_archived IS NULL OR is_archived = 0)
     `;

@@ -465,6 +465,27 @@ export function getLocalDb() {
         dbInstance.exec('ALTER TABLE talent_marketplace_posts ADD COLUMN archived_at TEXT DEFAULT NULL;');
       }
       dbInstance.exec('CREATE INDEX IF NOT EXISTS idx_talent_posts_archived ON talent_marketplace_posts(is_archived);');
+
+      // Kebijakan LOXER: Seluruh biodata pelamar yang menggunakan profil avatar (kartun pixar, placeholder, dicebear, dll.)
+      // atau belum memiliki pas foto asli wajib diarsipkan otomatis dari bursa publik
+      dbInstance.exec(`
+        UPDATE talent_marketplace_posts
+        SET is_archived = 1,
+            is_published = 0,
+            archive_reason = 'Otomatis diarsipkan: Menggunakan profil avatar (bukan pas foto asli)',
+            archived_at = COALESCE(archived_at, datetime('now'))
+        WHERE (is_archived IS NULL OR is_archived = 0)
+          AND (
+            photo_url IS NULL
+            OR TRIM(photo_url) = ''
+            OR LOWER(photo_url) LIKE '%avatar%'
+            OR LOWER(photo_url) LIKE '%pixar%'
+            OR LOWER(photo_url) LIKE '%dicebear%'
+            OR LOWER(photo_url) LIKE '%placeholder%'
+            OR LOWER(photo_url) LIKE '%illustration%'
+            OR LOWER(photo_url) LIKE '%cartoon%'
+          );
+      `);
     } catch (e) {
       console.warn('[localDb] talent_marketplace_posts archive columns notice:', e.message);
     }

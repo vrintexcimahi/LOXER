@@ -11,30 +11,40 @@ export const AUTO_ARCHIVE_STORAGE_KEY = 'loxer_auto_archive_no_photo_enabled';
 
 /**
  * Cek apakah pelamar TIDAK memiliki pas foto profil asli:
- * Mengembalikan true jika foto kosong, null, atau menggunakan placeholder avatar (pixar/dicebear).
+ * Mengembalikan true jika foto kosong, null, atau menggunakan profil avatar (kartun, pixar, dicebear, placeholder, dll.).
+ * Sesuai aturan: biodata yang menggunakan profil avatar WAJIB diarsip semua.
  */
 export function isCandidateMissingPhoto(
   talent: Partial<TalentMarketplacePost> | null | undefined
 ): boolean {
   if (!talent) return true;
-  const photo = (talent.photo_url || talent.seeker_profiles?.photo_url || '').trim();
+  const rawPhoto = (talent.photo_url || talent.seeker_profiles?.photo_url || '').trim();
+  const photo = rawPhoto.toLowerCase();
 
   // 1. Kosong atau null
   if (!photo) return true;
 
-  // 2. Terdeteksi merupakan avatar default / kartun pixar / placeholder
+  // 2. Terdeteksi merupakan avatar / pixar / placeholder / dicebear / kartun
   if (
-    photo.includes('/avatars/') ||
-    photo.includes('pixar_') ||
+    photo.includes('avatar') ||
+    photo.includes('pixar') ||
     photo.includes('dicebear') ||
     photo.includes('placeholder') ||
     photo.includes('default_avatar') ||
-    photo.includes('avatar-placeholder')
+    photo.includes('illustration') ||
+    photo.includes('cartoon')
   ) {
     return true;
   }
 
-  // Foto asli valid (misal data:image/... hasil crop CV atau url eksternal/cdn)
+  // 3. Wajib merupakan foto asli nyata: data:image/ (crop CV) atau URL eksternal CDN valid
+  const isRealBase64 = photo.startsWith('data:image/');
+  const isRealHttpUrl = photo.startsWith('http://') || photo.startsWith('https://');
+
+  if (!isRealBase64 && !isRealHttpUrl) {
+    return true;
+  }
+
   return false;
 }
 

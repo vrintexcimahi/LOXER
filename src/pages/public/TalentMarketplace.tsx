@@ -15,6 +15,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
 import { navigateTo } from '../../lib/navigation';
+import { isCandidateMissingPhoto } from '../../lib/talentArchiveService';
 
 const CATEGORIES = [
   'Semua',
@@ -72,6 +73,7 @@ export default function TalentMarketplace() {
         .from('talent_marketplace_posts')
         .select('*, seeker_profiles(*)')
         .eq('is_published', 1)
+        .eq('is_archived', 0)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -81,6 +83,7 @@ export default function TalentMarketplace() {
           .from('talent_marketplace_posts')
           .select('*')
           .eq('is_published', 1)
+          .eq('is_archived', 0)
           .order('created_at', { ascending: false });
 
         if (fallbackData) {
@@ -110,8 +113,13 @@ export default function TalentMarketplace() {
 
   const filteredTalents = useMemo(() => {
     return talents.filter((t) => {
-      // Pastikan kandidat yang diarsipkan atau non-aktif tidak pernah tampil di bursa publik
-      if (Number(t.is_archived) === 1 || Number(t.is_published) !== 1) {
+      // WAJIB: Pelamar yang diarsipkan, non-aktif, atau menggunakan foto profil avatar (pixar, default, kartun, dll.)
+      // HARUS DIARSIPKAN SEMUA dan TIDAK BOLEH TAMPIL di bursa publik
+      if (
+        Number(t.is_archived) === 1 ||
+        Number(t.is_published) !== 1 ||
+        isCandidateMissingPhoto(t)
+      ) {
         return false;
       }
 
