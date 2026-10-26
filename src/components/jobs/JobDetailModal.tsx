@@ -528,10 +528,18 @@ export default function JobDetailModal({
                   <button
                     type="button"
                     onClick={() => {
+                      if (!user) {
+                        onClose();
+                        onRequireAuth?.('login');
+                        return;
+                      }
+                      if (!requireApp('Simulasi Live Interview AI')) {
+                        return;
+                      }
                       const params = new URLSearchParams({
                         role: job?.title || 'Lowongan Kerja',
                         company: job?.companies?.name || 'Mitra LOXER',
-                        name: user?.email?.split('@')[0] || 'Kandidat',
+                        name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Kandidat',
                         summary: job?.description?.slice(0, 300) || '',
                       });
                       onClose();
