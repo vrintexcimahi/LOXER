@@ -1,5 +1,5 @@
 import { ReactNode, useMemo } from 'react';
-import { Home, Search, FileText, User, LogOut, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
+import { Home, Search, FileText, User, LogOut, ChevronLeft, ChevronRight, Menu, X, Video } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import AppLogo from '../ui/AppLogo';
 import ClayIcon from '../ui/ClayIcon';
@@ -12,6 +12,7 @@ import { navigateTo } from '../../lib/navigation';
 
 const navItems = [
   { label: 'Dashboard', description: 'Ringkasan progres pencarian kerja', icon: Home, href: '/seeker/dashboard' },
+  { label: 'Live Interview AI', description: 'Simulasi wawancara video call AI', icon: Video, href: '/interview', badge: 'AI LIVE' },
   { label: 'Cari Lowongan', description: 'Temukan posisi yang sesuai profilmu', icon: Search, href: '/seeker/browse' },
   { label: 'Lamaran Saya', description: 'Pantau status semua aplikasi kerja', icon: FileText, href: '/seeker/applications' },
   { label: 'Profil CV', description: 'Perbarui CV dan data personal', icon: User, href: '/seeker/profile' },
@@ -88,7 +89,8 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
 
         {/* Nav */}
         <nav className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-6 space-y-1">
-          {navItems.map(({ label, description, icon: Icon, href }) => {
+          {navItems.map((item) => {
+            const { label, description, icon: Icon, href, badge } = item;
             const active = currentPath === href;
             return (
               <a
@@ -101,8 +103,15 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
               >
                 <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-cyan-400' : 'text-slate-400'}`} />
                 {!isCollapsed ? (
-                  <div className="min-w-0">
-                    <p className={`truncate font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className={`truncate font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+                      {badge && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 shrink-0">
+                          {badge}
+                        </span>
+                      )}
+                    </div>
                     <p className={`truncate text-[11px] ${active ? 'text-cyan-200/90' : 'text-slate-500'}`}>{description}</p>
                   </div>
                 ) : null}
@@ -175,7 +184,8 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
             </div>
 
             <nav className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-6 space-y-1">
-              {navItems.map(({ label, description, icon: Icon, href }) => {
+              {navItems.map((item) => {
+                const { label, description, icon: Icon, href, badge } = item;
                 const active = currentPath === href;
                 return (
                   <a
@@ -187,8 +197,15 @@ export default function SeekerLayout({ children, currentPath }: SeekerLayoutProp
                     }`}
                   >
                     <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-cyan-400' : 'text-slate-400'}`} />
-                    <div className="min-w-0">
-                      <p className={`truncate font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className={`truncate font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+                        {badge && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 shrink-0">
+                            {badge}
+                          </span>
+                        )}
+                      </div>
                       <p className={`truncate text-[11px] ${active ? 'text-cyan-200/90' : 'text-slate-500'}`}>{description}</p>
                     </div>
                   </a>

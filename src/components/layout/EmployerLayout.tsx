@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   Sparkles,
+  Video,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import AppLogo from '../ui/AppLogo';
@@ -24,6 +25,7 @@ import { navigateTo } from '../../lib/navigation';
 
 const navItems = [
   { label: 'Dashboard', description: 'Ringkasan performa rekrutmen', icon: LayoutDashboard, href: '/employer/dashboard' },
+  { label: 'Live Interview AI', description: 'Wawancara video call AI & laporan skor', icon: Video, href: '/interview', badge: 'AI LIVE' },
   { label: 'Cari Talent', description: 'Katalog talent siap kerja & reverse hiring', icon: Sparkles, href: '/employer/talents' },
   { label: 'Lowongan', description: 'Kelola posting aktif dan draft', icon: Briefcase, href: '/employer/jobs' },
   { label: 'Pelamar', description: 'Review kandidat yang sudah masuk', icon: Users, href: '/employer/applicants' },
@@ -94,7 +96,8 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
         </div>
 
         <nav className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-6 space-y-1">
-          {navItems.map(({ label, description, icon: Icon, href }) => {
+          {navItems.map((item) => {
+            const { label, description, icon: Icon, href, badge } = item;
             const active = currentPath === href;
             return (
               <a
@@ -107,8 +110,15 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
               >
                 <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-cyan-400' : 'text-slate-400'}`} />
                 {!isCollapsed ? (
-                  <div className="min-w-0">
-                    <p className={`truncate font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className={`truncate font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+                      {badge && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 shrink-0">
+                          {badge}
+                        </span>
+                      )}
+                    </div>
                     <p className={`truncate text-[11px] ${active ? 'text-cyan-200/90' : 'text-slate-500'}`}>{description}</p>
                   </div>
                 ) : null}
@@ -167,7 +177,8 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
             </div>
 
             <nav className="dashboard-sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 py-6 space-y-1">
-              {navItems.map(({ label, description, icon: Icon, href }) => {
+              {navItems.map((item) => {
+                const { label, description, icon: Icon, href, badge } = item;
                 const active = currentPath === href;
                 return (
                   <a
@@ -179,8 +190,15 @@ export default function EmployerLayout({ children, currentPath }: EmployerLayout
                     }`}
                   >
                     <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-cyan-400' : 'text-slate-400'}`} />
-                    <div className="min-w-0">
-                      <p className={`truncate font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className={`truncate font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+                        {badge && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[8px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 shrink-0">
+                            {badge}
+                          </span>
+                        )}
+                      </div>
                       <p className={`truncate text-[11px] ${active ? 'text-cyan-200/90' : 'text-slate-500'}`}>{description}</p>
                     </div>
                   </a>
