@@ -29,10 +29,10 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo [4/4] Menjalankan deploy.sh di Linux Server (samsung-server)...
-ssh -o StrictHostKeyChecking=no samsung-server "/home/vrintex/loxer/deploy.sh"
+ssh -o StrictHostKeyChecking=no samsung-server "bash /home/vrintex/loxer/deploy.sh"
 if %ERRORLEVEL% neq 0 (
     echo [INFO] Mencoba SSH dengan key id_ed25519_antigravity...
-    ssh -i "%USERPROFILE%\.ssh\id_ed25519_antigravity" -o StrictHostKeyChecking=no vrintex@192.168.1.14 "/home/vrintex/loxer/deploy.sh"
+    ssh -i "%USERPROFILE%\.ssh\id_ed25519_antigravity" -o StrictHostKeyChecking=no vrintex@192.168.1.14 "bash /home/vrintex/loxer/deploy.sh"
 )
 
 echo ==============================================================================

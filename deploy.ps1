@@ -30,9 +30,9 @@ if (-not $pushSuccess) {
 
 Write-Host "=== [4/4] Eksekusi deploy.sh di Linux Server ===" -ForegroundColor Cyan
 try {
-    ssh -o StrictHostKeyChecking=no samsung-server "/home/vrintex/loxer/deploy.sh"
+    ssh -o StrictHostKeyChecking=no samsung-server "bash /home/vrintex/loxer/deploy.sh"
 } catch {
-    ssh -i "$HOME\.ssh\id_ed25519_antigravity" -o StrictHostKeyChecking=no vrintex@192.168.1.14 "/home/vrintex/loxer/deploy.sh"
+    ssh -i "$HOME\.ssh\id_ed25519_antigravity" -o StrictHostKeyChecking=no vrintex@192.168.1.14 "bash /home/vrintex/loxer/deploy.sh"
 }
 
 Write-Host "=== Deploy Selesai! ===" -ForegroundColor Green
