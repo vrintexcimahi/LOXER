@@ -9,7 +9,10 @@ export function searchInternalJobs(params = {}) {
   const { keywords = '', location = '', page = 1, limit = null } = params;
 
   try {
-    const conditions = ["j.status = 'active'"];
+    const conditions = [
+      "j.status = 'active'",
+      "(j.poster_url IS NOT NULL AND trim(j.poster_url) != '')"
+    ];
     const sqlParams = [];
 
     if (keywords && keywords.trim()) {

@@ -4629,6 +4629,10 @@ async function handleAdminPublishSmartJob(req, res) {
       return sendJson(res, 400, { message: 'Judul posisi dan nama perusahaan wajib diisi.' });
     }
 
+    if (!poster_url || !String(poster_url).trim()) {
+      return sendJson(res, 400, { message: 'Poster lowongan wajib disertakan sebelum dipublikasikan.' });
+    }
+
     const cleanCompName = String(company_name).trim();
     let company = queryOne('SELECT id, name FROM companies WHERE LOWER(name) = LOWER(?)', [cleanCompName]);
 

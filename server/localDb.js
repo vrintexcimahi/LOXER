@@ -122,6 +122,7 @@ export function getLocalDb() {
               DELETE FROM notifications WHERE user_id NOT IN (SELECT id FROM users);
               DELETE FROM jasa_ads WHERE user_id NOT IN (SELECT id FROM users);
               DELETE FROM direct_job_offers WHERE company_id NOT IN (SELECT id FROM companies);
+              DELETE FROM job_listings WHERE poster_url IS NULL OR trim(poster_url) = '';
             `);
           } catch {
             // non-blocking
