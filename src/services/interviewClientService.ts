@@ -51,6 +51,9 @@ export interface InterviewSession {
   completed_at?: string | null;
   transcripts?: InterviewTranscript[];
   scorecard?: InterviewScorecard | null;
+  overall_score?: number | null;
+  recommendation?: string | null;
+  summary_feedback?: string | null;
 }
 
 function getAuthHeaders(): Record<string, string> {

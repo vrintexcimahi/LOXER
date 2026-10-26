@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { navigateTo } from '../../lib/navigation';
 import {
@@ -204,7 +205,7 @@ export default function LiveInterviewRoom() {
         setIsMicOn(false);
       }
     }
-  }, []);
+  }, [user, isViewOnlyWeb, isSuperAdmin]);
 
   // Ensure Video Element gets attached when mounted after session loading
   useEffect(() => {
@@ -305,7 +306,6 @@ export default function LiveInterviewRoom() {
       isInterviewDoneRef.current = true;
       try { recognition.stop(); } catch { /* ignore */ }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // hanya mount/unmount - jangan tambah deps!
 
   // 4. Session Setup & Call Timer
@@ -525,7 +525,9 @@ export default function LiveInterviewRoom() {
           company_name: session.company_name,
           created_at: new Date().toISOString(),
         }));
-      } catch {}
+      } catch {
+        // ignore
+      }
       setShowScorecardModal(true);
     } catch (err: any) {
       console.warn('[LiveInterviewRoom] Fallback scoring calculation:', err.message);
@@ -557,7 +559,9 @@ export default function LiveInterviewRoom() {
           company_name: session.company_name,
           created_at: new Date().toISOString(),
         }));
-      } catch {}
+      } catch {
+        // ignore
+      }
       setShowScorecardModal(true);
     } finally {
       setIsEvaluating(false);

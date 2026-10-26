@@ -16,7 +16,7 @@ export interface CvCanvasRendererProps {
   template: CvTemplateInfo;
   scale?: number;
   printMode?: boolean;
-  onUpdateField?: (field: keyof CvData, value: any) => void;
+  onUpdateField?: (field: keyof CvData, value: unknown) => void;
   editable?: boolean;
   selectedElement?: string | null;
   onSelectElement?: (elementId: string | null) => void;

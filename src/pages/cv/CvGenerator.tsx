@@ -124,7 +124,7 @@ export default function CvGenerator() {
       setCvData(INITIAL_CV_DATA);
       try {
         localStorage.removeItem(DRAFT_KEY);
-      } catch (e) {
+      } catch {
         // ignore
       }
       showToast('Data CV dikembalikan ke template awal.');
@@ -161,23 +161,23 @@ export default function CvGenerator() {
         supabase.from('seeker_skills').select('*').eq('seeker_id', p.id),
       ]);
 
-      const mappedEducations: CvEducation[] = (eduRes.data || []).map((edu: any, idx: number) => ({
+      const mappedEducations: CvEducation[] = (eduRes.data || []).map((edu: Record<string, unknown>, idx: number) => ({
         id: `edu-sync-${idx}-${Date.now()}`,
-        school: edu.school_name || edu.institution_name || 'Institusi Pendidikan',
-        major: edu.degree || edu.field_of_study || 'Program Studi',
-        period: `${edu.start_year || ''} - ${edu.end_year || 'Sekarang'}`.trim(),
-        gpa: edu.grade || '',
+        school: String(edu.school_name || edu.institution_name || 'Institusi Pendidikan'),
+        major: String(edu.degree || edu.field_of_study || 'Program Studi'),
+        period: `${String(edu.start_year || '')} - ${String(edu.end_year || 'Sekarang')}`.trim(),
+        gpa: String(edu.grade || ''),
       }));
 
-      const mappedExperiences: CvExperience[] = (expRes.data || []).map((exp: any, idx: number) => ({
+      const mappedExperiences: CvExperience[] = (expRes.data || []).map((exp: Record<string, unknown>, idx: number) => ({
         id: `exp-sync-${idx}-${Date.now()}`,
-        position: exp.job_title || exp.role_title || 'Posisi Pekerjaan',
-        company: exp.company_name || 'Nama Perusahaan',
-        period: `${exp.start_date || ''} - ${exp.end_date || 'Sekarang'}`.trim(),
-        description: exp.description || '',
+        position: String(exp.job_title || exp.role_title || 'Posisi Pekerjaan'),
+        company: String(exp.company_name || 'Nama Perusahaan'),
+        period: `${String(exp.start_date || '')} - ${String(exp.end_date || 'Sekarang')}`.trim(),
+        description: String(exp.description || ''),
       }));
 
-      const mappedSkills: string[] = (skillRes.data || []).map((s: any) => s.skill_name || s.name).filter(Boolean);
+      const mappedSkills: string[] = (skillRes.data || []).map((s: Record<string, unknown>) => String(s.skill_name || s.name || '')).filter(Boolean);
 
       setCvData((prev) => ({
         ...prev,
@@ -335,7 +335,7 @@ export default function CvGenerator() {
       : CV_TEMPLATES.filter((t) => t.category === selectedCategory);
 
   // 1-Click Quick Preset from Industry
-  const handleUpdateCvField = (field: keyof CvData, value: any) => {
+  const handleUpdateCvField = (field: keyof CvData, value: unknown) => {
     setCvData((prev) => ({
       ...prev,
       [field]: value,
@@ -1941,7 +1941,7 @@ export default function CvGenerator() {
                     ) : (
                       <input
                         type="text"
-                        value={(cvData as any)[selectedElement] || ''}
+                        value={String((cvData as unknown as Record<string, unknown>)[selectedElement] || '')}
                         onChange={(e) => handleUpdateCvField(selectedElement as keyof CvData, e.target.value)}
                         placeholder={`Ketik ${ELEMENT_LABELS[selectedElement]} baru...`}
                         className="w-full px-3 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-[#8b3dff]/40 focus:border-[#8b3dff] rounded-xl outline-none font-medium"

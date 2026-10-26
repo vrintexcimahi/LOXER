@@ -32,7 +32,9 @@ export default function InstallAppModal({
         const next = stored + 1;
         localStorage.setItem('loxer_install_visits', String(next));
         setVisitCount(next);
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
   }, [isOpen]);
 
@@ -43,7 +45,9 @@ export default function InstallAppModal({
     if ('Notification' in window && Notification.permission === 'default') {
       try {
         await Notification.requestPermission();
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
 
     // 1. Coba prompt native PWA

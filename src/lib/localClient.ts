@@ -231,7 +231,7 @@ class QueryBuilder<T = unknown> implements PromiseLike<QueryResult<T>> {
         body: JSON.stringify(payload),
       });
 
-      let result: any = null;
+      let result: { data?: unknown; error?: { message: string }; count?: number } = {};
       try {
         result = await response.json();
       } catch {

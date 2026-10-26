@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { Application, SeekerProfile, JobListing, Notification, Company } from '../../lib/types';
 import ApplicationStatusBadge from '../../components/ui/ApplicationStatusBadge';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
-import { getInterviewHistory } from '../../services/interviewClientService';
+import { getInterviewHistory, InterviewSession } from '../../services/interviewClientService';
 
 type JobWithCompany = JobListing & { companies?: Company | null };
 type ApplicationWithJob = Application & { job_listings?: JobWithCompany | null };
@@ -18,7 +18,7 @@ export default function SeekerDashboard() {
   const [allApplicationStats, setAllApplicationStats] = useState<Pick<Application, 'id' | 'status'>[]>([]);
   const [recentJobs, setRecentJobs] = useState<JobWithCompany[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [latestInterview, setLatestInterview] = useState<any | null>(null);
+  const [latestInterview, setLatestInterview] = useState<InterviewSession | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async (isSilent = false) => {
@@ -59,7 +59,7 @@ export default function SeekerDashboard() {
       try {
         const history = await getInterviewHistory(user.id);
         if (history && history.length > 0) {
-          const completedWithScore = history.find((h: any) => h.scorecard || h.status === 'completed');
+          const completedWithScore = history.find((h: InterviewSession) => h.scorecard || h.status === 'completed');
           if (completedWithScore) {
             setLatestInterview(completedWithScore);
           } else {
@@ -76,7 +76,9 @@ export default function SeekerDashboard() {
         try {
           const localSaved = localStorage.getItem('loxer_latest_interview_eval');
           if (localSaved) setLatestInterview(JSON.parse(localSaved));
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
     } finally {
       if (!isSilent) {
