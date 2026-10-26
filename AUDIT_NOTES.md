@@ -1,3 +1,61 @@
+## [2026-10-26] Audit & Bug Fix: Pembersihan Total Mitra, Proteksi Auth Interview AI, & Eliminasi 29 Lint/Type Violations (AUD-ULTRA-MAX)
+
+### Scope / status
+- Area: Eliminasi Role/Multi-Tenancy Mitra, Pembersihan Berkas Raksasa & Komponen Dead/Orphan, Proteksi Endpoints & Circuit Breaker Interview AI, Perbaikan Redirect Freelancer ke Bursa Talent, Indeks SQLite, Eliminasi 29 Lint & Type Violations (`server/localApiHandler.js`, `server/interviewService.js`, `server/localDb.js`, `src/services/interviewClientService.ts`, `src/pages/auth/AuthModal.tsx`, `src/lib/simSession.ts`, `src/pages/admin/DeveloperWorkbench.tsx`, `src/App.tsx`, `src/pages/cv/CvGenerator.tsx`, `src/components/cv/CvCanvasRenderer.tsx`, `src/components/marketplace/TalentDetailModal.tsx`, `src/lib/localClient.ts`, `src/pages/seeker/SeekerDashboard.tsx`, `src/components/app/InstallAppModal.tsx`, `src/pages/interview/LiveInterviewRoom.tsx`, `.env.example`)
+- Commits: `b05f4ff` (Pembersihan Mitra), `a7ea687` (Perbaikan History Interview), `2d07cf1` (Fitur Widget Evaluasi & Re-engagement PWA), `846666e` (Resolusi 29 Lint & Type Errors)
+- Status: PASS (100% Pipeline Lulus: 0 Type Errors, 0 Lint Errors/Warnings, 0 Build Errors, 134/134 Tests Passed across 7 suites)
+
+### Root Cause Analysis
+1. **Sisa Arsitektur Multi-Tenancy & Mitra Legacy**:
+   - Sisa installer APK mitra (`loxer-mitra.apk` 4.33 MB), banner iklan mitra (1.37 MB), modul child panel, gateway middleware, dan tabel database tak terpakai menyebabkan beban bundle berlebih dan latensi inisialisasi pada aplikasi utama.
+2. **Unhandled Reference Error `verifyUserToken` di Endpoint History**:
+   - Pemanggilan `verifyUserToken(req)` pada `handleListInterviewHistory` melempar unhandled `ReferenceError` jika `seeker_id` tidak disertakan dalam parameter query karena fungsi belum didefinisikan.
+3. **Ketiadaan Guard Autentikasi Backend pada `handleCreateInterviewSession`**:
+   - Endpoint pembuatan sesi interview (`/api/local/interview/create-session`) dapat dipanggil oleh siapapun tanpa token otorisasi, berisiko eksploitasi kuota API upstream AI.
+4. **Circuit Breaker `aiInterviewCircuitBreaker` Tidak Terhubung**:
+   - Instance circuit breaker telah diinstansiasi namun pemanggilan upstream 9Router tidak memeriksa status `isOpen()` dan tidak mencatat metrik `recordSuccess()` / `recordFailure()`, menyebabkan hanging 35-40 detik saat upstream offline.
+5. **Missing Auth Token Headers pada Client Interview Service**:
+   - `interviewClientService.ts` melakukan panggilan HTTP tanpa header otorisasi JWT bearer.
+6. **Rute Mati `/seeker/marketplace` untuk Peran Freelancer**:
+   - Registrasi/login freelancer mengarahkan ke rute mati `/seeker/marketplace` yang memicu double redirect ke dashboard.
+7. **29 Pelanggaran ESLint & Typecheck**:
+   - Blok catch kosong tanpa komentar (`no-empty`), penggunaan `any` eksplisit (`@typescript-eslint/no-explicit-any`), variabel tak terpakai (`no-unused-vars`), redundant boolean cast (`no-extra-boolean-cast`), dan konversi tipe `CvData`.
+
+### Changes & Features Implemented
+1. **Pembersihan Total Tenancy Mitra & Aset Raksasa (Commit `b05f4ff`)**:
+   - Menghapus 36 file dan direktori mitra, termasuk `public/downloads/loxer-mitra.apk` (4.33 MB), `public/banners/partner-banner-1.jpg` & `2.jpg` (1.37 MB), `server/tenancy/`, `api/partner-platform/`, `TenantGateway.tsx`, `PartnerProgram.tsx`, dan tabel `partner_applications`.
+   - Mengurangi ukuran production bundle index dari 235 kB menjadi 152 kB (~83 kB penghematan chunk utama).
+2. **Definisi `verifyUserToken` & Proteksi Penuh Endpoint Wawancara AI (`server/localApiHandler.js`)**:
+   - Mengimplementasikan `verifyUserToken(req)` berbasis `verifyTokenLenient(token, 7 days)` dengan auto-binding identitas pelamar (`seeker_id`, `candidate_name`, `candidate_email`).
+   - Mengunci rute `/api/local/interview/create-session` dengan HTTP 401 bagi pengguna tanpa login/token otorisasi.
+   - Membungkus seluruh operasi `JSON.parse` pada endpoint interview (`handleGetInterviewSession`, `handleRecordInterviewTurn`, `handleEvaluateInterview`) dengan penanganan error try/catch untuk mencegah crash internal HTTP 500.
+3. **Integrasi Penuh Fail-Fast Circuit Breaker (`server/interviewService.js`)**:
+   - Memeriksa status `aiInterviewCircuitBreaker.isOpen()`. Bila status OPEN, segera mengembalikan pertanyaan/evaluasi fallback ramah tanpa jeda tunggu 35 detik.
+   - Mencatat `aiInterviewCircuitBreaker.recordSuccess()` saat upstream AI 9Router merespons valid dan `aiInterviewCircuitBreaker.recordFailure()` saat terjadi timeout/kegagalan koneksi.
+4. **Otorisasi Terintegrasi pada Client Service (`src/services/interviewClientService.ts`)**:
+   - Menambahkan utilitas `getAuthHeaders()` yang mengekstrak token JWT lokal (`loxer_local_auth_token`, `loxer_auth_token`, atau `sb-access-token`) dan menyertakannya di setiap request.
+   - Memperluas antarmuka `InterviewSession` dengan atribut skor evaluasi terpadu (`overall_score`, `recommendation`, `summary_feedback`).
+5. **Standardisasi Rute Freelancer ke Bursa Talent (`src/pages/auth/AuthModal.tsx`, `src/lib/simSession.ts`, `src/pages/admin/DeveloperWorkbench.tsx`, `src/App.tsx`)**:
+   - Mengarahkan peran freelancer langsung ke rute bursa pencari kerja/penyedia jasa aktif (`/talents`), mengeliminasi rute usang `/seeker/marketplace`.
+6. **Optimalisasi Indeks Database SQLite (`server/localDb.js`)**:
+   - Menambahkan indeks performa: `CREATE INDEX IF NOT EXISTS idx_interview_sess_created ON interview_sessions(created_at DESC);` dan `idx_interview_sess_seeker_created ON interview_sessions(seeker_id, created_at DESC);`.
+7. **Resolusi Total 29 Pelanggaran ESLint & TypeScript**:
+   - Mengganti seluruh `any` eksplisit dengan tipe data spesifik (`InterviewSession`, `Record<string, unknown>`, `unknown`).
+   - Menambahkan komentar pada blok catch kosong untuk mematuhi aturan `no-empty`.
+   - Mengeliminasi redundant boolean casting pada `TalentDetailModal.tsx`.
+   - Menyelaraskan dependensi callback di `LiveInterviewRoom.tsx` (`user`, `isViewOnlyWeb`, `isSuperAdmin`).
+   - Membersihkan konfigurasi usang mitra pada `.env.example` dan menambahkan dokumentasi 9Router AI gateway.
+
+### Verification
+- `npm run typecheck` — PASS (0 error pada `tsconfig.app.json`).
+- `npm run lint` — PASS (0 errors, 0 warnings pada ESLint 9).
+- `npm run build` — PASS (Vite production bundle selesai dalam 6.18 detik, 0 warning/error).
+- `node scripts/test_auth_interview_pwa.mjs` — PASS (11/11 assertions 100% sukses).
+- `node scripts/test_interview_evaluations_and_pwa_reengagement.mjs` — PASS (8/8 assertions 100% sukses).
+- `npm run test:local` — PASS (134/134 assertions sukses di seluruh 7 test suites).
+
+---
+
 ## [2026-10-26] Implementasi Fitur Saran: Riwayat Evaluasi Wawancara AI Pelamar & Mesin Re-engagement PWA (REC-AUTH-PWA)
 
 ### Scope / status
