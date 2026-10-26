@@ -89,7 +89,7 @@ export function useAdminEasterEgg({
           onUnlocked();
         }
         return totalClicks;
-      } else if (next >= notifyStartClick) {
+      } else if (next >= notifyStartClick && !import.meta.env.PROD) {
         const remaining = totalClicks - next;
         const infoMsg = `Tinggal ${remaining} langkah lagi untuk membuka akses Admin`;
         showInternalToast(infoMsg, 'info');

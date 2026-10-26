@@ -32,7 +32,7 @@ export default function Navbar({ onLogin: _onLogin }: NavbarProps) {
 
   const { isUnlocked, handleTriggerClick } = useAdminEasterEgg({
     totalClicks: 5,
-    notifyStartClick: 2,
+    notifyStartClick: 999,
     onUnlocked: () => {
       openSecretAdminModal();
     },

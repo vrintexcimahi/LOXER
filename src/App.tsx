@@ -433,7 +433,6 @@ VITE_SUPABASE_ANON_KEY=...`}
         isOpen={installModalOpen}
         actionTitle={installModalAction}
         onClose={closeInstallModal}
-        onOpenSecretAdmin={openSecretAdminModal}
       />
       <SecretAdminModal
         isOpen={secretAdminModalOpen}

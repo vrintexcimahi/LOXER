@@ -15,14 +15,12 @@ interface InstallAppModalProps {
   isOpen: boolean;
   actionTitle?: string;
   onClose: () => void;
-  onOpenSecretAdmin?: () => void;
 }
 
 export default function InstallAppModal({
   isOpen,
   actionTitle = 'Mendaftar & Mengakses Fitur',
   onClose,
-  onOpenSecretAdmin,
 }: InstallAppModalProps) {
   const { promptInstall } = usePWAInstall();
   const [showManualGuide, setShowManualGuide] = useState(false);

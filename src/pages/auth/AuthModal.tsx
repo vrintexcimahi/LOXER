@@ -48,7 +48,6 @@ export default function AuthModal({ mode, initialRole = 'seeker', onClose, onSwi
   const {
     isViewOnlyWeb,
     openInstallModal,
-    openSecretAdminModal,
   } = useAppAccess();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
