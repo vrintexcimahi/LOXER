@@ -97,6 +97,26 @@ export function pruneStaleQueueItems(confirmedJobIds: string[], seekerId: string
   return filtered;
 }
 
+export async function requestBackgroundSync(tag = 'loxer-background-sync'): Promise<boolean> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return false;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (
+      'sync' in reg &&
+      reg.sync &&
+      typeof (reg.sync as { register?: (tag: string) => Promise<void> }).register === 'function'
+    ) {
+      await (reg.sync as { register: (tag: string) => Promise<void> }).register(tag);
+      return true;
+    }
+  } catch {
+    // Background sync not supported or permission denied
+  }
+  return false;
+}
+
 export function queueApplicationOffline(
   data: Omit<QueuedApplication, 'queuedAt'>
 ): QueuedApplication[] {
@@ -117,6 +137,7 @@ export function queueApplicationOffline(
   try {
     localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('loxer:offline-queue-changed', { detail: updated }));
+    void requestBackgroundSync();
   } catch {
     // Storage quota or private mode error
   }
@@ -267,4 +288,17 @@ export function useOfflineQueue(seekerId?: string) {
     isOnline,
     triggerSync,
   };
+}
+
+// Background Sync Listener from Service Worker
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  try {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'LOXER_TRIGGER_OFFLINE_SYNC') {
+        window.dispatchEvent(new CustomEvent('loxer:offline-queue-changed'));
+      }
+    });
+  } catch {
+    // ignore
+  }
 }

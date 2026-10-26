@@ -151,10 +151,10 @@ try {
   // 8. Service Worker cache bump verification
   const swCode = fs.readFileSync('public/sw.js', 'utf8');
   assert.ok(
-    swCode.includes("const CACHE_NAME = 'loxer-pwa-v6.8.0';"),
-    'Service Worker CACHE_NAME must be bumped to loxer-pwa-v6.8.0'
+    /const CACHE_NAME = 'loxer-pwa-v6\.[89]\.0';/.test(swCode),
+    'Service Worker CACHE_NAME must be at least loxer-pwa-v6.8.0'
   );
-  console.log('✅ OK: 8. Service Worker: Cache version verified at loxer-pwa-v6.8.0');
+  console.log('✅ OK: 8. Service Worker: Cache version verified at loxer-pwa-v6.8.0+');
 
   console.log('\n====================================================');
   console.log('🎉 ALL 8 SARAN FITUR IMPLEMENTATION VERIFICATIONS PASSED 100%! 🎉\n');

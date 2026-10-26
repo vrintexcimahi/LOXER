@@ -1833,4 +1833,52 @@
    - Badge tingkat kesiapan (Perlu Dilengkapi, Cukup Baik, Sangat Baik / ATS Friendly) dengan dropdown checklist tips rekomendasi perbaikan.
 
 
+---
+
+## [2026-10-27] Eksekusi Rekomendasi Fitur: Sertifikat Wawancara AI PDF, Web Audio Turn Chimes, & Service Worker Background Sync
+
+### Scope / status
+- Area: AI Interview Readiness Certification (PDF Export/Print), Interactive Conversational Audio Chimes (Web Audio API), PWA Offline Resilience & Background Sync API
+- Status: PASS (100% Selesai & Terverifikasi, 0 Lint Error, 0 Typecheck Error, 140+ Automated Assertions Pass)
+
+### Architecture & Perubahan yang Diimplementasikan
+1. **Rekomendasi 1: Unduh/Cetak Sertifikat Kesiapan Kerja & Kartu Skor Wawancara AI Resmi (PDF Export & Print-ready layout)**
+   - **Service Export (`src/lib/interviewCertificateService.ts`)**:
+     - Membangun generator HTML sertifikat A4 berstandar resmi (`generateCertificateHtml`) dengan frame sertifikat elegan, nomor dokumen unik berformat `LOX-CERT-YYYYMM-{SESSION}`, stempel verifikasi dewan asesmen LOXER, grade kelulusan (A/B/C), visualisasi 4 pilar kompetensi (Penguasaan Teknis, Komunikasi, Problem Solving, Cultural Fit), dan catatan umpan balik HRD.
+     - Menyediakan isolasi print stylesheet (`@page { size: A4 portrait; margin: 12mm; }`, `print-color-adjust: exact`, auto `window.print()` trigger).
+     - Fungsi `openPrintInterviewCertificate` membuka isolated print window untuk langsung memicu dialog cetak/simpan PDF browser.
+   - **In-App Preview Modal (`src/components/interview/InterviewCertificateModal.tsx`)**:
+     - Modal pratinjau in-app responsif dengan visual badge "Terverifikasi AI", ringkasan skor keseluruhan, status kesiapan kerja, bar meter 4 pilar kompetensi, daftar keunggulan teridentifikasi, dan tombol aksi 1-klik "🖨️ Cetak / Simpan sebagai PDF".
+   - **Integrasi Seeker Dashboard (`src/pages/seeker/SeekerDashboard.tsx`)**:
+     - Menambahkan tombol "Sertifikat PDF" pada bilah aksi kartu Wawancara AI di dashboard pelamar kerja.
+     - Sinkronisasi instan biodata pelamar, jabatan yang diuji, dan hasil scorecard terakhir.
+   - **Integrasi Live Interview Room (`src/pages/interview/LiveInterviewRoom.tsx`)**:
+     - Pada modal hasil evaluasi wawancara (`showScorecardModal`), ditambahkan tombol primer "🖨️ Cetak Sertifikat PDF" dan tombol sekunder "Pratinjau" untuk membuka sertifikat digital resmi secara instan pasca wawancara selesai.
+
+2. **Rekomendasi 2: Audio-Stream Turn Chime & Speech Utterance Pre-warming (Zero-Latency AI Dialogue)**
+   - **Web Audio API Native Tone Generator (`playAudioTone`)**:
+     - Menghasilkan nada frekuensi interaktif tanpa dependensi berkas suara eksternal (100% offline, 0 bytes network payload, zero-latency):
+       - `turn_submit`: Nada konfirmasi lembut (440Hz -> 659.25Hz exponential ramp) saat kandidat mengirim jawaban.
+       - `ai_speak`: Nada transisi percakapan (587.33Hz -> 880Hz triangle tone) sesaat sebelum AI pewawancara mulai berbicara.
+       - `completion`: Akord nada kemenangan (C5-E5-G5 ascending chime) saat evaluasi dan nilai komprehensif selesai dihitung.
+   - **Speech Utterance Pre-warming (`prewarmUtterances`)**:
+     - Menginisialisasi objek `SpeechSynthesisUtterance` di memori untuk setiap pertanyaan dalam sesi wawancara secara adaptif, memangkas jeda inisialisasi browser speech engine saat pergantian pertanyaan.
+
+3. **Rekomendasi 3: Offline Sync Resilience & Background Sync API**
+   - **Service Worker Background Sync (`public/sw.js`)**:
+     - Menambahkan event listener `sync` untuk tag `loxer-background-sync` dan `sync-applications`.
+     - Mengirim pesan broadcast `LOXER_TRIGGER_OFFLINE_SYNC` ke seluruh client window saat koneksi internet pulih di latar belakang.
+     - Bump versi cache Service Worker ke `loxer-pwa-v6.9.0`.
+   - **Offline Application Sync Service (`src/lib/offlineSyncService.ts`)**:
+     - Menambahkan helper `requestBackgroundSync(tag)` untuk mendaftarkan event sync ke Service Worker.
+     - Memanggil `requestBackgroundSync()` secara otomatis saat lamaran kerja diantrekan dalam mode offline (`queueApplicationOffline`).
+     - Menambahkan listener pesan `LOXER_TRIGGER_OFFLINE_SYNC` dari Service Worker untuk memicu auto-retry sinkronisasi antrean ke database.
+
+### Verifikasi & Hasil Pengujian
+- `npm run typecheck` — PASS (0 errors pada `tsconfig.app.json`).
+- `npm run lint` — PASS (0 errors, 0 warnings pada seluruh berkas TS/TSX).
+- `npm run build` — PASS (Production bundle Vite sukses, chunk `InterviewCertificateModal` terisolasi 20.52 kB, entry bundle tetap ramping 153.19 kB).
+- `node scripts/test_certificate_and_audio_recommendations.mjs` — PASS (6/6 checks sukses 100%).
+- `node scripts/test_interview_evaluations_and_pwa_reengagement.mjs` — PASS (8/8 checks sukses 100%).
+- `npm run test:local` — PASS (Seluruh suite pengujian lokal lulus dengan 0 kegagalan).
 

@@ -25,6 +25,8 @@ import {
   Lock,
   Smartphone,
   LogIn,
+  Download,
+  FileCheck2,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
 import { useAppAccess } from '../../contexts/AppAccessContext';
@@ -37,6 +39,60 @@ import {
   InterviewQuestion,
   InterviewScorecard,
 } from '../../services/interviewClientService';
+import {
+  openPrintInterviewCertificate,
+  InterviewCertificateData,
+} from '../../lib/interviewCertificateService';
+import { InterviewCertificateModal } from '../../components/interview/InterviewCertificateModal';
+
+// Web Audio API Zero-Latency Tone Generator for Smooth Interactive Turns
+function playAudioTone(type: 'turn_submit' | 'ai_speak' | 'completion') {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    if (type === 'turn_submit') {
+      // Gentle confirmation blip
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } else if (type === 'ai_speak') {
+      // Subtle conversational cue before AI speaks
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.start(now);
+      osc.stop(now + 0.24);
+    } else if (type === 'completion') {
+      // Ascending celebratory chord
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.1);
+      osc.frequency.setValueAtTime(783.99, now + 0.2);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc.start(now);
+      osc.stop(now + 0.5);
+    }
+  } catch {
+    // AudioContext might be constrained before user interaction
+  }
+}
 
 export default function LiveInterviewRoom() {
   const { user } = useAuth();
@@ -78,10 +134,53 @@ export default function LiveInterviewRoom() {
   const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
   const [scorecard, setScorecard] = useState<InterviewScorecard | null>(null);
   const [showScorecardModal, setShowScorecardModal] = useState<boolean>(false);
+  const [showCertPreview, setShowCertPreview] = useState<boolean>(false);
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
   const [isCopiedReport, setIsCopiedReport] = useState<boolean>(false);
   const [recruiterPersona, setRecruiterPersona] = useState<'female' | 'male'>('female');
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  // Pre-warming speech utterance cache for zero-latency turn transition
+  const prewarmUtterances = useCallback((questions: InterviewQuestion[]) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      questions.forEach((q) => {
+        const u = new SpeechSynthesisUtterance(q.question.replace(/[*_#`~[\]]/g, ' '));
+        u.lang = 'id-ID';
+        u.volume = 0; // silent pre-warm
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const buildCertificateData = useCallback((): InterviewCertificateData | null => {
+    if (!scorecard || !session) return null;
+    return {
+      candidateName: session.candidate_name || candidateParam,
+      candidateEmail: user?.email || emailParam || undefined,
+      roleTitle: session.role_title,
+      companyName: session.company_name,
+      sessionCode: session.session_code,
+      overallScore: scorecard.overall_score,
+      technicalScore: scorecard.technical_score,
+      communicationScore: scorecard.communication_score,
+      problemSolvingScore: scorecard.problem_solving_score,
+      culturalFitScore: scorecard.cultural_fit_score,
+      recommendation: scorecard.recommendation,
+      summaryFeedback: scorecard.summary_feedback,
+      strengths: scorecard.strengths,
+      weaknesses: scorecard.weaknesses,
+      completedAt: new Date().toISOString(),
+    };
+  }, [scorecard, session, candidateParam, user?.email, emailParam]);
+
+  const handlePrintCertificate = useCallback(() => {
+    const data = buildCertificateData();
+    if (data) {
+      openPrintInterviewCertificate(data);
+    }
+  }, [buildCertificateData]);
 
   // DOM Refs
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -169,6 +268,7 @@ export default function LiveInterviewRoom() {
         }
 
         window.speechSynthesis.speak(utterance);
+        playAudioTone('ai_speak');
       } catch {
         setIsAiSpeaking(false);
       }
@@ -346,13 +446,18 @@ export default function LiveInterviewRoom() {
           if (currentSession.status === 'completed' && currentSession.scorecard) {
             setScorecard(currentSession.scorecard);
             setShowScorecardModal(true);
-          } else if (currentSession.current_question) {
-            // Speak initial question
-            setTimeout(() => {
-              if (isMounted && currentSession.current_question) {
-                speakQuestion(currentSession.current_question.question);
-              }
-            }, 500);
+          } else {
+            if (currentSession.questions && currentSession.questions.length > 0) {
+              prewarmUtterances(currentSession.questions);
+            }
+            if (currentSession.current_question) {
+              // Speak initial question
+              setTimeout(() => {
+                if (isMounted && currentSession.current_question) {
+                  speakQuestion(currentSession.current_question.question);
+                }
+              }, 500);
+            }
           }
         }
       } catch (err: any) {
@@ -456,6 +561,7 @@ export default function LiveInterviewRoom() {
     }
 
     setIsSubmittingTurn(true);
+    playAudioTone('turn_submit');
     try {
       const result = await recordInterviewTurn({
         session_id: session.id,
@@ -529,6 +635,7 @@ export default function LiveInterviewRoom() {
         // ignore
       }
       setShowScorecardModal(true);
+      playAudioTone('completion');
     } catch (err: any) {
       console.warn('[LiveInterviewRoom] Fallback scoring calculation:', err.message);
       // Robust client scoring fallback
@@ -1219,6 +1326,27 @@ export default function LiveInterviewRoom() {
 
             {/* Action Buttons */}
             <div className="pt-2 flex flex-col gap-2">
+              {/* Official Certificate Actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrintCertificate}
+                  className="flex-1 py-3 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-400 via-sky-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 active:scale-95 transition cursor-pointer"
+                >
+                  <Download size={14} />
+                  <span>🖨️ Cetak Sertifikat PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCertPreview(true)}
+                  className="py-3 px-3.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  title="Lihat Pratinjau Sertifikat Resmi"
+                >
+                  <FileCheck2 size={14} />
+                  <span className="hidden sm:inline">Pratinjau</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={copyScorecardToClipboard}
@@ -1250,6 +1378,13 @@ export default function LiveInterviewRoom() {
           </div>
         </div>
       )}
+
+      {/* 7. Official Certificate Preview Modal */}
+      <InterviewCertificateModal
+        isOpen={showCertPreview}
+        onClose={() => setShowCertPreview(false)}
+        data={buildCertificateData()}
+      />
     </div>
   );
 }

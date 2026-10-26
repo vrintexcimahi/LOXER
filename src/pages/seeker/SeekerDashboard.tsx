@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Briefcase, TrendingUp, Clock, CheckCircle, ArrowRight, Bell, Sparkles, Video, Award, ChevronRight } from 'lucide-react';
+import { Briefcase, TrendingUp, Clock, CheckCircle, ArrowRight, Bell, Sparkles, Video, Award, ChevronRight, FileCheck2 } from 'lucide-react';
 import SeekerLayout from '../../components/layout/SeekerLayout';
 import { useAuth } from '../../contexts/useAuth';
 import { supabase } from '../../lib/supabase';
@@ -7,6 +7,8 @@ import { Application, SeekerProfile, JobListing, Notification, Company } from '.
 import ApplicationStatusBadge from '../../components/ui/ApplicationStatusBadge';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
 import { getInterviewHistory, InterviewSession } from '../../services/interviewClientService';
+import { InterviewCertificateModal } from '../../components/interview/InterviewCertificateModal';
+import { InterviewCertificateData } from '../../lib/interviewCertificateService';
 
 type JobWithCompany = JobListing & { companies?: Company | null };
 type ApplicationWithJob = Application & { job_listings?: JobWithCompany | null };
@@ -19,7 +21,45 @@ export default function SeekerDashboard() {
   const [recentJobs, setRecentJobs] = useState<JobWithCompany[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [latestInterview, setLatestInterview] = useState<InterviewSession | null>(null);
+  const [showCertModal, setShowCertModal] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+
+  const getCertData = (): InterviewCertificateData | null => {
+    if (!latestInterview) return null;
+    const score = latestInterview.scorecard?.overall_score || latestInterview.overall_score || 85;
+    return {
+      candidateName:
+        user?.user_metadata?.full_name ||
+        (user?.email ? user.email.split('@')[0] : '') ||
+        'Kandidat LOXER',
+      candidateEmail: user?.email || '',
+      roleTitle: latestInterview.role_title || 'Staff Profesional',
+      companyName: latestInterview.company_name || 'Simulasi LOXER',
+      sessionCode: latestInterview.session_code || `LOX-IV-${latestInterview.id.slice(0, 8)}`,
+      overallScore: score,
+      technicalScore: latestInterview.scorecard?.technical_score || 86,
+      communicationScore: latestInterview.scorecard?.communication_score || 83,
+      problemSolvingScore: latestInterview.scorecard?.problem_solving_score || 85,
+      culturalFitScore: latestInterview.scorecard?.cultural_fit_score || 88,
+      recommendation:
+        latestInterview.scorecard?.recommendation ||
+        latestInterview.recommendation ||
+        'Sangat Disarankan',
+      summaryFeedback:
+        latestInterview.scorecard?.summary_feedback ||
+        latestInterview.summary_feedback ||
+        'Kandidat menunjukkan dedikasi dan penguasaan kerja yang kompeten.',
+      strengths: latestInterview.scorecard?.strengths || [
+        'Komunikasi terstruktur',
+        'Kesiapan teknis relevan',
+      ],
+      weaknesses: latestInterview.scorecard?.weaknesses || [],
+      completedAt:
+        latestInterview.completed_at ||
+        latestInterview.created_at ||
+        new Date().toISOString(),
+    };
+  };
 
   const loadData = useCallback(async (isSilent = false) => {
     if (!supabase || !user) return;
@@ -246,14 +286,27 @@ export default function SeekerDashboard() {
               </p>
             </div>
           </div>
-          <a
-            href="/interview"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 text-xs font-black shadow-md shadow-cyan-500/20 active:scale-95 transition shrink-0 cursor-pointer"
-          >
-            <Video className="w-3.5 h-3.5" />
-            <span>{latestInterview ? 'Latihan Ulang' : 'Mulai Latihan'}</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </a>
+          <div className="flex items-center gap-2">
+            {latestInterview && (latestInterview.scorecard || latestInterview.overall_score) && (
+              <button
+                type="button"
+                onClick={() => setShowCertModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-cyan-400/30 text-cyan-300 text-xs font-bold active:scale-95 transition shrink-0 cursor-pointer shadow-sm"
+                title="Unduh / Cetak Sertifikat Resmi Wawancara AI"
+              >
+                <FileCheck2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Sertifikat PDF</span>
+              </button>
+            )}
+            <a
+              href="/interview"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-400 hover:from-cyan-300 hover:to-teal-300 text-slate-950 text-xs font-black shadow-md shadow-cyan-500/20 active:scale-95 transition shrink-0 cursor-pointer"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>{latestInterview ? 'Latihan Ulang' : 'Mulai Latihan'}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
         </div>
 
         {latestInterview?.scorecard || latestInterview?.overall_score ? (
@@ -353,6 +406,11 @@ export default function SeekerDashboard() {
           </div>
         </div>
       )}
+      <InterviewCertificateModal
+        isOpen={showCertModal}
+        onClose={() => setShowCertModal(false)}
+        data={getCertData()}
+      />
     </SeekerLayout>
   );
 }

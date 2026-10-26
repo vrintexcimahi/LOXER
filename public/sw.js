@@ -2,7 +2,7 @@
 // LOXER Progressive Web App Service Worker (v4.0.0)
 // ==============================================================================
 
-const CACHE_NAME = 'loxer-pwa-v6.8.0';
+const CACHE_NAME = 'loxer-pwa-v6.9.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -232,4 +232,21 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+// Background Sync: Handle deferred offline job application sync when connection is restored
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'loxer-background-sync' || event.tag === 'sync-applications') {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          client.postMessage({
+            type: 'LOXER_TRIGGER_OFFLINE_SYNC',
+            tag: event.tag,
+            timestamp: Date.now(),
+          });
+        }
+      })
+    );
+  }
 });
