@@ -182,10 +182,14 @@ export default function TalentDetailModal({
         {/* Header Background Gradient */}
         <div className="relative h-44 sm:h-52 w-full bg-gradient-to-r from-blue-900 via-indigo-900 to-cyan-900 p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between z-10">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-black/40 backdrop-blur-md text-cyan-300 border border-cyan-400/30">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              {talent.badge || 'SIAP KERJA'}
-            </span>
+            {Boolean(talent.badge && talent.badge !== 'SIAP KERJA') ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-black/40 backdrop-blur-md text-cyan-300 border border-cyan-400/30">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                {talent.badge}
+              </span>
+            ) : (
+              <div />
+            )}
             <button
               onClick={onClose}
               className="rounded-full p-2 text-white/70 hover:text-white bg-black/40 hover:bg-black/60 backdrop-blur-md transition-colors"

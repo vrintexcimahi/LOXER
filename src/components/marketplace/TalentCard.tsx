@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { MapPin, Send, Eye, ShieldCheck, Pin, Lock, ArrowUpRight } from 'lucide-react';
 import { TalentMarketplacePost } from '../../lib/types';
 import { getDefaultPixarAvatar } from '../../lib/avatarService';
@@ -10,16 +9,7 @@ interface TalentCardProps {
   featured?: boolean;
 }
 
-const AVAILABILITY_LABELS: Record<string, string> = {
-  fulltime: 'Di Tempat / Bengkel',
-  freelance: 'Layanan Panggilan',
-  parttime: 'Fleksibel',
-  remote: 'Borongan / Panggilan',
-};
-
 export default function TalentCard({ talent, onSelect, onOfferJob, featured = false }: TalentCardProps) {
-  const [activeMedia, setActiveMedia] = useState<'photo' | 'cv'>('photo');
-
   const skills: string[] = Array.isArray(talent.skills)
     ? talent.skills
     : typeof talent.skills === 'string'
@@ -34,7 +24,7 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
 
   const fullName = talent.seeker_profiles?.full_name || talent.headline.split(' ')[0] || 'Kandidat';
   const photoUrl = talent.photo_url || talent.seeker_profiles?.photo_url;
-  const currentDisplayUrl = (activeMedia === 'cv' && talent.portfolio_url) ? talent.portfolio_url : photoUrl;
+  const currentDisplayUrl = photoUrl;
 
   const badgeTheme =
     talent.badge === 'TOP TALENT' || talent.badge === 'REKOMENDASI'
@@ -63,9 +53,7 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
         <img
           src={currentDisplayUrl || getDefaultPixarAvatar(fullName, undefined, talent.bio)}
           alt={fullName}
-          className={`h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105 ${
-            activeMedia === 'cv' ? 'object-contain bg-slate-950/90' : 'object-cover object-center'
-          }`}
+          className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = getDefaultPixarAvatar(fullName, undefined, talent.bio);
@@ -80,61 +68,20 @@ export default function TalentCard({ talent, onSelect, onOfferJob, featured = fa
           }}
         />
 
-        {/* Top Badges */}
-        <div className="absolute left-2.5 sm:left-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-10">
-          <span
-            className={`rounded-md border px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider backdrop-blur-md shadow-sm truncate max-w-[95px] sm:max-w-none ${badgeTheme}`}
-            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
-          >
-            {talent.badge || 'SIAP KERJA'}
-          </span>
-          {Boolean(talent.availability) && (
+        {/* Top Badges (Hanya tampil jika ada badge khusus selain SIAP KERJA) */}
+        {Boolean(talent.badge && talent.badge !== 'SIAP KERJA') && (
+          <div className="absolute left-2.5 sm:left-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-10">
             <span
-              className="hidden sm:flex items-center gap-1 rounded-md border border-emerald-400/50 bg-emerald-950/80 px-2 py-0.5 text-[9px] font-bold text-emerald-300 backdrop-blur-md shadow-sm"
+              className={`rounded-md border px-2 py-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-wider backdrop-blur-md shadow-sm truncate max-w-[95px] sm:max-w-none ${badgeTheme}`}
               style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              {AVAILABILITY_LABELS[talent.availability] || talent.availability}
+              {talent.badge}
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Pin / Verified Icon & Media Switcher */}
+        {/* Pin / Verified Icon (Tanpa tombol Foto/CV yang menutupi gambar) */}
         <div className="absolute right-2.5 sm:right-3.5 top-2.5 sm:top-3.5 flex items-center gap-1 z-20">
-          {Boolean(talent.portfolio_url) && (
-            <div className="flex items-center bg-black/80 backdrop-blur-md rounded-lg p-0.5 border border-white/20 shadow-sm mr-1">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveMedia('photo');
-                }}
-                className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold transition-all cursor-pointer ${
-                  activeMedia === 'photo'
-                    ? 'bg-cyan-400 text-slate-950 shadow'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-                title="Tampilkan Pas Foto"
-              >
-                Foto
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveMedia('cv');
-                }}
-                className={`px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-extrabold transition-all cursor-pointer ${
-                  activeMedia === 'cv'
-                    ? 'bg-cyan-400 text-slate-950 shadow'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-                title="Tampilkan Berkas CV (Diblur)"
-              >
-                CV
-              </button>
-            </div>
-          )}
           {featured ? (
             <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 shadow-md">
               <Pin className="h-2.5 w-2.5 sm:h-3 sm:w-3" />

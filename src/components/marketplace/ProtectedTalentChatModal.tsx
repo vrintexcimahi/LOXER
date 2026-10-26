@@ -222,9 +222,11 @@ export default function ProtectedTalentChatModal({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h3 className="text-sm font-bold text-white truncate">{fullName}</h3>
-                <span className="rounded-md border border-cyan-500/40 bg-cyan-500/20 px-1.5 py-0.2 text-[9px] font-black uppercase text-cyan-300">
-                  {talent.badge || 'SIAP KERJA'}
-                </span>
+                {Boolean(talent.badge && talent.badge !== 'SIAP KERJA') && (
+                  <span className="rounded-md border border-cyan-500/40 bg-cyan-500/20 px-1.5 py-0.2 text-[9px] font-black uppercase text-cyan-300">
+                    {talent.badge}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400 truncate">{talent.headline}</p>
             </div>
