@@ -60,33 +60,26 @@ export function closeLocalDb() {
 }
 
 export function getLocalDb() {
-  const now = Date.now();
   if (dbInstance) {
-    if (now - lastDbPingTime > 15000) {
-      try {
-        dbInstance.exec('SELECT 1;');
-        lastDbPingTime = now;
-      } catch {
-        dbInstance = null;
-        globalThis.__loxer_db_instance = null;
-      }
+    try {
+      dbInstance.exec('SELECT 1;');
+      return dbInstance;
+    } catch {
+      clearStatementCache();
+      dbInstance = null;
+      globalThis.__loxer_db_instance = null;
     }
-    if (dbInstance) return dbInstance;
   }
 
   if (globalThis.__loxer_db_instance) {
-    if (now - lastDbPingTime > 15000) {
-      try {
-        globalThis.__loxer_db_instance.exec('SELECT 1;');
-        lastDbPingTime = now;
-        dbInstance = globalThis.__loxer_db_instance;
-      } catch {
-        globalThis.__loxer_db_instance = null;
-      }
-    } else {
+    try {
+      globalThis.__loxer_db_instance.exec('SELECT 1;');
       dbInstance = globalThis.__loxer_db_instance;
+      return dbInstance;
+    } catch {
+      clearStatementCache();
+      globalThis.__loxer_db_instance = null;
     }
-    if (dbInstance) return dbInstance;
   }
 
   if (!dbInstance) {
@@ -994,8 +987,21 @@ export function queryOne(sql, params = []) {
   return runWithBusyRetry(() => {
     const t0 = performance.now();
     const db = getLocalDb();
-    const stmt = getCachedStatement(db, sql);
-    const result = stmt.get(...params);
+    let stmt = getCachedStatement(db, sql);
+    let result;
+    try {
+      result = stmt.get(...params);
+    } catch (err) {
+      if (err?.code === 'ERR_INVALID_STATE' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('finalized'))) {
+        const cache = dbStatementCaches.get(db);
+        if (cache) cache.delete(sql);
+        stmt = db.prepare(sql);
+        if (cache) cache.set(sql, stmt);
+        result = stmt.get(...params);
+      } else {
+        throw err;
+      }
+    }
     const duration = performance.now() - t0;
     if (duration > 100) {
       console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);
@@ -1008,8 +1014,21 @@ export function queryAll(sql, params = []) {
   return runWithBusyRetry(() => {
     const t0 = performance.now();
     const db = getLocalDb();
-    const stmt = getCachedStatement(db, sql);
-    const result = stmt.all(...params);
+    let stmt = getCachedStatement(db, sql);
+    let result;
+    try {
+      result = stmt.all(...params);
+    } catch (err) {
+      if (err?.code === 'ERR_INVALID_STATE' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('finalized'))) {
+        const cache = dbStatementCaches.get(db);
+        if (cache) cache.delete(sql);
+        stmt = db.prepare(sql);
+        if (cache) cache.set(sql, stmt);
+        result = stmt.all(...params);
+      } else {
+        throw err;
+      }
+    }
     const duration = performance.now() - t0;
     if (duration > 100) {
       console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);
@@ -1022,8 +1041,21 @@ export function execute(sql, params = []) {
   return runWithBusyRetry(() => {
     const t0 = performance.now();
     const db = getLocalDb();
-    const stmt = getCachedStatement(db, sql);
-    const result = stmt.run(...params);
+    let stmt = getCachedStatement(db, sql);
+    let result;
+    try {
+      result = stmt.run(...params);
+    } catch (err) {
+      if (err?.code === 'ERR_INVALID_STATE' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('finalized'))) {
+        const cache = dbStatementCaches.get(db);
+        if (cache) cache.delete(sql);
+        stmt = db.prepare(sql);
+        if (cache) cache.set(sql, stmt);
+        result = stmt.run(...params);
+      } else {
+        throw err;
+      }
+    }
     const duration = performance.now() - t0;
     if (duration > 100) {
       console.warn(`[SLOW QUERY ${duration.toFixed(2)}ms] ${String(sql).slice(0, 150)}`);

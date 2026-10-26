@@ -1,3 +1,25 @@
+# Audit Progress — Run 2026-10-26 (AUDIT & HARDENING: BELUM LOGIN AKSES INTERVIEW OTOMATIS & PENGETATAN HALAMAN PUBLIK VIEW ONLY WAJIB POPUP PWA — AUD-AUTH-PWA)
+
+- **Run ID**: `RUN-20261026-AUTH-INTERVIEW-PUBLIC-PWA-POPUP`
+- **Waktu & Zona Waktu**: 2026-10-26 21:45:00 +07:00
+- **Status**: IN_PROGRESS
+- **Agent**: Antigravity (Gemini 3.8 Flash High)
+- **Branch**: `audit/otonom-ultra-max-20261026-auth-interview-pwa`
+- **Area Masalah & Solusi yang Sedang Dikerjakan**:
+  - **1. Bug Belum Login Bisa Akses Menu Interview Otomatis:**
+    - Root cause A: `AuthContext.tsx` dan `App.tsx` mengecek `searchParams.get('role')`. Ketika pengunjung membuka URL seperti `/interview?role=Staff Administrasi Perkantoran & Akuntansi`, parameter `role` disalahartikan sebagai developer simulator preview role, memicu auto-login semu (`setUser(mockUser)`).
+    - Root cause B: Rute `/interview` di `App.tsx` tidak memiliki guard auth login dan guard app view-only.
+    - Root cause C: `LiveInterviewRoom.tsx` langsung memanggil `getUserMedia` (kamera & mic) dan `createInterviewSession` saat komponen mount tanpa memvalidasi sesi akun `useAuth()`.
+    - Root cause D: Tombol "Interview AI (Live)" di `CvGenerator.tsx` dan `JobDetailModal.tsx` langsung navigasi ke `/interview` tanpa memeriksa status login pengguna (`!user`) dan `requireApp`.
+  - **2. Pengetatan Halaman Publik View-Only & Wajib Munculkan Popup Pasang PWA:**
+    - Di `App.tsx`, popup PWA sebelumnya hanya dipicu bila `user` sudah login (`if (user && isViewOnlyWeb)`). Pengunjung umum tanpa login di web tidak pernah mendapatkan popup PWA.
+    - Semua halaman publik (`/`, `/browse`, `/talents`, `/cv`, `/mitra`) dalam mode web biasa (`isViewOnlyWeb`) wajib memunculkan popup Pasang PWA (`InstallAppModal`).
+    - Pengetatan seluruh aksi interaktif di halaman publik (lamar loker, chat pekerja, cetak/download PDF CV, auto-generate AI CV, sinkronisasi profil, interview live) agar terkunci di mode view-only dengan memanggil `requireApp` / popup install PWA.
+  - **3. Hardening Celah Bypass Superadmin:**
+    - Di `appAccessService.ts`, pengecekan `pathname === '/admin-secret' || pathname === '/secret-admin'` di fungsi `detectIsSuperAdminBypass()` mengembalikan `true` tanpa validasi passkey, yang mengekspos bypass kepada siapapun yang mengunjungi URL tersebut.
+
+---
+
 # Audit Progress — Run 2026-10-26 (FITUR BULK DELETE BIODATA PELAMAR TERPILIH DI PUSAT ARSIP — ARC-002)
 
 - **Run ID**: `RUN-20261026-BULK-DELETE-ARCHIVED-TALENTS`

@@ -78,7 +78,8 @@ function Router() {
   const [path, setPath] = useState<string>(() => window.location.pathname);
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const simRole = getActiveSimRole();
-  const previewRole = searchParams?.get('preview_role') || searchParams?.get('role') || simRole;
+  const rawPreviewRole = searchParams?.get('preview_role') || simRole;
+  const previewRole = rawPreviewRole && ['admin', 'employer', 'seeker', 'freelancer', 'jasa'].includes(rawPreviewRole) ? rawPreviewRole : null;
 
   const isGodModeUnlocked = (() => {
     try {

@@ -49,7 +49,7 @@ async function runSmartFeaturesTest() {
         benefits: 'BPJS Kesehatan, Tunjangan Remote, Laptop Kantor.',
         quota: 2,
         application_url: 'https://loxer.id/apply',
-        poster_url: '',
+        poster_url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800',
       }),
     });
     const publishJobData = await publishJobRes.json();

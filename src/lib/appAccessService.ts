@@ -183,12 +183,6 @@ export function detectIsSuperAdminBypass(): boolean {
       }
     }
 
-    // 3. Path secret check (/admin-secret or /secret-admin)
-    const pathname = window.location.pathname;
-    if (pathname === '/admin-secret' || pathname === '/secret-admin') {
-      return true;
-    }
-
     return false;
   } catch {
     return false;
