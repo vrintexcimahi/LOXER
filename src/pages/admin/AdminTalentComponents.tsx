@@ -607,7 +607,6 @@ export function AdminTalentCatalogSection({
   const [selectedCity, setSelectedCity] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'archived' | 'draft'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [cardImageMode, setCardImageMode] = useState<Record<string, 'photo' | 'cv'>>({});
   const [previewTalent, setPreviewTalent] = useState<TalentMarketplacePost | null>(null);
   const [chatTalent, setChatTalent] = useState<TalentMarketplacePost | null>(null);
   const [showGalleryModal, setShowGalleryModal] = useState<boolean>(false);
@@ -641,13 +640,6 @@ export function AdminTalentCatalogSection({
     'Operasional & Logistik',
     'Umum & Jasa',
   ];
-
-  const AVAILABILITY_LABELS: Record<string, string> = {
-    fulltime: 'Di Tempat / Bengkel',
-    freelance: 'Layanan Panggilan',
-    parttime: 'Fleksibel',
-    remote: 'Borongan / Jarak Jauh',
-  };
 
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -1040,12 +1032,7 @@ export function AdminTalentCatalogSection({
             const rateLabel =
               talent.rate_type === 'hourly' ? '/ jam' : talent.rate_type === 'project' ? '/ order' : '/ bln';
 
-            const hasCvImage = Boolean(
-              talent.portfolio_url &&
-              (talent.portfolio_url.startsWith('data:image') || /\.(png|jpe?g|webp)($|\?)/i.test(talent.portfolio_url))
-            );
-            const currentMode = cardImageMode[talent.id] || 'photo';
-            const displayPhoto = currentMode === 'cv' && hasCvImage ? talent.portfolio_url : photoUrl;
+            const displayPhoto = photoUrl;
 
             return (
               <div
