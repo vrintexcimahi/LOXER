@@ -23,7 +23,6 @@ import jobs from '../api-legacy/jobs.js';
 import userDevices from '../api-legacy/user/devices.js';
 import mobileConfig from '../api-legacy/mobile/config.js';
 import mobileDevice from '../api-legacy/mobile/device.js';
-import partnerPlatform from '../api/partner-platform/[...path].js';
 
 const ROUTES = [
   ['/admin/analytics-snapshot/generate', analyticsSnapshot],
@@ -65,11 +64,6 @@ function queryWithoutPath(req) {
 
 export default async function handler(req, res) {
   const route = routeFromRequest(req).replace(/\/$/, '') || '/';
-  if (route === '/partner-platform' || route.startsWith('/partner-platform/')) {
-    const originalUrl = req.url;
-    req.url = `/api${route}` + (new URL(originalUrl || '/', 'https://loxer.internal').search || '');
-    return partnerPlatform(req, res);
-  }
   const match = ROUTES.find(([prefix]) => route === prefix || route.startsWith(`${prefix}/`));
   if (!match) {
     res.status(404).json({ error: { message: 'Endpoint tidak ditemukan.' } });

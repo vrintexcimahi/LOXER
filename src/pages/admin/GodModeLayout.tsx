@@ -56,7 +56,6 @@ const CORE_ITEMS: NavItem[] = [
   { href: '/admin/users', label: 'Manajemen Users', description: 'Kelola akun, role, device intelligence & akses', icon: Users },
   { href: '/admin/applications', label: 'Pelamar', description: 'Monitor semua kandidat lintas perusahaan', icon: ListChecks },
   { href: '/admin/companies', label: 'Perusahaan', description: 'Verifikasi profil dan aktivitas bisnis', icon: Building2 },
-  { href: '/admin/partners', label: 'Child Panel Mitra', description: 'Cabang digital, pemilik & aktivasi mitra', icon: Building2 },
 ];
 
 const CONTENT_BRAND_ITEMS: NavItem[] = [

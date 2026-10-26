@@ -9,8 +9,6 @@ import './index.css';
 import './clay-theme.css';
 import './compact-theme.css';
 import './glass-theme.css';
-import TenantGateway from './components/app/TenantGateway.tsx';
-
 registerServiceWorker();
 initGlobalErrorInterceptor();
 initSystemSettings();
@@ -18,7 +16,7 @@ initSystemSettings();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <TenantGateway><App /></TenantGateway>
+      <App />
     </ThemeProvider>
   </StrictMode>
 );

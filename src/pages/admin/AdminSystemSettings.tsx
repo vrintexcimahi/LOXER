@@ -1970,7 +1970,7 @@ export default function AdminSystemSettings() {
                 {/* Default Logo Perusahaan */}
                 <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">Default Logo Perusahaan / Mitra</span>
+                    <span className="text-xs font-bold text-white">Default Logo Perusahaan</span>
                     <button
                       type="button"
                       onClick={() => handleResetAsset('defaultCompanyLogoUrl')}
@@ -2224,7 +2224,7 @@ export default function AdminSystemSettings() {
                   <span>Manajemen Video Edukasi & Background Hero</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Tautkan video onboarding (MP4 langsung atau YouTube Embed) untuk memandu pelamar dan mitra bisnis.
+                  Tautkan video onboarding (MP4 langsung atau YouTube Embed) untuk memandu pelamar dan perusahaan.
                 </p>
               </div>
 

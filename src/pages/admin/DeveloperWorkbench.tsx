@@ -172,7 +172,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
     subFeatures: [
       { label: 'Overview Monitoring', path: '/admin/dashboard', icon: '📊', description: 'Statistik ekosistem real-time, aktivitas transaksi, & status node' },
       { label: 'Manajemen Users', path: '/admin/users', icon: '👥', description: 'Manajemen akun, role, device intelligence, & registry perangkat' },
-      { label: 'Integrasi API Lowongan', path: '/admin/integrations', icon: '🔌', description: 'Status koneksi provider lowongan mitra & publik' },
+      { label: 'Integrasi API Lowongan', path: '/admin/integrations', icon: '🔌', description: 'Status koneksi provider lowongan internal & publik' },
       { label: 'Database & Backup', path: '/admin/backup', icon: '💾', description: 'Snapshot database SQLite & restore point sistem' },
       { label: 'Audit Log Monitoring', path: '/admin/monitoring', icon: '📋', description: 'Log realtime HTTP request, autentikasi, & error tracing' },
     ],
