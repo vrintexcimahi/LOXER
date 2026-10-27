@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
   Briefcase,
+  ChevronLeft,
+  ChevronRight,
   Compass,
   MapPinned,
   RefreshCw,
@@ -69,6 +71,7 @@ export default function JobList({
   const [provider, setProvider] = useState(initialProvider);
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [jobs, setJobs] = useState([]);
+  const [totalHits, setTotalHits] = useState(0);
   const [pages, setPages] = useState(0);
   const [page, setPage] = useState(initialPage);
   const [type, setType] = useState('JOBS');
@@ -102,16 +105,19 @@ export default function JobList({
         setType('LOCATIONS');
         setJobs([]);
         setPages(0);
+        setTotalHits(0);
         setLocationOptions(normalizeLocationOptions(payload));
       } else {
         setType('JOBS');
         setJobs(Array.isArray(payload?.jobs) ? payload.jobs : []);
         setPages(Number(payload?.pages) || 0);
+        setTotalHits(Number(payload?.hits) || (Array.isArray(payload?.jobs) ? payload.jobs.length : 0));
         setLocationOptions([]);
       }
     } catch (requestError) {
       setJobs([]);
       setPages(0);
+      setTotalHits(0);
       setLocationOptions([]);
       setType('JOBS');
       setError(requestError instanceof Error ? requestError.message : 'Gagal memuat lowongan LOXER.');
@@ -174,6 +180,7 @@ export default function JobList({
     setProvider('all');
     setSelectedCategory('Semua');
     setPage(1);
+    setTotalHits(0);
     syncUrl('', '', 1, '', '', 'all');
     void loadJobs(1, '', '', '', '', 'all');
   }
@@ -388,21 +395,43 @@ export default function JobList({
           <div className="flex items-center justify-between">
             <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-              Daftar Lowongan ({filteredJobs.length})
+              Daftar Lowongan ({selectedCategory === 'Semua' ? (totalHits || filteredJobs.length).toLocaleString('id-ID') : `${filteredJobs.length} dari ${(totalHits || filteredJobs.length).toLocaleString('id-ID')}`})
               {selectedCategory !== 'Semua' && (
                 <span className="text-xs font-normal text-slate-500 dark:text-slate-400">— {selectedCategory}</span>
               )}
             </h2>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">
                 {keywords || location
                   ? `${keywords || 'Semua posisi'}${location ? ` | ${location}` : ''}`
                   : 'Semua posisi terbaru'}
               </span>
               <span className="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10 rounded-full px-2 py-0.5 bg-white/80 dark:bg-slate-900/80">
-                <Compass className="h-3 w-3" />
-                Hal {page}
+                <Compass className="h-3 w-3 text-sky-500" />
+                Hal {page} dari {totalPages}
               </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(page - 1)}
+                    disabled={page <= 1 || loading}
+                    className="p-1 rounded-lg border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-sky-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Halaman Sebelumnya"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(page + 1)}
+                    disabled={page >= totalPages || loading}
+                    className="p-1 rounded-lg border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-sky-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Halaman Selanjutnya"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

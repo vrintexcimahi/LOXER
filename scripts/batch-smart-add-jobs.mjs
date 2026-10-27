@@ -11,7 +11,8 @@ import { execSync } from 'node:child_process';
 import { extractSmartJobAd } from '../services/smartJobExtractorService.js';
 
 const DB_PATH = path.resolve('data/loxer.db');
-const POSTERS_SRC_DIR = path.resolve('C:/Users/SERVER PC/Downloads/IKLAN LOKER/POSTER_IKLAN_LOKER');
+const POSTERS_SRC_DIR = path.resolve('C:/Users/SERVER PC/Pictures/POSTER_IKLAN_LOKER');
+const MULTI_POSISI_DIR = path.join(POSTERS_SRC_DIR, 'IKLAN_MULTI_POSISI');
 const POSTERS_DEST_DIR = path.resolve('public/uploads/posters');
 const CHECKPOINT_PATH = path.resolve('data/smart_add_checkpoint.json');
 const LOCK_FILE = path.resolve('data/batch_poster_worker.lock');
@@ -88,40 +89,98 @@ db.exec('PRAGMA journal_mode = WAL;');
 const adminRow = db.prepare("SELECT id FROM users WHERE id = 'admin-vrintex-root' OR email LIKE '%admin%' OR email = 'vrintex' LIMIT 1").get();
 const defaultAdminId = adminRow ? adminRow.id : 'admin-vrintex-root';
 
-// Read all poster files
-const allFiles = fs.readdirSync(POSTERS_SRC_DIR).filter(f => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.png') || f.toLowerCase().endsWith('.jpeg'));
-console.log(`📁 Total poster tersedia di folder: ${allFiles.length}`);
-console.log(`✅ Total poster yang sudah diproses sebelumnya: ${Object.keys(processedMap).length}`);
+// Build complete queue: Multi-position folders first, then single poster files
+const allQueueItems = [];
 
-const unprocessed = allFiles.filter(f => !processedMap[f]);
-console.log(`⏳ Poster yang belum diproses: ${unprocessed.length}`);
+// 1. Folders in IKLAN_MULTI_POSISI (each folder is 1 integrated ad)
+if (fs.existsSync(MULTI_POSISI_DIR)) {
+  const multiEntries = fs.readdirSync(MULTI_POSISI_DIR, { withFileTypes: true });
+  for (const entry of multiEntries) {
+    if (entry.isDirectory()) {
+      allQueueItems.push({
+        id: `[FOLDER] ${entry.name}`,
+        isFolder: true,
+        name: entry.name,
+        path: path.join(MULTI_POSISI_DIR, entry.name),
+      });
+    }
+  }
+}
+
+// 2. Single files directly in POSTERS_SRC_DIR
+const rootEntries = fs.readdirSync(POSTERS_SRC_DIR, { withFileTypes: true });
+for (const entry of rootEntries) {
+  if (entry.isFile() && /\.(jpg|jpeg|png)$/i.test(entry.name)) {
+    allQueueItems.push({
+      id: entry.name,
+      isFolder: false,
+      name: entry.name,
+      path: path.join(POSTERS_SRC_DIR, entry.name),
+    });
+  }
+}
+
+console.log(`📁 Total unit iklan tersedia: ${allQueueItems.length} (Multi-posisi: ${allQueueItems.filter(i => i.isFolder).length}, Single: ${allQueueItems.filter(i => !i.isFolder).length})`);
+console.log(`✅ Total unit iklan yang sudah diproses sebelumnya: ${Object.keys(processedMap).length}`);
+
+const unprocessed = allQueueItems.filter(i => !processedMap[i.id] && !processedMap[i.name]);
+console.log(`⏳ Unit iklan yang belum diproses: ${unprocessed.length}`);
 
 // Get target batch count from CLI arg, default 20
 const batchLimit = parseInt(process.argv[2] || '20', 10);
 const targetBatch = unprocessed.slice(0, batchLimit);
 
-console.log(`🚀 Menjalankan ekstraksi Smart Add untuk ${targetBatch.length} poster...`);
+console.log(`🚀 Menjalankan ekstraksi Smart Add untuk ${targetBatch.length} iklan...`);
 
 let successCount = 0;
 let failCount = 0;
 
 for (let i = 0; i < targetBatch.length; i++) {
-  const filename = targetBatch[i];
-  const srcPath = path.join(POSTERS_SRC_DIR, filename);
-  console.log(`\n[${i + 1}/${targetBatch.length}] Memproses: ${filename.slice(0, 75)}...`);
+  const item = targetBatch[i];
+  console.log(`\n[${i + 1}/${targetBatch.length}] Memproses ${item.isFolder ? '[MULTI-POSISI]' : '[SINGLE]'}: ${item.name.slice(0, 75)}...`);
 
   try {
-    // 1. Ekstrak teks caption dari nama file
-    let cleanCaption = filename.replace(/\.(jpg|jpeg|png)$/i, '');
-    cleanCaption = cleanCaption.replace(/_[0-9]{4}-[0-9]{2}-[0-9]{2}_.*/, '');
-    cleanCaption = cleanCaption.replace(/^[^_]+_/, '');
-    cleanCaption = cleanCaption.replace(/_/g, ' ');
+    let srcPath = '';
+    let cleanCaption = '';
+    let slideCount = 1;
 
-    // 2. Baca gambar sebagai base64
+    if (item.isFolder) {
+      const folderFiles = fs.readdirSync(item.path);
+      // Primary poster is slide 1 or first jpg
+      const slide1 =
+        folderFiles.find(f => /_01\.(jpg|jpeg|png)$/i.test(f)) ||
+        folderFiles.find(f => /\.(jpg|jpeg|png)$/i.test(f));
+      if (!slide1) throw new Error(`Tidak ditemukan gambar poster di folder ${item.path}`);
+      srcPath = path.join(item.path, slide1);
+
+      // Read iklan_info.json if present
+      const infoJsonPath = path.join(item.path, 'iklan_info.json');
+      let adInfo = null;
+      if (fs.existsSync(infoJsonPath)) {
+        try {
+          adInfo = JSON.parse(fs.readFileSync(infoJsonPath, 'utf8'));
+        } catch {}
+      }
+
+      cleanCaption = adInfo
+        ? `${adInfo.judul_atau_perusahaan} (Paket Iklan ${adInfo.jumlah_posisi_slide} Slide Multi-Posisi)`
+        : item.name;
+      slideCount = adInfo
+        ? adInfo.jumlah_posisi_slide
+        : folderFiles.filter(f => /\.(jpg|jpeg|png)$/i.test(f)).length;
+    } else {
+      srcPath = item.path;
+      cleanCaption = item.name.replace(/\.(jpg|jpeg|png)$/i, '');
+      cleanCaption = cleanCaption.replace(/_[0-9]{4}-[0-9]{2}-[0-9]{2}_.*/, '');
+      cleanCaption = cleanCaption.replace(/^[^_]+_/, '');
+      cleanCaption = cleanCaption.replace(/_/g, ' ');
+    }
+
+    // Baca gambar sebagai base64
     const imgBuf = fs.readFileSync(srcPath);
     const imageBase64 = imgBuf.toString('base64');
 
-    // 3. Panggil Gemini 3.8 melalui smartJobExtractorService
+    // Panggil Gemini 3.8 melalui smartJobExtractorService
     const jobData = await extractSmartJobAd({
       imageBase64,
       postText: cleanCaption,
@@ -133,8 +192,9 @@ for (let i = 0; i < targetBatch.length; i++) {
 
     console.log(`   ✨ AI Result: [${jobData.company_name}] - ${jobData.title} (${jobData.category} | ${jobData.location_city})`);
 
-    // 4. Salin poster ke public/uploads/posters & terapkan sensor privasi LOXER
-    const destPosterName = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${path.extname(filename)}`;
+    // Salin poster ke public/uploads/posters & terapkan sensor privasi LOXER
+    const ext = path.extname(srcPath) || '.jpg';
+    const destPosterName = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
     const destPosterPath = path.join(POSTERS_DEST_DIR, destPosterName);
     fs.copyFileSync(srcPath, destPosterPath);
 
@@ -160,7 +220,7 @@ for (let i = 0; i < targetBatch.length; i++) {
 
     if (existingJob) {
       console.log(`   ⏭️ Lowongan [${cleanJobTitle}] di [${cleanCompName}] sudah terdaftar sebelumnya (ID: ${existingJob.id}), lewati...`);
-      processedMap[filename] = {
+      processedMap[item.id] = {
         job_id: existingJob.id,
         title: cleanJobTitle,
         company: cleanCompName,
@@ -238,10 +298,11 @@ for (let i = 0; i < targetBatch.length; i++) {
     );
 
     // 7. Catat Checkpoint
-    processedMap[filename] = {
+    processedMap[item.id] = {
       job_id: jobId,
       title: jobData.title,
       company: cleanCompName,
+      isFolder: item.isFolder,
       processed_at: now,
     };
     saveCheckpointAtomic(processedMap);
@@ -250,7 +311,7 @@ for (let i = 0; i < targetBatch.length; i++) {
     console.log(`   ✅ Lowongan berhasil dipublikasikan (ID: ${jobId})`);
   } catch (err) {
     failCount++;
-    console.error(`   ❌ Gagal memproses ${filename}:`, err.message);
+    console.error(`   ❌ Gagal memproses ${item.name}:`, err.message);
   }
 }
 
