@@ -52,7 +52,7 @@ const DEFAULT_FALLBACK_QUESTIONS = [
   },
 ];
 
-async function call9RouterChat(messages, temperature = 0.2) {
+async function call9RouterChat(messages, temperature = 0.2, jsonMode = false) {
   if (aiInterviewCircuitBreaker.isOpen()) {
     console.warn('[interviewService] aiInterviewCircuitBreaker is OPEN. Providing fast fallback.');
     return null;
@@ -67,18 +67,23 @@ async function call9RouterChat(messages, temperature = 0.2) {
     const timeout = setTimeout(() => controller.abort(), 35000);
 
     try {
+      const payload = {
+        model,
+        stream: false,
+        temperature,
+        messages,
+      };
+      if (jsonMode) {
+        payload.response_format = { type: 'json_object' };
+      }
+
       const resp = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${ROUTER_API_KEY}`,
         },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          temperature,
-          messages,
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
 
@@ -136,10 +141,14 @@ Format output WAJIB HANYA berupa JSON array valid tanpa markdown formatting tamb
 ]`;
 
   try {
-    const rawAiResponse = await call9RouterChat([
-      { role: 'system', content: 'Anda adalah sistem pewawancara AI LOXER yang memproduksi pertanyaan interview kerja dalam format JSON murni.' },
-      { role: 'user', content: prompt },
-    ]);
+    const rawAiResponse = await call9RouterChat(
+      [
+        { role: 'system', content: 'Anda adalah sistem pewawancara AI LOXER yang memproduksi pertanyaan interview kerja dalam format JSON murni.' },
+        { role: 'user', content: prompt },
+      ],
+      0.7,
+      true
+    );
 
     if (rawAiResponse) {
       let cleaned = rawAiResponse.replace(/^```json/im, '').replace(/^```/im, '').replace(/```$/im, '').trim();
@@ -216,10 +225,14 @@ Format output WAJIB HANYA JSON murni tanpa markdown:
 }`;
 
   try {
-    const rawAiResponse = await call9RouterChat([
-      { role: 'system', content: 'Anda adalah evaluator wawancara AI LOXER yang memproduksi kartu skor JSON murni.' },
-      { role: 'user', content: prompt },
-    ]);
+    const rawAiResponse = await call9RouterChat(
+      [
+        { role: 'system', content: 'Anda adalah evaluator wawancara AI LOXER yang memproduksi kartu skor JSON murni.' },
+        { role: 'user', content: prompt },
+      ],
+      0.3,
+      true
+    );
 
     if (rawAiResponse) {
       let cleaned = rawAiResponse.replace(/^```json/im, '').replace(/^```/im, '').replace(/```$/im, '').trim();

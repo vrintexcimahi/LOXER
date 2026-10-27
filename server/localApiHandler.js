@@ -1642,6 +1642,24 @@ async function handleDbQuery(req, res) {
         }
       }
 
+      // In-Memory Query Cache for high-frequency public reads (Saran 5)
+      const isPublicCacheableTable =
+        table === 'job_listings' ||
+        table === 'talent_marketplace_posts' ||
+        table === 'companies' ||
+        table === 'system_settings';
+
+      const cacheKey = isPublicCacheableTable
+        ? `select::${table}::${JSON.stringify({ filters, order, range, limit, count })}`
+        : null;
+
+      if (cacheKey && jobSearchCache && typeof jobSearchCache.get === 'function') {
+        const cached = jobSearchCache.get(cacheKey);
+        if (cached) {
+          return sendJson(res, 200, cached);
+        }
+      }
+
       const { whereSql, params } = buildWhereClause(filters);
       let orderSql = '';
       if (order && order.column && /^[a-zA-Z0-9_]+$/.test(order.column)) {
@@ -1679,11 +1697,17 @@ async function handleDbQuery(req, res) {
         });
       }
 
-      return sendJson(res, 200, {
+      const responsePayload = {
         data: rows,
         count: exactCount !== null ? exactCount : rows.length,
         error: null,
-      });
+      };
+
+      if (cacheKey && jobSearchCache && typeof jobSearchCache.set === 'function') {
+        jobSearchCache.set(cacheKey, responsePayload, 30 * 1000); // 30 detik TTL
+      }
+
+      return sendJson(res, 200, responsePayload);
     }
 
     // Offload media payload if base64 before writing to SQLite
